@@ -9,8 +9,10 @@ import os
 from celery.schedules import crontab
 from dotenv import load_dotenv
 
-# Load environment variables from .env (project root)
-load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(dotenv_path=BASE_DIR / ".env")
+
 
 # ---------------------------
 # BASE DIR
@@ -194,31 +196,25 @@ if DJANGO_ENV == "production":
 else:
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"  # safe default for dev too
 
-# Local media fallback
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 
 
 # ---------------------------
 # AWS S3 settings (media)
 # ---------------------------
-# We will only switch media storage to S3 in production when AWS env vars exist.
-AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME") or os.getenv("SESIBO_MEDIA_BUCKET")
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "eu-north-1")
-AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com" if AWS_STORAGE_BUCKET_NAME else None
+AWS_QUERYSTRING_AUTH = False  # public URLs
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
 
-# reasonable default object parameters (cache headers)
-AWS_S3_OBJECT_PARAMETERS = {
-    "CacheControl": "max-age=86400",  # 1 day; tweak as needed
-}
+AWS_DEFAULT_ACL = "public-read"
+# Media URL
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
 
-# If in production and AWS credentials + bucket are available, use S3 for media
-if DJANGO_ENV == "production" and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME:
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    AWS_QUERYSTRING_AUTH = False  # public URLs (if you want signed URLs, set True)
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
+
+
 
 # ---------------------------
 # DEFAULT AUTO FIELD
