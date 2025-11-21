@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
+    <h2 style="margin:0 0 12px;">New customer registration</h2>
+
+    <p><strong>Client:</strong> {{ client.name }}</p>
+    <p><strong>User:</strong> {{ user.get_full_name|default:user.username }}</p>
+    <p><strong>Email:</strong> {{ user.email|default:user.username }}</p>
+
+    {% if client_url %}
+      <p><strong>Client page:</strong> <a href="{{ client_url }}">{{ client_url }}</a></p>
+    {% endif %}
+    {% if profile_url %}
+      <p><strong>Profile page:</strong> <a href="{{ profile_url }}">{{ profile_url }}</a></p>
+    {% endif %}
+
+    <p style="margin-top:16px;">Please review and activate as needed.</p>
+  </body>
+</html>

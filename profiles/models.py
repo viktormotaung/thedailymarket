@@ -1,0 +1,263 @@
+from django.conf import settings
+from django.db import models
+from django.contrib.auth.hashers import make_password, check_password
+from clients.models import Client
+from django.utils import timezone
+from datetime import timedelta
+
+def _online_window():
+    # fallback to 5 minutes if not set in settings
+    minutes = getattr(settings, "ONLINE_WINDOW_MINUTES", 5)
+    return timedelta(minutes=minutes)
+
+
+class StaffProfile(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("active", "Active"),
+        ("inactive", "Inactive"),
+    ]
+
+    DEPARTMENT_CHOICES = [
+        ("Operations", "Operations"),
+        ("Sales", "Sales"),
+        ("Logistics", "Logistics"),
+        ("Management", "Management"),
+    ]
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="staff_profile",
+    )
+    job_title = models.CharField(max_length=120, blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+
+    status = models.CharField(
+        max_length=8,
+        choices=STATUS_CHOICES,
+        default="pending",
+        db_index=True,
+        help_text="Approval state of this profile.",
+    )
+
+    department = models.CharField(
+        max_length=20,
+        choices=DEPARTMENT_CHOICES,
+        blank=True,
+        null=True,
+        help_text="Staff department (optional).",
+    )
+
+    # ✅ NEW: allow staff to also be granted Sales portal access explicitly
+    can_access_sales = models.BooleanField(
+        default=False,
+        help_text="Allow this staff member to access the Sales portal.",
+    )
+
+    # store a HASH, not the raw code
+    auth_code_hash = models.CharField(
+        "authorisation code (hashed)",
+        max_length=128,
+        blank=True,
+        help_text="Hashed staff authorisation code; set via admin form.",
+    )
+
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    # ---- helpers for the secret code ----
+    def set_auth_code(self, raw_code: str, *, save: bool = True) -> None:
+        self.auth_code_hash = "" if not raw_code else make_password(raw_code)
+        if save:
+            self.save(update_fields=["auth_code_hash", "updated_at"])
+
+    def verify_auth_code(self, raw_code: str) -> bool:
+        return bool(self.auth_code_hash and check_password(raw_code, self.auth_code_hash))
+
+    # ---- online helpers ----
+    def mark_seen(self, *, save=True):
+        self.last_seen_at = timezone.now()
+        if save:
+            self.save(update_fields=["last_seen_at", "updated_at"])
+
+    @property
+    def is_online(self) -> bool:
+        if not self.last_seen_at:
+            return False
+        return timezone.now() - self.last_seen_at <= _online_window()
+
+    def __str__(self):
+        name = (self.user.get_full_name() or self.user.get_username()).strip()
+        return f"Staff Profile for {name}"
+
+class CustomerProfile(models.Model):
+    PROFILE_CHOICES = [
+        ("PERSONAL", "Personal"),
+        ("BUSINESS", "Business"),
+    ]
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("active", "Active"),
+        ("inactive", "Inactive"),
+    ]
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="customer_profile",
+    )
+
+    profile_type = models.CharField(
+        max_length=10,
+        choices=PROFILE_CHOICES,
+        default="PERSONAL",
+        db_index=True,
+    )
+
+    status = models.CharField(
+        max_length=8,
+        choices=STATUS_CHOICES,
+        default="pending",
+        db_index=True,
+        help_text="Approval state of this profile.",
+    )
+
+    # Common fields
+    phone = models.CharField(max_length=50, blank=True)
+    display_name = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text="How we should address you on documents/communication.",
+    )
+
+    # Business-only linkage
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="user_profiles",
+        help_text="Required when profile type is Business.",
+    )
+
+    # Optional business details (keep it light for now)
+    company_name = models.CharField(max_length=160, blank=True)
+    tax_number = models.CharField(max_length=60, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    # validation
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.profile_type == "BUSINESS" and not self.client:
+            raise ValidationError({"client": "Please link a Client for a Business profile."})
+
+    # convenience
+    @property
+    def is_business(self) -> bool:
+        return self.profile_type == "BUSINESS"
+
+    @property
+    def effective_client(self) -> Client | None:
+        return self.client if self.is_business else None
+
+    # online helpers
+    def mark_seen(self, *, save=True):
+        self.last_seen_at = timezone.now()
+        if save:
+            self.save(update_fields=["last_seen_at", "updated_at"])
+
+    @property
+    def is_online(self) -> bool:
+        if not self.last_seen_at:
+            return False
+        return timezone.now() - self.last_seen_at <= _online_window()
+
+    def __str__(self):
+        who = self.display_name or self.user.get_full_name() or self.user.get_username()
+        return f"{who} · {self.get_profile_type_display()}"
+
+
+class SalesRepProfile(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("active", "Active"),
+        ("inactive", "Inactive"),
+    ]
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sales_rep_profile",
+    )
+
+    # Link to the staff profile (optional if user might not have one yet)
+    staff_profile = models.OneToOneField(
+        "StaffProfile",
+        on_delete=models.CASCADE,
+        related_name="sales_profile",
+        null=True,
+        blank=True,
+        help_text="Link to the staff profile (every sales rep must have a staff profile)."
+    )
+
+    status = models.CharField(
+        max_length=8,
+        choices=STATUS_CHOICES,
+        default="pending",
+        db_index=True,
+        help_text="Approval state of this profile.",
+    )
+
+    # store a HASH, not the raw code
+    auth_code_hash = models.CharField(
+        "authorisation code (hashed)",
+        max_length=128,
+        blank=True,
+        help_text="Hashed staff authorisation code; set via admin form.",
+    )
+
+    # In SalesRepProfile model
+    department = models.CharField(
+        max_length=50,
+        default="Sales",
+        help_text="Department for this sales rep.",
+    )
+
+
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    # ---- helpers for the secret code ----
+    def set_auth_code(self, raw_code: str, *, save: bool = True) -> None:
+        self.auth_code_hash = "" if not raw_code else make_password(raw_code)
+        if save:
+            self.save(update_fields=["auth_code_hash", "updated_at"])
+
+    def verify_auth_code(self, raw_code: str) -> bool:
+        return bool(self.auth_code_hash and check_password(raw_code, self.auth_code_hash))
+
+    # ---- online helpers ----
+    def mark_seen(self, *, save=True):
+        self.last_seen_at = timezone.now()
+        if save:
+            self.save(update_fields=["last_seen_at", "updated_at"])
+
+    @property
+    def is_online(self) -> bool:
+        if not self.last_seen_at:
+            return False
+        return timezone.now() - self.last_seen_at <= _online_window()
+
+    def __str__(self):
+        name = (self.user.get_full_name() or self.user.get_username()).strip()
+        return f"SalesRepProfile for {name}"

@@ -1,0 +1,388 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Seshibo Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* --- Desktop: fixed (non-movable) sidebar --- */
+    @media (min-width: 992px) {
+      html, body { height: 100%; }
+      body { min-height: 100vh; overflow-x: hidden; }
+      .sidebar-desktop {
+        position: fixed; top: 0; left: 0; width: 220px; height: 100vh; overflow-y: auto;
+      }
+      main.content { margin-left: 220px; min-height: 100vh; }
+    }
+
+    /* Shared styles */
+    .sidebar-skin { background-color: #0b5c39; color: #fff; padding: 1rem; }
+    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover { background: rgba(255,255,255,0.15); border-radius: 4px; padding-left: 8px; }
+    .logo-img { max-height: 80px; width: auto; }
+    .content { background: #f8f9fa; padding: 20px; }
+    .sidebar-skin .nav-link.ps-4 { font-size: .95rem; opacity: .95; }
+
+    /* --- Compact chart height --- */
+    .chart-wrap { position: relative; width: 100%; height: 220px; }
+    @media (max-width: 991.98px) { .chart-wrap { height: 180px; } }
+    @media (max-width: 575.98px) { .chart-wrap { height: 150px; } }
+    .chart-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- MOBILE/TABLET TOP BAR -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  <!-- MOBILE OFFCANVAS MENU -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header sidebar-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body sidebar-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+      <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-orders' %}active{% endif %}">Orders</a>
+      <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+      <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#deliveriesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+             aria-controls="deliveriesMenuMobile">
+            <span>Deliveries</span>
+          </a>
+          <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuMobile">
+            <a href="{% url 'warehouse' %}?view=warehouse"
+               class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+              Warehouse
+            </a>
+            <a href="{% url 'delivery' %}?view=runs"
+               class="nav-link ps-4
+                 {% if current_name == 'delivery' %}
+                   {% if request.GET.view %}
+                     {% if request.GET.view == 'runs' %}active{% endif %}
+                   {% else %}
+                     active
+                   {% endif %}
+                 {% endif %}">
+              Delivery Runs
+            </a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+      <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#profilesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+             aria-controls="profilesMenuMobile">
+            <span>Profiles</span>
+          </a>
+          <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuMobile">
+            <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+            <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+            <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+      <hr class="border-light">
+      <form action="{% url 'logout' %}" method="post" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light w-100">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+
+    <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+    <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-orders' %}active{% endif %}">Orders</a>
+    <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+    <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+    <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse" href="#deliveriesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+           aria-controls="deliveriesMenuDesktop">
+          <span>Deliveries</span>
+        </a>
+        <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuDesktop">
+          <a href="{% url 'warehouse' %}?view=warehouse"
+             class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+            Warehouse
+          </a>
+          <a href="{% url 'delivery' %}?view=runs"
+             class="nav-link ps-4
+               {% if current_name == 'delivery' %}
+                 {% if request.GET.view %}
+                   {% if request.GET.view == 'runs' %}active{% endif %}
+                 {% else %}
+                   active
+                 {% endif %}
+               {% endif %}">
+            Delivery Runs
+          </a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+    <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse" href="#profilesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+           aria-controls="profilesMenuDesktop">
+          <span>Profiles</span>
+        </a>
+        <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuDesktop">
+          <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+          <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+          <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+    <div>
+      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+        {% csrf_token %}
+        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+    <div class="d-flex flex-column align-items-center text-center gap-2 mb-3">
+      <h2 class="m-0">Dashboard</h2>
+      <div class="btn-group" role="group" aria-label="Range">
+        <a class="btn {% if range == 'today' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=today">Today</a>
+        <a class="btn {% if range == '7d' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=7d">Last 7 days</a>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <!-- Orders -->
+      <div class="col-xl-6">
+        <div class="card h-100">
+          <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+            <span>Orders</span>
+            <span class="badge text-bg-light">{{ orders|length }} shown</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width:18%">Time</th>
+                    <th>Client</th>
+                    <th style="width:18%">Total</th>
+                    <th style="width:18%">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {% for o in orders %}
+                  <tr onclick="location.href='{% url 'order-view' o.id %}'" style="cursor:pointer">
+                    <td>{{ o.created_at|date:"H:i" }}</td>
+                    <td>{{ o.client.name|default:o.client }}</td>
+                    <td>R{{ o.total|floatformat:2|intcomma }}</td>
+                    <td><span class="badge text-bg-secondary">{{ o.status|title }}</span></td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="4" class="text-muted p-3">No orders in this range.</td></tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deliveries -->
+      <div class="col-xl-6">
+        <div class="card h-100">
+          <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+            <span>Deliveries</span>
+            <span class="badge text-bg-light">{{ deliveries|length }} shown</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width:18%">Time</th>
+                    <th>Run / Ref</th>
+                    <th style="width:18%">Stops</th>
+                    <th style="width:18%">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {% for d in deliveries %}
+                  <tr>
+                    <td>{{ d.created_at|date:"H:i" }}</td>
+                    <td>{{ d.name|default:"#"}} #{{ d.id }}</td>
+                    <td>{{ d.stops_count|default:"—" }}</td>
+                    <td><span class="badge text-bg-secondary">{{ d.status|title }}</span></td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="4" class="text-muted p-3">No deliveries in this range.</td></tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tasks -->
+      <div class="col-xl-6">
+        <div class="card h-100">
+          <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+            <span>Tasks</span>
+            <span class="badge text-bg-light">{{ tasks|length }} shown</span>
+          </div>
+          <ul class="list-group list-group-flush small">
+            {% for t in tasks %}
+              <li class="list-group-item d-flex justify-content-between">
+                <div>
+                  <div class="fw-semibold">{{ t.title }}</div>
+                  <div class="text-muted">{{ t.created_at|date:"Y-m-d H:i" }}</div>
+                </div>
+                <span class="badge text-bg-{{ t.is_done|yesno:'secondary,success' }}">
+                  {{ t.is_done|yesno:"Done,Open" }}
+                </span>
+              </li>
+            {% empty %}
+              <li class="list-group-item text-muted">No tasks in this range.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <!-- Top 4 products -->
+      <div class="col-xl-6">
+        <div class="card h-100">
+          <div class="card-header bg-white fw-semibold">Top 4 Products (by qty)</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Product</th>
+                    <th style="width:20%">Qty</th>
+                    <th style="width:26%">Sales</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {% for p in top_products %}
+                  <tr>
+                    <td>{{ p.name }}</td>
+                    <td>{{ p.qty|intcomma }}</td>
+                    <td>R{{ p.sales|floatformat:2|intcomma }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="3" class="text-muted p-3">No sales in this range.</td></tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sales trend (current month) -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header bg-white fw-semibold">Sales Trend · Current Month (Orders per day)</div>
+          <div class="card-body">
+            <div class="chart-wrap">
+              <canvas id="salesChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    // Chart data from Django
+    const labels = {{ sales_labels|safe }};
+    const dataPoints = {{ sales_data|safe }};
+
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Orders',
+          data: dataPoints,
+          tension: 0.3,
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,   // <-- respect CSS heights
+        plugins: {
+          legend: { display: true },
+          tooltip: { mode: 'index', intersect: false }
+        },
+        scales: {
+          x: { title: { display: false } },
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

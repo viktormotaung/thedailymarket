@@ -1,0 +1,471 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Register Profile · Seshibo Daily Market</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    :root { --brand:#0b5c39; --brand-dark:#094c30; }
+    html, body { height: 100%; }
+    body { background:#f7faf8; display:flex; flex-direction:column; }
+    .brand-text { color: var(--brand); }
+    .card { border-radius: .85rem; }
+    .card-header { background: var(--brand); color:#fff; border-top-left-radius:.85rem; border-top-right-radius:.85rem; }
+    .nav-pills .nav-link { border-radius:.5rem; }
+    .nav-pills .nav-link.active { background: var(--brand); }
+    .btn-brand { background:var(--brand); border-color:var(--brand); color:#fff; }
+    .btn-brand:hover { background:var(--brand-dark); border-color:var(--brand-dark); color:#fff; }
+    .form-hint { font-size:.875rem; color:#6b7280; }
+    .required::after { content:" *"; color:#dc3545; }
+    .field-error { color:#dc3545; font-size:.875rem; }
+    .logo-wrap img { height:120px; }
+    .shadow-soft { box-shadow: 0 10px 28px rgba(0,0,0,.08); }
+    .footer { color:#6b7280; font-size:.85rem; }
+    .divider { height:1px; background:#e9ecef; margin:1rem 0; }
+    .badge-soft { background:#eef6f1; color:#0b5c39; border:1px solid #d7e9df; }
+  </style>
+</head>
+<body>
+
+  <main class="container my-4 my-lg-5">
+    <div class="row justify-content-center">
+      <div class="col-12 col-lg-10 col-xl-9">
+
+        <!-- Logo -->
+        <div class="text-center mb-4 logo-wrap">
+          <a href="/"><img src="{% static 'images/seshibo-logo.png' %}" alt="Seshibo Daily Market"></a>
+        </div>
+
+        <!-- Django messages -->
+        {% if messages %}
+          <div class="mb-3">
+            {% for message in messages %}
+              <div class="alert alert-{{ message.tags }} mb-2">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="card shadow-soft">
+          <div class="card-header">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div>
+                <div class="fw-semibold">Create Your Account</div>
+                <div class="small text-white-50">One quick flow: Sign-in → Personal → Company</div>
+              </div>
+              <span class="badge badge-soft">Secure • Encrypted</span>
+            </div>
+          </div>
+
+          <div class="card-body p-3 p-lg-4">
+
+            <!-- Top-level tabs -->
+            <ul class="nav nav-pills mb-3 justify-content-center" id="registerTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="user-tab" data-bs-toggle="pill" data-bs-target="#tab-user" type="button" role="tab" aria-controls="tab-user" aria-selected="true">Sign-in Info</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="client-tab" data-bs-toggle="pill" data-bs-target="#tab-client" type="button" role="tab" aria-controls="tab-client" aria-selected="false">Personal Info</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="profile-tab" data-bs-toggle="pill" data-bs-target="#tab-profile" type="button" role="tab" aria-controls="tab-profile" aria-selected="false">Company Info</button>
+              </li>
+            </ul>
+
+            <!-- FORM -->
+            <form method="post" novalidate>
+              {% csrf_token %}
+
+              <!-- Error summary (compact and explicit) -->
+              {% if user_form.errors or profile_form.errors or client_form.errors %}
+                <div class="alert alert-danger">
+                  <strong>We couldn’t create your account.</strong>
+                  <div class="small mt-2">
+                    <ul class="m-0 ps-3">
+                      {% for f, errs in user_form.errors.items %}
+                        {% for e in errs %}<li><strong>Sign-in:</strong> {{ e }}</li>{% endfor %}
+                      {% endfor %}
+                      {% for f, errs in profile_form.errors.items %}
+                        {% for e in errs %}<li><strong>Personal:</strong> {{ e }}</li>{% endfor %}
+                      {% endfor %}
+                      {% for f, errs in client_form.errors.items %}
+                        {% for e in errs %}<li><strong>Company:</strong> {{ e }}</li>{% endfor %}
+                      {% endfor %}
+                      {% if client_form.non_field_errors %}
+                        {% for e in client_form.non_field_errors %}<li><strong>Company:</strong> {{ e }}</li>{% endfor %}
+                      {% endif %}
+                    </ul>
+                  </div>
+                </div>
+              {% endif %}
+
+              <div class="tab-content" id="registerTabsContent">
+
+                <!-- USER TAB -->
+                <div class="tab-pane fade show active" id="tab-user" role="tabpanel" aria-labelledby="user-tab">
+                  {% if user_form.non_field_errors %}
+                    <div class="alert alert-danger">{{ user_form.non_field_errors }}</div>
+                  {% endif %}
+
+                  <div class="mb-3">
+                    <label class="form-label required">First Name</label>
+                    {{ user_form.first_name }}
+                    {% for e in user_form.first_name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label required">Last Name</label>
+                    {{ user_form.last_name }}
+                    {% for e in user_form.last_name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label required">Email (will be your username)</label>
+                    {{ user_form.email }}
+                    {% for e in user_form.email.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label required">Password</label>
+                    {{ user_form.password1 }}
+                    {% for e in user_form.password1.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label required">Confirm Password</label>
+                    {{ user_form.password2 }}
+                    {% for e in user_form.password2.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                  </div>
+                </div>
+
+                <!-- PERSONAL INFO TAB -->
+                <div class="tab-pane fade" id="tab-client" role="tabpanel" aria-labelledby="client-tab">
+                  {% if profile_form.non_field_errors %}
+                    <div class="alert alert-danger">{{ profile_form.non_field_errors }}</div>
+                  {% endif %}
+
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label required">Profile Type</label>
+                      {{ profile_form.profile_type }}
+                      {% for e in profile_form.profile_type.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Display Name</label>
+                      {{ profile_form.display_name }}
+                      <div class="form-hint">Auto-filled from your first &amp; last name — you can edit it.</div>
+                      {% for e in profile_form.display_name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+
+                    <div class="col-md-6">
+                      <label class="form-label">Phone</label>
+                      {{ profile_form.phone }}
+                      {% for e in profile_form.phone.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- COMPANY INFO TAB (new client always) -->
+                <div class="tab-pane fade" id="tab-profile" role="tabpanel" aria-labelledby="profile-tab">
+                  {% if client_form.non_field_errors %}
+                    <div class="alert alert-danger">{{ client_form.non_field_errors }}</div>
+                  {% endif %}
+
+                  <p class="form-hint mb-3">We’ll create a <strong>new client</strong> for your account.</p>
+
+                  <!-- Sub-tabs for Company/Client -->
+                  <ul class="nav nav-pills mb-3" id="clientSubTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link active" id="sub-basics-tab" data-bs-toggle="pill" data-bs-target="#sub-basics" type="button" role="tab" aria-controls="sub-basics" aria-selected="true">Basics</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link" id="sub-contacts-tab" data-bs-toggle="pill" data-bs-target="#sub-contacts" type="button" role="tab" aria-controls="sub-contacts" aria-selected="false">Contacts</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link" id="sub-billing-tab" data-bs-toggle="pill" data-bs-target="#sub-billing" type="button" role="tab" aria-controls="sub-billing" aria-selected="false">Billing Address</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link" id="sub-delivery-tab" data-bs-toggle="pill" data-bs-target="#sub-delivery" type="button" role="tab" aria-controls="sub-delivery" aria-selected="false">Delivery Address</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link" id="sub-other-tab" data-bs-toggle="pill" data-bs-target="#sub-other" type="button" role="tab" aria-controls="sub-other" aria-selected="false">Other</button>
+                    </li>
+                  </ul>
+
+                  <div class="tab-content" id="clientSubTabsContent">
+
+                    <!-- BASICS -->
+                    <div class="tab-pane fade show active" id="sub-basics" role="tabpanel" aria-labelledby="sub-basics-tab">
+                      <div class="row g-3">
+                        <div class="col-md-6">
+                          <label class="form-label">Company / Account Name</label>
+                          {{ client_form.name }} {% for e in client_form.name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">Trading Name (optional)</label>
+                          {{ client_form.organization }} {% for e in client_form.organization.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+
+                        <div class="col-md-6">
+                          <label class="form-label">Client Type</label>
+                          {{ client_form.client_type }} {% for e in client_form.client_type.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">Pricing Type</label>
+                          {{ client_form.price_type }} {% for e in client_form.price_type.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- CONTACTS -->
+                    <div class="tab-pane fade" id="sub-contacts" role="tabpanel" aria-labelledby="sub-contacts-tab">
+                      <div class="row g-3">
+                        <div class="col-md-6">
+                          <label class="form-label">Contact Person</label>
+                          {{ client_form.contact_person }} {% for e in client_form.contact_person.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">Email</label>
+                          {{ client_form.email }} {% for e in client_form.email.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">Phone</label>
+                          {{ client_form.phone }} {% for e in client_form.phone.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">WhatsApp</label>
+                          {{ client_form.whatsapp }} {% for e in client_form.whatsapp.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- BILLING -->
+                    <div class="tab-pane fade" id="sub-billing" role="tabpanel" aria-labelledby="sub-billing-tab">
+                      <h6 class="brand-text mb-2">Billing / Main Address</h6>
+                      <div class="row g-3">
+                        <div class="col-md-8">
+                          <label class="form-label">Address Line 1</label>
+                          {{ client_form.address_line1 }} {% for e in client_form.address_line1.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label">Address Line 2</label>
+                          {{ client_form.address_line2 }} {% for e in client_form.address_line2.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+
+                        <div class="col-md-4">
+                          <label class="form-label">Suburb</label>
+                          {{ client_form.suburb }} {% for e in client_form.suburb.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label">City</label>
+                          {{ client_form.city }} {% for e in client_form.city.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label">Province</label>
+                          {{ client_form.province }} {% for e in client_form.province.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label">Postal Code</label>
+                          {{ client_form.postal_code }} {% for e in client_form.postal_code.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+
+                        <div class="col-md-4">
+                          <label class="form-label">Country</label>
+                          {{ client_form.country }} {% for e in client_form.country.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                      </div>
+
+                      <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" id="copy-address">
+                        <label class="form-check-label" for="copy-address">Use billing address as delivery address</label>
+                      </div>
+                    </div>
+
+                    <!-- DELIVERY -->
+                    <div class="tab-pane fade" id="sub-delivery" role="tabpanel" aria-labelledby="sub-delivery-tab">
+                      <h6 class="brand-text mb-2">Delivery Address</h6>
+                      <div class="row g-3">
+                        <div class="col-md-8">
+                          <label class="form-label">Address Line 1</label>
+                          {{ client_form.delivery_address_line1 }} {% for e in client_form.delivery_address_line1.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label">Address Line 2</label>
+                          {{ client_form.delivery_address_line2 }} {% for e in client_form.delivery_address_line2.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+
+                        <div class="col-md-4">
+                          <label class="form-label">Suburb</label>
+                          {{ client_form.delivery_suburb }} {% for e in client_form.delivery_suburb.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label">City</label>
+                          {{ client_form.delivery_city }} {% for e in client_form.delivery_city.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label">Province</label>
+                          {{ client_form.delivery_province }} {% for e in client_form.delivery_province.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label">Postal Code</label>
+                          {{ client_form.delivery_postal_code }} {% for e in client_form.delivery_postal_code.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+
+                        <div class="col-md-4">
+                          <label class="form-label">Country</label>
+                          {{ client_form.delivery_country }} {% for e in client_form.delivery_country.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- OTHER -->
+                    <div class="tab-pane fade" id="sub-other" role="tabpanel" aria-labelledby="sub-other-tab">
+                      <div class="row g-3">
+                        <div class="col-md-4">
+                          <label class="form-label">Estimated Weekly Spend (R)</label>
+                          {{ client_form.estimated_weekly_spend }} {% for e in client_form.estimated_weekly_spend.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-8">
+                          <label class="form-label">Categories</label>
+                          {{ client_form.categories }} {% for e in client_form.categories.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-12">
+                          <label class="form-label">Notes</label>
+                          {{ client_form.notes }} {% for e in client_form.notes.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div><!-- /company tab -->
+
+              </div><!-- /top-level tab-content -->
+
+              <div class="divider"></div>
+
+              <!-- Submit -->
+              <div class="d-grid d-sm-flex justify-content-between align-items-center">
+                <div class="small text-muted mb-3 mb-sm-0">
+                  Already registered? <a href="{% url 'client-login' %}">Sign in</a>
+                </div>
+                <button type="submit" class="btn btn-brand btn-lg">Create Account</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-4 footer">Copyright © {% now "Y" %} Seshibo Daily Market</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Success Modal -->
+  <div class="modal fade" id="registerSuccessModal" tabindex="-1" aria-labelledby="registerSuccessModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header border-0">
+          <h5 class="modal-title brand-text" id="registerSuccessModalLabel">Thank you for registering</h5>
+          <button type="button" class="btn-close" id="close-success-modal" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body pt-0">
+          Your profile is being <strong>reviewed</strong> and you will <strong>receive</strong> an email shortly confirming your profile is active.
+        </div>
+        <div class="modal-footer border-0">
+          <button id="success-ok" type="button" class="btn btn-brand" data-bs-dismiss="modal">Okay</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Jump to the first tab/sub-tab containing errors -->
+  <script>
+  (function(){
+    const order = ["#tab-user","#tab-client","#tab-profile",
+                   "#sub-basics","#sub-contacts","#sub-billing","#sub-delivery","#sub-other"];
+
+    function showTab(target){
+      const btn = document.querySelector(`button[data-bs-target="${target}"]`);
+      if (btn) new bootstrap.Tab(btn).show();
+    }
+
+    for (const sel of order){
+      const pane = document.querySelector(sel);
+      if (!pane) continue;
+      if (pane.querySelector('.field-error, .alert-danger, ul.errorlist')){
+        if (sel.startsWith('#sub-')) showTab('#tab-profile');
+        showTab(sel);
+        break;
+      }
+    }
+  })();
+  </script>
+
+  <!-- Copy Billing → Delivery -->
+  <script>
+  (function(){
+    const copy = document.getElementById('copy-address');
+    if (!copy) return;
+
+    function byId(id){ return document.getElementById(id); }
+    const map = [
+      ['id_client-address_line1',   'id_client-delivery_address_line1'],
+      ['id_client-address_line2',   'id_client-delivery_address_line2'],
+      ['id_client-suburb',          'id_client-delivery_suburb'],
+      ['id_client-city',            'id_client-delivery_city'],
+      ['id_client-province',        'id_client-delivery_province'],
+      ['id_client-postal_code',     'id_client-delivery_postal_code'],
+      ['id_client-country',         'id_client-delivery_country'],
+    ];
+    function copyNow(){
+      map.forEach(([src, dst]) => {
+        const s = byId(src), d = byId(dst);
+        if (s && d) d.value = s.value;
+      });
+    }
+    copy.addEventListener('change', () => { if (copy.checked) copyNow(); });
+  })();
+  </script>
+
+  <!-- Auto-fill display_name from first/last -->
+  <script>
+  (function(){
+    const first = document.getElementById('id_user-first_name');
+    const last  = document.getElementById('id_user-last_name');
+    const disp  = document.getElementById('id_profile-display_name');
+    if (!first || !last || !disp) return;
+
+    let edited = false;
+    disp.addEventListener('input', () => { edited = disp.value.trim() !== ''; });
+
+    function compose(){ return ((first.value||'').trim() + ' ' + (last.value||'').trim()).trim(); }
+    function maybe(){ if (!edited || disp.value.trim()==='') disp.value = compose(); }
+
+    first.addEventListener('input', maybe);
+    last.addEventListener('input',  maybe);
+    if (disp.value.trim()==='') disp.value = compose();
+  })();
+  </script>
+
+  {% if show_success_modal %}
+  <script>
+  (function () {
+    const modalEl = document.getElementById('registerSuccessModal');
+    const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+    modal.show();
+    modalEl.addEventListener('hidden.bs.modal', function () {
+      window.location.href = "{% url 'home' %}";
+    });
+    const submitBtn = document.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+  })();
+  </script>
+  {% endif %}
+</body>
+</html>

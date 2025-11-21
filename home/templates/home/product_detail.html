@@ -1,0 +1,591 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ product.name }} · The Daily Market</title>
+
+  <!-- Bootstrap & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+
+  <style>
+    html, body { height: 100%; }
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+    :root { --brand:#0b5c39; --brand-dark:#094c30; }
+    /* ---------- Base / Navbar (desktop) ---------- */
+    .navbar-brand img { height:85px; max-height:100px; width:auto; }
+    .navbar { background: var(--brand); }
+    .navbar .nav-link, .navbar .navbar-brand, .navbar .dropdown-toggle { color:#fff !important; }
+    .navbar .nav-link:hover { color:#e0e0e0 !important; }
+    .navbar .dropdown-menu.brand {
+      background:#0b5c39; border:1px solid #094c30; box-shadow:0 8px 24px rgba(0,0,0,.25);
+    }
+    .navbar .dropdown-item { color:#fff; }
+    .navbar .dropdown-item:hover { background:#094c30; color:#fff; }
+    .navbar .dropdown-divider { border-color:rgba(255,255,255,.2); }
+
+    /* Normalize tab spacing/shape */
+    .navbar .navbar-nav { align-items:center; gap:.25rem; }
+    .navbar .nav-link {
+      display:inline-flex; align-items:center;
+      padding:.6rem 1rem; line-height:1; font-weight:500; border-radius:.375rem;
+    }
+    .navbar .nav-link:hover,
+    .navbar .nav-link:focus-visible { background:rgba(255,255,255,.10); color:#fff !important; }
+    .navbar .nav-link.active { background:rgba(255,255,255,.18); }
+
+    .hero{ background:#f7faf8; }
+    .price-big{ font-size:1.5rem; font-weight:800; color:var(--brand-dark); }
+    .badge-available{background:#e8f5ee; color:#0b5c39; border:1px solid #cfeadf;}
+    .badge-out{background:#fdecea; color:#a33a2b; border:1px solid #f4b7ae;}
+    .btn-brand{ background:var(--brand); border-color:var(--brand); color:#fff; }
+    .btn-brand:hover{ background:var(--brand-dark); border-color:var(--brand-dark); color:#fff; }
+
+    @media (min-width: 992px){
+      .col-lg-70{flex:0 0 70%; max-width:70%;}
+      .col-lg-30{flex:0 0 30%; max-width:30%;}
+    }
+
+    /* Variations grid */
+    .variant-card { position: relative; cursor: pointer; }
+    .variant-card .price-bar{
+      border-top:1px solid #eee;
+      padding:.5rem .75rem;
+      text-align:center;
+      font-weight:700;
+    }
+    .variant-card .meta{
+      font-size:.8rem;
+      color:#6c757d;
+      text-align:center;
+      padding:.25rem .75rem .75rem;
+    }
+    .object-fit-cover{ object-fit:cover; height:180px; }
+
+    /* ---------- Mobile top bar + offcanvas ---------- */
+    .offcanvas-header.brand-skin { background:#0b5c39; color:#fff; }
+    .offcanvas-body.brand-skin { background:#0b5c39; color:#fff; }
+    .offcanvas-body .nav-link { color:#fff; padding:.55rem 0; }
+    .offcanvas-body .nav-link:hover { color:#d4f3e3; }
+  
+    /* Active highlight inside green offcanvas (mobile) */
+    .offcanvas-body.brand-skin .nav-link.active,
+    .offcanvas-body.brand-skin .nav-link:focus,
+    .offcanvas-body.brand-skin .nav-link:hover,
+    .offcanvas-body.brand-skin .dropdown-item.active,
+    .offcanvas-body.brand-skin .dropdown-item:focus,
+    .offcanvas-body.brand-skin .dropdown-item:hover {
+      background: rgba(255,255,255,.18);
+      border-radius: .375rem;
+      padding-left: .5rem;
+      color:#fff;
+    }
+    .offcanvas-body.brand-skin .text-uppercase.small.opacity-75 {
+      color: rgba(255,255,255,.75) !important;
+    }
+    /* Footer */
+    footer { background:#0b5c39; color:#fff; }
+    footer a { color:#fff; }
+    footer a:hover { color:#d4f3e3; text-decoration:underline; }
+    .footer .border-light { border-color:rgba(255,255,255,.35) !important; }
+    @media (max-width:991.98px){ .navbar-brand img{ height:40px; } }
+  </style>
+</head>
+<body>
+  <!-- Auth/Profile flags for JS gating -->
+  <script>
+    const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};
+    /* If you have a view-provided boolean like has_customer_profile, prefer that here. */
+    const HAS_PROFILE = {% if request.user.is_authenticated and request.user.customer_profile %}true{% else %}false{% endif %};
+  </script>
+
+  <!-- ===== NAV (mobile) ===== -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="offcanvas" data-bs-target="#mobileMenu"
+              aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="/"><img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="height:40px;"></a>
+    </div>
+  </nav>
+
+  <!-- Offcanvas menu (mobile) -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header brand-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body brand-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="max-height:80px; width:auto;">
+      </div>
+
+      <!-- Top-level -->
+      <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-bs-dismiss="offcanvas">Home</a>
+      <a href="{% url 'about' %}" class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" data-bs-dismiss="offcanvas">About</a>
+
+      <!-- Divisions -->
+      <div class="mt-2 text-uppercase small opacity-75">Divisions</div>
+      <a href="{% url 'wholesale' %}" class="nav-link {% if request.path == '/wholesale/' %}active{% endif %}" data-bs-dismiss="offcanvas">Wholesale Trade</a>
+      <a href="{% url 'retail' %}" class="nav-link {% if request.path == '/retail/' %}active{% endif %}" data-bs-dismiss="offcanvas">Retail Express</a>
+      <a href="{% url 'grill' %}" class="nav-link {% if request.path == '/grill/' %}active{% endif %}" data-bs-dismiss="offcanvas">Grill Experience</a>
+
+      <hr class="border-light my-3">
+
+      <a href="{% url 'become_supplier' %}" class="nav-link {% if request.resolver_match.url_name == 'become_supplier' or request.path == '/become_supplier/' %}active{% endif %}" data-bs-dismiss="offcanvas">Become A Supplier</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}" data-bs-dismiss="offcanvas">Products</a>
+      <a class="nav-link requires-auth {% if request.resolver_match.url_name == 'wholesale_assist' or request.path == '/wholesale_assist/' %}active{% endif %}" href="{% url 'wholesale_assist' %}" data-bs-dismiss="offcanvas">Trade Assist</a>
+
+      <!-- Orders -->
+      <div class="mt-2 text-uppercase small opacity-75">Orders</div>
+      <a class="nav-link requires-auth {% if request.path == '/orders/' %}active{% endif %}" href="{% url 'orders' %}" data-bs-dismiss="offcanvas">My Orders</a>
+      <a class="nav-link requires-auth {% if request.path == '/cart/' %}active{% endif %}" href="{% url 'cart' %}" data-bs-dismiss="offcanvas">Cart</a>
+
+      <a href="{% url 'contact' %}" class="nav-link mt-3 {% if request.path == '/contact/' %}active{% endif %}" data-bs-dismiss="offcanvas">Contact</a>
+
+      <hr class="border-light my-3">
+
+      {% if user.is_authenticated %}
+        <a href="/profile/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">My Profile</a>
+        <a href="/settings/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">Settings</a>
+        <form action="{% url 'logout' %}" method="post" class="mt-1">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-light w-100">Sign out</button>
+        </form>
+      {% else %}
+        <div class="text-uppercase small opacity-75">Sign in</div>
+        <a href="{% url 'client-login' %}" class="btn btn-outline-light w-100 mt-2">Client</a>
+        <a href="{% url 'staff-login' %}" target="_blank" class="btn btn-outline-light w-100 mt-2">Staff</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ========== DESKTOP NAVBAR (visible ≥ lg) ========== -->
+  <nav class="navbar navbar-expand-lg navbar-dark border-bottom d-none d-lg-block">
+    <div class="container d-flex align-items-center">
+      <a class="navbar-brand me-auto" href="/">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market">
+      </a>
+
+      <div id="nav" class="navbar-collapse justify-content-center">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">Home</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" href="/about/">About</a>
+          </li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle {% if request.path == '/grill/' or request.path == '/retail/' or request.path == '/wholesale/' %}active{% endif %}"
+               href="/divisions/" id="divisionsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Divisions
+            </a>
+            <ul class="dropdown-menu brand" aria-labelledby="divisionsDropdown">
+              <li><a class="dropdown-item {% if request.path == '/wholesale/' %}active{% endif %}" href="/wholesale/">Wholesale Trade</a></li>
+              <li><a class="dropdown-item {% if request.path == '/retail/' %}active{% endif %}" href="/retail/">Retail Express</a></li>
+              <li><a class="dropdown-item {% if request.path == '/grill/' %}active{% endif %}" href="/grill/">Grill Experience</a></li>
+            </ul>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'become_supplier' or request.path == '/become_supplier/' %}active{% endif %}"
+               href="/become_supplier/">Become A Supplier</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}"
+               href="{% url 'products' %}">Products</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link requires-auth {% if request.resolver_match.url_name == 'wholesale_assist' or request.path == '/wholesale_assist/' %}active{% endif %}"
+               href="{% url 'wholesale_assist' %}">Trade Assist</a>
+          </li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle requires-auth {% if request.path == '/orders/' or request.path == '/cart/' %}active{% endif %}"
+               href="/order/" id="orderDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Orders
+            </a>
+            <ul class="dropdown-menu brand" aria-labelledby="orderDropdown">
+              <li><a class="dropdown-item requires-auth {% if request.path == '/orders/' %}active{% endif %}" href="/orders/">My Orders</a></li>
+              <li><a class="dropdown-item requires-auth {% if request.path == '/cart/' %}active{% endif %}" href="/cart/">Cart</a></li>
+            </ul>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == '/contact/' %}active{% endif %}" href="/contact/">Contact</a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="dropdown ms-auto">
+        <a class="nav-link p-0 dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-person-circle fs-4"></i>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end brand">
+          {% if user.is_authenticated %}
+            <li><a class="dropdown-item" href="/profile/">My Profile</a></li>
+            <li><a class="dropdown-item" href="/settings/">Settings</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form action="{% url 'logout' %}" method="post" class="px-3">
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item p-0 btn btn-link text-white">Sign out</button>
+              </form>
+            </li>
+          {% else %}
+            <li class="dropdown-header text-white-50">Sign in</li>
+            <li><a class="dropdown-item" href="{% url 'client-login' %}">Client</a></li>
+            <li><a class="dropdown-item" href="{% url 'staff-login' %}">Staff</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== Header / top summary ===== -->
+  <section class="hero py-4">
+    <div class="container">
+      <nav aria-label="breadcrumb" class="small mb-2">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'products' %}">Products</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'products' %}?category={{ product.category.id }}">{{ product.category.name }}</a></li>
+          <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
+        </ol>
+      </nav>
+
+      <div class="row g-4 align-items-start">
+        <div class="col-md-5">
+          {% if product.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid rounded shadow-sm">
+          {% else %}
+            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height:320px;">
+              <i class="bi bi-image text-muted" style="font-size:3rem;"></i>
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-7">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <h1 class="h3 mb-0">{{ product.name }}</h1>
+            <span class="badge rounded-pill {% if product.is_available|default:True %}badge-available{% else %}badge-out{% endif %}">
+              {% if product.is_available|default:True %}In stock{% else %}Out{% endif %}
+            </span>
+          </div>
+
+          <div class="small text-muted mb-2">
+            SKU <strong>{{ product.sku }}</strong> • {{ product.category.name }} • {{ product.get_uom_display }}
+          </div>
+
+          <div class="text-muted small">Prices per {{ product.get_uom_display|lower }}</div>
+
+          <!-- Headline prices -->
+          <div class="d-flex flex-wrap gap-5 my-3">
+            <div>
+              <div class="text-muted small">Price (ex VAT)</div>
+              <div class="price-big">{% if wholesale_ex %}R {{ wholesale_ex|floatformat:2|intcomma }}{% else %}R —{% endif %}</div>
+            </div>
+          </div>
+
+          <!-- Add to cart -->
+          <form id="addToCartForm" method="post" action="{% url 'cart' %}" class="d-flex align-items-center gap-2">
+            {% csrf_token %}
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+            <div class="input-group" style="max-width:260px;">
+              <span class="input-group-text">Qty ({{ product.get_uom_display }})</span>
+              <input type="number" name="qty" value="1" min="1" class="form-control">
+            </div>
+            <button class="btn btn-brand" type="submit">
+              <i class="bi bi-bag-plus me-1"></i>Add to cart
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Lower: Variations (<=4) + Description ===== -->
+  <section class="py-5 border-top">
+    <div class="container">
+      <div class="row g-5 d-lg-flex">
+
+        <!-- Variations grid (pre-packed) -->
+      <!-- Variations grid (pre-packed) -->
+      <!-- Variations grid (pre-packed) -->
+      <div class="col-12 col-lg-70">
+        <h5 class="mb-3">Pre-packed options</h5>
+
+        <style>
+          /* Equal, tidy cards */
+          .variants .card.variant-card{
+            border-radius:.75rem; overflow:hidden;
+            border:1px solid rgba(0,0,0,.06);
+            transition:transform .12s ease, box-shadow .12s ease;
+            height:100%;
+          }
+          .variants .card.variant-card:hover{ transform:translateY(-2px); box-shadow:0 10px 28px rgba(0,0,0,.12); }
+          .variants .ratio{ --bs-aspect-ratio:70%; background:#f8faf9; }
+          .variants .price-pill{
+            position:absolute; top:.75rem; left:.75rem;
+            background:#0b5c39; color:#fff; font-weight:700; font-size:.9rem;
+            padding:.35rem .6rem; border-radius:.5rem; box-shadow:0 6px 18px rgba(11,92,57,.25);
+          }
+          .variants .variant-footer{
+            border-top:1px solid rgba(0,0,0,.06);
+            padding:.75rem; display:flex; gap:.5rem; align-items:stretch;
+          }
+          .variants .input-group-text{ background:#f7f9f8; }
+          .variants .btn-brand{ background:#0b5c39; border-color:#0b5c39; color:#fff; }
+          .variants .btn-brand:hover{ background:#094c30; border-color:#094c30; color:#fff; }
+        </style>
+
+        {% if product.variants.all|length %}
+          <!-- row-cols keeps equal column widths at each breakpoint -->
+          <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 variants">
+            {% for v in product.variants.all|slice:":4" %}
+
+              {% if selected_channel == 'wholesale' %}
+                {% with price=v.wholesale_price_override %}
+                  <div class="col">
+                    <div class="card variant-card position-relative">
+                      <div class="price-pill">
+                        {% if price %}R {{ price|floatformat:2|intcomma }} <small>ex VAT</small>{% else %}<small>Price</small> —{% endif %}
+                      </div>
+
+                      <div class="ratio">
+                        {% if v.image %}
+                          <img src="{{ v.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ v.name|default_if_none:product.name }}">
+                        {% elif product.image %}
+                          <img src="{{ product.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ product.name }}">
+                        {% else %}
+                          <div class="d-flex align-items-center justify-content-center w-100 h-100 text-muted">
+                            <i class="bi bi-box-seam" style="font-size:2rem;"></i>
+                          </div>
+                        {% endif %}
+                      </div>
+
+                      <div class="card-body pb-0">
+                        <div class="fw-semibold">{{ v.name|default_if_none:"" }}{% if not v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% endif %}</div>
+                        <div class="text-muted small">
+                          {% if v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% else %}&nbsp;{% endif %}
+                        </div>
+                      </div>
+
+                      <div class="variant-footer">
+                        <form method="post" action="{% url 'cart' %}" class="d-flex w-100 gap-2">
+                          {% csrf_token %}
+                          <input type="hidden" name="product_id" value="{{ product.id }}">
+                          <input type="hidden" name="variant_id" value="{{ v.id }}">
+                          <div class="input-group">
+                            <span class="input-group-text">Qty</span>
+                            <input type="number" name="qty" value="1" min="1" class="form-control">
+                          </div>
+                          <button class="btn btn-brand flex-fill" type="submit" {% if not price %}disabled{% endif %}>
+                            <i class="bi bi-bag-plus me-1"></i> Add to cart
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                {% endwith %}
+              {% else %}
+                {% with price=v.retail_price_override %}
+                  <div class="col">
+                    <div class="card variant-card position-relative">
+                      <div class="price-pill">
+                        {% if price %}R {{ price|floatformat:2|intcomma }} <small>ex VAT</small>{% else %}<small>Price</small> —{% endif %}
+                      </div>
+
+                      <div class="ratio">
+                        {% if v.image %}
+                          <img src="{{ v.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ v.name|default_if_none:product.name }}">
+                        {% elif product.image %}
+                          <img src="{{ product.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ product.name }}">
+                        {% else %}
+                          <div class="d-flex align-items-center justify-content-center w-100 h-100 text-muted">
+                            <i class="bi bi-box-seam" style="font-size:2rem;"></i>
+                          </div>
+                        {% endif %}
+                      </div>
+
+                      <div class="card-body pb-0">
+                        <div class="fw-semibold">{{ v.name|default_if_none:"" }}{% if not v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% endif %}</div>
+                        <div class="text-muted small">
+                          {% if v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% else %}&nbsp;{% endif %}
+                        </div>
+                      </div>
+
+                      <div class="variant-footer">
+                        <form method="post" action="{% url 'cart' %}" class="d-flex w-100 gap-2">
+                          {% csrf_token %}
+                          <input type="hidden" name="product_id" value="{{ product.id }}">
+                          <input type="hidden" name="variant_id" value="{{ v.id }}">
+                          <div class="input-group">
+                            <span class="input-group-text">Qty</span>
+                            <input type="number" name="qty" value="1" min="1" class="form-control">
+                          </div>
+                          <button class="btn btn-brand flex-fill" type="submit" {% if not price %}disabled{% endif %}>
+                            <i class="bi bi-bag-plus me-1"></i> Add to cart
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                {% endwith %}
+              {% endif %}
+
+            {% endfor %}
+          </div>
+
+          <div class="small text-muted mt-2">
+            Showing up to four variations. Prices reflect <strong>{{ selected_channel|default:'retail'|title }}</strong> overrides where set (ex VAT).
+          </div>
+        {% else %}
+          <div class="alert alert-light border d-flex align-items-center" role="alert">
+            <i class="bi bi-info-circle me-2"></i>
+            <div>No product variations available yet.</div>
+          </div>
+        {% endif %}
+      </div>
+
+
+
+
+      <!-- Description -->
+      <div class="col-12 col-lg-30">
+        <h5 class="mb-3">Description</h5>
+        {% if product.description %}
+          <p class="text-muted mb-0">{{ product.description }}</p>
+        {% else %}
+          <p class="text-muted mb-0">Detailed product information will appear here soon.</p>
+        {% endif %}
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="mt-auto">
+    <div class="container py-4 text-center small">© {% now "Y" %} The Daily Market • Quality You Can Trust</div>
+  </footer>
+
+  <!-- Unified modal for auth/profile gating -->
+  <div class="modal fade" id="authProfileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center">
+        <div class="modal-header d-block border-0">
+          <h5 class="modal-title w-100" id="authProfileModalTitle">Action required</h5>
+          <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="authProfileModalBody"></div>
+        <div class="modal-footer justify-content-center border-0" id="authProfileModalFooter"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function showActionModal({ title, bodyHtml, footerHtml }) {
+      const modalEl = document.getElementById('authProfileModal');
+      document.getElementById('authProfileModalTitle').textContent = title || 'Action required';
+      document.getElementById('authProfileModalBody').innerHTML = bodyHtml || '';
+      document.getElementById('authProfileModalFooter').innerHTML = footerHtml || '';
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+    }
+
+    // Add-to-cart gate
+    document.getElementById('addToCartForm')?.addEventListener('submit', function(e){
+      if (!IS_AUTHENTICATED) {
+        e.preventDefault();
+        showActionModal({
+          title: 'Sign in required',
+          bodyHtml: 'Please sign in or register to add items to your cart.',
+          footerHtml: `
+            <a class="btn btn-outline-secondary" href="{% url 'client-login' %}">Sign In</a>
+            <a class="btn btn-primary" href="/portal/client/register/">Register</a>
+          `
+        });
+        return;
+      }
+      if (!HAS_PROFILE) {
+        e.preventDefault();
+        showActionModal({
+          title: 'Complete your profile',
+          bodyHtml: 'You need a customer profile before you can add items to your cart.',
+          footerHtml: `
+            <a class="btn btn-outline-secondary" href="/portal/client/register/">Create Profile</a>
+            <a class="btn btn-primary" href="/profile/">Go to My Profile</a>
+          `
+        });
+      }
+    });
+
+    // Gate .requires-auth links/buttons
+    document.addEventListener('click', function (e) {
+      const el = e.target.closest('.requires-auth');
+      if (!el) return;
+
+      if (!IS_AUTHENTICATED) {
+        e.preventDefault();
+        showActionModal({
+          title: 'Sign in required',
+          bodyHtml: 'Please sign in or register to access this feature.',
+          footerHtml: `
+            <a class="btn btn-outline-secondary" href="{% url 'client-login' %}">Sign In</a>
+            <a class="btn btn-primary" href="/portal/client/register/">Register</a>
+          `
+        });
+        return;
+      }
+      if (!HAS_PROFILE) {
+        e.preventDefault();
+        showActionModal({
+          title: 'Complete your profile',
+          bodyHtml: 'You need a customer profile to access this feature.',
+          footerHtml: `
+            <a class="btn btn-outline-secondary" href="/portal/client/register/">Create Profile</a>
+            <a class="btn btn-primary" href="/profile/">Go to My Profile</a>
+          `
+        });
+      }
+    });
+
+    // Close offcanvas then navigate
+    (function () {
+      if (typeof bootstrap === "undefined") return;
+      const offcanvasEl = document.getElementById("mobileMenu");
+      if (!offcanvasEl) return;
+
+      const selectors = [
+        "#mobileMenu a.nav-link",
+        "#mobileMenu a.dropdown-item",
+        "#mobileMenu .btn.btn-outline-light",
+        "#mobileMenu a.btn"
+      ].join(",");
+
+      offcanvasEl.querySelectorAll(selectors).forEach(function (el) {
+        el.addEventListener("click", function (e) {
+          const href = el.getAttribute("href") || "";
+          if (!href || href === "#" || href.startsWith("javascript:")) return;
+
+          e.preventDefault();
+          const oc = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+          offcanvasEl.addEventListener("hidden.bs.offcanvas", function () {
+            window.location.href = href;
+          }, { once: true });
+          oc.hide();
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

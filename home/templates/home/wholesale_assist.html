@@ -1,0 +1,723 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Wholesale Assist · The Daily Market</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root { --brand:#0b5c39; --brand-dark:#094c30; }
+
+    /* Base / Navbar (desktop) */
+    .navbar-brand img { height:85px; max-height:100px; width:auto; }
+    .navbar { background: var(--brand); }
+    .navbar .nav-link, .navbar .navbar-brand, .navbar .dropdown-toggle { color:#fff !important; }
+    .navbar .nav-link:hover { color:#e0e0e0 !important; }
+    .navbar .dropdown-menu.brand { background:#0b5c39; border:1px solid #094c30; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+    .navbar .dropdown-item { color:#fff; }
+    .navbar .dropdown-item:hover { background:#094c30; color:#fff; }
+    .navbar .dropdown-divider { border-color:rgba(255,255,255,.2); }
+
+    .navbar .navbar-nav { align-items:center; gap:.25rem; }
+    .navbar .nav-link { display:inline-flex; align-items:center; padding:.6rem 1rem; line-height:1; font-weight:500; border-radius:.375rem; }
+    .navbar .nav-link:hover, .navbar .nav-link:focus-visible { background:rgba(255,255,255,.10); color:#fff !important; }
+    .navbar .nav-link.active { background:rgba(255,255,255,.18); }
+
+    /* Mobile top bar + offcanvas */
+    .offcanvas-header.brand-skin { background:#0b5c39; color:#fff; }
+    .offcanvas-body.brand-skin { background:#0b5c39; color:#fff; }
+    .offcanvas-body .nav-link { color:#fff; padding:.55rem 0; }
+    .offcanvas-body .nav-link:hover { color:#d4f3e3; }
+    .offcanvas-body.brand-skin .nav-link.active,
+    .offcanvas-body.brand-skin .nav-link:focus,
+    .offcanvas-body.brand-skin .nav-link:hover,
+    .offcanvas-body.brand-skin .dropdown-item.active,
+    .offcanvas-body.brand-skin .dropdown-item:focus,
+    .offcanvas-body.brand-skin .dropdown-item:hover {
+      background: rgba(255,255,255,.18);
+      border-radius: .375rem;
+      padding-left: .5rem;
+      color:#fff;
+    }
+    .offcanvas-body.brand-skin .text-uppercase.small.opacity-75 { color: rgba(255,255,255,.75) !important; }
+
+    /* Bits */
+    .btn-brand { background:var(--brand); border-color:var(--brand); color:#fff; }
+    .btn-brand:hover { background:var(--brand-dark); border-color:var(--brand-dark); color:#fff; }
+    .badge-soft { background:#eef6f1; color:#0b5c39; border:1px solid #d7e9df; }
+    .card h6, .card .small { margin:0; }
+    .table > :not(caption) > * > * { vertical-align: middle; }
+    .progress { height: 14px; }
+    .sticky-hero { position: sticky; top: 0; z-index: 5; background:#f7faf8; padding-top: 1rem; }
+
+    /* Tiny marker below progress bar to show 4-week threshold */
+    .threshold-line {
+      height: 2px;
+      background: repeating-linear-gradient(90deg, rgba(11,92,57,.35), rgba(11,92,57,.35) 8px, transparent 8px, transparent 16px);
+      position: relative;
+    }
+    .threshold-line .marker-4 {
+      position: absolute; top: -6px; height: 8px; width: 2px; background:#0b5c39;
+    }
+
+    /* Footer */
+    footer { background:#0b5c39; color:#fff; }
+    footer a { color:#fff; }
+    footer a:hover { color:#d4f3e3; text-decoration:underline; }
+    .footer .border-light { border-color:rgba(255,255,255,.35) !important; }
+
+    @media (max-width:991.98px){ .navbar-brand img{ height:40px; } }
+  </style>
+</head>
+<body>
+
+  <!-- Auth flag for JS gating -->
+  <script>const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};</script>
+
+  <!-- MOBILE/TABLET TOP BAR -->
+  <nav class="navbar navbar-dark d-lg-none mobile-topbar">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="offcanvas" data-bs-target="#mobileMenu"
+              aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="/">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market">
+      </a>
+    </div>
+  </nav>
+
+  <!-- Offcanvas menu (mobile) -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header brand-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+
+    <div class="offcanvas-body brand-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="max-height:80px; width:auto;">
+      </div>
+
+      <!-- Top-level -->
+      <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-bs-dismiss="offcanvas">Home</a>
+      <a href="{% url 'about' %}" class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" data-bs-dismiss="offcanvas">About</a>
+
+      <!-- Divisions -->
+      <div class="mt-2 text-uppercase small opacity-75">Divisions</div>
+      <a href="{% url 'wholesale' %}" class="nav-link {% if request.path == '/wholesale/' %}active{% endif %}" data-bs-dismiss="offcanvas">Wholesale Trade</a>
+      <a href="{% url 'retail' %}" class="nav-link {% if request.path == '/retail/' %}active{% endif %}" data-bs-dismiss="offcanvas">Retail Express</a>
+      <a href="{% url 'grill' %}" class="nav-link {% if request.path == '/grill/' %}active{% endif %}" data-bs-dismiss="offcanvas">Grill Experience</a>
+
+      <hr class="border-light my-3">
+
+      <a href="{% url 'become_supplier' %}" class="nav-link {% if request.resolver_match.url_name == 'become_supplier' or request.path == '/become_supplier/' %}active{% endif %}" data-bs-dismiss="offcanvas">Become A Supplier</a>
+      <a class="nav-link requires-auth {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}" data-bs-dismiss="offcanvas">Products</a>
+      <a class="nav-link requires-auth {% if request.resolver_match.url_name == 'wholesale_assist' or request.path == '/wholesale_assist/' %}active{% endif %}" href="{% url 'wholesale_assist' %}" data-bs-dismiss="offcanvas">Trade Assist</a>
+
+      <div class="mt-2 text-uppercase small opacity-75">Orders</div>
+      <a class="nav-link requires-auth {% if request.path == '/orders/' %}active{% endif %}" href="{% url 'orders' %}" data-bs-dismiss="offcanvas">My Orders</a>
+      <a class="nav-link requires-auth {% if request.path == '/cart/' %}active{% endif %}" href="{% url 'cart' %}" data-bs-dismiss="offcanvas">Cart</a>
+
+      <a href="{% url 'contact' %}" class="nav-link mt-3 {% if request.path == '/contact/' %}active{% endif %}" data-bs-dismiss="offcanvas">Contact</a>
+
+      <hr class="border-light my-3">
+
+      {% if user.is_authenticated %}
+        <a href="/profile/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">My Profile</a>
+        <a href="/settings/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">Settings</a>
+        <form action="{% url 'logout' %}" method="post" class="mt-1">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-light w-100">Sign out</button>
+        </form>
+      {% else %}
+        <div class="text-uppercase small opacity-75">Sign in</div>
+        <a href="{% url 'client-login' %}" class="btn btn-outline-light w-100 mt-2">Client</a>
+        <a href="{% url 'staff-login' %}" target="_blank" class="btn btn-outline-light w-100 mt-2">Staff</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- DESKTOP NAVBAR (≥ lg) -->
+  <nav class="navbar navbar-expand-lg navbar-dark border-bottom d-none d-lg-block">
+    <div class="container d-flex align-items-center">
+      <a class="navbar-brand me-auto" href="/"><img src="{% static 'images/logo.png' %}" alt="The Daily Market"></a>
+
+      <div id="nav" class="navbar-collapse justify-content-center">
+        <ul class="navbar-nav">
+          <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">Home</a></li>
+          <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" href="/about/">About</a></li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle {% if request.path == '/grill/' or request.path == '/retail/' or request.path == '/wholesale/' %}active{% endif %}" href="/divisions/" id="divisionsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Divisions</a>
+            <ul class="dropdown-menu brand" aria-labelledby="divisionsDropdown">
+              <li><a class="dropdown-item {% if request.path == '/wholesale/' %}active{% endif %}" href="/wholesale/">Wholesale Trade</a></li>
+              <li><a class="dropdown-item {% if request.path == '/retail/' %}active{% endif %}" href="/retail/">Retail Express</a></li>
+              <li><a class="dropdown-item {% if request.path == '/grill/' %}active{% endif %}" href="/grill/">Grill Experience</a></li>
+            </ul>
+          </li>
+
+          <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'become_supplier' or request.path == '/become_supplier/' %}active{% endif %}" href="/become_supplier/">Become A Supplier</a></li>
+          <li class="nav-item"><a class="nav-link requires-auth {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}">Products</a></li>
+          <li class="nav-item"><a class="nav-link requires-auth {% if request.resolver_match.url_name == 'wholesale_assist' or request.path == '/wholesale_assist/' %}active{% endif %}" href="{% url 'wholesale_assist' %}">Trade Assist</a></li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle {% if request.path == '/orders/' or request.path == '/cart/' %}active{% endif %}" href="/order/" id="orderDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Orders</a>
+            <ul class="dropdown-menu brand" aria-labelledby="orderDropdown">
+              <li><a class="dropdown-item {% if request.path == '/orders/' %}active{% endif %}" href="/orders/">My Orders</a></li>
+              <li><a class="dropdown-item {% if request.path == '/cart/' %}active{% endif %}" href="/cart/">Cart</a></li>
+            </ul>
+          </li>
+
+          <li class="nav-item"><a class="nav-link {% if request.path == '/contact/' %}active{% endif %}" href="/contact/">Contact</a></li>
+        </ul>
+      </div>
+
+      <div class="dropdown ms-auto">
+        <a class="nav-link p-0 dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-person-circle fs-4"></i>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end brand">
+          {% if user.is_authenticated %}
+            <li><a class="dropdown-item" href="/profile/">My Profile</a></li>
+            <li><a class="dropdown-item" href="/settings/">Settings</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form action="{% url 'logout' %}" method="post" class="px-3">
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item p-0 btn btn-link text-white">Sign out</button>
+              </form>
+            </li>
+          {% else %}
+            <li class="dropdown-header text-white-50">Sign in</li>
+            <li><a class="dropdown-item" href="{% url 'client-login' %}">Client</a></li>
+            <li><a class="dropdown-item" href="{% url 'staff-login' %}">Staff</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- PAGE -->
+  <main class="site-main">
+    <div class="container py-4" style="max-width:1100px;">
+
+      <!-- Page title / Client -->
+      <div class="sticky-hero mb-3">
+        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+          <div class="text-center text-md-start w-100">
+            <h1 class="h4 mb-1">Trade Assist</h1>
+            {% if client %}
+              <div class="text-muted small"><strong>{{ client }}</strong></div>
+            {% else %}
+              <div class="text-muted small">No client linked</div>
+            {% endif %}
+          </div>
+
+          {% if is_staff_viewing %}
+            <form method="get" class="d-flex gap-2">
+              <input type="number" class="form-control form-control-sm" name="client_id" placeholder="Client ID…" value="{{ request.GET.client_id|default_if_none:'' }}">
+              <button class="btn btn-sm btn-outline-secondary">View</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} mb-3">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      {# ---------- ELIGIBILITY / EXPLAINER (no client OR client not ACTIVE) ---------- #}
+      {% if not client or client.account_type != 'CREDIT' or client.credit_status != 'ACTIVE' %}
+
+        {% if client and client.account_type != 'CREDIT' %}
+          <div class="alert alert-info d-flex align-items-center" role="alert">
+            <i class="bi bi-info-circle me-2"></i>
+            <span>
+              Your account type is <strong class="mx-1">{{ client.account_type }}</strong>.
+              Trade Assist becomes available when your account is set to
+              <strong class="mx-1">CREDIT</strong> and activated.
+            </span>
+          </div>
+        {% elif client and client.credit_status != 'ACTIVE' %}
+          <div class="alert alert-warning d-flex align-items-center" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Your credit status is <strong class="mx-1">{{ client.credit_status }}</strong>. Complete the steps below to qualify for activation.
+          </div>
+        {% elif not client %}
+          <div class="text-center text-muted py-4">
+            <i class="bi bi-person-slash fs-1 d-block mb-2"></i>
+            We couldn’t link your profile to a business yet. Please contact support.
+          </div>
+        {% endif %}
+
+        {# Dual-threshold banners #}
+        {% if guaranteed_credit %}
+          <div class="alert alert-success d-flex align-items-center" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <strong>Great!</strong>&nbsp;You’ve reached <strong>8 consecutive weeks</strong>. Credit is <em>guaranteed</em> (activation in progress).
+          </div>
+        {% elif can_request_credit %}
+          <div class="alert alert-primary d-flex align-items-center" role="alert">
+            <i class="bi bi-flag me-2"></i>
+            You’ve reached <strong>4 consecutive weeks</strong>. You can <em>request credit now</em> — subject to application and review.
+          </div>
+        {% endif %}
+
+        <!-- Eligibility tracker -->
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-2">
+              <div>
+                <div class="text-muted small">Qualification Progress</div>
+                <h5 class="mb-0">{{ consecutive_weeks }} / {{ req_weeks_max }} consecutive pre-paid weeks</h5>
+              </div>
+              <div class="small text-muted">
+                We calculate weekly spend Monday→Sunday and exclude TA-funded invoices.
+              </div>
+            </div>
+
+            {% with pct=0 %}
+              {% if req_weeks_max %}
+                {% widthratio consecutive_weeks req_weeks_max 100 as pct %}
+              {% endif %}
+              <div class="progress mb-1">
+                <div class="progress-bar {% if consecutive_weeks >= req_weeks_min %}bg-success{% endif %}" style="width: {{ pct|default:0 }}%"></div>
+              </div>
+              <div class="threshold-line mb-3">
+                {# marker at 4/8 of width (50%) #}
+                <span class="marker-4" style="left: calc(100% * {{ req_weeks_min }} / {{ req_weeks_max }});"></span>
+              </div>
+            {% endwith %}
+
+            <div class="row g-3">
+              <div class="col-lg-8">
+                <div style="height: 240px;">
+                  <canvas id="weeklySpendChart" height="240"></canvas>
+                </div>
+              </div>
+              <div class="col-lg-4">
+                <div class="p-3 bg-light rounded border h-100">
+                  <div class="fw-semibold mb-2">Summary</div>
+                  <ul class="list-unstyled small mb-0">
+                    <li class="mb-1">
+                      <span class="text-muted">Most recent week spend:</span>
+                      {% if weekly_spend and weekly_spend.0 %}
+                        <strong>R{{ weekly_spend.0|floatformat:2|intcomma }}</strong>
+                      {% else %}
+                        <strong>R0.00</strong>
+                      {% endif %}
+                    </li>
+                    <li class="mb-1">
+                      <span class="text-muted">Projected limit:</span>
+                      <strong>R{{ projected_limit|floatformat:2|intcomma }}</strong>
+                    </li>
+                    <li class="mb-1">
+                      <span class="text-muted">Assist ratio:</span>
+                      <strong>{{ assist_ratio_pct }}%</strong>
+                    </li>
+                    <li>
+                      <span class="text-muted">Requirement:</span>
+                      <strong>4–8 consecutive pre-paid weeks</strong>
+                      <div class="text-muted">Request at <strong>4</strong> • Guaranteed at <strong>8</strong></div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Rules / Criteria -->
+        <div class="card mb-3">
+          <div class="card-header bg-white">
+            <ul class="nav nav-tabs card-header-tabs" id="rulesTabs" role="tablist">
+              <li class="nav-item">
+                <button class="nav-link active" id="qualify-tab" data-bs-toggle="tab" data-bs-target="#qualify" type="button" role="tab">How to Qualify</button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link" id="after-tab" data-bs-toggle="tab" data-bs-target="#after" type="button" role="tab">Once You Qualify</button>
+              </li>
+            </ul>
+          </div>
+          <div class="card-body">
+            <div class="tab-content">
+              <div class="tab-pane fade show active" id="qualify" role="tabpanel" aria-labelledby="qualify-tab">
+                <ol class="mb-0">
+                  <li>Trade with us consistently for <strong>4 to 8 consecutive weeks</strong>.</li>
+                  <li>These must be <strong>pre-paid</strong> purchases (no Trade Assist used).</li>
+                  <li>We assess your <strong>average weekly spend</strong> during this period.</li>
+                  <li>Your Trade Assist offer is typically <strong>{{ assist_ratio_pct }}%</strong> of that average.</li>
+                  <li>At <strong>4 weeks</strong>, you may apply; at <strong>8 weeks</strong>, credit is guaranteed.</li>
+                </ol>
+              </div>
+              <div class="tab-pane fade" id="after" role="tabpanel" aria-labelledby="after-tab">
+                <ol class="mb-0">
+                  <li>Use your Trade Assist on eligible purchases (subject to your limit).</li>
+                  <li><strong>Settle within {{ settle_days }} day{% if settle_days != 1 %}s{% endif %}</strong> on TA-funded invoices.</li>
+                  <li>Staying current may unlock <strong>higher limits</strong> over time.</li>
+                  <li>Late or missed settlements may <strong>pause</strong> your Trade Assist.</li>
+                  <li>We may adjust or withdraw the facility based on account conduct.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# Per-client credit snapshot even if not ACTIVE (from view totals) #}
+        {% if client %}
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <div class="card h-100">
+                <div class="card-body">
+                  <div class="text-muted small mb-1">Credit Limit (Assigned)</div>
+                  <h5 class="mb-0">R{{ total_limit|floatformat:2|intcomma }}</h5>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card h-100">
+                <div class="card-body">
+                  <div class="text-muted small mb-1">Used</div>
+                  <h5 class="mb-0">R{{ total_used|floatformat:2|intcomma }}</h5>
+                  <div class="small text-muted">{{ percent_used_total|default:"0.00" }}% of limit</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card h-100">
+                <div class="card-body">
+                  <div class="text-muted small mb-1">Available</div>
+                  <h5 class="mb-0">R{{ total_available|floatformat:2|intcomma }}</h5>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+
+      {% else %}
+        {# -------------------- ACTIVE SNAPSHOT (3-up) -------------------- #}
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="text-muted small mb-1">Status</div>
+                <div class="d-flex align-items-center gap-2">
+                  {% if status == 'Active' %}
+                    <span class="badge bg-success">Active</span>
+                  {% elif status == 'Paused' %}
+                    <span class="badge bg-warning text-dark">Paused</span>
+                  {% elif status == 'Eligible (activation pending)' %}
+                    <span class="badge bg-info text-dark">Eligible (pending)</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ status }}</span>
+                  {% endif %}
+                </div>
+                <div class="small mt-2 text-muted">
+                  Settlement within {{ settle_days }} day{% if settle_days != 1 %}s{% endif %} on TA purchases.
+                </div>
+              </div>
+            </div>
+          </div>
+        
+          <div class="col-md-4">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="text-muted small mb-1">Current Limit</div>
+                <h5 class="mb-0">R{{ assist_limit|floatformat:2|intcomma }}</h5>
+                <div class="small text-muted">Assigned by admin</div>
+              </div>
+            </div>
+          </div>
+        
+          <div class="col-md-4">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="text-muted small mb-1">Available</div>
+                <h5 class="mb-0">R{{ assist_available|floatformat:2|intcomma }}</h5>
+                <div class="small text-muted">Used: R{{ assist_used|floatformat:2|intcomma }} ({{ percent_used_total|default:"0.00" }}%)</div>
+                <div class="progress mt-2" role="progressbar" aria-label="Usage">
+                  {% with used_pct=0 %}
+                    {% if assist_limit|floatformat:2 != "0.00" %}
+                      {% widthratio assist_used assist_limit 100 as used_pct %}
+                    {% endif %}
+                    <div class="progress-bar" style="width: {{ used_pct|default:0 }}%"></div>
+                  {% endwith %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Due & Overdue -->
+        <div class="row g-3 mb-3">
+          <div class="col-lg-6">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h6 class="mb-0">Next Due (TA)</h6>
+                  {% if next_due %}<span class="badge bg-warning text-dark">Due soon</span>{% else %}<span class="badge bg-success">Clear</span>{% endif %}
+                </div>
+          
+                {% if next_due %}
+                  <div class="small mb-2">
+                    Invoice #{{ next_due.invoice_id }} • Due {{ next_due.due_date|date:"Y-m-d" }}<br>
+                    Outstanding: <strong>R{{ next_due.outstanding|floatformat:2|intcomma }}</strong>
+                  </div>
+          
+                  <form method="post" action="{% url 'payfast_start' %}" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="invoice_id" value="{{ next_due.invoice_id }}">
+                    <input type="hidden" name="amount" value="{{ next_due.outstanding|floatformat:2 }}">
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-brand"
+                      {% if not next_due.outstanding or next_due.outstanding|floatformat:2 == "0.00" %}disabled{% endif %}
+                      title="{% if not next_due.outstanding or next_due.outstanding|floatformat:2 == '0.00' %}Nothing to pay{% else %}Pay now via PayFast{% endif %}">
+                      <i class="bi bi-credit-card"></i> Pay Now
+                    </button>
+                  </form>
+                {% else %}
+                  <div class="text-muted small">No upcoming dues.</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          
+
+          <div class="col-lg-6">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h6 class="mb-0">Overdue (TA)</h6>
+                  {% if overdue %}<span class="badge bg-danger">Overdue</span>{% else %}<span class="badge bg-success">None</span>{% endif %}
+                </div>
+          
+                {% if overdue %}
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                      <thead class="small text-muted">
+                        <tr>
+                          <th>Invoice</th>
+                          <th class="text-end">Outstanding</th>
+                          <th>Due</th>
+                          <th class="text-end">Days Overdue</th>
+                          <th class="text-end">Pay</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for it in overdue_list %}
+                          <tr>
+                            <td>#{{ it.invoice_id }}</td>
+                            <td class="text-end">R{{ it.outstanding|floatformat:2|intcomma }}</td>
+                            <td>{{ it.due_date|date:"Y-m-d" }}</td>
+                            <td class="text-end">{{ it.days_overdue }}</td>
+                            <td class="text-end">
+                              <form method="post" action="{% url 'payfast_start' %}" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="invoice_id" value="{{ it.invoice_id }}">
+                                <input type="hidden" name="amount" value="{{ it.outstanding|floatformat:2 }}">
+                                <button
+                                  type="submit"
+                                  class="btn btn-sm btn-outline-success"
+                                  {% if not it.outstanding or it.outstanding|floatformat:2 == "0.00" %}disabled{% endif %}
+                                  title="{% if not it.outstanding or it.outstanding|floatformat:2 == '0.00' %}Nothing to pay{% else %}Pay now via PayFast{% endif %}">
+                                  Pay Now
+                                </button>
+                              </form>
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+          
+                  {# Optional “Pay All Overdue” if you compute total_overdue in the view #}
+                  {% if total_overdue %}
+                    <div class="text-end mt-3">
+                      <form method="post" action="{% url 'payfast_start' %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="invoice_id" value="MULTI">
+                        <input type="hidden" name="amount" value="{{ total_overdue|floatformat:2 }}">
+                        <button
+                          type="submit"
+                          class="btn btn-sm btn-brand"
+                          {% if total_overdue|floatformat:2 == "0.00" %}disabled{% endif %}>
+                          <i class="bi bi-wallet2"></i> Pay All Overdue (R{{ total_overdue|floatformat:2|intcomma }})
+                        </button>
+                      </form>
+                    </div>
+                  {% endif %}
+                {% else %}
+                  <div class="text-muted small">No overdue TA amounts.</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          
+        </div>
+
+        <!-- Ledger -->
+        <div class="card mb-4">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <strong>Trade Assist Movements</strong>
+            <span class="badge badge-soft">Latest {{ ledger|length }} entries</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-striped table-bordered align-middle mb-0">
+                <thead class="small text-muted">
+                  <tr>
+                    <th style="width:18%">Date</th>
+                    <th style="width:16%">Kind</th>
+                    <th style="width:18%" class="text-end">Amount</th>
+                    <th style="width:16%">Invoice</th>
+                    <th>Reference / Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for e in ledger %}
+                    <tr>
+                      <td>{{ e.posted_at|date:"Y-m-d H:i" }}</td>
+                      <td>
+                        {% if e.kind == 'usage' %}
+                          <span class="badge bg-warning text-dark">Credit Used</span>
+                        {% elif e.kind == 'repayment' %}
+                          <span class="badge bg-success">Repayment</span>
+                        {% elif e.kind == 'adjustment' %}
+                          <span class="badge bg-secondary">Adjustment</span>
+                        {% elif e.kind == 'writeoff' %}
+                          <span class="badge bg-info text-dark">Write-off</span>
+                        {% else %}
+                          <span class="badge bg-light text-dark">{{ e.kind }}</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-end">R{{ e.amount|floatformat:2|intcomma }}</td>
+                      <td>{% if e.invoice_id %}#{{ e.invoice_id }}{% else %}—{% endif %}</td>
+                      <td class="small">
+                        {% if e.reference %}<div><strong>{{ e.reference }}</strong></div>{% endif %}
+                        {% if e.note %}<div class="text-muted">{{ e.note }}</div>{% endif %}
+                      </td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">No movements yet.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {% if ledger_limit and ledger|length >= ledger_limit %}
+            <div class="card-footer bg-white text-center">
+              <a class="btn btn-sm btn-outline-secondary" href="?limit={{ ledger_limit|add:50 }}{% if request.GET.client_id %}&client_id={{ request.GET.client_id }}{% endif %}">
+                Show more
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="mt-auto">
+    <div class="container py-4 text-center small">© {% now "Y" %} The Daily Market • Quality You Can Trust</div>
+  </footer>
+
+  <!-- Require-auth modal -->
+  <div class="modal fade" id="authRequiredModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center">
+        <div class="modal-header d-block border-0">
+          <h5 class="modal-title w-100">Sign in required</h5>
+          <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">Please sign in or register to access this section.</div>
+        <div class="modal-footer justify-content-center border-0">
+          <a class="btn btn-outline-secondary" href="{% url 'client-login' %}">Sign In</a>
+          <a class="btn btn-primary" href="/portal/client/register/">Register</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Auth gate -->
+  <script>
+    document.addEventListener('click', function (e) {
+      const link = e.target.closest('.requires-auth');
+      if (!link) return;
+      if (!IS_AUTHENTICATED) {
+        e.preventDefault();
+        const modal = new bootstrap.Modal(document.getElementById('authRequiredModal'));
+        modal.show();
+      }
+    });
+  </script>
+
+  <!-- Chart & Offcanvas helpers (run whenever we have week data) -->
+  <script>
+    (function () {
+      const labels = [{% for lbl in week_labels %}"{{ lbl }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+      const values = [{% for amt in weekly_spend %}{{ amt|floatformat:2|default:"0" }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+      const ctx = document.getElementById('weeklySpendChart');
+      if (ctx && labels.length && values.length) {
+        new Chart(ctx, {
+          type: 'bar',
+          data: { labels, datasets: [{ label: 'Pre-paid weekly spend (recent → older)', data: values }] },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { x: { ticks: { autoSkip: true, maxRotation: 0, minRotation: 0 } }, y: { beginAtZero: true } },
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: (c) => `R ${Number((c.raw ?? 0)).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}` } }
+            }
+          }
+        });
+      }
+    })();
+  </script>
+
+  <script>
+    (function () {
+      if (typeof bootstrap === "undefined") return;
+      const offcanvasEl = document.getElementById("mobileMenu");
+      if (!offcanvasEl) return;
+
+      const selectors = [
+        "#mobileMenu a.nav-link",
+        "#mobileMenu a.dropdown-item",
+        "#mobileMenu .btn.btn-outline-light",
+        "#mobileMenu a.btn",
+      ].join(",");
+
+      offcanvasEl.querySelectorAll(selectors).forEach(function (el) {
+        el.addEventListener("click", function (e) {
+          const href = el.getAttribute("href");
+          if (!href || href === "#" || href.startsWith("javascript:")) return;
+          e.preventDefault();
+          const oc = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+          const go = () => { window.location.href = href; };
+          offcanvasEl.addEventListener("hidden.bs.offcanvas", go, { once: true });
+          oc.hide();
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

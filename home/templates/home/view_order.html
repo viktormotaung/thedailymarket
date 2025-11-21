@@ -1,0 +1,364 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Order #{{ order.id }} · The Daily Market</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+
+  <style>
+    :root { --brand:#0b5c39; --brand-dark:#094c30; }
+
+    /* Sticky footer layout */
+    html, body { height: 100%; }
+    body { min-height: 100vh; display: flex; flex-direction: column; background:#f7faf8; }
+    .site-main { flex: 1; } /* pushes footer down on short pages */
+
+    .navbar-brand img { height:85px; max-height:100px; width:auto; }
+    .navbar { background: var(--brand); }
+    .navbar .nav-link, .navbar .navbar-brand, .navbar .dropdown-toggle { color:#fff !important; }
+    .navbar .nav-link:hover { color:#e0e0e0 !important; }
+    .navbar .dropdown-menu.brand { background:#0b5c39; border:1px solid #094c30; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+    .navbar .dropdown-item { color:#fff; }
+    .navbar .dropdown-item:hover { background:#094c30; color:#fff; }
+    .navbar .dropdown-divider { border-color:rgba(255,255,255,.2); }
+    .navbar .navbar-nav { align-items:center; gap:.25rem; }
+    .navbar .nav-link { display:inline-flex; align-items:center; padding:.6rem 1rem; line-height:1; font-weight:500; border-radius:.375rem; }
+    .navbar .nav-link:hover,.navbar .nav-link:focus-visible { background:rgba(255,255,255,.10); color:#fff !important; }
+    .navbar .nav-link.active { background:rgba(255,255,255,.18); }
+
+    .small-mono{ font-variant-numeric: tabular-nums; }
+    .badge-status { text-transform: capitalize; }
+    .card { border-radius:.75rem; }
+    .table > :not(caption) > * > * { vertical-align: middle; }
+    .btn-brand{ background:var(--brand); border-color:var(--brand); color:#fff; }
+    .btn-brand:hover{ background:var(--brand-dark); border-color:var(--brand-dark); color:#fff; }
+    .footer { background:var(--brand); color:#fff; }
+
+    .pill-unpaid{background:#fff3cd;border:1px solid #ffe69c;color:#845400;}
+    .pill-partial{background:#e7f1ff;border:1px solid #cfe2ff;color:#084298;}
+    .pill-overdue{background:#fdecea;border:1px solid #f5c2c7;color:#842029;}
+    .pill-paid{background:#e8f5ee;border:1px solid #cfeadf;color:#0b5c39;}
+
+    .sticky-lg { position:static; }
+    @media (min-width: 992px){
+      .sticky-lg { position: sticky; top: 1.25rem; }
+    }
+    @media (max-width:991.98px){ .navbar-brand img{ height:40px; } }
+  </style>
+</head>
+<body>
+  <script>const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};</script>
+
+  <!-- Mobile topbar -->
+  <nav class="navbar navbar-dark d-lg-none">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="/"><img src="{% static 'images/logo.png' %}" alt="The Daily Market"></a>
+    </div>
+  </nav>
+
+  <!-- Mobile menu -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu">
+    <div class="offcanvas-header" style="background:#0b5c39;color:#fff;">
+      <h5 class="offcanvas-title">Menu</h5>
+      <button class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body" style="background:#0b5c39;color:#fff;">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="max-height:80px;">
+      </div>
+      <a href="/" class="nav-link" data-bs-dismiss="offcanvas">Home</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" href="/about/" data-bs-dismiss="offcanvas">About</a>
+      <div class="mt-2 text-uppercase small opacity-75">Divisions</div>
+      <a href="/grill/" class="nav-link" data-bs-dismiss="offcanvas">Grill Experience</a>
+      <a href="/retail/" class="nav-link" data-bs-dismiss="offcanvas">Retail Express</a>
+      <a href="/wholesale/" class="nav-link" data-bs-dismiss="offcanvas">Wholesale Trade</a>
+      <hr class="border-light my-3">
+      <a href="/become_supplier/" class="nav-link" data-bs-dismiss="offcanvas">Become A Supplier</a>
+      <a class="nav-link requires-auth" href="{% url 'products' %}" data-bs-dismiss="offcanvas">Products</a>
+      <a class="nav-link requires-auth" href="{% url 'wholesale_assist' %}" data-bs-dismiss="offcanvas">Trade Assist</a>
+      <div class="mt-2 text-uppercase small opacity-75">Orders</div>
+      <a class="nav-link requires-auth" href="{% url 'orders' %}" data-bs-dismiss="offcanvas">My Orders</a>
+      <a class="nav-link requires-auth" href="{% url 'cart' %}" data-bs-dismiss="offcanvas">Cart</a>
+      <a href="/contact/" class="nav-link mt-3" data-bs-dismiss="offcanvas">Contact</a>
+      <hr class="border-light my-3">
+      {% if user.is_authenticated %}
+        <a href="/profile/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">My Profile</a>
+        <a href="/settings/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">Settings</a>
+        <form action="{% url 'logout' %}" method="post" class="mt-1">
+          {% csrf_token %}<button type="submit" class="btn btn-light w-100">Sign out</button>
+        </form>
+      {% else %}
+        <div class="text-uppercase small opacity-75">Sign in</div>
+        <a href="{% url 'client-login' %}" class="btn btn-outline-light w-100 mt-2">Client</a>
+        <a href="{% url 'staff-login' %}" target="_blank" class="btn btn-outline-light w-100 mt-2">Staff</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Desktop navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark border-bottom d-none d-lg-block">
+    <div class="container d-flex align-items-center">
+      <a class="navbar-brand me-auto" href="/"><img src="{% static 'images/logo.png' %}" alt="The Daily Market"></a>
+      <div id="nav" class="navbar-collapse justify-content-center">
+        <ul class="navbar-nav">
+          <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+          <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" href="/about/">About</a></li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="/divisions/" id="divisionsDropdown" role="button" data-bs-toggle="dropdown">Divisions</a>
+            <ul class="dropdown-menu brand" aria-labelledby="divisionsDropdown">
+              <li><a class="dropdown-item" href="/grill/">Grill Experience</a></li>
+              <li><a class="dropdown-item" href="/retail/">Retail Express</a></li>
+              <li><a class="dropdown-item" href="/wholesale/">Wholesale Trade</a></li>
+            </ul>
+          </li>
+          <li class="nav-item"><a class="nav-link" href="/become_supplier/">Become A Supplier</a></li>
+          <li class="nav-item"><a class="nav-link requires-auth" href="{% url 'products' %}">Products</a></li>
+          <li class="nav-item"><a class="nav-link requires-auth" href="{% url 'wholesale_assist' %}">Trade Assist</a></li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle requires-auth active" href="#" id="ordersDropdown" role="button" data-bs-toggle="dropdown">Orders</a>
+            <ul class="dropdown-menu brand" aria-labelledby="ordersDropdown">
+              <li><a class="dropdown-item requires-auth" href="{% url 'orders' %}">My Orders</a></li>
+              <li><a class="dropdown-item requires-auth" href="{% url 'cart' %}">Cart</a></li>
+            </ul>
+          </li>
+          <li class="nav-item"><a class="nav-link" href="/contact/">Contact</a></li>
+        </ul>
+      </div>
+      <div class="dropdown ms-auto">
+        <a class="nav-link p-0 dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown"><i class="bi bi-person-circle fs-4"></i></a>
+        <ul class="dropdown-menu dropdown-menu-end brand">
+          {% if user.is_authenticated %}
+            <li><a class="dropdown-item" href="/profile/">My Profile</a></li>
+            <li><a class="dropdown-item" href="/settings/">Settings</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form action="{% url 'logout' %}" method="post" class="px-3">
+                {% csrf_token %}<button type="submit" class="dropdown-item p-0 btn btn-link text-white">Sign out</button>
+              </form>
+            </li>
+          {% else %}
+            <li class="dropdown-header text-white-50">Sign in</li>
+            <li><a class="dropdown-item" href="{% url 'client-login' %}">Client</a></li>
+            <li><a class="dropdown-item" href="{% url 'staff-login' %}">Staff</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Page -->
+  <section class="py-4 site-main">
+    <div class="container" style="max-width:1100px;">
+
+      <nav aria-label="breadcrumb" class="small mb-3">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'orders' %}">Orders</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Order #{{ order.id }}</li>
+        </ol>
+      </nav>
+
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <h1 class="h4 mb-0">Order #{{ order.id }}</h1>
+        <div class="text-muted small">
+          <span class="me-2">Placed {{ order.submitted_at|date:"M j, Y · H:i" }}</span>
+          <span class="badge text-bg-secondary badge-status">{{ order.status }}</span>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <!-- LEFT 60%: Order -->
+        <div class="col-lg-7">
+          <!-- Client summary -->
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="small text-muted">Client</div>
+                  <div class="fw-semibold">{{ order.client.name|default:order.client }}</div>
+                  {% if order.client.reference %}<div class="small text-muted">Ref: {{ order.client.reference }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                  {% if order.customer_notes %}
+                    <div class="small text-muted">Customer notes</div>
+                    <div>{{ order.customer_notes }}</div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Items -->
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+              <h6 class="mb-3">Items</h6>
+              <div class="table-responsive">
+                <table class="table align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Product</th><th>SKU</th><th>UOM</th>
+                      <th class="text-end">Qty</th>
+                      <th class="text-end">Unit (ex VAT)</th>
+                      <th class="text-end">Line (ex VAT)</th>
+                      <th class="text-end">VAT %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for it in order.items.all %}
+                      <tr>
+                        <td>{{ it.product_name }}</td>
+                        <td class="text-muted">{{ it.sku }}</td>
+                        <td class="text-muted">{{ it.uom }}</td>
+                        <td class="text-end small-mono">{{ it.quantity|floatformat:2 }}</td>
+                        <td class="text-end small-mono">R {{ it.unit_price_excl|floatformat:2|intcomma }}</td>
+                        <td class="text-end small-mono">R {{ it.line_total_excl|floatformat:2|intcomma }}</td>
+                        <td class="text-end">{{ it.vat_percent|floatformat:2 }}%</td>
+                      </tr>
+                    {% empty %}
+                      <tr><td colspan="7" class="text-muted">No items.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="row mt-2">
+                <div class="col-md-6"></div>
+                <div class="col-md-6">
+                  <div class="d-flex justify-content-between small mb-2">
+                    <span>Subtotal (ex VAT)</span>
+                    <span class="small-mono">R {{ order.subtotal_excl|floatformat:2|intcomma }}</span>
+                  </div>
+                  <div class="d-flex justify-content-between small mb-2">
+                    <span>VAT</span>
+                    <span class="small-mono">R {{ order.vat_total|floatformat:2|intcomma }}</span>
+                  </div>
+                  <div class="d-flex justify-content-between fw-semibold">
+                    <span>Total (incl VAT)</span>
+                    <span class="small-mono">R {{ order.grand_total_inc|floatformat:2|intcomma }}</span>
+                  </div>
+                  <div class="text-muted small mt-2">0-rated products do not include VAT.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <a href="{% url 'products' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Continue shopping</a>
+            <a href="{% url 'orders' %}" class="btn btn-brand"><i class="bi bi-card-checklist me-1"></i>My Orders</a>
+          </div>
+        </div>
+
+        <!-- RIGHT 40%: Invoice -->
+        <div class="col-lg-5">
+          <div class="card border-0 shadow-sm sticky-lg">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h6 class="mb-0">Invoice</h6>
+                {% if order.invoice %}
+                  {% with s=order.invoice.status %}
+                    <span class="badge {% if s == 'paid' %}pill-paid{% elif s == 'partial' %}pill-partial{% elif s == 'overdue' %}pill-overdue{% else %}pill-unpaid{% endif %}">
+                      {{ s|title }}
+                    </span>
+                  {% endwith %}
+                {% endif %}
+              </div>
+
+              {% if not order.invoice %}
+                <div class="text-muted mt-2">Invoice will appear here once generated.</div>
+              {% else %}
+                <div class="row g-2 mt-2">
+                  <div class="col-6 small text-muted">Invoice #</div>
+                  <div class="col-6 small text-end small-mono">
+                    {% if order.invoice.number %}{{ order.invoice.number }}{% else %}INV-{{ order.invoice.id }}{% endif %}
+                  </div>
+
+                  <div class="col-6 small text-muted">Invoice date</div>
+                  <div class="col-6 small text-end small-mono">{{ order.invoice.invoice_date|date:"M j, Y" }}</div>
+
+                  <div class="col-6 small text-muted">Due date</div>
+                  <div class="col-6 small text-end small-mono">
+                    {% if order.invoice.due_date %}{{ order.invoice.due_date|date:"M j, Y" }}{% else %}—{% endif %}
+                  </div>
+
+                  <div class="col-6 small text-muted">Credit used</div>
+                  <div class="col-6 small text-end small-mono">R {{ order.invoice.credit_used|floatformat:2|intcomma }}</div>
+
+                  <div class="col-6 small text-muted">Order total (incl)</div>
+                  <div class="col-6 small text-end small-mono">R {{ order.invoice.order_total_inc|floatformat:2|intcomma }}</div>
+
+                  <div class="col-6 small text-muted">Payments received</div>
+                  <div class="col-6 small text-end small-mono">R {{ order.invoice.deposit_paid|floatformat:2|intcomma }}</div>
+
+                  <div class="col-6 small text-muted fw-semibold">Amount due now</div>
+                  <div class="col-6 small text-end small-mono fw-semibold">R {{ order.invoice.amount_due|floatformat:2|intcomma }}</div>
+                </div>
+
+                {% if payfast_fields %}
+                  <form method="post" action="{{ PAYFAST_PROCESS_URL }}" class="d-grid mt-3">
+                    {% for name, value in payfast_fields.items %}
+                      <input type="hidden" name="{{ name }}" value="{{ value }}">
+                    {% endfor %}
+                    <button type="submit" class="btn btn-brand btn-lg">
+                      <i class="bi bi-lock-fill me-1"></i>Pay with PayFast
+                    </button>
+                  </form>
+                  <div class="text-muted small mt-2">You’ll be redirected to PayFast to complete secure payment.</div>
+                {% elif order.invoice.status|lower == "paid" %}
+                  <div class="alert alert-success py-2 mt-3 mb-0">
+                    <i class="bi bi-check2-circle me-1"></i> This invoice is fully paid. Thank you!
+                  </div>
+                {% endif %}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="text-white mt-auto" style="background:var(--brand);">
+    <div class="container py-4 text-center small">© {% now "Y" %} The Daily Market • Quality You Can Trust</div>
+  </footer>
+
+  <!-- Require-auth modal -->
+  <div class="modal fade" id="authRequiredModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center">
+        <div class="modal-header d-block border-0">
+          <h5 class="modal-title w-100">Sign in required</h5>
+          <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">Please sign in or register to add items to cart.</div>
+        <div class="modal-footer justify-content-center border-0">
+          <a class="btn btn-outline-secondary" href="{% url 'client-login' %}">Sign In</a>
+          <a class="btn btn-primary" href="/portal/client/register/">Register</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Gate actions that require auth
+    document.addEventListener('click', function (e) {
+      const btn = e.target.closest('.requires-auth');
+      if (!btn) return;
+      if (!IS_AUTHENTICATED) {
+        e.preventDefault();
+        const modal = new bootstrap.Modal(document.getElementById('authRequiredModal'));
+        modal.show();
+      }
+    });
+  </script>
+</body>
+</html>

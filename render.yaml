@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: thedailymarket
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn seshibo_site.wsgi:application"
+    plan: free
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: seshibo_site.settings
+      - key: DEBUG
+        value: False
+      - key: SECRET_KEY
+        generateValue: true

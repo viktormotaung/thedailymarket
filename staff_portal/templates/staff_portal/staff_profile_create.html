@@ -1,0 +1,335 @@
+{% load static humanize %}
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Staff Profile - Seshibo Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* Desktop layout (lg and up): sidebar + content side-by-side */
+    @media (min-width: 992px) {
+      body {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar-desktop {
+        width: 220px;
+        min-height: 100vh;
+      }
+      .content {
+        flex: 1;
+      }
+    }
+
+    /* Shared styles */
+    .sidebar-skin {
+      background-color: #0b5c39;
+      color: #fff;
+      padding: 1rem;
+    }
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: .25rem 0;
+      display: block;
+    }
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+    /* nested links */
+    .sidebar-skin .nav-link.ps-4 { font-size:.95rem; opacity:.95; }
+
+    .logo-img { max-height: 80px; width: auto; }
+
+    .content {
+      background: #f8f9fa;
+      padding: 20px;
+      min-height: 100vh; /* ensures nice background on mobile too */
+    }
+  </style>
+</head>
+<body>
+
+  {# ---------- MOBILE/TABLET TOP BAR (visible < lg) ---------- #}
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  {# ---------- MOBILE OFFCANVAS MENU (same links as sidebar) ---------- #}
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header sidebar-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body sidebar-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+      <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-orders' %}active{% endif %}">Orders</a>
+      <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+      <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+      {# ---- Deliveries dropdown (MOBILE, no arrow) ---- #}
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#deliveriesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+             aria-controls="deliveriesMenuMobile">
+            <span>Deliveries</span>
+          </a>
+          <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuMobile">
+            <a href="{% url 'warehouse' %}?view=warehouse"
+               class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+              Warehouse
+            </a>
+            <a href="{% url 'delivery' %}?view=runs"
+               class="nav-link ps-4
+                 {% if current_name == 'delivery' %}
+                   {% if request.GET.view %}
+                     {% if request.GET.view == 'runs' %}active{% endif %}
+                   {% else %}
+                     active
+                   {% endif %}
+                 {% endif %}">
+              Delivery Runs
+            </a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+      <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+      {# ---- Profiles dropdown (MOBILE, no arrow) ---- #}
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#profilesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+             aria-controls="profilesMenuMobile">
+            <span>Profiles</span>
+          </a>
+
+          <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}"
+               id="profilesMenuMobile">
+
+            <a href="{% url 'my_profile' %}"
+               class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">
+              My Profile
+            </a>
+
+            <a href="{% url 'staff_profile' %}"
+               class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">
+              Staff
+            </a>
+
+            <a href="{% url 'customer_profile' %}"
+               class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">
+              Customers
+            </a>
+
+          </div>
+        {% endwith %}
+      </div>
+
+      <hr class="border-light">
+      <form action="{% url 'logout' %}" method="post" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light w-100">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  {# ---------- DESKTOP SIDEBAR (visible ≥ lg) ---------- #}
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+
+    <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+    <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-orders' %}active{% endif %}">Orders</a>
+    <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+    <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+    <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+    {# ---- Deliveries dropdown (DESKTOP, no arrow) ---- #}
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#deliveriesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+           aria-controls="deliveriesMenuDesktop">
+          <span>Deliveries</span>
+        </a>
+        <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuDesktop">
+          <a href="{% url 'warehouse' %}?view=warehouse"
+            class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+            Warehouse
+          </a>
+
+          <a href="{% url 'delivery' %}?view=runs"
+             class="nav-link ps-4
+               {% if current_name == 'delivery' %}
+                 {% if request.GET.view %}
+                   {% if request.GET.view == 'runs' %}active{% endif %}
+                 {% else %}
+                   active
+                 {% endif %}
+               {% endif %}">
+            Delivery Runs
+          </a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+    <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+    {# ---- Profiles dropdown (DESKTOP, no arrow) ---- #}
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#profilesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+           aria-controls="profilesMenuDesktop">
+          <span>Profiles</span>
+        </a>
+        <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}"
+             id="profilesMenuDesktop">
+
+          <a href="{% url 'my_profile' %}"
+             class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">
+            My Profile
+          </a>
+
+          <a href="{% url 'staff_profile' %}"
+             class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">
+            Staff
+          </a>
+
+          <a href="{% url 'customer_profile' %}"
+             class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">
+            Customers
+          </a>
+
+        </div>
+      {% endwith %}
+    </div>
+    <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+    <div class="mt-3">
+      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+        {% csrf_token %}
+        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+    <!-- Main content -->
+    <main class="content">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="m-0">Create Staff Profile</h3>
+        <a href="{% url 'staff_profile' %}" class="btn btn-outline-secondary btn-sm">← Back to Staff</a>
+        </div>
+
+        <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <form method="post">
+            {% csrf_token %}
+            <div class="row g-3">
+
+                <!-- User Fields -->
+                <div class="col-md-6">
+                <h5>Django User</h5>
+                <div class="mb-2">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="username" name="username" required>
+                </div>
+                <div class="mb-2">
+                    <label for="first_name" class="form-label">First Name</label>
+                    <input type="text" class="form-control" id="first_name" name="first_name">
+                </div>
+                <div class="mb-2">
+                    <label for="last_name" class="form-label">Last Name</label>
+                    <input type="text" class="form-control" id="last_name" name="last_name">
+                </div>
+                <div class="mb-2">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" name="email">
+                </div>
+                <div class="mb-2">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" name="password" required>
+                </div>
+                </div>
+
+                <!-- StaffProfile Fields -->
+                <div class="col-md-6">
+                <h5>Staff Profile</h5>
+                <div class="mb-2">
+                    <label for="job_title" class="form-label">Job Title</label>
+                    <input type="text" class="form-control" id="job_title" name="job_title">
+                </div>
+                <div class="mb-2">
+                    <label for="phone" class="form-label">Phone</label>
+                    <input type="text" class="form-control" id="phone" name="phone">
+                </div>
+                <div class="mb-2">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status">
+                    <option value="active">Active</option>
+                    <option value="pending">Pending</option>
+                    <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label for="notes" class="form-label">Internal Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                </div>
+
+                <!-- Link Sales -->
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" id="link_sales" name="link_sales">
+                    <label class="form-check-label" for="link_sales">Create / Link Sales Profile</label>
+                </div>
+                </div>
+
+            </div>
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">Create Staff Profile</button>
+            </div>
+            </form>
+        </div>
+        </div>
+    </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

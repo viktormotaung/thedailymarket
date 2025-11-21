@@ -1,0 +1,424 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Credit · {{ client }} - Seshibo Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+
+  <style>
+    :root{
+      --sidebar-w: 220px;
+      --mobile-nav-h: 56px;
+      --brand-green: #0b5c39;
+      --content-bg: #f8f9fa;
+    }
+    html, body { height: 100%; }
+
+    /* Sidebar skin */
+    .sidebar-skin { background-color: var(--brand-green); color:#fff; padding:1rem; }
+    .sidebar-skin .nav-link { color:#fff; margin:.25rem 0; display:block; }
+    .sidebar-skin .nav-link.active, .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15); border-radius:4px; padding-left:8px;
+    }
+    .logo-img { max-height:80px; width:auto; }
+
+    /* Content */
+    .content { background: var(--content-bg); padding:20px; }
+
+    /* Desktop: fixed sidebar, content scrolls */
+    @media (min-width: 992px){
+      body { display:block; overflow:hidden; }
+      .sidebar-desktop{
+        position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w);
+        overflow-y:auto; z-index:1020;
+      }
+      .content{ margin-left:var(--sidebar-w); height:100vh; overflow:auto; -webkit-overflow-scrolling:touch; }
+    }
+
+    /* Mobile: fixed top bar, content scrolls */
+    @media (max-width: 991.98px){
+      html, body { height:100%; overflow:hidden; }
+      .navbar.d-lg-none{ position:fixed; top:0; left:0; right:0; z-index:1040; }
+      .content{
+        margin-top:var(--mobile-nav-h);
+        height:calc(100dvh - var(--mobile-nav-h));
+        overflow:auto; -webkit-overflow-scrolling:touch;
+        height:calc(100vh - var(--mobile-nav-h));
+      }
+    }
+  </style>
+</head>
+<body>
+
+  {# ---------- MOBILE/TABLET TOP BAR (visible < lg) ---------- #}
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  {# ---------- MOBILE OFFCANVAS MENU (same links as sidebar) ---------- #}
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header sidebar-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body sidebar-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+      <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-orders order-view order-edit order-create' %}active{% endif %}">Orders</a>
+      <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+      <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+      {# ---- Deliveries dropdown (MOBILE) ---- #}
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#deliveriesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+             aria-controls="deliveriesMenuMobile">
+            <span>Deliveries</span>
+          </a>
+          <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuMobile">
+            <a href="{% url 'warehouse' %}?view=warehouse"
+               class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+              Warehouse
+            </a>
+            <a href="{% url 'delivery' %}?view=runs"
+               class="nav-link ps-4
+                 {% if current_name == 'delivery' %}
+                   {% if request.GET.view %}
+                     {% if request.GET.view == 'runs' %}active{% endif %}
+                   {% else %}
+                     active
+                   {% endif %}
+                 {% endif %}">
+              Delivery Runs
+            </a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+      <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+      {# ---- Profiles dropdown (MOBILE) ---- #}
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#profilesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+             aria-controls="profilesMenuMobile">
+            <span>Profiles</span>
+          </a>
+          <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuMobile">
+            <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+            <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+            <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+      <hr class="border-light">
+      <form action="{% url 'logout' %}" method="post" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light w-100">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  {# ---------- DESKTOP SIDEBAR (visible ≥ lg) ---------- #}
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+
+    <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+    <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-orders order-view order-edit order-create' %}active{% endif %}">Orders</a>
+    <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+    <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-transactions transaction-view transaction-edit transaction-create' %}active{% endif %}">Transactions</a>
+    <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name in 'credit-credit credit-view credit-edit credit-create' %}active{% endif %}">Credit</a>
+
+    {# ---- Deliveries dropdown (DESKTOP) ---- #}
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#deliveriesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+           aria-controls="deliveriesMenuDesktop">
+          <span>Deliveries</span>
+        </a>
+        <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuDesktop">
+          <a href="{% url 'warehouse' %}?view=warehouse"
+             class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+            Warehouse
+          </a>
+          <a href="{% url 'delivery' %}?view=runs"
+             class="nav-link ps-4
+               {% if current_name == 'delivery' %}
+                 {% if request.GET.view %}
+                   {% if request.GET.view == 'runs' %}active{% endif %}
+                 {% else %}
+                   active
+                 {% endif %}
+               {% endif %}">
+            Delivery Runs
+          </a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+    <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+    {# ---- Profiles dropdown (DESKTOP) ---- #}
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#profilesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+           aria-controls="profilesMenuDesktop">
+          <span>Profiles</span>
+        </a>
+        <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuDesktop">
+          <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+          <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+          <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+    {# No extra margin to avoid large gap #}
+    <div>
+      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+        {% csrf_token %}
+        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h2 class="m-0">{{ client }} · Credit</h2>
+        <div class="mt-1 small text-muted">
+          Updated {{ account.updated_at|date:"Y-m-d H:i" }} · Created {{ account.created_at|date:"Y-m-d H:i" }}
+        </div>
+        <div class="mt-1">
+          {% if client.account_type == "CREDIT" %}
+            <span class="badge bg-primary">Credit Account</span>
+          {% else %}
+            <span class="badge bg-secondary">Cash / EFT</span>
+          {% endif %}
+          {% if client.credit_status == "ACTIVE" %}
+            <span class="badge bg-success">Active</span>
+          {% elif client.credit_status == "PENDING" %}
+            <span class="badge bg-warning text-dark">Pending</span>
+          {% else %}
+            <span class="badge bg-secondary">Inactive</span>
+          {% endif %}
+        </div>
+
+        {# ------- Funder line (new) ------- #}
+        <div class="mt-2 small">
+          <span class="text-muted">Funder:</span>
+          {% if account.funder %}
+            <strong>{{ account.funder.name }}</strong>
+            <span class="text-muted">•</span>
+            <span>{{ account.funder.weekly_rate_pct|floatformat:2 }}%/wk</span>
+            <span class="text-muted">•</span>
+            <span>Bal R{{ account.funder.balance|floatformat:2 }}</span>
+          {% else %}
+            <span class="text-muted">None</span>
+          {% endif %}
+        </div>
+        {# ----- end funder line ----- #}
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{% url 'staff-credit' %}" class="btn btn-outline-secondary">Back to Credit</a>
+        <a href="{% url 'credit-edit' client.id %}" class="btn btn-primary">Edit Credit</a>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="metrics-wrap my-3">
+      <div class="row g-3">
+        <!-- Limit -->
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body d-flex flex-column justify-content-center">
+              <div class="small text-muted">Credit Limit</div>
+              <div class="fs-3 fw-bold mt-1">R{{ credit_limit|floatformat:2 }}</div>
+            </div>
+          </div>
+        </div>
+        <!-- Used -->
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body d-flex flex-column justify-content-center">
+              <div class="small text-muted">Credit Used</div>
+              <div class="fs-3 fw-bold mt-1">R{{ credit_used|floatformat:2 }}</div>
+            </div>
+          </div>
+        </div>
+        <!-- Available -->
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body d-flex flex-column justify-content-center">
+              <div class="small text-muted">Available</div>
+              <div class="fs-3 fw-bold mt-1">R{{ credit_available|floatformat:2 }}</div>
+            </div>
+          </div>
+        </div>
+        <!-- % Used with progress -->
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body d-flex flex-column justify-content-center">
+              <div class="small text-muted">% Used</div>
+              <div class="progress mt-2" style="height:12px;">
+                <div class="progress-bar
+                  {% if percent_used >= 100 %}bg-danger
+                  {% elif percent_used >= 80 %}bg-warning
+                  {% else %}bg-success{% endif %}"
+                  role="progressbar"
+                  style="width: {{ percent_used|floatformat:0 }}%;"
+                  aria-valuenow="{{ percent_used|floatformat:0 }}"
+                  aria-valuemin="0" aria-valuemax="100"></div>
+              </div>
+              <div class="small text-muted mt-2">
+                {{ percent_used|floatformat:2 }}%
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logs + Transactions -->
+    <div class="row g-3">
+      <!-- Credit Logs -->
+      <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white"><strong>Credit Logs</strong></div>
+          <div class="card-body p-0">
+            {% if logs %}
+              <div class="table-responsive">
+                <table class="table table-striped table-bordered mb-0">
+                  <thead>
+                    <tr>
+                      <th style="width:26%; font-size:13px;">Created</th>
+                      <th style="width:18%; font-size:13px;">Change</th>
+                      <th style="width:18%; font-size:13px;">Prev</th>
+                      <th style="width:18%; font-size:13px;">New</th>
+                      <th style="width:20%; font-size:13px;">By</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for l in logs %}
+                      <tr>
+                        <td style="font-size:13px;">{{ l.created_at|date:"Y-m-d H:i" }}</td>
+                        <td style="font-size:13px;">
+                          {% if l.amount_changed > 0 %}+{% endif %}R{{ l.amount_changed|floatformat:2 }}
+                        </td>
+                        <td style="font-size:13px;">R{{ l.previous_limit|floatformat:2 }}</td>
+                        <td style="font-size:13px;">R{{ l.new_limit|floatformat:2 }}</td>
+                        <td style="font-size:13px;">
+                          {% if l.authorised_by %}
+                            {{ l.authorised_by.get_full_name|default:l.authorised_by.username }}
+                          {% else %}System{% endif %}
+                        </td>
+                      </tr>
+                      {% if l.note %}
+                        <tr class="table-light">
+                          <td colspan="5" class="small text-muted" style="white-space:pre-line">{{ l.note }}</td>
+                        </tr>
+                      {% endif %}
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="p-3 text-muted">No credit logs found.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Credit Transactions -->
+      <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white"><strong>Credit Transactions</strong></div>
+          <div class="card-body p-0">
+            {% if transactions %}
+              <div class="table-responsive">
+                <table class="table table-striped table-bordered mb-0">
+                  <thead>
+                    <tr>
+                      <th style="width:22%; font-size:13px;">Date</th>
+                      <th style="width:16%; font-size:13px;">Type</th>
+                      <th style="width:16%; font-size:13px;">Amount</th>
+                      <th style="width:18%; font-size:13px;">Invoice</th>
+                      <th style="width:28%; font-size:13px;">Reference</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for t in transactions %}
+                      <tr style="cursor:pointer" onclick="window.location.href='{% url 'transaction-view' t.id %}'">
+                        <td style="font-size:13px;">{{ t.created_at|date:"Y-m-d H:i" }}</td>
+                        <td style="font-size:13px;">
+                          <span class="badge {% if t.is_credit %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ t.get_transaction_type_display }}
+                          </span>
+                        </td>
+                        <td style="font-size:13px;">
+                          {% if t.is_credit %}+{% else %}-{% endif %}R{{ t.amount|floatformat:2 }}
+                        </td>
+                        <td style="font-size:13px;">
+                          {% if t.invoice_id %}
+                            <a href="{% url 'invoice-view' t.invoice_id %}">#{{ t.invoice_id }}</a>
+                          {% else %}—{% endif %}
+                        </td>
+                        <td style="font-size:13px;">{{ t.reference|default:"—" }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="p-3 text-muted">No credit transactions found.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

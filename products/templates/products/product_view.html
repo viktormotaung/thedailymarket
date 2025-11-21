@@ -1,0 +1,365 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Product · {{ product.sku }} — {{ product.name }} - Seshibo Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+
+  <style>
+    :root{
+      --sidebar-w: 220px;
+      --mobile-nav-h: 56px;
+      --brand-green: #0b5c39;
+      --content-bg: #f8f9fa;
+    }
+    html, body { height: 100%; }
+    .sidebar-skin { background-color: var(--brand-green); color: #fff; padding: 1rem; }
+    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover { background: rgba(255,255,255,0.15); border-radius: 4px; padding-left: 8px; }
+    .sidebar-skin .nav-link.ps-4 { font-size:.95rem; opacity:.95; }
+    .logo-img { max-height: 80px; width: auto; }
+    .nav-link[data-bs-toggle="collapse"]::after { content: none !important; }
+    .content { background: var(--content-bg); padding: 20px; }
+    .card { box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .meta { font-size: 12px; color: #6c757d; }
+    .pill { font-size: 12px; background: #e9f7f0; color: #0b5c39; border: 1px solid #cfe9df; padding: .15rem .5rem; border-radius: .5rem; }
+
+    .dl-tight dt { width: 160px; }
+    .dl-tight dd { margin-left: 0; }
+    @media (min-width: 768px) {
+      .dl-grid { display: grid; grid-template-columns: 200px 1fr; row-gap: .25rem; }
+      .dl-grid dt { grid-column: 1; }
+      .dl-grid dd { grid-column: 2; }
+    }
+
+    .table thead th { position: sticky; top: 0; background: #fff; z-index: 1; }
+    .table th, .table td { vertical-align: middle; font-size: 13px; }
+
+    @media (min-width: 992px) {
+      body { display: block; overflow: hidden; }
+      .sidebar-desktop {
+        position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-w);
+        overflow-y: auto; z-index: 1020;
+      }
+      .content { margin-left: var(--sidebar-w); height: 100vh; overflow: auto; -webkit-overflow-scrolling: touch; }
+    }
+    @media (max-width: 991.98px) {
+      html, body { height: 100%; overflow: hidden; }
+      .navbar.d-lg-none { position: fixed; top: 0; left: 0; right: 0; z-index: 1040; }
+      .content { margin-top: var(--mobile-nav-h); height: calc(100dvh - var(--mobile-nav-h)); overflow: auto; -webkit-overflow-scrolling: touch; height: calc(100vh - var(--mobile-nav-h)); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MOBILE/TABLET TOP BAR -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  <!-- MOBILE OFFCANVAS -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header sidebar-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body sidebar-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+      <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-orders' %}active{% endif %}">Orders</a>
+      <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+      <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between" data-bs-toggle="collapse" href="#deliveriesMenuMobile" role="button" aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}" aria-controls="deliveriesMenuMobile">
+            <span>Deliveries</span>
+          </a>
+          <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuMobile">
+            <a href="{% url 'warehouse' %}?view=warehouse" class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">Warehouse</a>
+            <a href="{% url 'delivery' %}?view=runs" class="nav-link ps-4 {% if current_name == 'delivery' %}{% if request.GET.view %}{% if request.GET.view == 'runs' %}active{% endif %}{% else %}active{% endif %}{% endif %}">Delivery Runs</a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+      <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between" data-bs-toggle="collapse" href="#profilesMenuMobile" role="button" aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}" aria-controls="profilesMenuMobile">
+            <span>Profiles</span>
+          </a>
+          <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuMobile">
+            <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+            <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+            <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+      <hr class="border-light">
+      <form action="{% url 'logout' %}" method="post" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light w-100">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+
+    <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+    <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-orders' %}active{% endif %}">Orders</a>
+    <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+    <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+    <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between" data-bs-toggle="collapse" href="#deliveriesMenuDesktop" role="button" aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}" aria-controls="deliveriesMenuDesktop">
+          <span>Deliveries</span>
+        </a>
+        <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuDesktop">
+          <a href="{% url 'warehouse' %}?view=warehouse" class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">Warehouse</a>
+          <a href="{% url 'delivery' %}?view=runs" class="nav-link ps-4 {% if current_name == 'delivery' %}{% if request.GET.view %}{% if request.GET.view == 'runs' %}active{% endif %}{% else %}active{% endif %}{% endif %}">Delivery Runs</a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+    <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products product-view product-edit product-create' %}active{% endif %}">Products</a>
+
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between" data-bs-toggle="collapse" href="#profilesMenuDesktop" role="button" aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}" aria-controls="profilesMenuDesktop">
+          <span>Profiles</span>
+        </a>
+        <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuDesktop">
+          <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+          <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+          <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+    <div>
+      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+        {% csrf_token %}
+        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h2 class="m-0">
+          {{ product.sku }} · {{ product.name }}
+          <span class="pill align-middle ms-1">{{ product.get_uom_display }}</span>
+        </h2>
+        <div class="meta mt-1">
+          Category: {{ product.category.name }}
+          {% if product.slug %} · Slug: <code>{{ product.slug }}</code>{% endif %}
+          · Updated {{ product.updated_at|date:"Y-m-d H:i" }}
+          · Created {{ product.created_at|date:"Y-m-d H:i" }}
+        </div>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'staff-products' %}" class="btn btn-outline-secondary">Back to Products</a>
+        <a href="{% url 'product-edit' product.id %}" class="btn btn-primary">Edit Product</a>
+      </div>
+    </div>
+
+    {% if success_message %}<div class="alert alert-success mt-3">{{ success_message }}</div>{% endif %}
+    {% if error_message %}<div class="alert alert-danger mt-3">{{ error_message }}</div>{% endif %}
+
+    <!-- SUMMARY STRIP -->
+    <div class="row g-3 mt-3">
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header bg-white"><strong>Product Info</strong></div>
+          <div class="card-body">
+            <dl class="dl-grid m-0">
+              <dt>SKU</dt><dd>{{ product.sku }}</dd>
+              <dt>Name</dt><dd>{{ product.name }}</dd>
+              <dt>Category</dt><dd>{{ product.category.name }}</dd>
+              <dt>Unit of Measure</dt><dd>{{ product.get_uom_display }}</dd>
+              <dt>Slug</dt><dd>{% if product.slug %}<code>{{ product.slug }}</code>{% else %}—{% endif %}</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header bg-white"><strong>Image</strong></div>
+          <div class="card-body d-flex align-items-center justify-content-center" style="min-height:180px;">
+            {% if product.image %}
+              <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid" style="max-height:260px; object-fit:contain;">
+            {% else %}
+              <span class="text-muted">No image uploaded.</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUPPLIER PRICING -->
+    <div class="card mt-3">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <strong>Supplier Pricing</strong>
+        <div class="d-flex gap-2">
+          <a href="{% url 'product-pricing-create' product.id %}" class="btn btn-sm btn-success">Add Supplier Pricing</a>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        {% if pricing_rows %}
+          <div class="table-responsive">
+            <table class="table table-striped table-bordered mb-0">
+              <thead>
+                <tr>
+                  <th>Supplier</th>
+                  <th>Supp. Excl</th>
+                  <th>Supp. VAT %</th>
+                  <th>Supp. Incl</th>
+                  <th>Whsl %</th>
+                  <th>Whsl Margin (R)</th>
+                  <th>Whsl Excl</th>
+                  <th>Whsl VAT %</th>
+                  <th><strong>Whsl Incl</strong></th>
+                  <th>Retail %</th>
+                  <th>Retail Margin (R)</th>
+                  <th>Retail Excl</th>
+                  <th>Retail VAT %</th>
+                  <th><strong>Retail Incl</strong></th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in pricing_rows %}
+                  <tr>
+                    <td>{{ row.supplier.code }} · {{ row.supplier.name }}</td>
+                    <td>R{{ row.supplier_price_excl|floatformat:2 }}</td>
+                    <td>{{ row.supplier_vat_percent|floatformat:2 }}%</td>
+                    <td>R{{ row.supplier_price_incl|floatformat:2 }}</td>
+                    <td>{{ row.wholesale_margin_percent|floatformat:2 }}%</td>
+                    <td>R{{ row.wholesale_margin_amount|floatformat:2 }}</td>
+                    <td>R{{ row.wholesale_price_excl|floatformat:2 }}</td>
+                    <td>{{ row.wholesale_vat_percent|floatformat:2 }}%</td>
+                    <td><strong>R{{ row.wholesale_price_inc|floatformat:2 }}</strong></td>
+                    <td>{{ row.retail_margin_percent|floatformat:2 }}%</td>
+                    <td>R{{ row.retail_margin_amount|floatformat:2 }}</td>
+                    <td>R{{ row.retail_price_excl|floatformat:2 }}</td>
+                    <td>{{ row.retail_vat_percent|floatformat:2 }}%</td>
+                    <td><strong>R{{ row.retail_price_inc|floatformat:2 }}</strong></td>
+                    <td>{% if row.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</td>
+                    <td><a href="{% url 'product-pricing-edit' row.id %}" class="btn btn-sm btn-outline-secondary">Edit</a></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="p-3">
+            <span class="text-muted">No supplier pricing captured yet.</span>
+            <a href="{% url 'product-pricing-create' product.id %}" class="btn btn-sm btn-link">Add one now</a>.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- PRODUCT VARIANTS -->
+    <div class="card mt-3">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <strong>Product Variants</strong>
+        <div class="d-flex gap-2">
+          {# adjust route name if yours differs #}
+          <a href="{% url 'variant-create' product.id %}" class="btn btn-sm btn-success">Add Variant</a>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        {% if variant_rows %}
+          <div class="table-responsive">
+            <table class="table table-striped table-bordered mb-0">
+              <thead>
+                <tr>
+                  <th>Variant</th>
+                  <th>SKU</th>
+                  <th>Pack size</th>
+                  <th>UoM</th>
+                  <th>Scales?</th>
+                  <th>Wholesale (override)</th>
+                  <th>Retail (override)</th>
+                  <th><strong>Wholesale (derived)</strong></th>
+                  <th><strong>Retail (derived)</strong></th>
+                  <th>Image</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for v in variant_rows %}
+                  <tr>
+                    <td>{{ v.name }}</td>
+                    <td>{{ v.sku }}</td>
+                    <td>{{ v.pack_size }}</td>
+                    <td>{{ v.uom }}</td>
+                    <td>{% if v.scales_with_pack %}Yes{% else %}No{% endif %}</td>
+                    <td>{% if v.wholesale_override %}R{{ v.wholesale_override|floatformat:2 }}{% else %}—{% endif %}</td>
+                    <td>{% if v.retail_override %}R{{ v.retail_override|floatformat:2 }}{% else %}—{% endif %}</td>
+                    <td>R{{ v.wholesale_derived|floatformat:2 }}</td>
+                    <td>R{{ v.retail_derived|floatformat:2 }}</td>
+                    <td>
+                      {% if v.image_url %}
+                        <img src="{{ v.image_url }}" alt="{{ v.name }}" style="height:42px; width:auto;">
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <a href="{% url 'variant-edit' v.id %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="p-3">
+            <span class="text-muted">No variants yet.</span>
+            <a href="{% url 'variant-create' product.id %}" class="btn btn-sm btn-link">Add a variant</a>.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,410 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Record Transaction - Seshibo Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+
+  <style>
+    :root{
+      --sidebar-w: 220px;
+      --mobile-nav-h: 56px;
+      --brand-green: #0b5c39;
+      --content-bg: #f8f9fa;
+    }
+    html, body { height: 100%; }
+
+    /* Sidebar skin */
+    .sidebar-skin { background-color: var(--brand-green); color: #fff; padding: 1rem; }
+    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover { background: rgba(255,255,255,0.15); border-radius: 4px; padding-left: 8px; }
+    .sidebar-skin .nav-link.ps-4 { font-size: .95rem; opacity: .95; } /* nested deliveries links */
+    .logo-img { max-height: 80px; width: auto; }
+
+    /* Content */
+    .content { background: var(--content-bg); padding: 20px; }
+    .card { box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .helptext { font-size: .85rem; color: #6c757d; }
+    .errorlist, .text-danger.small { margin: .25rem 0 0; padding-left: 0; color: #dc3545; }
+
+    /* Desktop: fixed sidebar, only content scrolls */
+    @media (min-width: 992px) {
+      body { display: block; overflow: hidden; }
+      .sidebar-desktop {
+        position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-w);
+        overflow-y: auto; z-index: 1020;
+      }
+      .content {
+        margin-left: var(--sidebar-w);
+        height: 100vh; overflow: auto; -webkit-overflow-scrolling: touch;
+      }
+    }
+
+    /* Mobile: fixed top bar, content scrolls under it */
+    @media (max-width: 991.98px) {
+      html, body { height: 100%; overflow: hidden; }
+      .navbar.d-lg-none { position: fixed; top: 0; left: 0; right: 0; z-index: 1040; }
+      .content {
+        margin-top: var(--mobile-nav-h);
+        height: calc(100dvh - var(--mobile-nav-h));
+        overflow: auto; -webkit-overflow-scrolling: touch;
+        height: calc(100vh - var(--mobile-nav-h));
+      }
+    }
+  </style>
+</head>
+<body>
+
+  {# ---------- MOBILE/TABLET TOP BAR (visible < lg) ---------- #}
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  {# ---------- MOBILE OFFCANVAS MENU (same links as sidebar) ---------- #}
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header sidebar-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body sidebar-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+      <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-orders order-view order-edit order-create' %}active{% endif %}">Orders</a>
+      <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+      <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+      {# ---- Deliveries dropdown (MOBILE) ---- #}
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#deliveriesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+             aria-controls="deliveriesMenuMobile">
+            <span>Deliveries</span>
+          </a>
+          <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuMobile">
+            <a href="{% url 'warehouse' %}?view=warehouse"
+               class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+              Warehouse
+            </a>
+            <a href="{% url 'delivery' %}?view=runs"
+               class="nav-link ps-4
+                 {% if current_name == 'delivery' %}
+                   {% if request.GET.view %}
+                     {% if request.GET.view == 'runs' %}active{% endif %}
+                   {% else %}
+                     active
+                   {% endif %}
+                 {% endif %}">
+              Delivery Runs
+            </a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+      <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+      {# ---- Profiles dropdown (MOBILE) ---- #}
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#profilesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+             aria-controls="profilesMenuMobile">
+            <span>Profiles</span>
+          </a>
+          <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuMobile">
+            <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+            <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+            <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+      <hr class="border-light">
+      <form action="{% url 'logout' %}" method="post" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light w-100">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  {# ---------- DESKTOP SIDEBAR (visible ≥ lg) ---------- #}
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+
+    <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+    <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-orders order-view order-edit order-create' %}active{% endif %}">Orders</a>
+    <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+    <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-transactions -view transaction-edit transaction-create' %}active{% endif %}">Transactions</a>
+    <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+    {# ---- Deliveries dropdown (DESKTOP) ---- #}
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#deliveriesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+           aria-controls="deliveriesMenuDesktop">
+          <span>Deliveries</span>
+        </a>
+        <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuDesktop">
+          <a href="{% url 'warehouse' %}?view=warehouse"
+             class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+            Warehouse
+          </a>
+          <a href="{% url 'delivery' %}?view=runs"
+             class="nav-link ps-4
+               {% if current_name == 'delivery' %}
+                 {% if request.GET.view %}
+                   {% if request.GET.view == 'runs' %}active{% endif %}
+                 {% else %}
+                   active
+                 {% endif %}
+               {% endif %}">
+            Delivery Runs
+          </a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+    <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+    {# ---- Profiles dropdown (DESKTOP) ---- #}
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#profilesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+           aria-controls="profilesMenuDesktop">
+          <span>Profiles</span>
+        </a>
+        <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuDesktop">
+          <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+          <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+          <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+    {# No extra margin to avoid large gap #}
+    <div>
+      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+        {% csrf_token %}
+        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h2 class="m-0">Record Transaction</h2>
+        <div class="text-muted">Create a new finance transaction</div>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{% url 'staff-transactions' %}" class="btn btn-outline-secondary">Back to Transactions</a>
+      </div>
+    </div>
+
+    {% if messages %}
+      <div class="mt-3">
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <form method="post" class="mt-3">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="row g-3">
+        <!-- Transaction Details -->
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header bg-white"><strong>Transaction Details</strong></div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label class="form-label" for="{{ form.client.id_for_label }}">Client</label>
+                {{ form.client }}
+                {% if form.client.errors %}<div class="text-danger small">{{ form.client.errors }}</div>{% endif %}
+                {% if form.client.help_text %}<div class="helptext">{{ form.client.help_text }}</div>{% endif %}
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" for="{{ form.invoice.id_for_label }}">Invoice (optional)</label>
+                {{ form.invoice }}
+                {% if form.invoice.errors %}<div class="text-danger small">{{ form.invoice.errors }}</div>{% endif %}
+                {% if form.invoice.help_text %}<div class="helptext">{{ form.invoice.help_text }}</div>{% endif %}
+                <div class="form-text">Select a client to load their invoices.</div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" for="{{ form.transaction_type.id_for_label }}">Type</label>
+                {{ form.transaction_type }}
+                {% if form.transaction_type.errors %}<div class="text-danger small">{{ form.transaction_type.errors }}</div>{% endif %}
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" for="{{ form.amount.id_for_label }}">Amount (R)</label>
+                {{ form.amount }}
+                {% if form.amount.errors %}<div class="text-danger small">{{ form.amount.errors }}</div>{% endif %}
+                {% if form.amount.help_text %}<div class="helptext">{{ form.amount.help_text }}</div>{% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reference & Notes -->
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header bg-white"><strong>Reference & Notes</strong></div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label class="form-label" for="{{ form.reference.id_for_label }}">Reference</label>
+                {{ form.reference }}
+                {% if form.reference.errors %}<div class="text-danger small">{{ form.reference.errors }}</div>{% endif %}
+                {% if form.reference.help_text %}<div class="helptext">{{ form.reference.help_text }}</div>{% endif %}
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" for="{{ form.note.id_for_label }}">Notes</label>
+                {{ form.note }}
+                {% if form.note.errors %}<div class="text-danger small">{{ form.note.errors }}</div>{% endif %}
+              </div>
+
+              <div class="alert alert-light border">
+                <div class="small text-muted mb-1"><strong>Info</strong></div>
+                <ul class="m-0 ps-3 small">
+                  <li><em>Payment/Credit*</em> counts as money in; <em>Invoice/Credit Usage/Adjustment</em> counts as money out.</li>
+                  <li>Business balance updates atomically when you save.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="d-flex justify-content-end mt-3 gap-2">
+        <a href="{% url 'staff-transactions' %}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">Create Transaction</button>
+      </div>
+    </form>
+  </main>
+
+  <script>
+    // === Invoice options depend on selected client (same pattern as products-by-category) ===
+    document.addEventListener("DOMContentLoaded", function () {
+      const INV_API_URL = "{% url 'ajax-invoices-by-client' %}";
+      const clientSelId  = "{{ form.client.id_for_label }}";
+      const invoiceSelId = "{{ form.invoice.id_for_label }}";
+      const clientSel  = document.getElementById(clientSelId);
+      const invoiceSel = document.getElementById(invoiceSelId);
+
+      function setOptions(selectEl, options, keepValue = false) {
+        const prev = keepValue ? (selectEl.value || "") : "";
+        selectEl.innerHTML = "";
+        const opt0 = document.createElement("option");
+        opt0.value = "";
+        opt0.textContent = options.length ? "— Select invoice —" : "No invoices";
+        selectEl.appendChild(opt0);
+        options.forEach(o => {
+          const opt = document.createElement("option");
+          opt.value = String(o.id);
+          opt.textContent = o.text || `INV-${o.id}`;
+          selectEl.appendChild(opt);
+        });
+        if (keepValue && prev) {
+          selectEl.value = prev;
+        }
+      }
+
+      async function loadInvoicesForClient(clientId, selectEl, { keepValue = false } = {}) {
+        setOptions(selectEl, []);    // clear while loading
+        selectEl.disabled = true;
+
+        if (!clientId) {
+          selectEl.innerHTML = "";
+          const opt = document.createElement("option");
+          opt.value = "";
+          opt.textContent = "Select client first";
+          selectEl.appendChild(opt);
+          return;
+        }
+
+        try {
+          const url = new URL(INV_API_URL, window.location.origin);
+          url.searchParams.set("client_id", String(clientId));
+          const res = await fetch(url.toString(), { credentials: "same-origin", cache: "no-store" });
+          const data = await res.json();
+          const results = Array.isArray(data?.results) ? data.results : [];
+          setOptions(selectEl, results, keepValue);
+        } catch (e) {
+          setOptions(selectEl, []);  // fallback -> No invoices
+        } finally {
+          selectEl.disabled = false;
+        }
+      }
+
+      if (clientSel && invoiceSel) {
+        // Initial: if client already chosen, populate and try to keep the chosen invoice
+        if (clientSel.value) {
+          loadInvoicesForClient(clientSel.value, invoiceSel, { keepValue: true });
+        } else {
+          invoiceSel.disabled = true;
+          invoiceSel.innerHTML = "";
+          const opt = document.createElement("option");
+          opt.value = "";
+          opt.textContent = "Select client first";
+          invoiceSel.appendChild(opt);
+        }
+
+        // On client change -> refresh invoice list (do not keep previous invoice)
+        clientSel.addEventListener("change", () => {
+          loadInvoicesForClient(clientSel.value || "", invoiceSel, { keepValue: false });
+        });
+      }
+    });
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

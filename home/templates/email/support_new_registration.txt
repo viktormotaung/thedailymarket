@@ -1,0 +1,9 @@
+A new customer registration has been completed.
+
+Client: {{ client.name }}
+User:   {{ user.get_full_name|default:user.username }}
+Email:  {{ user.email|default:user.username }}
+{% if client_url %}Client page:  {{ client_url }}{% endif %}
+{% if profile_url %}Profile page: {{ profile_url }}{% endif %}
+
+Please review and activate as needed.

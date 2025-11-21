@@ -1,0 +1,387 @@
+{% load static thumbnail %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Supplier · {{ supplier.name }} - Seshibo Daily Market</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    :root{
+      --sidebar-w: 220px;
+      --mobile-nav-h: 56px;
+      --brand-green: #0b5c39;
+      --content-bg: #f8f9fa;
+    }
+    html, body { height: 100%; }
+    .sidebar-skin { background-color: var(--brand-green); color: #fff; padding: 1rem; }
+    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover { background: rgba(255,255,255,0.15); border-radius: 4px; padding-left: 8px; }
+    .logo-img { max-height: 80px; width: auto; }
+    .content { background: var(--content-bg); padding: 20px; }
+    .card { box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .meta { font-size: 12px; color: #6c757d; }
+    .badge-cat { background: #e9f7f0; color: #0b5c39; border: 1px solid #cfe9df; }
+    .dl-tight dt { width: 160px; }
+    .dl-tight dd { margin-left: 0; }
+    @media (min-width: 768px) {
+      .dl-grid { display: grid; grid-template-columns: 200px 1fr; row-gap: .25rem; }
+      .dl-grid dt { grid-column: 1; }
+      .dl-grid dd { grid-column: 2; }
+    }
+    @media (min-width: 992px) {
+      body { display: block; overflow: hidden; }
+      .sidebar-desktop {
+        position: fixed; top: 0; left: 0; bottom: 0;
+        width: var(--sidebar-w); overflow-y: auto; z-index: 1020;
+      }
+      .content {
+        margin-left: var(--sidebar-w);
+        height: 100vh; overflow: auto; -webkit-overflow-scrolling: touch;
+      }
+    }
+    @media (max-width: 991.98px) {
+      html, body { height: 100%; overflow: hidden; }
+      .navbar.d-lg-none { position: fixed; top: 0; left: 0; right: 0; z-index: 1040; }
+      .content {
+        margin-top: var(--mobile-nav-h);
+        height: calc(100dvh - var(--mobile-nav-h));
+        overflow: auto; -webkit-overflow-scrolling: touch;
+        height: calc(100vh - var(--mobile-nav-h));
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MOBILE/TABLET TOP BAR -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  <!-- MOBILE OFFCANVAS MENU -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header sidebar-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body sidebar-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+      <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-orders' %}active{% endif %}">Orders</a>
+      <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+      <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#deliveriesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+             aria-controls="deliveriesMenuMobile">
+            <span>Deliveries</span>
+          </a>
+          <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuMobile">
+            <a href="{% url 'warehouse' %}?view=warehouse"
+               class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+              Warehouse
+            </a>
+            <a href="{% url 'delivery' %}?view=runs"
+               class="nav-link ps-4
+                 {% if current_name == 'delivery' %}
+                   {% if request.GET.view %}
+                     {% if request.GET.view == 'runs' %}active{% endif %}
+                   {% else %}
+                     active
+                   {% endif %}
+                 {% endif %}">
+              Delivery Runs
+            </a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+      <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#profilesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+             aria-controls="profilesMenuMobile">
+            <span>Profiles</span>
+          </a>
+          <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuMobile">
+            <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+            <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+            <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+      <hr class="border-light">
+      <form action="{% url 'logout' %}" method="post" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light w-100">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+
+    <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+    <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-orders' %}active{% endif %}">Orders</a>
+    <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+    <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+    <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#deliveriesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+           aria-controls="deliveriesMenuDesktop">
+          <span>Deliveries</span>
+        </a>
+        <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuDesktop">
+          <a href="{% url 'warehouse' %}?view=warehouse"
+             class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+            Warehouse
+          </a>
+          <a href="{% url 'delivery' %}?view=runs"
+             class="nav-link ps-4
+               {% if current_name == 'delivery' %}
+                 {% if request.GET.view %}
+                   {% if request.GET.view == 'runs' %}active{% endif %}
+                 {% else %}
+                   active
+                 {% endif %}
+               {% endif %}">
+            Delivery Runs
+          </a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+    <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#profilesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+           aria-controls="profilesMenuDesktop">
+          <span>Profiles</span>
+        </a>
+        <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuDesktop">
+          <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+          <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+          <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+    <div>
+      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+        {% csrf_token %}
+        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h2 class="m-0">
+          {{ supplier.code }} · {{ supplier.name }}
+          {% if supplier.is_active %}
+            <span class="badge bg-success align-middle">Active</span>
+          {% else %}
+            <span class="badge bg-secondary align-middle">Inactive</span>
+          {% endif %}
+        </h2>
+        <div class="meta mt-1">
+          Updated {{ supplier.updated_at|date:"Y-m-d H:i" }} · Created {{ supplier.created_at|date:"Y-m-d H:i" }}
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{% url 'staff-suppliers' %}" class="btn btn-outline-secondary">Back to Suppliers</a>
+        <a href="{% url 'supplier-edit' supplier.id %}" class="btn btn-primary">Edit Supplier</a>
+      </div>
+    </div>
+
+    {% if success_message %}
+      <div class="alert alert-success mt-3">{{ success_message }}</div>
+    {% endif %}
+    {% if error_message %}
+      <div class="alert alert-danger mt-3">{{ error_message }}</div>
+    {% endif %}
+
+    <!-- BRAND LOGO PREVIEW -->
+    <div class="card mt-3">
+      <div class="card-header bg-white"><strong>Brand Logo</strong></div>
+      <div class="card-body">
+        {% if supplier.logo %}
+          {% thumbnail supplier.logo 'logo' as im %}
+          <img src="{{ im.url }}" width="{{ im.width }}" height="{{ im.height }}"
+               class="img-fluid border rounded p-2 bg-white"
+               alt="{{ supplier.name }} Logo">
+          <div class="text-muted small mt-2">Stored as: {{ supplier.logo.name }}</div>
+        {% else %}
+          <span class="text-muted">No logo uploaded.</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- SUMMARY STRIP -->
+    <div class="row g-3 mt-3">
+      <div class="col-md-4">
+        <div class="card h-100">
+          <div class="card-header bg-white"><strong>Account</strong></div>
+          <div class="card-body">
+            <dl class="dl-grid m-0">
+              <dt>Account Manager</dt>
+              <dd>
+                {% if supplier.account_manager %}
+                  {{ supplier.account_manager.get_full_name|default:supplier.account_manager.username }}
+                  {% if supplier.account_manager.email %} · <a href="mailto:{% firstof supplier.account_manager.email '' %}">Email</a>{% endif %}
+                {% else %} — {% endif %}
+              </dd>
+
+              <dt>Status</dt>
+              <dd>{% if supplier.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</dd>
+
+              <dt>Visible on site</dt>
+              <dd>{% if supplier.visible %}<span class="badge bg-primary">Yes</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</dd>
+
+              <dt>Payment Terms</dt>
+              <dd>{{ supplier.get_payment_terms_display }}</dd>
+
+              <dt>Categories</dt>
+              <dd>
+                {% if supplier.categories.all %}
+                  {% for cat in supplier.categories.all %}
+                    <span class="badge badge-cat me-1 mb-1">{{ cat.name }}</span>
+                  {% empty %} — {% endfor %}
+                {% else %} — {% endif %}
+              </dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card h-100">
+          <div class="card-header bg-white"><strong>Contact</strong></div>
+          <div class="card-body">
+            <dl class="dl-grid m-0">
+              <dt>Contact Person</dt>
+              <dd>{{ supplier.contact_person|default:"—" }}</dd>
+
+              <dt>Phone</dt>
+              <dd>{% if supplier.phone %}<a href="tel:{{ supplier.phone }}">{{ supplier.phone }}</a>{% else %} — {% endif %}</dd>
+
+              <dt>WhatsApp</dt>
+              <dd>
+                {% if supplier.whatsapp %}
+                  <a href="https://wa.me/{{ supplier.whatsapp|urlencode }}" target="_blank" rel="noopener">Chat</a> · {{ supplier.whatsapp }}
+                {% else %} — {% endif %}
+              </dd>
+
+              <dt>Email</dt>
+              <dd>{% if supplier.email %}<a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a>{% else %} — {% endif %}</dd>
+
+              <dt>Website</dt>
+              <dd>{% if supplier.website %}<a href="{{ supplier.website }}" target="_blank" rel="noopener">{{ supplier.website }}</a>{% else %} — {% endif %}</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card h-100">
+          <div class="card-header bg-white"><strong>Address & Compliance</strong></div>
+          <div class="card-body">
+            <dl class="dl-grid m-0">
+              <dt>Address</dt>
+              <dd>
+                {% if supplier.address_line1 or supplier.city or supplier.province or supplier.postal_code %}
+                  {{ supplier.address_line1 }}{% if supplier.address_line2 %}, {{ supplier.address_line2 }}{% endif %},
+                  {{ supplier.city }}{% if supplier.province %}, {{ supplier.province }}{% endif %}{% if supplier.postal_code %}, {{ supplier.postal_code }}{% endif %}
+                  {% if supplier.country %}, {{ supplier.country }}{% endif %}
+                  <div>
+                    <a class="small" target="_blank" rel="noopener"
+                       href="https://www.google.com/maps/search/?api=1&query={{ supplier.address_line1|urlencode }}+{{ supplier.city|urlencode }}+{{ supplier.province|urlencode }}+{{ supplier.postal_code|urlencode }}+{{ supplier.country|urlencode }}">
+                      Open in Google Maps
+                    </a>
+                  </div>
+                {% else %} — {% endif %}
+              </dd>
+
+              <dt>VAT Number</dt>
+              <dd>{{ supplier.vat_number|default:"—" }}</dd>
+
+              <dt>Company Reg #</dt>
+              <dd>{{ supplier.company_reg_number|default:"—" }}</dd>
+
+              <dt>Contract File</dt>
+              <dd>
+                {% if supplier.contract_file %}
+                  <a href="{{ supplier.contract_file.url }}" target="_blank" rel="noopener">View / Download</a>
+                {% else %} — {% endif %}
+              </dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTES -->
+    <div class="card mt-3">
+      <div class="card-header bg-white"><strong>Notes</strong></div>
+      <div class="card-body">
+        {% if supplier.notes %}
+          <div class="text-wrap" style="white-space:pre-line">{{ supplier.notes }}</div>
+        {% else %}
+          <span class="text-muted">No notes added.</span>
+        {% endif %}
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

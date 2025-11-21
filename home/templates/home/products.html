@@ -1,0 +1,566 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Products · The Daily Market</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+
+  <style>
+    :root { --brand:#0b5c39; --brand-dark:#094c30; }
+    html, body { height: 100%; }
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+    /* ---------- Base / Navbar (desktop) ---------- */
+    .navbar-brand img { height:85px; max-height:100px; width:auto; }
+    .navbar { background: var(--brand); }
+    .navbar .nav-link, .navbar .navbar-brand, .navbar .dropdown-toggle { color:#fff !important; }
+    .navbar .nav-link:hover { color:#e0e0e0 !important; }
+    .navbar .dropdown-menu.brand {
+      background:#0b5c39; border:1px solid #094c30; box-shadow:0 8px 24px rgba(0,0,0,.25);
+    }
+    .navbar .dropdown-item { color:#fff; }
+    .navbar .dropdown-item:hover { background:#094c30; color:#fff; }
+    .navbar .dropdown-divider { border-color:rgba(255,255,255,.2); }
+
+    /* Normalize tab spacing/shape */
+    .navbar .navbar-nav { align-items:center; gap:.25rem; }
+    .navbar .nav-link {
+      display:inline-flex; align-items:center;
+      padding:.6rem 1rem; line-height:1; font-weight:500; border-radius:.375rem;
+    }
+    .navbar .nav-link:hover,
+    .navbar .nav-link:focus-visible { background:rgba(255,255,255,.10); color:#fff !important; }
+    .navbar .nav-link.active { background:rgba(255,255,255,.18); }
+
+
+    /* ---------- Mobile top bar + offcanvas ---------- */
+    .offcanvas-header.brand-skin { background:#0b5c39; color:#fff; }
+    .offcanvas-body.brand-skin { background:#0b5c39; color:#fff; }
+    .offcanvas-body .nav-link { color:#fff; padding:.55rem 0; }
+    .offcanvas-body .nav-link:hover { color:#d4f3e3; }
+  
+    /* Active highlight inside green offcanvas (mobile) */
+    .offcanvas-body.brand-skin .nav-link.active,
+    .offcanvas-body.brand-skin .nav-link:focus,
+    .offcanvas-body.brand-skin .nav-link:hover,
+    .offcanvas-body.brand-skin .dropdown-item.active,
+    .offcanvas-body.brand-skin .dropdown-item:focus,
+    .offcanvas-body.brand-skin .dropdown-item:hover {
+      background: rgba(255,255,255,.18);
+      border-radius: .375rem;
+      padding-left: .5rem;
+      color:#fff;
+    }
+    .offcanvas-body.brand-skin .text-uppercase.small.opacity-75 {
+      color: rgba(255,255,255,.75) !important;
+    }
+
+    
+    .page-hero{ background:url("{% static 'images/products-hero.jpg' %}") center/cover no-repeat; min-height:240px; position:relative; display:flex; align-items:center; justify-content:center; color:#fff; text-align:center; }
+    .page-hero::after{content:""; position:absolute; inset:0; background:rgba(0,0,0,.45);}
+    .page-hero > *{ position:relative; z-index:1; }
+    .section-heading{ font-weight:700; }
+    .filter-card{ position:sticky; top:1rem; }
+    .badge-available{background:#e8f5ee; color:#0b5c39; border:1px solid #cfeadf;}
+    .badge-out{background:#fdecea; color:#a33a2b; border:1px solid #f4b7ae;}
+    .btn-brand{ background:var(--brand); border-color:var(--brand); color:#fff; }
+    .btn-brand:hover{ background:var(--brand-dark); border-color:var(--brand-dark); color:#fff; }
+    .pagination .page-link{ color:var(--brand); }
+    .pagination .page-item.active .page-link{ background:var(--brand); border-color:var(--brand); }
+
+    /* Footer */
+    footer { background:#0b5c39; color:#fff; }
+    footer a { color:#fff; }
+    footer a:hover { color:#d4f3e3; text-decoration:underline; }
+    .footer .border-light { border-color:rgba(255,255,255,.35) !important; }
+    @media (max-width:991.98px){ .navbar-brand img{ height:40px; } }
+  </style>
+</head>
+<body class="bg-light">
+  <!-- Auth flag for JS gating -->
+  <script>const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};</script>
+
+  <!-- ========== MOBILE TOP BAR (visible < lg) ========== -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="offcanvas" data-bs-target="#mobileMenu"
+              aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="/"><img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="height:40px;"></a>
+    </div>
+  </nav>
+
+  <!-- Offcanvas menu (mobile) -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header brand-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body brand-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="max-height:80px; width:auto;">
+      </div>
+
+      <!-- Top-level -->
+      <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-bs-dismiss="offcanvas">Home</a>
+      <a href="{% url 'about' %}" class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" data-bs-dismiss="offcanvas">About</a>
+
+      <!-- Divisions -->
+      <div class="mt-2 text-uppercase small opacity-75">Divisions</div>
+      <a href="{% url 'wholesale' %}" class="nav-link {% if request.path == '/wholesale/' %}active{% endif %}" data-bs-dismiss="offcanvas">Wholesale Trade</a>
+      <a href="{% url 'retail' %}" class="nav-link {% if request.path == '/retail/' %}active{% endif %}" data-bs-dismiss="offcanvas">Retail Express</a>
+      <a href="{% url 'grill' %}" class="nav-link {% if request.path == '/grill/' %}active{% endif %}" data-bs-dismiss="offcanvas">Grill Experience</a>
+
+      <hr class="border-light my-3">
+
+      <a href="{% url 'become_supplier' %}" class="nav-link {% if request.resolver_match.url_name == 'become_supplier' or request.path == '/become_supplier/' %}active{% endif %}" data-bs-dismiss="offcanvas">Become A Supplier</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}" data-bs-dismiss="offcanvas">Products</a>
+      <a class="nav-link requires-auth {% if request.resolver_match.url_name == 'wholesale_assist' or request.path == '/wholesale_assist/' %}active{% endif %}" href="{% url 'wholesale_assist' %}" data-bs-dismiss="offcanvas">Trade Assist</a>
+
+      <!-- Orders -->
+      <div class="mt-2 text-uppercase small opacity-75">Orders</div>
+      <a class="nav-link requires-auth {% if request.path == '/orders/' %}active{% endif %}" href="{% url 'orders' %}" data-bs-dismiss="offcanvas">My Orders</a>
+      <a class="nav-link requires-auth {% if request.path == '/cart/' %}active{% endif %}" href="{% url 'cart' %}" data-bs-dismiss="offcanvas">Cart</a>
+
+      <a href="{% url 'contact' %}" class="nav-link mt-3 {% if request.path == '/contact/' %}active{% endif %}" data-bs-dismiss="offcanvas">Contact</a>
+
+      <hr class="border-light my-3">
+
+      {% if user.is_authenticated %}
+        <a href="/profile/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">My Profile</a>
+        <a href="/settings/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">Settings</a>
+        <form action="{% url 'logout' %}" method="post" class="mt-1">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-light w-100">Sign out</button>
+        </form>
+      {% else %}
+        <div class="text-uppercase small opacity-75">Sign in</div>
+        <a href="{% url 'client-login' %}" class="btn btn-outline-light w-100 mt-2">Client</a>
+        <a href="{% url 'staff-login' %}" target="_blank" class="btn btn-outline-light w-100 mt-2">Staff</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ========== DESKTOP NAVBAR (visible ≥ lg) ========== -->
+  <nav class="navbar navbar-expand-lg navbar-dark border-bottom d-none d-lg-block">
+    <div class="container d-flex align-items-center">
+      <a class="navbar-brand me-auto" href="/">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market">
+      </a>
+
+      <div id="nav" class="navbar-collapse justify-content-center">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">Home</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" href="/about/">About</a>
+          </li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle {% if request.path == '/grill/' or request.path == '/retail/' or request.path == '/wholesale/' %}active{% endif %}"
+               href="/divisions/" id="divisionsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Divisions
+            </a>
+            <ul class="dropdown-menu brand" aria-labelledby="divisionsDropdown">
+              <li><a class="dropdown-item {% if request.path == '/wholesale/' %}active{% endif %}" href="/wholesale/">Wholesale Trade</a></li>
+              <li><a class="dropdown-item {% if request.path == '/retail/' %}active{% endif %}" href="/retail/">Retail Express</a></li>
+              <li><a class="dropdown-item {% if request.path == '/grill/' %}active{% endif %}" href="/grill/">Grill Experience</a></li>
+            </ul>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'become_supplier' or request.path == '/become_supplier/' %}active{% endif %}"
+               href="/become_supplier/">Become A Supplier</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}"
+               href="{% url 'products' %}">Products</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link requires-auth {% if request.resolver_match.url_name == 'wholesale_assist' or request.path == '/wholesale_assist/' %}active{% endif %}"
+               href="{% url 'wholesale_assist' %}">Trade Assist</a>
+          </li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle requires-auth {% if request.path == '/orders/' or request.path == '/cart/' %}active{% endif %}"
+               href="/order/" id="orderDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Orders
+            </a>
+            <ul class="dropdown-menu brand" aria-labelledby="orderDropdown">
+              <li><a class="dropdown-item requires-auth {% if request.path == '/orders/' %}active{% endif %}" href="/orders/">My Orders</a></li>
+              <li><a class="dropdown-item requires-auth {% if request.path == '/cart/' %}active{% endif %}" href="/cart/">Cart</a></li>
+            </ul>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == '/contact/' %}active{% endif %}" href="/contact/">Contact</a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="dropdown ms-auto">
+        <a class="nav-link p-0 dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-person-circle fs-4"></i>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end brand">
+          {% if user.is_authenticated %}
+            <li><a class="dropdown-item" href="/profile/">My Profile</a></li>
+            <li><a class="dropdown-item" href="/settings/">Settings</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form action="{% url 'logout' %}" method="post" class="px-3">
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item p-0 btn btn-link text-white">Sign out</button>
+              </form>
+            </li>
+          {% else %}
+            <li class="dropdown-header text-white-50">Sign in</li>
+            <li><a class="dropdown-item" href="{% url 'client-login' %}">Client</a></li>
+            <li><a class="dropdown-item" href="{% url 'staff-login' %}">Staff</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="container">
+      <h1 class="fw-bold">Products</h1>
+      <p class="lead mb-0">Quality you can trust — for homes, restaurants, and retailers.</p>
+    </div>
+  </section>
+
+  {% if messages %}
+  <div class="container mt-3" style="max-width:1100px;">
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} mb-0">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <section class="py-4">
+    <div class="container" style="max-width: 1200px;">
+      <div class="row g-4">
+
+        <!-- Sidebar: Filters -->
+        <aside class="col-lg-3">
+          <div class="card border-0 shadow-sm filter-card">
+            <div class="card-body">
+              <h5 class="section-heading mb-3">Filter</h5>
+              <form method="get" action="{% url 'products' %}">
+                <!-- Search -->
+                <div class="mb-3">
+                  <label class="form-label">Search</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" value="{{ request.GET.q }}" class="form-control" placeholder="Product or keyword">
+                  </div>
+                </div>
+
+                <!-- Category -->
+                <div class="mb-3">
+                  <label class="form-label">Category</label>
+                  <select name="category" class="form-select">
+                    <option value="">All categories</option>
+                    {% for cat in categories %}
+                      <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:"s" %}selected{% endif %}>
+                        {{ cat.name }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <!-- Price -->
+                <div class="mb-3">
+                  <label class="form-label">Price (R)</label>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <input type="number" step="0.01" name="min_price" value="{{ request.GET.min_price }}" class="form-control" placeholder="Min">
+                    </div>
+                    <div class="col-6">
+                      <input type="number" step="0.01" name="max_price" value="{{ request.GET.max_price }}" class="form-control" placeholder="Max">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sort -->
+                <div class="mb-3">
+                  <label class="form-label">Sort by</label>
+                  <select name="sort" class="form-select">
+                    <option value="">Default</option>
+                    <option value="name" {% if request.GET.sort == 'name' %}selected{% endif %}>Name (A–Z)</option>
+                    <option value="-name" {% if request.GET.sort == '-name' %}selected{% endif %}>Name (Z–A)</option>
+                    <option value="price" {% if request.GET.sort == 'price' %}selected{% endif %}>Price (Low → High)</option>
+                    <option value="-price" {% if request.GET.sort == '-price' %}selected{% endif %}>Price (High → Low)</option>
+                    <option value="-created" {% if request.GET.sort == '-created' %}selected{% endif %}>Newest</option>
+                  </select>
+                </div>
+
+                <div class="d-grid gap-2">
+                  <button class="btn btn-brand" type="submit"><i class="bi bi-funnel me-1"></i>Apply</button>
+                  <a class="btn btn-outline-secondary" href="{% url 'products' %}">Clear</a>
+                </div>
+              </form>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Results -->
+        <main class="col-lg-9">
+          <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+            <div class="small text-muted">
+              {% if products.paginator.count %}
+                {{ products.paginator.count|intcomma }} result{{ products.paginator.count|pluralize }}
+              {% else %}
+                0 results
+              {% endif %}
+            </div>
+
+            <!-- Quick sort -->
+            <form method="get" class="d-flex align-items-center gap-2">
+              <input type="hidden" name="q" value="{{ request.GET.q }}">
+              <input type="hidden" name="category" value="{{ request.GET.category }}">
+              <input type="hidden" name="min_price" value="{{ request.GET.min_price }}">
+              <input type="hidden" name="max_price" value="{{ request.GET.max_price }}">
+              <label class="small text-muted">Sort</label>
+              <select name="sort" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">Default</option>
+                <option value="name" {% if request.GET.sort == 'name' %}selected{% endif %}>Name (A–Z)</option>
+                <option value="-name" {% if request.GET.sort == '-name' %}selected{% endif %}>Name (Z–A)</option>
+                <option value="price" {% if request.GET.sort == 'price' %}selected{% endif %}>Price (Low → High)</option>
+                <option value="-price" {% if request.GET.sort == '-price' %}selected{% endif %}>Price (High → Low)</option>
+                <option value="-created" {% if request.GET.sort == '-created' %}selected{% endif %}>Newest</option>
+              </select>
+            </form>
+          </div>
+
+          {% if products and products.object_list %}
+            <div class="row g-4">
+              {% for p in products.object_list %}
+                <div class="col-12 col-sm-6 col-md-4">
+                  {% include "products/_product_card.html" with p=p %}
+                </div>
+              {% endfor %}
+            </div>
+
+            {% if products.paginator.num_pages > 1 %}
+              <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                  {% if products.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?q={{ request.GET.q }}&category={{ request.GET.category }}&min_price={{ request.GET.min_price }}&max_price={{ request.GET.max_price }}&sort={{ request.GET.sort }}&page={{ products.previous_page_number }}">Prev</a></li>
+                  {% else %}
+                    <li class="page-item disabled"><span class="page-link">Prev</span></li>
+                  {% endif %}
+
+                  {% for num in products.paginator.page_range %}
+                    {% if num == products.number %}
+                      <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > products.number|add:-3 and num < products.number|add:3 %}
+                      <li class="page-item"><a class="page-link" href="?q={{ request.GET.q }}&category={{ request.GET.category }}&min_price={{ request.GET.min_price }}&max_price={{ request.GET.max_price }}&sort={{ request.GET.sort }}&page={{ num }}">{{ num }}</a></li>
+                    {% endif %}
+                  {% endfor %}
+
+                  {% if products.has_next %}
+                    <li class="page-item"><a class="page-link" href="?q={{ request.GET.q }}&category={{ request.GET.category }}&min_price={{ request.GET.min_price }}&max_price={{ request.GET.max_price }}&sort={{ request.GET.sort }}&page={{ products.next_page_number }}">Next</a></li>
+                  {% else %}
+                    <li class="page-item disabled"><span class="page-link">Next</span></li>
+                  {% endif %}
+                </ul>
+              </nav>
+            {% endif %}
+          {% else %}
+            <div class="text-center text-muted py-5">
+              <i class="bi bi-box-seam fs-1 d-block mb-2"></i>
+              <p class="lead mb-1">No products found</p>
+              <p>Try clearing filters or searching a different term.</p>
+              <a class="btn btn-outline-secondary" href="{% url 'products' %}"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset Filters</a>
+            </div>
+          {% endif %}
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="mt-auto">
+    <div class="container py-4 text-center small">© {% now "Y" %} The Daily Market • Quality You Can Trust</div>
+  </footer>
+
+  <!-- ========== Sign-in required modal ========== -->
+  <div class="modal fade" id="authRequiredModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center">
+        <div class="modal-header d-block border-0">
+          <h5 class="modal-title w-100">Sign in required</h5>
+          <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Please sign in or register to gain access here.
+        </div>
+        <div class="modal-footer justify-content-center border-0">
+          <a class="btn btn-outline-secondary" href="{% url 'client-login' %}">Sign In</a>
+          <a class="btn btn-primary" href="/portal/client/register/">Register</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+
+  <!-- DESKTOP: intercept gated links; ensure backdrop cleanup -->
+  <script>
+    document.addEventListener('click', function (e) {
+      const el = e.target.closest('.requires-auth');
+      if (!el) return;
+      if (IS_AUTHENTICATED) return;
+
+      e.preventDefault();
+
+      const modalEl = document.getElementById('authRequiredModal');
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: true, focus: true });
+
+      // Defensive cleanup when the modal closes
+      modalEl.addEventListener('hidden.bs.modal', () => {
+        document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('paddingRight');
+      }, { once: true });
+
+      modal.show();
+    });
+  </script>
+
+  <!-- MOBILE: offcanvas navigation + auth modal with safe cleanup -->
+  <script>
+    (function () {
+      if (typeof bootstrap === "undefined") return;
+      const offcanvasEl = document.getElementById("mobileMenu");
+      if (!offcanvasEl) return;
+
+      const selectors = [
+        "#mobileMenu a.nav-link",
+        "#mobileMenu a.dropdown-item",
+        "#mobileMenu .btn.btn-outline-light",
+        "#mobileMenu a.btn"
+      ].join(",");
+
+      offcanvasEl.querySelectorAll(selectors).forEach(function (el) {
+        el.addEventListener("click", function (e) {
+          const href = el.getAttribute("href") || "";
+          if (!href || href === "#" || href.startsWith("javascript:")) return;
+
+          const needsAuth = el.classList.contains("requires-auth");
+          const oc = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+
+          e.preventDefault();
+
+          offcanvasEl.addEventListener("hidden.bs.offcanvas", function () {
+            if (needsAuth && !IS_AUTHENTICATED) {
+              const modalEl = document.getElementById("authRequiredModal");
+              const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: true, focus: true });
+
+              modalEl.addEventListener('hidden.bs.modal', () => {
+                document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('paddingRight');
+              }, { once: true });
+
+              modal.show();
+            } else {
+              window.location.href = href;
+            }
+          }, { once: true });
+
+          oc.hide();
+        });
+      });
+    })();
+  </script>
+
+  <!-- Brand slider controls -->
+  <script>
+    (function(){
+      const track = document.getElementById('brandTrack');
+      if (!track) return;
+
+      const prevBtns = document.querySelectorAll('.brand-fab.prev');
+      const nextBtns = document.querySelectorAll('.brand-fab.next');
+
+      function scrollByCards(direction = 1){
+        const card = track.querySelector('.brand-card');
+        const gap = 16;
+        const cardWidth = card ? (card.offsetWidth + gap) : 200;
+        track.scrollBy({ left: direction * cardWidth * 2, behavior: 'smooth' });
+      }
+
+      prevBtns.forEach(btn => btn.addEventListener('click', () => scrollByCards(-1)));
+      nextBtns.forEach(btn => btn.addEventListener('click', () => scrollByCards(1)));
+
+      track.addEventListener('wheel', (e) => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          e.preventDefault();
+          track.scrollLeft += e.deltaY;
+        }
+      }, { passive:false });
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('click', function (e) {
+      const link = e.target.closest('a.requires-auth');
+      if (!link) return;
+      if (!IS_AUTHENTICATED) {
+        e.preventDefault();
+        const modal = new bootstrap.Modal(document.getElementById('authRequiredModal'));
+        modal.show();
+      }
+    });
+  </script>
+  <script>
+    (function () {
+      // Ensure Bootstrap is available
+      if (typeof bootstrap === "undefined") return;
+  
+      const offcanvasEl = document.getElementById("mobileMenu");
+      if (!offcanvasEl) return;
+  
+      // Any link/button inside the mobile offcanvas that should navigate
+      const selectors = [
+        "#mobileMenu a.nav-link",
+        "#mobileMenu a.dropdown-item",
+        "#mobileMenu .btn.btn-outline-light",
+        "#mobileMenu a.btn",  // profile/settings buttons
+      ].join(",");
+  
+      offcanvasEl.querySelectorAll(selectors).forEach(function (el) {
+        el.addEventListener("click", function (e) {
+          const href = el.getAttribute("href");
+          // Only handle real navigations (skip hashes or empty)
+          if (!href || href === "#" || href.startsWith("javascript:")) return;
+  
+          // Prevent immediate navigation so we can close the drawer first
+          e.preventDefault();
+  
+          const oc = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+  
+          // After the drawer is fully hidden, navigate
+          const go = () => { window.location.href = href; };
+          offcanvasEl.addEventListener("hidden.bs.offcanvas", go, { once: true });
+  
+          // Close it
+          oc.hide();
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

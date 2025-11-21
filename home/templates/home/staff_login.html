@@ -1,0 +1,238 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Staff Sign in · Seshibo Daily Market</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    :root { --brand:#0b5c39; --brand-dark:#094c30; }
+    html, body { height: 100%; }
+    body { background:#f7faf8; display:flex; flex-direction:column; }
+
+    .logo-wrap img { height: 160px; }
+    .card { border-radius:.85rem; }
+    .card-header { background:#025500; color:#fff; border-top-left-radius:.85rem; border-top-right-radius:.85rem; }
+    .btn-primary { background:#025500; border-color:#025500; }
+    .btn-primary:hover { background:#025500; border-color:#025500; color:#fff; }
+    .alert { padding:.5rem .75rem; margin-bottom:.75rem; }
+
+    #footer {
+      position: fixed; bottom: 0; left: 0; width: 100%;
+      text-align: center; padding: 0; background-color: #f2f2f2; font-size: 12px;
+    }
+
+    /* Center login feedback modal content */
+    #loginFeedbackModal .modal-header { justify-content: center; position: relative; border: 0; }
+    #loginFeedbackModal .modal-title { width: 100%; text-align: center; }
+    #loginFeedbackModal .btn-close { position: absolute; right: 1rem; top: 1rem; }
+    #loginFeedbackModal .modal-body { text-align: center; }
+    #loginFeedbackModal .modal-footer { border: 0; justify-content: center; }
+  </style>
+</head>
+
+<body>
+  <main class="container text-center py-4 py-lg-5">
+    <div class="row">
+      <div class="col-md-6 offset-md-3 col-lg-4 offset-lg-4">
+        <a class="navbar-brand me-auto" href="/">
+          <img src="{% static 'images/seshibo-logo.png' %}" alt="Seshibo Daily Market" height="200">
+        </a>
+      </div>
+    </div>
+
+    {% if error_message %}
+      <div class="row mt-2">
+        <div class="col-md-6 offset-md-3 col-lg-4 offset-lg-4">
+          <div class="alert alert-danger" role="alert">{{ error_message }}</div>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if success_message %}
+      <div class="row mt-2">
+        <div class="col-md-6 offset-md-3 col-lg-4 offset-lg-4">
+          <div class="alert alert-success" role="alert">{{ success_message }}</div>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="row">
+      <div class="col-md-6 offset-md-3 col-lg-4 offset-lg-4">
+        <div class="card shadow-sm">
+          <div class="card-header text-center fw-bold">Staff Login</div>
+          <div class="card-body p-4">
+
+            <p class="text-muted mb-4 text-center">
+              Don’t have a profile? <a href="/portal/client/register/">Request access here</a>.
+            </p>
+
+            <!-- Form -->
+            <form method="post" novalidate>
+              {% csrf_token %}
+
+              <div class="mb-3 text-start">
+                <label for="username" class="form-label">Username</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="username"
+                  name="username"
+                  required
+                  autocomplete="username"
+                  value="{{ prefill_username|default_if_none:'' }}"
+                >
+              </div>
+
+              <div class="mb-3 text-start">
+                <label for="password" class="form-label">Password</label>
+                <input
+                  type="password"
+                  class="form-control"
+                  id="password"
+                  name="password"
+                  required
+                  autocomplete="current-password"
+                >
+              </div>
+
+              <button type="submit" class="btn btn-primary w-100">Login</button>
+            </form>
+
+            <div class="text-center mt-3 small">
+              <a href="{% url 'password-reset-otp' %}">Forgot Password?</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="row">
+    <div class="col-md-6 offset-md-3 col-lg-4 offset-lg-4">
+      <div id="footer">
+        <p>Copyright © Seshibo Daily Market {% now "Y" %}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login feedback modal (errors/messages) -->
+  <div class="modal fade" id="loginFeedbackModal" tabindex="-1" aria-labelledby="loginFeedbackModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="loginFeedbackModalLabel"></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="loginFeedbackModalBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Okay</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Portal choice modal -->
+  <div class="modal fade" id="portalChoiceModal" tabindex="-1" aria-labelledby="portalChoiceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header justify-content-center position-relative">
+          <h5 class="modal-title w-100 text-center" id="portalChoiceModalLabel">
+            Your profile has access to the following portal/s
+          </h5>
+          <button type="button" class="btn-close position-absolute" style="right:1rem; top:1rem;" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center">
+          <p class="mb-3 text-muted">Please choose one to continue:</p>
+
+          <div class="d-grid gap-2">
+            <!-- Main (Staff) portal -->
+            <a
+              href="{% url 'staff-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_staff_portal %} disabled{% endif %}"
+              {% if not can_staff_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Main Staff Portal
+            </a>
+
+            <!-- Lender portal -->
+            <a
+              href="{% url 'funder-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_lender_portal %} disabled{% endif %}"
+              {% if not can_lender_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Lender Portal
+            </a>
+
+            <!-- Sales portal -->
+            <a
+              href="{% url 'sales:sales-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_sales_portal %} disabled{% endif %}"
+              {% if not can_sales_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Sales Portal
+            </a>
+          </div>
+        </div>
+        <div class="modal-footer justify-content-center border-0">
+          <small class="text-muted">
+            Portals you don't have access to are greyed out.
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  {% if show_modal %}
+    <script id="login-modal-data" type="application/json">
+      {
+        "title": "{{ modal_title|default_if_none:''|escapejs }}",
+        "message": "{{ modal_message|default_if_none:''|escapejs }}"
+      }
+    </script>
+  {% endif %}
+
+  <script>
+    (function () {
+      // Focus username on load
+      const userInput = document.getElementById('username');
+      if (userInput) userInput.focus();
+
+      const payloadEl = document.getElementById('login-modal-data');
+      if (!payloadEl) return;
+
+      let data = {};
+      try { data = JSON.parse(payloadEl.textContent || "{}"); } catch (e) { return; }
+
+      const titleEl = document.getElementById('loginFeedbackModalLabel');
+      const bodyEl  = document.getElementById('loginFeedbackModalBody');
+      if (titleEl) titleEl.textContent = data.title || "";
+      if (bodyEl)  bodyEl.textContent  = data.message || "";
+
+      const modalEl = document.getElementById('loginFeedbackModal');
+      if (!modalEl) return;
+
+      const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: true });
+      modal.show();
+    })();
+  </script>
+
+  {% if show_portal_modal %}
+    <script>
+      (function () {
+        const modalEl = document.getElementById('portalChoiceModal');
+        if (!modalEl) return;
+        const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: true });
+        modal.show();
+      })();
+    </script>
+  {% endif %}
+</body>
+</html>

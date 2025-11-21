@@ -1,0 +1,10 @@
+Hi {{ user.first_name|default:user.username }},
+
+Thanks for registering with Seshibo Daily Market.
+
+Your account has been received and is currently under review. We’ll email you shortly once everything is approved and ready to go. After approval, you’ll be able to sign in here:
+{{ login_url }}
+
+If you have any questions in the meantime, just reply to this email.
+
+— Seshibo Daily Market Support

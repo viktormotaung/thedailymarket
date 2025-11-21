@@ -1,0 +1,413 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Deliveries · {{ run.name|default:"Run" }} - Seshibo Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+
+  <style>
+    :root{
+      --sidebar-w: 220px;
+      --mobile-nav-h: 56px;
+      --brand-green: #0b5c39;
+      --content-bg: #f8f9fa;
+    }
+    html, body { height: 100%; }
+    .sidebar-skin { background: var(--brand-green); color:#fff; padding:1rem; }
+    .sidebar-skin .nav-link { color:#fff; margin:.25rem 0; display:block; }
+    .sidebar-skin .nav-link.active, .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15); border-radius:4px; padding-left:8px;
+    }
+    .sidebar-skin .nav-link.ps-4 { font-size:.95rem; opacity:.95; }
+    .logo-img { max-height:80px; width:auto; }
+    .content { background: var(--content-bg); padding:20px; min-height:100vh; }
+    .card { box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .table thead th { position: sticky; top: 0; background:#fff; z-index:10; }
+    .badge-sm { font-size: .8rem; }
+    .action-bar { position: sticky; top: 0; z-index: 50; background: #f8f9fa; padding: .5rem 0 .75rem; }
+
+    @media (min-width: 992px){
+      .sidebar-desktop{
+        position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w);
+        overflow-y:auto; z-index:1020;
+      }
+      .content{ margin-left:var(--sidebar-w); }
+    }
+    @media (max-width: 991.98px){
+      .navbar.d-lg-none{ position:fixed; top:0; left:0; right:0; z-index:1040; }
+      .content{ margin-top:var(--mobile-nav-h); }
+    }
+  </style>
+</head>
+<body>
+
+  {# ---------- MOBILE/TABLET TOP BAR (visible < lg) ---------- #}
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  {# ---------- MOBILE OFFCANVAS MENU ---------- #}
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header sidebar-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body sidebar-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+      <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-orders' %}active{% endif %}">Orders</a>
+      <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+      <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+      {# Deliveries (mobile) #}
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#deliveriesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+             aria-controls="deliveriesMenuMobile">
+            <span>Deliveries</span>
+          </a>
+          <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuMobile">
+            <a href="{% url 'warehouse' %}?view=warehouse"
+               class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+              Warehouse
+            </a>
+            <a href="{% url 'delivery' %}?view=runs"
+               class="nav-link ps-4
+                 {% if current_name == 'delivery' %}
+                   {% if request.GET.view %}
+                     {% if request.GET.view == 'runs' %}active{% endif %}
+                   {% else %}
+                     active
+                   {% endif %}
+                 {% endif %}">
+              Delivery Runs
+            </a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+      <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+      {# Profiles (mobile) #}
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#profilesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+             aria-controls="profilesMenuMobile">
+            <span>Profiles</span>
+          </a>
+          <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}"
+               id="profilesMenuMobile">
+            <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+            <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+            <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+      <hr class="border-light">
+      <form action="{% url 'logout' %}" method="post" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light w-100">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  {# ---------- DESKTOP SIDEBAR (≥ lg) ---------- #}
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+
+    <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+    <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-orders' %}active{% endif %}">Orders</a>
+    <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+    <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+    <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#deliveriesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+           aria-controls="deliveriesMenuDesktop">
+          <span>Deliveries</span>
+        </a>
+        <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuDesktop">
+          <a href="{% url 'warehouse' %}?view=warehouse"
+             class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+            Warehouse
+          </a>
+          <a href="{% url 'delivery' %}?view=runs"
+             class="nav-link ps-4
+               {% if current_name == 'delivery' %}
+                 {% if request.GET.view %}
+                   {% if request.GET.view == 'runs' %}active{% endif %}
+                 {% else %}
+                   active
+                 {% endif %}
+               {% endif %}">
+            Delivery Runs
+          </a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+    <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#profilesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+           aria-controls="profilesMenuDesktop">
+          <span>Profiles</span>
+        </a>
+        <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuDesktop">
+          <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+          <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+          <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+    <div>
+      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+        {% csrf_token %}
+        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+  {# ---------- MAIN ---------- #}
+  <main class="content">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 action-bar">
+      <div>
+        <h2 class="m-0">{{ run.name|default:"Run" }}</h2>
+        <div class="text-muted">
+          {{ run.service_date|date:"Y-m-d" }}
+          · <span class="badge
+              {% if run.status == 'complete' %}bg-success
+              {% elif run.status == 'en_route' %}bg-primary
+              {% elif run.status == 'paused' %}bg-warning text-dark
+              {% elif run.status == 'planned' %}bg-info
+              {% elif run.status == 'draft' %}bg-secondary
+              {% else %}bg-danger{% endif %} badge-sm">
+            {{ run.get_status_display }}
+          </span>
+          {% if run.driver_id or run.driver_name %}
+            · Driver: {{ run.driver.get_username|default_if_none:"" }}{{ run.driver_name }}
+          {% endif %}
+          {% if run.vehicle_label %} · Vehicle: {{ run.vehicle_label }}{% endif %}
+          {% if run.has_depot_geo %} · Depot: {{ run.depot_label|default:"Depot" }}{% endif %}
+          {% if run.start_time %} · Start: {{ run.start_time|time:"H:i" }}{% endif %}
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'delivery' %}?view=runs" class="btn btn-outline-secondary">Back to Runs</a>
+
+        <form method="post" action="{% url 'run-start' run.id %}">
+          {% csrf_token %}
+          <button class="btn btn-outline-primary"
+                  {% if run.status != 'planned' and run.status != 'paused' %}disabled{% endif %}>
+            Start
+          </button>
+        </form>
+
+        <form method="post" action="{% url 'run-pause' run.id %}">
+          {% csrf_token %}
+          <button class="btn btn-outline-warning" {% if run.status != 'en_route' %}disabled{% endif %}>Pause</button>
+        </form>
+
+        <form method="post" action="{% url 'run-complete' run.id %}">
+          {% csrf_token %}
+          <button class="btn btn-outline-success"
+                  {% if run.status != 'en_route' and run.status != 'planned' %}disabled{% endif %}>
+            Complete
+          </button>
+        </form>
+
+        <form method="post" action="{% url 'run-recalc' run.id %}">
+          {% csrf_token %}
+          <button class="btn btn-outline-secondary">Recalc</button>
+        </form>
+      </div>
+    </div>
+
+    {% if messages %}
+      <div class="mt-2">
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="row g-3">
+      <div class="col-12 col-xl-8">
+        <div class="card">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <strong>Stops ({{ run.stop_count|default:0 }})</strong>
+            <span class="text-muted small">
+              Distance: {% if run.total_distance_km %}{{ run.total_distance_km|floatformat:2 }} km{% else %}—{% endif %}
+              · Drive: {% if run.total_drive_min %}{{ run.total_drive_min|intcomma }} min{% else %}—{% endif %}
+            </span>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-striped table-bordered align-middle mb-0">
+              <thead>
+                <tr>
+                  <th style="width:8%">#</th>
+                  <th style="width:16%">Order</th>
+                  <th style="width:20%">Customer</th>
+                  <th style="width:26%">Address</th>
+                  <th style="width:10%">Status</th>
+                  <th style="width:10%">ETA</th>
+                  <th style="width:10%">Leg</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in stops %}
+                  <tr>
+                    <td>{{ s.sequence|default:"—" }}</td>
+                    <td>
+                      <a href="{% url 'order-view' s.order_id %}" target="_blank">#{{ s.order_id }}</a>
+                    </td>
+                    <td>
+                      {{ s.customer_name|default:"—" }}
+                      {% if s.phone %}<div class="text-muted small">{{ s.phone }}</div>{% endif %}
+                      {% if s.email %}<div class="text-muted small">{{ s.email }}</div>{% endif %}
+                    </td>
+                    <td>
+                      {{ s.address_one_line|default:"—" }}
+                      {% if s.has_geo %}<div class="text-muted small">({{ s.lat }}, {{ s.lng }})</div>{% endif %}
+                    </td>
+                    <td>
+                      <span class="badge
+                        {% if s.status == 'delivered' %}bg-success
+                        {% elif s.status == 'en_route' %}bg-primary
+                        {% elif s.status == 'assigned' %}bg-info
+                        {% elif s.status == 'failed' %}bg-danger
+                        {% elif s.status == 'pending' %}bg-secondary
+                        {% else %}bg-warning text-dark{% endif %}">
+                        {{ s.get_status_display }}
+                      </span>
+                    </td>
+                    <td>
+                      {% if s.eta %}{{ s.eta|date:"Y-m-d H:i" }}{% else %}—{% endif %}
+                    </td>
+                    <td>
+                      {% if s.distance_km %}{{ s.distance_km|floatformat:2 }} km{% else %}—{% endif %}
+                      {% if s.drive_min %}<div class="text-muted small">{{ s.drive_min }} min</div>{% endif %}
+                    </td>
+                  </tr>
+
+                  {# Optional: show items per stop #}
+                  {% if s.items.all %}
+                    <tr class="table-light">
+                      <td></td>
+                      <td colspan="6">
+                        <div class="small text-muted mb-1">Items</div>
+                        <div class="table-responsive">
+                          <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-secondary">
+                              <tr>
+                                <th style="width:40%">Product</th>
+                                <th style="width:12%">Planned</th>
+                                <th style="width:12%">Loaded</th>
+                                <th style="width:12%">Delivered</th>
+                                <th>Notes</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {% for it in s.items.all %}
+                                <tr>
+                                  <td>
+                                    {{ it.product_name }}
+                                    {% if it.sku %}<div class="text-muted small">{{ it.sku }}</div>{% endif %}
+                                    {% if it.uom %}<div class="badge bg-light text-dark border small mt-1">{{ it.uom }}</div>{% endif %}
+                                  </td>
+                                  <td>{{ it.planned_qty|floatformat:2 }}</td>
+                                  <td>{{ it.loaded_qty|floatformat:2 }}</td>
+                                  <td>{{ it.delivered_qty|floatformat:2 }}</td>
+                                  <td class="small">
+                                    {% if it.shortage_reason %}<div><strong>Reason:</strong> {{ it.shortage_reason }}</div>{% endif %}
+                                    {% if it.notes %}<div>{{ it.notes }}</div>{% endif %}
+                                  </td>
+                                </tr>
+                              {% empty %}
+                                <tr><td colspan="5" class="text-center text-muted">No items.</td></tr>
+                              {% endfor %}
+                            </tbody>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  {% endif %}
+                {% empty %}
+                  <tr><td colspan="7" class="text-center text-muted">No stops on this run.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-xl-4">
+        <div class="card">
+          <div class="card-header bg-white"><strong>Summary</strong></div>
+          <div class="card-body">
+            <div class="mb-2"><strong>Status:</strong> {{ run.get_status_display }}</div>
+            <div class="mb-2"><strong>Service Date:</strong> {{ run.service_date|date:"Y-m-d" }}</div>
+            {% if run.start_time %}<div class="mb-2"><strong>Start Time:</strong> {{ run.start_time|time:"H:i" }}</div>{% endif %}
+            {% if run.depot_label %}<div class="mb-2"><strong>Depot:</strong> {{ run.depot_label }}</div>{% endif %}
+            {% if run.has_depot_geo %}<div class="mb-2"><strong>Depot Coords:</strong> {{ run.depot_lat }}, {{ run.depot_lng }}</div>{% endif %}
+            {% if run.driver_id or run.driver_name %}<div class="mb-2"><strong>Driver:</strong> {{ run.driver.get_username|default_if_none:"" }}{{ run.driver_name }}</div>{% endif %}
+            {% if run.vehicle_label %}<div class="mb-2"><strong>Vehicle:</strong> {{ run.vehicle_label }}</div>{% endif %}
+            <hr/>
+            <div class="mb-2"><strong>Stops:</strong> {{ run.stop_count|default:0 }}</div>
+            <div class="mb-2"><strong>Total Distance:</strong> {% if run.total_distance_km %}{{ run.total_distance_km|floatformat:2 }} km{% else %}—{% endif %}</div>
+            <div class="mb-2"><strong>Total Drive:</strong> {% if run.total_drive_min %}{{ run.total_drive_min|intcomma }} min{% else %}—{% endif %}</div>
+            {% if run.notes %}<hr/><div class="mb-2"><strong>Notes:</strong><br/>{{ run.notes|linebreaksbr }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

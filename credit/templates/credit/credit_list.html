@@ -1,0 +1,419 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Credit · Seshibo Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+
+  <style>
+    :root{
+      --sidebar-w: 220px;
+      --mobile-nav-h: 56px;
+      --brand-green: #0b5c39;
+      --content-bg: #f8f9fa;
+    }
+    html, body { height: 100%; }
+
+    /* Sidebar skin */
+    .sidebar-skin { background-color: var(--brand-green); color:#fff; padding:1rem; }
+    .sidebar-skin .nav-link { color:#fff; margin:.25rem 0; display:block; }
+    .sidebar-skin .nav-link.active, .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15); border-radius:4px; padding-left:8px;
+    }
+    /* nested deliveries links */
+    .sidebar-skin .nav-link.ps-4 { font-size:.95rem; opacity:.95; }
+
+    .logo-img { max-height:80px; width:auto; }
+
+    /* Content */
+    .content { background: var(--content-bg); padding:20px; }
+
+    /* Center the KPI row like Invoices */
+    .metrics-wrap { max-width: 1100px; margin: 0 auto; }
+
+    /* Card that fills the screen with a scrolling table body */
+    /* Replace your current scroll-card height with this */
+    .scroll-card{
+      height: calc(100dvh - 0px);  /* subtract nothing (fills full viewport) */
+      display: flex;
+      flex-direction: column;
+    }
+    .scroll-card .card-body{ flex:1; overflow:auto; padding:0; }
+
+    .scroll-card .card-body{
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;                    /* matches Invoices */
+    }
+
+    /* Sticky table head (same as Invoices) */
+    .table thead th{
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 10;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+
+    /* Desktop: fixed sidebar, content scrolls */
+    @media (min-width: 992px){
+      body { display:block; overflow:hidden; }
+      .sidebar-desktop{
+        position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w);
+        overflow-y:auto; z-index:1020;
+      }
+      .content{ margin-left:var(--sidebar-w); height:100vh; overflow:auto; -webkit-overflow-scrolling:touch; }
+    }
+
+    /* Mobile: fixed top bar, content scrolls */
+    @media (max-width: 991.98px){
+      html, body { height:100%; overflow:hidden; }
+      .navbar.d-lg-none{ position:fixed; top:0; left:0; right:0; z-index:1040; }
+      .content{
+        margin-top:var(--mobile-nav-h);
+        height:calc(100dvh - var(--mobile-nav-h));
+        overflow:auto; -webkit-overflow-scrolling:touch;
+        height:calc(100vh - var(--mobile-nav-h));
+      }
+    }
+  </style>
+</head>
+<body>
+
+  {# ---------- MOBILE/TABLET TOP BAR (visible < lg) ---------- #}
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  {# ---------- MOBILE OFFCANVAS MENU (same links as sidebar) ---------- #}
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header sidebar-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body sidebar-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+      <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-orders' %}active{% endif %}">Orders</a>
+      <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+      <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+      {# ---- Deliveries dropdown (MOBILE) ---- #}
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#deliveriesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+             aria-controls="deliveriesMenuMobile">
+            <span>Deliveries</span>
+          </a>
+          <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuMobile">
+            <a href="{% url 'warehouse' %}?view=warehouse"
+               class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+              Warehouse
+            </a>
+            <a href="{% url 'delivery' %}?view=runs"
+               class="nav-link ps-4
+                 {% if current_name == 'delivery' %}
+                   {% if request.GET.view %}
+                     {% if request.GET.view == 'runs' %}active{% endif %}
+                   {% else %}
+                     active
+                   {% endif %}
+                 {% endif %}">
+              Delivery Runs
+            </a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+      <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+      {# ---- Profiles dropdown (MOBILE) ---- #}
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#profilesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+             aria-controls="profilesMenuMobile">
+            <span>Profiles</span>
+          </a>
+          <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuMobile">
+            <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+            <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+            <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+      <hr class="border-light">
+      <form action="{% url 'logout' %}" method="post" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light w-100">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  {# ---------- DESKTOP SIDEBAR (visible ≥ lg) ---------- #}
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+
+    <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+    <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-orders' %}active{% endif %}">Orders</a>
+    <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+    <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+    <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+    {# ---- Deliveries dropdown (DESKTOP) ---- #}
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#deliveriesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+           aria-controls="deliveriesMenuDesktop">
+          <span>Deliveries</span>
+        </a>
+        <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuDesktop">
+          <a href="{% url 'warehouse' %}?view=warehouse"
+             class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+            Warehouse
+          </a>
+          <a href="{% url 'delivery' %}?view=runs"
+             class="nav-link ps-4
+               {% if current_name == 'delivery' %}
+                 {% if request.GET.view %}
+                   {% if request.GET.view == 'runs' %}active{% endif %}
+                 {% else %}
+                   active
+                 {% endif %}
+               {% endif %}">
+            Delivery Runs
+          </a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+    <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+    {# ---- Profiles dropdown (DESKTOP) ---- #}
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#profilesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+           aria-controls="profilesMenuDesktop">
+          <span>Profiles</span>
+        </a>
+        <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuDesktop">
+          <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+          <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+          <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+    {# No extra margin to avoid large gap #}
+    <div>
+      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+        {% csrf_token %}
+        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+    <h2 class="text-center">Credit</h2>
+
+    <!-- KPI / Metrics -->
+    <div class="metrics-wrap my-3">
+      <div class="row g-3 justify-content-center">
+        <!-- Total Credit Limit -->
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body d-flex flex-column justify-content-center">
+              <div class="small text-muted">Total Credit Limit</div>
+              <div class="fs-3 fw-bold mt-1">R{{ total_limit|floatformat:2 }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Total Used -->
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body d-flex flex-column justify-content-center">
+              <div class="small text-muted">Total Used</div>
+              <div class="fs-3 fw-bold mt-1">R{{ total_used|floatformat:2 }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- % Used with progress bar -->
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body d-flex flex-column justify-content-center">
+              <div class="small text-muted">% Used</div>
+              <div class="progress mt-2" style="height:12px;">
+                <div
+                  class="progress-bar
+                    {% if percent_used_total >= 100 %}bg-danger
+                    {% elif percent_used_total >= 80 %}bg-warning
+                    {% else %}bg-success{% endif %}"
+                  role="progressbar"
+                  style="width: {{ percent_used_total|floatformat:0 }}%;"
+                  aria-valuenow="{{ percent_used_total|floatformat:0 }}"
+                  aria-valuemin="0" aria-valuemax="100">
+                </div>
+              </div>
+              <div class="small text-muted mt-2">
+                {{ percent_used_total|floatformat:2 }}% &nbsp;
+                <span class="ms-1">(R{{ total_used|floatformat:2 }} / R{{ total_limit|floatformat:2 }})</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if success_message %}<div class="alert alert-success mt-3">{{ success_message }}</div>{% endif %}
+    {% if error_message %}<div class="alert alert-danger mt-3">{{ error_message }}</div>{% endif %}
+
+    <div class="card shadow-sm scroll-card">
+
+      <div class="card-header bg-white py-2">
+        <form method="get" class="row g-2 align-items-end">
+          <div class="col-12 col-md-3">
+            <label class="form-label">Client</label>
+            <select name="client" class="form-select">
+              <option value="">All</option>
+              {% for c in clients %}
+                <option value="{{ c.id }}" {% if request.GET.client == c.id|stringformat:'s' %}selected{% endif %}>{{ c }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-6 col-md-2">
+            <label class="form-label">Min Limit</label>
+            <input type="number" step="0.01" name="min_limit" value="{{ request.GET.min_limit }}" class="form-control">
+          </div>
+
+          <div class="col-6 col-md-2">
+            <label class="form-label">Max Limit</label>
+            <input type="number" step="0.01" name="max_limit" value="{{ request.GET.max_limit }}" class="form-control">
+          </div>
+
+          <div class="col-12 col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-fill">Filter</button>
+            <a href="{{ request.path }}" class="btn btn-outline-secondary">Reset</a>
+          </div>
+        </form>
+      </div>
+
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped table-bordered mb-0">
+            <thead>
+              <tr>
+                <th style="width:16%; font-size:13px;">Updated</th>
+                <th style="width:28%; font-size:13px;">Client</th>
+                <th style="width:14%; font-size:13px;">Credit Limit</th>
+                <th style="width:14%; font-size:13px;">Credit Used</th>
+                <th style="width:14%; font-size:13px;">Available</th>
+                <th style="width:14%; font-size:13px;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in credit_accounts %}
+                <tr style="cursor:pointer"
+                    onclick="window.location.href='{% url 'credit-view' a.client.id %}'">
+                  <td style="font-size:13px;">{{ a.updated_at|date:"Y-m-d H:i" }}</td>
+                  <td style="font-size:13px;">{{ a.client }}</td>
+                  <td style="font-size:13px;">R{{ a.credit_limit|floatformat:2 }}</td>
+                  <td style="font-size:13px;">R{{ a.credit_used|floatformat:2 }}</td>
+                  <td style="font-size:13px;">R{{ a.available_amount|floatformat:2 }}</td>
+                  <td style="font-size:13px;">
+                    {% if a.credit_used > a.credit_limit %}
+                      <span class="badge bg-danger">Over limit</span>
+                    {% elif a.credit_used == a.credit_limit %}
+                      <span class="badge bg-warning text-dark">At limit</span>
+                    {% else %}
+                      <span class="badge bg-success">
+                        OK
+                        {% if a.credit_limit > 0 %}
+                          ( {% widthratio a.credit_used a.credit_limit 100 %}% used )
+                        {% endif %}
+                      </span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="6" class="text-center text-muted">No credit accounts found.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% if page_obj and page_obj.paginator.num_pages > 1 %}
+          <nav class="mt-3">
+            <ul class="pagination pagination-sm mb-0">
+              {% with q="client="|add:request.GET.client|add:"&min_limit="|add:request.GET.min_limit|add:"&max_limit="|add:request.GET.max_limit %}
+                <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                  <a class="page-link" href="?{{ q }}&page=1">First</a>
+                </li>
+                <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                  <a class="page-link" href="?{{ q }}&page={{ page_obj.previous_page_number }}">Prev</a>
+                </li>
+                <li class="page-item disabled">
+                  <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                  <a class="page-link" href="?{{ q }}&page={{ page_obj.next_page_number }}">Next</a>
+                </li>
+                <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                  <a class="page-link" href="?{{ q }}&page={{ page_obj.paginator.num_pages }}">Last</a>
+                </li>
+              {% endwith %}
+            </ul>
+          </nav>
+        {% endif %}
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

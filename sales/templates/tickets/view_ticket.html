@@ -1,0 +1,232 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tickets - Seshibo Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    /* --- Desktop: fixed (non-movable) sidebar --- */
+    @media (min-width: 992px) {
+      body { display: flex; min-height: 100vh; }
+      .sidebar-desktop { width: 220px; min-height: 100vh; }
+      .content { flex: 1; }
+    }
+
+    /* Shared styles */
+    .sidebar-skin { background-color: #0b5c39; color: #fff; padding: 1rem; }
+    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+    .logo-img { max-height: 80px; width: auto; }
+    .content { background: #f8f9fa; padding: 20px; }
+    .sidebar-skin .nav-link.ps-4 { font-size: .95rem; opacity: .95; }
+    .card { box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .meta dt { color:#6c757d; font-weight:600; }
+    .meta dd { margin-bottom:.5rem; }
+    .desc pre { white-space:pre-wrap; word-break:break-word; }
+    .table-hover tbody tr { cursor: pointer; }
+
+    /* Mobile adjustments */
+    @media (max-width: 991px) {
+      .task-badges { flex-wrap: wrap; gap: 0.25rem; }
+      .quick-actions { flex-wrap: wrap; gap: 0.25rem; margin-top: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MOBILE/TABLET TOP BAR -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  <!-- MOBILE OFFCANVAS MENU -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header sidebar-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body sidebar-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
+      <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
+      <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
+      <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
+      <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+      <hr class="border-light">
+      <form action="{% url 'logout' %}" method="post" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light w-100">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+
+    <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
+    <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
+    <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
+    <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
+    <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
+    <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+    <div class="mt-3">
+      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+        {% csrf_token %}
+        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between mb-3 gap-2">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'sales:sales-tickets' %}">Tasks</a></li>
+            <li class="breadcrumb-item active" aria-current="page">View</li>
+          </ol>
+        </nav>
+        <h3 class="m-0">{{ task.title }}</h3>
+        <div class="d-flex task-badges mt-1 gap-2 flex-wrap">
+          <span class="badge {% if task.status == 'OPEN' %}bg-primary{% elif task.status == 'PENDING' %}bg-warning text-dark{% elif task.status == 'CLOSED' %}bg-success{% else %}bg-secondary{% endif %}">
+            {{ task.get_status_display }}
+          </span>
+          <span class="badge bg-light text-dark border">{{ task.get_priority_display }}</span>
+          <span class="badge bg-light text-dark border">{{ task.get_department_display }}</span>
+          {% if task.is_overdue %}
+            <span class="badge bg-danger">Overdue</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="d-flex quick-actions gap-2 flex-wrap">
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="close"><button class="btn btn-sm btn-success" {% if task.status == 'CLOSED' %}disabled{% endif %}>Close</button></form>
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="pending"><button class="btn btn-sm btn-warning text-dark" {% if task.status == 'PENDING' %}disabled{% endif %}>Mark Pending</button></form>
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="reopen"><button class="btn btn-sm btn-outline-primary" {% if task.status == 'OPEN' %}disabled{% endif %}>Reopen</button></form>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <!-- Left: Description & Comments -->
+      <div class="col-lg-8">
+        <div class="card border-0">
+          <div class="card-body desc">
+            <h6 class="text-muted">Description</h6>
+            {% if task.description %}
+              <pre class="mb-0">{{ task.description }}</pre>
+            {% else %}
+              <div class="text-muted">No description provided.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Comments -->
+        <div class="card border-0 mt-3">
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between">
+              <h6 class="text-muted mb-0">Comments</h6>
+              {% if comments %}<span class="badge bg-light text-dark border">{{ comments|length }}</span>{% endif %}
+            </div>
+
+            {% if comments %}
+              <ul class="list-group list-group-flush mt-2">
+                {% for c in comments %}
+                  <li class="list-group-item">
+                    <div class="small text-muted mb-1"><strong>{{ c.author_name|default:"System" }}</strong> • {{ c.created_at|naturaltime }}</div>
+                    <div>{{ c.body|linebreaksbr }}</div>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="text-muted mt-2">No comments yet.</div>
+            {% endif %}
+
+            <!-- Add comment -->
+            <form method="post" class="mt-3">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="add_comment">
+              <div class="mb-2">
+                <label for="commentBody" class="form-label small text-muted">Add a comment</label>
+                <textarea id="commentBody" name="comment" class="form-control" rows="3" placeholder="Type your comment…"></textarea>
+              </div>
+              <div class="text-end"><button class="btn btn-sm btn-primary">Post Comment</button></div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Meta / Related -->
+      <div class="col-lg-4">
+        <div class="card border-0">
+          <div class="card-body">
+            <h6 class="text-muted">Task Details</h6>
+            <dl class="row meta">
+              <dt class="col-5">Assignee</dt><dd class="col-7">{{ task.assigned_to|default:"—" }}</dd>
+              <dt class="col-5">Created By</dt><dd class="col-7">{{ task.created_by|default:"—" }}</dd>
+              <dt class="col-5">Due</dt>
+              <dd class="col-7">{% if task.due_at %}{{ task.due_at|date:"Y-m-d H:i" }} <span class="text-muted">({{ task.due_at|naturaltime }})</span>{% else %}—{% endif %}</dd>
+              <dt class="col-5">Created</dt><dd class="col-7">{{ task.created_at|date:"Y-m-d H:i" }}</dd>
+              <dt class="col-5">Updated</dt><dd class="col-7">{{ task.updated_at|date:"Y-m-d H:i" }}</dd>
+            </dl>
+
+            <hr>
+            <h6 class="text-muted">Related</h6>
+            {% if task.related_object %}
+              {% if related_url %}
+                <a class="btn btn-sm btn-outline-secondary" href="{{ related_url }}">Open {{ task.content_type.app_label }}#{{ task.object_id }}</a>
+              {% else %}
+                <div class="text-muted">{{ task.content_type.app_label }}#{{ task.object_id }}</div>
+              {% endif %}
+            {% else %}
+              <div class="text-muted">—</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="card border-0 mt-3">
+          <div class="card-body">
+            <h6 class="text-muted">Danger Zone</h6>
+            <form method="post" onsubmit="return confirm('Delete this task? This cannot be undone.');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete">
+              <button class="btn btn-sm btn-outline-danger">Delete Task</button>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <a href="{% url 'sales:sales-tickets' %}" class="btn btn-outline-secondary btn-sm">← Back to Tasks</a>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

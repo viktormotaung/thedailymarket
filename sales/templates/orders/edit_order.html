@@ -1,0 +1,392 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prospects - Seshibo Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    :root{
+      --sidebar-w: 220px;
+      --mobile-nav-h: 56px;
+      --brand-green: #0b5c39;
+      --content-bg: #f8f9fa;
+    }
+    html, body { height: 100%; }
+
+    /* Sidebar skin */
+    .sidebar-skin { background-color: var(--brand-green); color: #fff; padding: 1rem; }
+    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover { background: rgba(255,255,255,0.15); border-radius: 4px; padding-left: 8px; }
+    .logo-img { max-height: 80px; width: auto; }
+
+    /* Nested links + remove caret/arrow on collapses */
+    .sidebar-skin .nav-link.ps-4 { font-size:.95rem; opacity:.95; }
+    .nav-link[data-bs-toggle="collapse"]::after { content: none !important; }
+
+    /* Content */
+    .content { background: var(--content-bg); padding:20px; }
+    .card { box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .meta { font-size:12px; color:#6c757d; }
+    .badge-cat { background:#e9f7f0; color:#0b5c39; border:1px solid #cfe9df; }
+
+    /* Definition list grid */
+    @media (min-width:768px){
+      .dl-grid { display:grid; grid-template-columns:200px 1fr; row-gap:.25rem; }
+      .dl-grid dt { grid-column:1; }
+      .dl-grid dd { grid-column:2; }
+    }
+
+    /* Desktop: fixed sidebar, content scrolls */
+    @media (min-width: 992px) {
+      body { display:block; overflow:hidden; }
+      .sidebar-desktop {
+        position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w);
+        overflow-y:auto; z-index:1020;
+      }
+      .content { margin-left:var(--sidebar-w); height:100vh; overflow:auto; -webkit-overflow-scrolling:touch; }
+    }
+
+    /* Mobile: fixed top bar, content scrolls under */
+    @media (max-width: 991.98px) {
+      html, body { height:100%; overflow:hidden; }
+      .navbar.d-lg-none { position:fixed; top:0; left:0; right:0; z-index:1040; }
+      .content { margin-top:var(--mobile-nav-h); height:calc(100vh - var(--mobile-nav-h)); overflow:auto; -webkit-overflow-scrolling:touch; }
+    }
+  </style>
+</head>
+<body>
+
+    <!-- MOBILE/TABLET TOP BAR -->
+    <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+        <div class="container-fluid">
+        <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <a class="navbar-brand ms-2" href="#">
+            <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+        </a>
+        </div>
+    </nav>
+
+    <!-- MOBILE OFFCANVAS MENU -->
+    <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+        <div class="offcanvas-header sidebar-skin">
+        <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Menu</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body sidebar-skin">
+        <div class="text-center mb-3">
+            <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+        </div>
+
+        <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
+        <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
+        <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
+        <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
+        <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
+        <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+        <hr class="border-light">
+        <form action="{% url 'logout' %}" method="post" class="m-0">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-light w-100">Sign out</button>
+        </form>
+        </div>
+    </div>
+
+    <!-- DESKTOP SIDEBAR -->
+    <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+        <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+        </div>
+
+        <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
+        <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
+        <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
+        <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
+        <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
+        <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+        <div class="mt-3">
+        <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+            {% csrf_token %}
+            <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+        </form>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="content">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+          <div>
+            <h2 class="m-0">Edit Order #{{ order.id }}</h2>
+            <div class="meta mt-1">
+              Client: {{ order.client }} · Submitted {{ order.submitted_at|date:"Y-m-d H:i" }}
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <a href="{% url 'sales:view-order' order.id %}" class="btn btn-outline-secondary">Cancel</a>
+            <a href="{% url 'sales:sales-orders' %}" class="btn btn-outline-secondary">Back to Orders</a>
+          </div>
+        </div>
+    
+        {% if messages %}
+          <div class="mt-3">
+            {% for message in messages %}
+              <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+    
+        <form method="post" class="mt-3">
+          {% csrf_token %}
+    
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+    
+          <div class="row g-3">
+            <!-- Order details -->
+            <div class="col-lg-6">
+              <div class="card">
+                <div class="card-header bg-white"><strong>Order Details</strong></div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label class="form-label" for="{{ form.client.id_for_label }}">Client</label>
+                    {{ form.client }}
+                    {% if form.client.errors %}<div class="text-danger small">{{ form.client.errors }}</div>{% endif %}
+                  </div>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label" for="{{ form.order_date.id_for_label }}">Order Date</label>
+                      {{ form.order_date }}
+                      {% if form.order_date.errors %}<div class="text-danger small">{{ form.order_date.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="{{ form.channel.id_for_label }}">Channel</label>
+                      {{ form.channel }}
+                      {% if form.channel.errors %}<div class="text-danger small">{{ form.channel.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label" for="{{ form.status.id_for_label }}">Status</label>
+                      {{ form.status }}
+                      {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors }}</div>{% endif %}
+                    </div>
+                  </div>
+                  <div class="mt-3">
+                    <label class="form-label" for="{{ form.customer_notes.id_for_label }}">Customer Notes</label>
+                    {{ form.customer_notes }}
+                    {% if form.customer_notes.errors %}<div class="text-danger small">{{ form.customer_notes.errors }}</div>{% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+    
+            <!-- Charges -->
+            <div class="col-lg-6">
+              <div class="card">
+                <div class="card-header bg-white"><strong>Charges</strong></div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <label class="form-label" for="{{ form.discount_total_excl.id_for_label }}">Discount (excl)</label>
+                      {{ form.discount_total_excl }}
+                      {% if form.discount_total_excl.errors %}<div class="text-danger small">{{ form.discount_total_excl.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="{{ form.delivery_fee_excl.id_for_label }}">Delivery Fee (excl)</label>
+                      {{ form.delivery_fee_excl }}
+                      {% if form.delivery_fee_excl.errors %}<div class="text-danger small">{{ form.delivery_fee_excl.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="{{ form.delivery_fee_vat_percent.id_for_label }}">Delivery VAT %</label>
+                      {{ form.delivery_fee_vat_percent }}
+                      {% if form.delivery_fee_vat_percent.errors %}<div class="text-danger small">{{ form.delivery_fee_vat_percent.errors }}</div>{% endif %}
+                    </div>
+                  </div>
+                  <div class="mt-3">
+                    <label class="form-label" for="{{ form.notes.id_for_label }}">Internal Notes</label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+    
+            <!-- Items -->
+            <div class="col-12">
+              <div class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                  <strong>Items</strong>
+                  <div class="d-flex gap-2 align-items-center">
+                    <span class="small text-muted">Leave “Unit excl” blank to auto-prefill from product pricing.</span>
+                    <button type="button" id="add-item-btn" class="btn btn-sm btn-outline-primary">Add item</button>
+                  </div>
+                </div>
+                <div class="card-body p-0">
+                  {{ formset.management_form }}
+                  <div class="table-responsive">
+                    <table class="table table-bordered table-striped mb-0">
+                      <thead>
+                        <tr class="align-middle">
+                          <th style="width: 16%">Category</th>
+                          <th style="width: 28%">Product</th>
+                          <th style="width: 10%">Qty</th>
+                          <th style="width: 14%">Unit excl (R)</th>
+                          <th style="width: 14%">Discount excl (R)</th>
+                          <th style="width: 10%">VAT %</th>
+                          <th style="width: 8%" class="text-center">Remove</th>
+                        </tr>
+                      </thead>
+                      <tbody id="items-tbody">
+                        {% for f in formset.forms %}
+                          {{ f.id }}
+                          <tr>
+                            <td>{{ f.category }}</td>
+                            <td>{{ f.product }}</td>
+                            <td>{{ f.quantity }}</td>
+                            <td>{{ f.unit_price_excl }}</td>
+                            <td>{{ f.discount_excl }}</td>
+                            <td>{{ f.vat_percent }}</td>
+                            <td class="text-center">{{ f.DELETE }}</td>
+                          </tr>
+                          {% if f.non_field_errors %}
+                            <tr><td colspan="7" class="text-danger small">{{ f.non_field_errors }}</td></tr>
+                          {% endif %}
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+    
+          </div><!-- /row -->
+    
+          <div class="d-flex justify-content-end mt-3 gap-2">
+            <a href="{% url 'sales:view-order' order.id %}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+        </form>
+      </main>
+    
+      <!-- Empty form row template -->
+      <script type="text/template" id="empty-form-row">
+        {{ formset.empty_form.id }}
+        <tr>
+          <td>{{ formset.empty_form.category }}</td>
+          <td>{{ formset.empty_form.product }}</td>
+          <td>{{ formset.empty_form.quantity }}</td>
+          <td>{{ formset.empty_form.unit_price_excl }}</td>
+          <td>{{ formset.empty_form.discount_excl }}</td>
+          <td>{{ formset.empty_form.vat_percent }}</td>
+          <td class="text-center">{{ formset.empty_form.DELETE }}</td>
+        </tr>
+      </script>
+    
+      <script>
+        document.addEventListener("DOMContentLoaded", function () {
+          const API_URL = "{% url 'ajax-products-by-category' %}";
+          const prefix = "{{ formset.prefix|default:prefix|default:'items' }}";
+          const tbody = document.getElementById("items-tbody");
+          const addBtn = document.getElementById("add-item-btn");
+          const totalFormsInput = document.getElementById(`id_${prefix}-TOTAL_FORMS`);
+          const emptyTemplate = document.getElementById("empty-form-row").innerHTML;
+    
+          function setOptions(selectEl, options) {
+            selectEl.innerHTML = "";
+            const opt0 = document.createElement("option");
+            opt0.value = "";
+            opt0.textContent = (options && options.length) ? "— Select product —" : "No products";
+            selectEl.appendChild(opt0);
+            (options || []).forEach(o => {
+              const opt = document.createElement("option");
+              opt.value = o.id;
+              opt.textContent = o.text;
+              selectEl.appendChild(opt);
+            });
+          }
+    
+          async function loadProductsForCategory(catId, productSelect, { keepValue = false, allowFallback = false } = {}) {
+            const prevVal  = productSelect.value || "";
+            const prevText = productSelect.options[productSelect.selectedIndex]?.text || "";
+            setOptions(productSelect, []);         // clear while loading
+            productSelect.disabled = true;
+    
+            try {
+              const url = new URL(API_URL, window.location.origin);
+              url.searchParams.set("category_id", catId || "");
+              const res  = await fetch(url.toString(), { credentials: "same-origin", cache: "no-store" });
+              const data = await res.json();
+    
+              let list = data.results || [];
+    
+              // On edit load: keep already-selected product visible even if API doesn't return it
+              if (keepValue && prevVal) {
+                const exists = list.some(o => String(o.id) === String(prevVal));
+                if (!exists && allowFallback) {
+                  list = [{ id: prevVal, text: prevText || "Current selection" }, ...list];
+                }
+              }
+    
+              setOptions(productSelect, list);
+    
+              if (keepValue && prevVal) {
+                productSelect.value = prevVal; // re-select previous product
+              }
+            } catch (e) {
+              setOptions(productSelect, []);
+            } finally {
+              productSelect.disabled = false;
+            }
+          }
+    
+          function wireRow(tr) {
+            const catSel  = tr.querySelector('select[name$="-category"]');
+            const prodSel = tr.querySelector('select[name$="-product"]');
+            if (!catSel || !prodSel) return;
+    
+            // When user changes category: reset product and load fresh options
+            catSel.addEventListener("change", () => {
+              const catId = catSel.value || "";
+              prodSel.value = "";
+              if (catId) {
+                loadProductsForCategory(catId, prodSel, { keepValue: false });
+              } else {
+                setOptions(prodSel, []);
+              }
+            });
+    
+            // Initial hydrate on EDIT: keep existing product selection
+            if (catSel.value) {
+              loadProductsForCategory(catSel.value, prodSel, { keepValue: true, allowFallback: true });
+            } else {
+              setOptions(prodSel, []);
+            }
+          }
+    
+          // Wire existing rows (important for Edit page)
+          tbody.querySelectorAll("tr").forEach(wireRow);
+    
+          // Add new row + wire it
+          addBtn?.addEventListener("click", function () {
+            const index = parseInt(totalFormsInput.value || "0", 10);
+            const rowHtml = emptyTemplate.replace(/__prefix__/g, String(index));
+            tbody.insertAdjacentHTML("beforeend", rowHtml);
+            totalFormsInput.value = index + 1;
+    
+            const rows = tbody.querySelectorAll("tr");
+            const newRow = rows[rows.length - 1];
+            wireRow(newRow);
+          });
+        });
+      </script>
+    
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+    

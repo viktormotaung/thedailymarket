@@ -1,0 +1,9 @@
+Hi {{ user.get_full_name|default:user.username }},
+
+Your Seshibo Daily Market account is now active.
+
+You can sign in here:
+{{ login_url }}
+
+Thanks,
+Seshibo Daily Market
