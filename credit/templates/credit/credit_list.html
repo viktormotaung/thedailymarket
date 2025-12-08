@@ -34,21 +34,18 @@
     .metrics-wrap { max-width: 1100px; margin: 0 auto; }
 
     /* Card that fills the screen with a scrolling table body */
-    /* Replace your current scroll-card height with this */
     .scroll-card{
-      height: calc(100dvh - 0px);  /* subtract nothing (fills full viewport) */
+      height: calc(100dvh - 0px);
       display: flex;
       flex-direction: column;
     }
-    .scroll-card .card-body{ flex:1; overflow:auto; padding:0; }
-
     .scroll-card .card-body{
       flex: 1;
       overflow-y: auto;
-      padding: 0;                    /* matches Invoices */
+      padding: 0;
     }
 
-    /* Sticky table head (same as Invoices) */
+    /* Sticky table head */
     .table thead th{
       position: sticky;
       top: 0;
@@ -57,7 +54,6 @@
       border-bottom: 2px solid #dee2e6;
     }
 
-
     /* Desktop: fixed sidebar, content scrolls */
     @media (min-width: 992px){
       body { display:block; overflow:hidden; }
@@ -65,17 +61,25 @@
         position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w);
         overflow-y:auto; z-index:1020;
       }
-      .content{ margin-left:var(--sidebar-w); height:100vh; overflow:auto; -webkit-overflow-scrolling:touch; }
+      .content{
+        margin-left:var(--sidebar-w);
+        height:100vh;
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
+      }
     }
 
     /* Mobile: fixed top bar, content scrolls */
     @media (max-width: 991.98px){
       html, body { height:100%; overflow:hidden; }
-      .navbar.d-lg-none{ position:fixed; top:0; left:0; right:0; z-index:1040; }
+      .navbar.d-lg-none{
+        position:fixed; top:0; left:0; right:0; z-index:1040;
+      }
       .content{
         margin-top:var(--mobile-nav-h);
         height:calc(100dvh - var(--mobile-nav-h));
-        overflow:auto; -webkit-overflow-scrolling:touch;
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
         height:calc(100vh - var(--mobile-nav-h));
       }
     }
@@ -255,36 +259,63 @@
 
   <!-- MAIN CONTENT -->
   <main class="content">
-    <h2 class="text-center">Credit</h2>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <div>
+        <h2 class="m-0">Credit Accounts</h2>
+        <div class="small text-muted">
+          Monitoring all client credit lines and utilisation in one place.
+        </div>
+      </div>
+      <div class="text-end small text-muted">
+        {% if page_obj %}
+          Showing <strong>{{ page_obj.paginator.count }}</strong> accounts
+        {% else %}
+          Showing <strong>{{ credit_accounts|length }}</strong> accounts
+        {% endif %}
+        {% if request.GET.client or request.GET.min_limit or request.GET.max_limit %}
+          · <span class="badge bg-info text-dark">Filtered</span>
+        {% endif %}
+      </div>
+    </div>
 
     <!-- KPI / Metrics -->
     <div class="metrics-wrap my-3">
       <div class="row g-3 justify-content-center">
         <!-- Total Credit Limit -->
-        <div class="col-12 col-sm-6 col-lg-4">
+        <div class="col-12 col-sm-6 col-lg-3">
           <div class="card border-0 shadow-sm text-center h-100">
             <div class="card-body d-flex flex-column justify-content-center">
               <div class="small text-muted">Total Credit Limit</div>
-              <div class="fs-3 fw-bold mt-1">R{{ total_limit|floatformat:2 }}</div>
+              <div class="fs-4 fw-bold mt-1">R{{ total_limit|default:0|floatformat:2 }}</div>
             </div>
           </div>
         </div>
 
         <!-- Total Used -->
-        <div class="col-12 col-sm-6 col-lg-4">
+        <div class="col-12 col-sm-6 col-lg-3">
           <div class="card border-0 shadow-sm text-center h-100">
             <div class="card-body d-flex flex-column justify-content-center">
               <div class="small text-muted">Total Used</div>
-              <div class="fs-3 fw-bold mt-1">R{{ total_used|floatformat:2 }}</div>
+              <div class="fs-4 fw-bold mt-1">R{{ total_used|default:0|floatformat:2 }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Total Available -->
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body d-flex flex-column justify-content-center">
+              <div class="small text-muted">Total Available</div>
+              <div class="fs-4 fw-bold mt-1">R{{ total_available|default:0|floatformat:2 }}</div>
             </div>
           </div>
         </div>
 
         <!-- % Used with progress bar -->
-        <div class="col-12 col-sm-6 col-lg-4">
+        <div class="col-12 col-sm-6 col-lg-3">
           <div class="card border-0 shadow-sm text-center h-100">
             <div class="card-body d-flex flex-column justify-content-center">
-              <div class="small text-muted">% Used</div>
+              <div class="small text-muted">% Used (overall)</div>
               <div class="progress mt-2" style="height:12px;">
                 <div
                   class="progress-bar
@@ -298,8 +329,10 @@
                 </div>
               </div>
               <div class="small text-muted mt-2">
-                {{ percent_used_total|floatformat:2 }}% &nbsp;
-                <span class="ms-1">(R{{ total_used|floatformat:2 }} / R{{ total_limit|floatformat:2 }})</span>
+                {{ percent_used_total|floatformat:2 }}%
+                <span class="ms-1">
+                  (R{{ total_used|default:0|floatformat:2 }} / R{{ total_limit|default:0|floatformat:2 }})
+                </span>
               </div>
             </div>
           </div>
@@ -311,7 +344,6 @@
     {% if error_message %}<div class="alert alert-danger mt-3">{{ error_message }}</div>{% endif %}
 
     <div class="card shadow-sm scroll-card">
-
       <div class="card-header bg-white py-2">
         <form method="get" class="row g-2 align-items-end">
           <div class="col-12 col-md-3">
@@ -356,25 +388,27 @@
             </thead>
             <tbody>
               {% for a in credit_accounts %}
-                <tr style="cursor:pointer"
-                    onclick="window.location.href='{% url 'credit-view' a.client.id %}'">
+                <tr
+                  style="cursor:pointer"
+                  class="{% if a.credit_used > a.credit_limit %}table-danger{% elif a.credit_used == a.credit_limit and a.credit_limit > 0 %}table-warning{% endif %}"
+                  onclick="window.location.href='{% url 'credit-view' a.client.id %}'">
                   <td style="font-size:13px;">{{ a.updated_at|date:"Y-m-d H:i" }}</td>
                   <td style="font-size:13px;">{{ a.client }}</td>
-                  <td style="font-size:13px;">R{{ a.credit_limit|floatformat:2 }}</td>
-                  <td style="font-size:13px;">R{{ a.credit_used|floatformat:2 }}</td>
-                  <td style="font-size:13px;">R{{ a.available_amount|floatformat:2 }}</td>
+                  <td style="font-size:13px;">R{{ a.credit_limit|default:0|floatformat:2 }}</td>
+                  <td style="font-size:13px;">R{{ a.credit_used|default:0|floatformat:2 }}</td>
+                  <td style="font-size:13px;">R{{ a.available_amount|default:0|floatformat:2 }}</td>
                   <td style="font-size:13px;">
                     {% if a.credit_used > a.credit_limit %}
                       <span class="badge bg-danger">Over limit</span>
-                    {% elif a.credit_used == a.credit_limit %}
+                    {% elif a.credit_used == a.credit_limit and a.credit_limit > 0 %}
                       <span class="badge bg-warning text-dark">At limit</span>
                     {% else %}
-                      <span class="badge bg-success">
-                        OK
-                        {% if a.credit_limit > 0 %}
-                          ( {% widthratio a.credit_used a.credit_limit 100 %}% used )
-                        {% endif %}
-                      </span>
+                      <span class="badge bg-success">Within limit</span>
+                    {% endif %}
+                    {% if a.credit_limit > 0 %}
+                      <div class="small text-muted">
+                        (R{{ a.credit_used|default:0|floatformat:2 }} / R{{ a.credit_limit|default:0|floatformat:2 }})
+                      </div>
                     {% endif %}
                   </td>
                 </tr>

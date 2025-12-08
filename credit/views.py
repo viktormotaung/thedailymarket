@@ -13,7 +13,7 @@ from clients.models import Client
 from transactions.models import Transaction   # ← ADD THIS
 from .models import CreditAccount, CreditLog
 from .forms import CreditEditForm
-
+from django.db.models import F, Sum, Value, DecimalField, Q
 from django.db.models import F, Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
 from decimal import Decimal
@@ -26,7 +26,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import get_object_or_404, redirect, render
 
 from clients.models import Client
-from .models import CreditAccount, CreditLog
+from .models import CreditAccount, CreditLog, CreditEntry
 from .forms import CreditEditForm
 
 
@@ -188,6 +188,8 @@ def credit_client_view(request, client_id):
     account, _ = CreditAccount.objects.get_or_create(client=client)
 
     logs = account.logs.select_related("authorised_by").order_by("-created_at")
+
+    # Credit-related transactions (legacy + current)
     tx_qs = (
         Transaction.objects
         .select_related("invoice")
@@ -198,18 +200,124 @@ def credit_client_view(request, client_id):
         .order_by("-created_at", "-id")
     )
 
+    # --- Account-level snapshots ---
     limit_ = account.credit_limit or Decimal("0.00")
     used_  = account.credit_used  or Decimal("0.00")
     avail_ = (limit_ - used_) if limit_ > 0 else Decimal("0.00")
     pct    = Decimal("0.00") if limit_ == 0 else (used_ / limit_) * Decimal("100")
+
+    # --- Open credit exposure per invoice ---
+    # Aggregate by invoice: total usage vs total repayment
+    exposure_raw = (
+        CreditEntry.objects
+        .filter(
+            credit_account=account,
+            invoice__isnull=False,
+        )
+        .values(
+            "invoice_id",
+            "invoice__invoice_date",
+            "invoice__due_date",
+            "invoice__status",
+        )
+        .annotate(
+            credit_used=Coalesce(
+                Sum("amount", filter=Q(kind=CreditEntry.USAGE)),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+            credit_repaid=Coalesce(
+                Sum("amount", filter=Q(kind=CreditEntry.REPAYMENT)),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+        )
+    )
+
+    open_invoices = []
+    for row in exposure_raw:
+        used = row["credit_used"] or Decimal("0.00")
+        repaid = row["credit_repaid"] or Decimal("0.00")
+        outstanding = used - repaid
+        if outstanding > 0:
+            open_invoices.append({
+                "invoice_id": row["invoice_id"],
+                "invoice_date": row["invoice__invoice_date"],
+                "due_date": row["invoice__due_date"],
+                "status": row["invoice__status"],
+                "credit_used": used,
+                "credit_repaid": repaid,
+                "outstanding": outstanding,
+            })
+
+    open_credit_total = sum((row["outstanding"] for row in open_invoices), Decimal("0.00"))
 
     return render(request, "credit/credit_view.html", {
         "client": client,
         "account": account,
         "logs": logs,
         "transactions": tx_qs,
+
         "credit_limit": limit_,
         "credit_used": used_,
         "credit_available": avail_,
         "percent_used": pct.quantize(Decimal("0.01")),
+
+        "open_invoices": open_invoices,
+        "open_credit_total": open_credit_total,
     })
+
+@login_required
+@staff_required
+def credit_record_repayment(request, client_id):
+    """
+    'Confirm Payment' from the Credit page:
+    - Calculates total outstanding credit across all invoices for this client.
+    - Records a single repayment CreditEntry for the full outstanding amount.
+    (Later you can extend this to partial repayments or per-invoice selection.)
+    """
+    client = get_object_or_404(Client, pk=client_id)
+    account, _ = CreditAccount.objects.get_or_create(client=client)
+
+    # Aggregate usage vs repayments across the whole account
+    agg = (
+        CreditEntry.objects
+        .filter(credit_account=account)
+        .aggregate(
+            total_usage=Coalesce(
+                Sum("amount", filter=Q(kind=CreditEntry.USAGE)),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+            total_repaid=Coalesce(
+                Sum("amount", filter=Q(kind=CreditEntry.REPAYMENT)),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+        )
+    )
+
+    total_usage = agg["total_usage"] or Decimal("0.00")
+    total_repaid = agg["total_repaid"] or Decimal("0.00")
+    outstanding = total_usage - total_repaid
+
+    if outstanding <= 0:
+        messages.info(request, f"No outstanding credit to repay for {client}.")
+        return redirect("credit-view", client_id=client.id)
+
+    # Record one repayment against the account (not tied to a specific invoice)
+    CreditEntry.record_repayment(
+        client=client,
+        amount=outstanding,
+        invoice=None,
+        transaction=None,
+        reference=f"{client} credit repayment (auto)",
+        note="Captured via Credit page 'Confirm Payment' (full outstanding).",
+        when=None,
+    )
+
+    messages.success(
+        request,
+        f"Credit repayment of R{outstanding:.2f} recorded for {client}."
+    )
+    return redirect("credit-view", client_id=client.id)

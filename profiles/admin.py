@@ -26,7 +26,7 @@ class StaffProfileAdminForm(forms.ModelForm):
 
     class Meta:
         model = StaffProfile
-        fields = ("user", "job_title", "phone", "notes", "status")
+        fields = ("user", "job_title", "phone", "notes", "status", "department", "can_access_sales")
 
     def clean(self):
         cleaned = super().clean()
@@ -57,6 +57,8 @@ class StaffProfileAdmin(admin.ModelAdmin):
         "user_full_name",
         "user_username",
         "job_title",
+        "department",
+        "can_access_sales",
         "phone",
         "updated_at",
         "status",
@@ -64,7 +66,7 @@ class StaffProfileAdmin(admin.ModelAdmin):
         "last_seen_at",
         "user_last_login",
     )
-    list_filter = ("status",)
+    list_filter = ("status", "department", "can_access_sales")
     search_fields = (
         "user__username",
         "user__first_name",
@@ -76,8 +78,30 @@ class StaffProfileAdmin(admin.ModelAdmin):
     autocomplete_fields = ("user",)
 
     fieldsets = (
-        (None, {"fields": ("user", "job_title", "phone", "notes", "status")}),
-        ("Authorisation code", {"fields": ("new_auth_code", "confirm_auth_code", "auth_code_hash")}),
+        (
+            None,
+            {
+                "fields": (
+                    "user",
+                    "job_title",
+                    "phone",
+                    "department",
+                    "can_access_sales",
+                    "notes",
+                    "status",
+                )
+            },
+        ),
+        (
+            "Authorisation code",
+            {
+                "fields": (
+                    "new_auth_code",
+                    "confirm_auth_code",
+                    "auth_code_hash",
+                )
+            },
+        ),
         ("Presence", {"fields": ("last_seen_at", "user_last_login_display")}),
         ("Timestamps", {"fields": ("created_at", "updated_at")}),
     )
@@ -92,10 +116,12 @@ class StaffProfileAdmin(admin.ModelAdmin):
 
     def user_full_name(self, obj):
         return obj.user.get_full_name() or obj.user.get_username()
+
     user_full_name.short_description = "Name"
 
     def user_username(self, obj):
         return obj.user.get_username()
+
     user_username.short_description = "Username"
 
     @admin.display(boolean=True, description="Online", ordering="last_seen_at")
@@ -108,6 +134,7 @@ class StaffProfileAdmin(admin.ModelAdmin):
 
     def user_last_login_display(self, obj: StaffProfile):
         return getattr(obj.user, "last_login", None)
+
     user_last_login_display.short_description = "Last login"
     user_last_login_display.admin_order_field = "user__last_login"
 
@@ -130,8 +157,8 @@ class SalesRepProfileAdminForm(forms.ModelForm):
 
     class Meta:
         model = SalesRepProfile
-        # do NOT include 'department' because it's non-editable
-        fields = ("user", "notes", "status")
+        # department + supervisor are managed elsewhere / read-only here
+        fields = ("user", "staff_profile", "supervisor", "notes", "status")
 
     def clean(self):
         cleaned = super().clean()
@@ -162,6 +189,7 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
         "user_full_name",
         "user_username",
         "department",
+        "supervisor",
         "status",
         "updated_at",
         "online_now",
@@ -176,17 +204,38 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
         "department",
         "status",
     )
-    autocomplete_fields = ("user",)
+    autocomplete_fields = ("user", "staff_profile", "supervisor")
 
     fieldsets = (
-        (None, {"fields": ("user", "notes", "status")}),  # remove 'department'
-        ("Authorisation code", {"fields": ("new_auth_code", "confirm_auth_code", "auth_code_hash")}),
+        (
+            None,
+            {
+                "fields": (
+                    "user",
+                    "staff_profile",
+                    "supervisor",
+                    "department",
+                    "notes",
+                    "status",
+                )
+            },
+        ),
+        (
+            "Authorisation code",
+            {
+                "fields": (
+                    "new_auth_code",
+                    "confirm_auth_code",
+                    "auth_code_hash",
+                )
+            },
+        ),
         ("Presence", {"fields": ("last_seen_at", "user_last_login_display")}),
         ("Timestamps", {"fields": ("created_at", "updated_at")}),
     )
 
     readonly_fields = (
-        "department",  # show it readonly
+        "department",  # department is fixed as "Sales" in model, so read-only here
         "auth_code_hash",
         "last_seen_at",
         "user_last_login_display",
@@ -196,10 +245,12 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
 
     def user_full_name(self, obj):
         return obj.user.get_full_name() or obj.user.get_username()
+
     user_full_name.short_description = "Name"
 
     def user_username(self, obj):
         return obj.user.get_username()
+
     user_username.short_description = "Username"
 
     @admin.display(boolean=True, description="Online", ordering="last_seen_at")
@@ -212,6 +263,7 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
 
     def user_last_login_display(self, obj: SalesRepProfile):
         return getattr(obj.user, "last_login", None)
+
     user_last_login_display.short_description = "Last login"
     user_last_login_display.admin_order_field = "user__last_login"
 
@@ -223,15 +275,16 @@ class StaffProfileInline(admin.StackedInline):
     model = StaffProfile
     can_delete = False
     extra = 0
-    fields = ("job_title", "phone", "notes", "status", "last_seen_at", "auth_code_hash")
+    fields = ("job_title", "phone", "department", "can_access_sales", "notes", "status", "last_seen_at", "auth_code_hash")
     readonly_fields = ("auth_code_hash", "last_seen_at")
 
 
 class SalesRepProfileInline(admin.StackedInline):
     model = SalesRepProfile
+    fk_name = "user"  # 👈 IMPORTANT: SalesRepProfile has two FKs to User (user + supervisor)
     can_delete = False
     extra = 0
-    fields = ("notes", "status", "last_seen_at", "auth_code_hash")  # remove 'department'
+    fields = ("staff_profile", "supervisor", "department", "notes", "status", "last_seen_at", "auth_code_hash")
     readonly_fields = ("department", "auth_code_hash", "last_seen_at")
 
 
@@ -276,7 +329,17 @@ class CustomerProfileAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {"fields": ("user", "profile_type", "status", "client")}),
-        ("Contact", {"fields": ("display_name", "phone", "company_name", "tax_number")}),
+        (
+            "Contact",
+            {
+                "fields": (
+                    "display_name",
+                    "phone",
+                    "company_name",
+                    "tax_number",
+                )
+            },
+        ),
         ("Presence", {"fields": ("last_seen_at", "user_last_login_display")}),
         ("Timestamps", {"fields": ("created_at", "updated_at")}),
     )
@@ -292,5 +355,6 @@ class CustomerProfileAdmin(admin.ModelAdmin):
 
     def user_last_login_display(self, obj: CustomerProfile):
         return getattr(obj.user, "last_login", None)
+
     user_last_login_display.short_description = "Last login"
     user_last_login_display.admin_order_field = "user__last_login"

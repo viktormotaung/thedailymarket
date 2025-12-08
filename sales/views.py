@@ -24,6 +24,7 @@ from django.db.models.functions import Coalesce
 from invoices.models import Invoice
 from django.utils.timezone import now
 from tasks.models import Task
+from django.contrib import messages
 
 
 User = get_user_model()
@@ -130,8 +131,9 @@ def prospects(request):
 
             old_stage = prospect.stage
             new_stage = old_stage
+            # 🔁 if a sample/site visit is recorded from NEW/CONTACTED, move to SITE_VISIT
             if old_stage in ["NEW", "CONTACTED"]:
-                new_stage = "SAMPLES_GIVEN"
+                new_stage = "SITE_VISIT"   # 🔑 was "SAMPLES_GIVEN" before
 
             # Create the update
             ProspectUpdate.objects.create(
@@ -157,7 +159,8 @@ def prospects(request):
         Prospect.objects
         .select_related("owner")
         .annotate(
-            samples_count=Count(
+            # 🔁 rename so it doesn't clash with the @property samples_count
+            samples_total=Count(
                 "updates",
                 filter=Q(updates__action_type="SAMPLE"),
                 distinct=True,
@@ -184,9 +187,9 @@ def prospects(request):
     # Has samples filter
     has_samples = (request.GET.get("has_samples") or "").strip()
     if has_samples == "yes":
-        qs = qs.filter(samples_count__gt=0)
+        qs = qs.filter(samples_total__gt=0)   # 🔁 was samples_count
     elif has_samples == "no":
-        qs = qs.filter(samples_count=0)
+        qs = qs.filter(samples_total=0)       # 🔁 was samples_count
 
     # Total (after filters)
     prospects_total = qs.count()
@@ -208,7 +211,7 @@ def prospects(request):
     ]
 
     # Sample stats
-    prospects_with_samples = qs.filter(samples_count__gt=0).count()
+    prospects_with_samples = qs.filter(samples_total__gt=0).count()  # 🔁
     samples_total = ProspectUpdate.objects.filter(
         prospect__in=qs,
         action_type="SAMPLE",
@@ -237,21 +240,39 @@ def prospects(request):
     }
     return render(request, "prospects/prospects.html", context)
 
-
 @login_required
 def prospect_create(request):
     """
     Create a new prospect.
+
+    - Sets owner and created_by to the current user (if not specified).
+    - Logs an initial "Prospect created" update in the timeline.
     """
     if request.method == "POST":
         form = ProspectForm(request.POST)
         if form.is_valid():
             prospect = form.save(commit=False)
-            prospect.owner = request.user
+
+            # Set ownership / creator if not explicitly set elsewhere
+            if not prospect.owner:
+                prospect.owner = request.user
+            if not prospect.created_by:
+                prospect.created_by = request.user
+
             prospect.save()
-            return redirect("sales-prospects")
+
+            # Optional but very useful: log creation as first timeline entry
+            prospect.log_update(
+                user=request.user,
+                action_type="OTHER",
+                outcome="OTHER",
+                notes="Prospect created.",
+                touch_last_contact=False,  # don't set last_contact_at on creation
+            )
+
+            return redirect("sales:sales-prospects")
     else:
-        form = ProspectForm()
+        form = ProspectForm(initial={"stage": "NEW", "status": "ACTIVE"})
 
     return render(request, "prospects/prospect_form.html", {"form": form})
 
@@ -259,58 +280,556 @@ def prospect_create(request):
 @login_required
 def prospect_detail(request, pk: int):
     """
-    Single prospect view with its update timeline.
+    Single prospect view with:
+    - pipeline progress bar
+    - current stage + owner
+    - activity timeline
+    - data for the tabs on the detail page
     """
+    # Load prospect + related objects efficiently
     prospect = get_object_or_404(
-        Prospect.objects.select_related("owner"),
+        Prospect.objects
+        .select_related("owner", "client")          # owner + linked client
+        .prefetch_related("updates__user"),         # all updates + who logged them
         pk=pk,
     )
+
+    # Full timeline of updates, newest first (used in Contact / Site / Negotiation)
     updates = (
         prospect.updates
         .select_related("user")
         .order_by("-action_at", "-created_at")
     )
 
-    # Empty form for quick activity log from the detail page (if you want)
+    # Timeline for the "Timeline" tab: oldest → newest
+    updates_timeline = (
+        prospect.updates
+        .select_related("user")
+        .order_by("action_at", "created_at")
+    )
+
+    # Generic form (if/when you use it)
     update_form = ProspectUpdateForm(current_stage=prospect.stage)
+
+    # -------------------------------
+    # Stage / pipeline progress data
+    # -------------------------------
+    stage_order = ["NEW", "CONTACTED", "SITE_VISIT", "NEGOTIATION", "WON"]
+    stage_labels = dict(Prospect.STAGE_CHOICES)
+
+    try:
+        current_idx = stage_order.index(prospect.stage)
+    except ValueError:
+        current_idx = -1  # e.g. LOST
+
+    max_idx = len(stage_order) - 1
+    if current_idx >= 0 and max_idx > 0:
+        progress_percent = int(round((current_idx / max_idx) * 100))
+    else:
+        progress_percent = 0
+
+    stage_states = []
+    for idx, code in enumerate(stage_order):
+        label = stage_labels.get(code, code.title())
+        if current_idx == -1:
+            state = "pending"
+        elif idx < current_idx:
+            state = "done"
+        elif idx == current_idx:
+            state = "active"
+        else:
+            state = "pending"
+
+        stage_states.append({
+            "code": code,
+            "label": label,
+            "state": state,
+        })
+
+    # -------------------------------
+    # Subsets for stage tabs
+    # -------------------------------
+    contact_updates = updates.filter(action_type__in=["CALL", "WHATSAPP", "EMAIL"])
+    site_visit_updates = updates.filter(action_type__in=["VISIT", "SAMPLE"])
+    negotiation_updates = updates.filter(action_type="NEGOTIATION")
+
+    # -------------------------------
+    # Reopen + button-enable logic
+    # -------------------------------
+    # Reopen allowed only when WON/LOST and not yet a client
+    can_reopen = (prospect.stage in ["WON", "LOST"]) and (prospect.client is None)
+
+    # Stage outcome buttons:
+    # - Contact buttons active only while stage is NEW or CONTACTED and not closed
+    # - Site-visit buttons active only while stage is SITE_VISIT and not closed
+    # - Negotiation buttons active only while stage is NEGOTIATION and not closed
+    can_use_contact_stage_buttons = (not prospect.is_closed) and (
+        prospect.stage in ["NEW", "CONTACTED"]
+    )
+    can_use_site_visit_stage_buttons = (not prospect.is_closed) and (
+        prospect.stage == "SITE_VISIT"
+    )
+    can_use_negotiation_stage_buttons = (not prospect.is_closed) and (
+        prospect.stage == "NEGOTIATION"
+    )
 
     context = {
         "prospect": prospect,
         "updates": updates,
+        "updates_timeline": updates_timeline,
         "update_form": update_form,
+        "stage_states": stage_states,
+        "progress_percent": progress_percent,
+        "today": timezone.localdate(),
+
+        # subsets
+        "contact_updates": contact_updates,
+        "site_visit_updates": site_visit_updates,
+        "negotiation_updates": negotiation_updates,
+
+        # button flags
+        "can_reopen": can_reopen,
+        "can_use_contact_stage_buttons": can_use_contact_stage_buttons,
+        "can_use_site_visit_stage_buttons": can_use_site_visit_stage_buttons,
+        "can_use_negotiation_stage_buttons": can_use_negotiation_stage_buttons,
     }
     return render(request, "prospects/prospect_detail.html", context)
 
 
 @login_required
-def prospect_update_create(request, prospect_id: int):
+def prospect_update_create(request, pk: int):
     """
-    Log a new activity (call/WhatsApp/visit/sample/etc.) on a prospect.
+    Handle 'Log activity' POST from the prospect detail page.
+
+    - Uses ProspectUpdateForm for validation.
+    - Delegates actual logging to prospect.log_update(...)
+    - On success: redirect back to the prospect detail.
+    - On validation error: re-render the detail page with form errors.
     """
-    prospect = get_object_or_404(Prospect, pk=prospect_id)
-
-    if request.method == "POST":
-        form = ProspectUpdateForm(
-            request.POST,
-            current_stage=prospect.stage,
-        )
-        form.instance.prospect = prospect
-        form.instance.user = request.user
-
-        if form.is_valid():
-            form.save()
-            # You can change this to the detail view if you prefer:
-            # return redirect("sales-prospect-detail", pk=prospect.id)
-            return redirect("sales-prospects")
-    else:
-        form = ProspectUpdateForm(current_stage=prospect.stage)
-
-    return render(
-        request,
-        "prospects/prospect_update_form.html",
-        {"form": form, "prospect": prospect},
+    prospect = get_object_or_404(
+        Prospect.objects
+        .select_related("owner", "client")
+        .prefetch_related("updates__user"),
+        pk=pk,
     )
 
+    # If someone hits this URL with GET, just bounce them back to detail
+    if request.method != "POST":
+        return redirect("sales:sales-prospect-detail", pk=prospect.pk)
+
+    form = ProspectUpdateForm(request.POST, current_stage=prospect.stage)
+
+    if form.is_valid():
+        cd = form.cleaned_data
+
+        # Use the helper on the model so all logging is consistent
+        prospect.log_update(
+            user=request.user,
+            action_type=cd["action_type"],
+            outcome=cd.get("outcome") or "",
+            action_at=cd.get("action_at") or timezone.now(),
+            new_stage=cd.get("new_stage") or None,
+            notes=cd.get("notes") or "",
+        )
+
+        return redirect("sales:sales-prospect-detail", pk=prospect.pk)
+
+    # -------------------------------
+    # If we get here, form is invalid
+    # -> re-render the detail page with errors
+    # -------------------------------
+
+    updates = (
+        prospect.updates
+        .select_related("user")
+        .order_by("-action_at", "-created_at")
+    )
+
+    # Rebuild the same stage progress data used in prospect_detail
+    stage_order = ["NEW", "CONTACTED", "SITE_VISIT", "NEGOTIATION", "WON"]
+    stage_labels = dict(Prospect.STAGE_CHOICES)
+
+    try:
+        current_idx = stage_order.index(prospect.stage)
+    except ValueError:
+        current_idx = -1
+
+    max_idx = len(stage_order) - 1
+    if current_idx >= 0 and max_idx > 0:
+        progress_percent = int(round((current_idx / max_idx) * 100))
+    else:
+        progress_percent = 0
+
+    stage_states = []
+    for idx, code in enumerate(stage_order):
+        label = stage_labels.get(code, code.title())
+        if current_idx == -1:
+            state = "pending"
+        elif idx < current_idx:
+            state = "done"
+        elif idx == current_idx:
+            state = "active"
+        else:
+            state = "pending"
+
+        stage_states.append(
+            {
+                "code": code,
+                "label": label,
+                "state": state,
+            }
+        )
+
+    context = {
+        "prospect": prospect,
+        "updates": updates,
+        "update_form": form,  # with errors
+        "stage_states": stage_states,
+        "progress_percent": progress_percent,
+        "today": timezone.localdate(),
+    }
+    return render(request, "prospects/prospect_detail.html", context)
+
+
+@login_required
+def prospect_stage_action(request, pk: int):
+    """
+    Handle stage action buttons from the prospect detail page.
+
+    Expected POST param: stage_action
+
+    Actions:
+      - CONTACT_PASS      -> move to CONTACTED
+      - CONTACT_LOST      -> mark LOST (died in contact stage)
+      - SITE_VISIT_PASS   -> move to SITE_VISIT
+      - SITE_VISIT_LOST   -> LOST (died after visit)
+      - NEGOTIATION_PASS  -> move to NEGOTIATION
+      - NEGOTIATION_WON   -> WON
+      - NEGOTIATION_LOST  -> LOST
+
+    All actions:
+      - create a ProspectUpdate (via prospect.log_update)
+      - update Prospect.stage + last_contact_at
+      - redirect back to the detail page
+    """
+    prospect = get_object_or_404(Prospect, pk=pk)
+
+    if request.method != "POST":
+        return redirect("sales:sales-prospect-detail", pk=pk)
+
+    action = (request.POST.get("stage_action") or "").strip()
+    now = timezone.now()
+
+    # Helper that uses the model's log_update
+    def log_stage(action_type, outcome, new_stage, notes):
+        prospect.log_update(
+            user=request.user,
+            action_type=action_type,
+            outcome=outcome,
+            notes=notes,
+            action_at=now,
+            new_stage=new_stage,
+            touch_last_contact=True,
+        )
+
+    # ------- map actions to stage changes -------
+
+    if action == "CONTACT_PASS":
+        log_stage(
+            action_type="CALL",
+            outcome="ANSWERED",
+            new_stage="CONTACTED",
+            notes="Passed contact stage (successful contact).",
+        )
+
+    elif action == "CONTACT_LOST":
+        log_stage(
+            action_type="CALL",
+            outcome="DEAL_LOST",
+            new_stage="LOST",
+            notes="Marked lost during contact stage.",
+        )
+
+    elif action == "SITE_VISIT_PASS":
+        # Using SAMPLE as the unified code for site visit + samples
+        log_stage(
+            action_type="SAMPLE",
+            outcome="FOLLOW_UP_AGREED",
+            new_stage="SITE_VISIT",
+            notes="Passed to site visit stage.",
+        )
+
+    elif action == "SITE_VISIT_LOST":
+        log_stage(
+            action_type="SAMPLE",
+            outcome="DEAL_LOST",
+            new_stage="LOST",
+            notes="Marked lost after site visit.",
+        )
+
+    elif action == "NEGOTIATION_PASS":
+        log_stage(
+            action_type="NEGOTIATION",
+            outcome="INTERESTED",
+            new_stage="NEGOTIATION",
+            notes="Moved into negotiation stage.",
+        )
+
+    elif action == "NEGOTIATION_WON":
+        log_stage(
+            action_type="NEGOTIATION",
+            outcome="DEAL_WON",
+            new_stage="WON",
+            notes="Deal won at negotiation stage.",
+        )
+
+    elif action == "NEGOTIATION_LOST":
+        log_stage(
+            action_type="NEGOTIATION",
+            outcome="DEAL_LOST",
+            new_stage="LOST",
+            notes="Marked lost at negotiation stage.",
+        )
+
+    # If unknown action, just go back without doing anything
+    return redirect("sales:sales-prospect-detail", pk=pk)
+
+@login_required
+def prospect_edit(request, pk: int):
+    """
+    Edit an existing prospect's info (name, contact details, location, etc.)
+    Uses the same ProspectForm as create.
+    """
+    prospect = get_object_or_404(Prospect, pk=pk)
+
+    if request.method == "POST":
+        form = ProspectForm(request.POST, instance=prospect)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            # Don't touch owner / created_by here
+            obj.save()
+            messages.success(request, "Prospect info updated successfully.")
+            return redirect("sales:sales-prospect-detail", pk=prospect.pk)
+    else:
+        form = ProspectForm(instance=prospect)
+
+    context = {
+        "form": form,
+        "prospect": prospect,
+    }
+    return render(request, "prospects/prospect_form.html", context)
+
+@login_required
+def prospect_contact_log(request, pk: int):
+    """
+    Log a contact-stage interaction (call / WhatsApp / etc.).
+    Moves NEW -> CONTACTED automatically on first successful contact.
+    """
+    prospect = get_object_or_404(Prospect, pk=pk)
+
+    if request.method != "POST":
+        return redirect("sales:sales-prospect-detail", pk=pk)
+
+    outcome = (request.POST.get("outcome") or "").strip()
+    # we used a single datetime field in the form called contact_datetime
+    contact_dt_str = (request.POST.get("contact_datetime") or "").strip()
+    notes = (request.POST.get("notes") or "").strip()
+
+    # parse contact datetime
+    action_at = timezone.now()
+    if contact_dt_str:
+        try:
+            naive_dt = datetime.fromisoformat(contact_dt_str)
+            action_at = timezone.make_aware(naive_dt) if timezone.is_naive(naive_dt) else naive_dt
+        except ValueError:
+            pass
+
+    # Decide if we should move the stage to CONTACTED
+    new_stage = None
+    if prospect.stage == "NEW":
+        new_stage = "CONTACTED"
+
+    # Use the helper on the model for consistency
+    prospect.log_update(
+        user=request.user,
+        action_type="CALL",
+        outcome=outcome,
+        notes=notes,
+        action_at=action_at,
+        new_stage=new_stage,
+    )
+
+    messages.success(request, "Contact update logged.")
+    return redirect("sales:sales-prospect-detail", pk=pk)
+
+
+@login_required
+def prospect_site_visit_log(request, pk: int):
+    """
+    Log a site visit update for a prospect.
+    Captures:
+      - visit date
+      - time arrived / time left
+      - contact person met
+      - notes
+      - optional photo
+    Also moves stage to SITE_VISIT (from NEW/CONTACTED) if appropriate.
+    """
+    prospect = get_object_or_404(Prospect, pk=pk)
+
+    if request.method != "POST":
+        return redirect("sales:sales-prospect-detail", pk=pk)
+
+    visit_date_str = (request.POST.get("visit_date") or "").strip()
+    time_arrived_str = (request.POST.get("visit_time_arrived") or "").strip()
+    time_left_str = (request.POST.get("visit_time_left") or "").strip()
+    visit_contact_name = (request.POST.get("visit_contact_name") or "").strip()
+    visit_notes = (request.POST.get("visit_notes") or "").strip()
+    outcome = (request.POST.get("outcome") or "").strip()
+
+    visit_photo = request.FILES.get("visit_photo")
+
+    # Build action_at from visit_date + time_arrived if possible
+    action_at = timezone.now()
+    if visit_date_str:
+        # if no time, default to 09:00
+        if not time_arrived_str:
+            time_arrived_str = "09:00"
+        try:
+            naive_dt = datetime.fromisoformat(f"{visit_date_str}T{time_arrived_str}")
+            action_at = timezone.make_aware(naive_dt) if timezone.is_naive(naive_dt) else naive_dt
+        except ValueError:
+            pass
+
+    # Stage transition: if still NEW/CONTACTED, push to SITE_VISIT
+    old_stage = prospect.stage
+    new_stage = old_stage
+    if old_stage in ["NEW", "CONTACTED"]:
+        new_stage = "SITE_VISIT"
+
+    # Create the update with the extra site-visit fields
+    update = ProspectUpdate.objects.create(
+        prospect=prospect,
+        user=request.user,
+        action_type="VISIT",
+        outcome=outcome,
+        action_at=action_at,
+        old_stage=old_stage,
+        new_stage=new_stage,
+        notes=visit_notes,
+        visit_date=visit_date_str or None,
+        visit_time_arrived=time_arrived_str or None,
+        visit_time_left=time_left_str or None,
+        visit_contact_name=visit_contact_name,
+        visit_photo=visit_photo,
+    )
+
+    # Update prospect stage and last_contact_at if changed
+    prospect.stage = new_stage
+    prospect.last_contact_at = action_at
+    prospect.save(update_fields=["stage", "last_contact_at", "updated_at"])
+
+    messages.success(request, "Site visit logged.")
+    return redirect("sales:sales-prospect-detail", pk=pk)
+
+
+@login_required
+def prospect_negotiation_log(request, pk: int):
+    """
+    Log a negotiation update:
+      - outcome
+      - date
+      - products they want now
+      - future menu opportunities
+      - competitor info
+      - extra notes
+    Typically ensures stage is NEGOTIATION (unless already WON/LOST).
+    """
+    prospect = get_object_or_404(Prospect, pk=pk)
+
+    if request.method != "POST":
+        return redirect("sales:sales-prospect-detail", pk=pk)
+
+    outcome = (request.POST.get("outcome") or "").strip()
+    negotiation_date_str = (request.POST.get("negotiation_date") or "").strip()
+
+    products_now = (request.POST.get("negotiation_products") or "").strip()
+    menu_ops = (request.POST.get("negotiation_menu_opportunities") or "").strip()
+    competitor_info = (request.POST.get("negotiation_competitor_info") or "").strip()
+    notes = (request.POST.get("negotiation_notes") or "").strip()
+
+    # Build action_at from negotiation_date
+    action_at = timezone.now()
+    if negotiation_date_str:
+        try:
+            # date only -> default time 10:00
+            naive_dt = datetime.fromisoformat(f"{negotiation_date_str}T10:00")
+            action_at = timezone.make_aware(naive_dt) if timezone.is_naive(naive_dt) else naive_dt
+        except ValueError:
+            pass
+
+    old_stage = prospect.stage
+    new_stage = old_stage
+    if old_stage not in ["WON", "LOST"]:
+        new_stage = "NEGOTIATION"
+
+    update = ProspectUpdate.objects.create(
+        prospect=prospect,
+        user=request.user,
+        action_type="NEGOTIATION",
+        outcome=outcome,
+        action_at=action_at,
+        old_stage=old_stage,
+        new_stage=new_stage,
+        notes=notes,
+        negotiation_products=products_now,
+        negotiation_menu_opportunities=menu_ops,
+        negotiation_competitor_info=competitor_info,
+    )
+
+    prospect.stage = new_stage
+    prospect.last_contact_at = action_at
+    prospect.save(update_fields=["stage", "last_contact_at", "updated_at"])
+
+    messages.success(request, "Negotiation update logged.")
+    return redirect("sales:sales-prospect-detail", pk=pk)
+
+@login_required
+def prospect_reopen(request, pk: int):
+    """
+    Re-open a previously closed prospect (WON or LOST).
+
+    - Sets stage back to CONTACTED (or NEW, if you prefer)
+    - Logs a ProspectUpdate entry so the timeline is accurate
+    - Leaves created_at as original (so age_days & SLA still reflect reality)
+    """
+    prospect = get_object_or_404(Prospect, pk=pk)
+
+    if request.method != "POST":
+        # Only allow POST (from the button in the detail page)
+        return redirect("sales:sales-prospect-detail", pk=pk)
+
+    # If it's already open, just ignore and go back
+    if not prospect.is_closed:
+        messages.info(request, "This prospect is already open.")
+        return redirect("sales:sales-prospect-detail", pk=pk)
+
+    old_stage = prospect.stage
+    new_stage = "CONTACTED"  # you could change this to "NEW" if you prefer
+    now = timezone.now()
+
+    # If you want to go through the helper on the model:
+    prospect.log_update(
+        user=request.user,
+        action_type="OTHER",
+        outcome="INTERESTED",
+        notes="Prospect reopened after previous decision.",
+        action_at=now,
+        new_stage=new_stage,
+    )
+
+    messages.success(request, "Prospect has been reopened and moved to Contacted.")
+    return redirect("sales:sales-prospect-detail", pk=pk)
 
 # -------------------------------------------------------------------
 # Placeholder views for other sales sections (can be filled in later)

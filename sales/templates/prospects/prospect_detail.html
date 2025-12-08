@@ -3,8 +3,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <title>Prospect: {{ prospect.name }} - Seshibo Daily Market</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prospects - Seshibo Daily Market</title>
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <style>
@@ -16,31 +17,24 @@
     }
     html, body { height: 100%; }
 
-    /* Sidebar skin */
     .sidebar-skin { background-color: var(--brand-green); color: #fff; padding: 1rem; }
     .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
     .sidebar-skin .nav-link.active,
     .sidebar-skin .nav-link:hover { background: rgba(255,255,255,0.15); border-radius: 4px; padding-left: 8px; }
     .logo-img { max-height: 80px; width: auto; }
-
-    /* Nested links + remove caret/arrow on collapses */
     .sidebar-skin .nav-link.ps-4 { font-size:.95rem; opacity:.95; }
     .nav-link[data-bs-toggle="collapse"]::after { content: none !important; }
 
-    /* Content */
     .content { background: var(--content-bg); padding:20px; }
     .card { box-shadow: 0 1px 2px rgba(0,0,0,.04); }
     .meta { font-size:12px; color:#6c757d; }
-    .badge-cat { background:#e9f7f0; color:#0b5c39; border:1px solid #cfe9df; }
 
-    /* Definition list grid */
     @media (min-width:768px){
       .dl-grid { display:grid; grid-template-columns:200px 1fr; row-gap:.25rem; }
       .dl-grid dt { grid-column:1; }
       .dl-grid dd { grid-column:2; }
     }
 
-    /* Desktop: fixed sidebar, content scrolls */
     @media (min-width: 992px) {
       body { display:block; overflow:hidden; }
       .sidebar-desktop {
@@ -50,17 +44,49 @@
       .content { margin-left:var(--sidebar-w); height:100vh; overflow:auto; -webkit-overflow-scrolling:touch; }
     }
 
-    /* Mobile: fixed top bar, content scrolls under */
     @media (max-width: 991.98px) {
       html, body { height:100%; overflow:hidden; }
       .navbar.d-lg-none { position:fixed; top:0; left:0; right:0; z-index:1040; }
       .content { margin-top:var(--mobile-nav-h); height:calc(100vh - var(--mobile-nav-h)); overflow:auto; -webkit-overflow-scrolling:touch; }
     }
+
+    .stage-pill {
+      font-size: .8rem;
+      padding: .2rem .6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,0.05);
+      background: #fff;
+    }
+    .stage-pill.active {
+      background: #0b5c39;
+      color: #fff;
+    }
+    .stage-pill.done {
+      background: #e2f4eb;
+      color: #0b5c39;
+    }
+
+    .timeline-item {
+      border-left: 2px solid #e9ecef;
+      padding-left: 1rem;
+      margin-left: .5rem;
+      position: relative;
+    }
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      left: -7px;
+      top: .35rem;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #0b5c39;
+    }
   </style>
 </head>
 <body>
 
-  <!-- MOBILE/TABLET TOP BAR -->
+  <!-- MOBILE TOP BAR -->
   <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
     <div class="container-fluid">
       <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
@@ -72,7 +98,7 @@
     </div>
   </nav>
 
-  <!-- MOBILE OFFCANVAS MENU -->
+  <!-- MOBILE OFFCANVAS -->
   <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
     <div class="offcanvas-header sidebar-skin">
       <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Menu</h5>
@@ -90,6 +116,7 @@
       <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
       <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
       <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+
       <hr class="border-light">
       <form action="{% url 'logout' %}" method="post" class="m-0">
         {% csrf_token %}
@@ -111,6 +138,7 @@
     <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
     <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
     <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+
     <div class="mt-3">
       <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
         {% csrf_token %}
@@ -119,5 +147,845 @@
     </div>
   </aside>
 
-    <!-- MAIN CONTENT -->
-    <main class="content">
+  <!-- MAIN CONTENT -->
+  <main class="content">
+    <div class="container-fluid">
+
+      <!-- Header -->
+      <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+        <div>
+          <a href="{% url 'sales:sales-prospects' %}" class="btn btn-link px-0 mb-1">&larr; Back to prospects</a>
+          <h2 class="h4 mb-1">
+            {{ prospect.name }}
+            {% if prospect.organization %}
+              <span class="text-muted">· {{ prospect.organization }}</span>
+            {% endif %}
+          </h2>
+          <div class="meta">
+            Created {{ prospect.created_at|date:"Y-m-d H:i" }},
+            last contact:
+            {% if prospect.last_contact_at %}
+              {{ prospect.last_contact_at|naturaltime }}
+            {% else %}
+              <span class="text-muted">No contact logged</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="text-end">
+          {% if prospect.stage == "WON" %}
+            <span class="badge bg-success">Won</span>
+          {% elif prospect.stage == "LOST" %}
+            <span class="badge bg-danger">Lost</span>
+          {% else %}
+            <span class="badge bg-primary">{{ prospect.get_stage_display }}</span>
+          {% endif %}
+
+          {% if prospect.owner %}
+            <div class="meta mt-1">
+              Owner:
+              <strong>{{ prospect.owner.get_full_name|default:prospect.owner.username }}</strong>
+            </div>
+          {% endif %}
+
+          <!-- Edit prospect info -->
+          <a href="{% url 'sales:sales-prospect-edit' prospect.id %}"
+             class="btn btn-sm btn-outline-primary mt-2">
+            Edit info
+          </a>
+
+          <!-- Reopen button (header) -->
+          {% if can_reopen %}
+            <form method="post"
+                  action="{% url 'sales:sales-prospect-reopen' prospect.id %}"
+                  style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-success btn-sm mt-2"
+                      onclick="return confirm('Reopen this prospect and restart the pipeline?');">
+                Reopen prospect
+              </button>
+            </form>
+          {% else %}
+            <button class="btn btn-secondary btn-sm mt-2" disabled>
+              Reopen prospect
+            </button>
+          {% endif %}
+
+        </div>
+      </div>
+
+      <!-- Stage progress + SLA -->
+      <div class="card mb-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <div class="fw-semibold">Pipeline progress</div>
+              <div class="meta">
+                Stage: {{ prospect.get_stage_display }}
+              </div>
+            </div>
+
+            <div class="text-end">
+              <div class="meta">
+                Age: {{ prospect.age_days }} day{% if prospect.age_days != 1 %}s{% endif %}
+              </div>
+              {% if prospect.is_closed %}
+                <span class="badge bg-secondary mt-1">
+                  Closed &middot; {{ prospect.sla_status }}
+                </span>
+              {% elif prospect.is_overdue %}
+                <span class="badge bg-danger mt-1">
+                  Overdue &middot; {{ prospect.sla_status }}
+                </span>
+              {% else %}
+                <span class="badge bg-success mt-1">
+                  {{ prospect.sla_status }}
+                </span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="progress mb-2" style="height: 8px;">
+            <div class="progress-bar" role="progressbar"
+                 style="width: {{ progress_percent }}%;"
+                 aria-valuenow="{{ progress_percent }}"
+                 aria-valuemin="0"
+                 aria-valuemax="100"></div>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            {% for s in stage_states %}
+              <span class="stage-pill
+                {% if s.state == 'active' %} active
+                {% elif s.state == 'done' %} done
+                {% endif %}
+              ">
+                {{ s.label }}
+              </span>
+            {% endfor %}
+
+            {% if prospect.stage == "LOST" %}
+              <span class="badge bg-danger ms-2">Marked as lost</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- OUTER TABS -->
+      <ul class="nav nav-tabs mb-3" id="prospectTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-info-tab" data-bs-toggle="tab" data-bs-target="#tab-info" type="button" role="tab">
+            Prospect info
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-contact-stage-tab" data-bs-toggle="tab" data-bs-target="#tab-contact-stage" type="button" role="tab">
+            Contact stage
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-site-visit-tab" data-bs-toggle="tab" data-bs-target="#tab-site-visit" type="button" role="tab">
+            Site visit
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-negotiation-tab" data-bs-toggle="tab" data-bs-target="#tab-negotiation" type="button" role="tab">
+            Negotiation
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-won-tab" data-bs-toggle="tab" data-bs-target="#tab-won" type="button" role="tab">
+            Won / Conversion
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+
+        <!-- PROSPECT INFO TAB -->
+        <div class="tab-pane fade show active" id="tab-info" role="tabpanel" aria-labelledby="tab-info-tab">
+          <div class="card mb-3">
+            <div class="card-body">
+
+              <!-- inner tabs for info -->
+              <ul class="nav nav-pills mb-3" id="infoSubTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" id="info-overview-tab" data-bs-toggle="tab" data-bs-target="#info-overview" type="button" role="tab">
+                    Overview
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="info-contact-tab" data-bs-toggle="tab" data-bs-target="#info-contact" type="button" role="tab">
+                    Contact &amp; location
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="info-potential-tab" data-bs-toggle="tab" data-bs-target="#info-potential" type="button" role="tab">
+                    Potential profile
+                  </button>
+                </li>
+                <!-- NEW Timeline inner tab -->
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="info-timeline-tab" data-bs-toggle="tab" data-bs-target="#info-timeline" type="button" role="tab">
+                    Timeline
+                  </button>
+                </li>
+              </ul>
+
+              <div class="tab-content">
+                <!-- Overview -->
+                <div class="tab-pane fade show active" id="info-overview" role="tabpanel" aria-labelledby="info-overview-tab">
+                  <dl class="dl-grid mb-0">
+                    <dt>Lead source</dt>
+                    <dd>{{ prospect.lead_source|default:"—" }}</dd>
+
+                    <dt>Stage</dt>
+                    <dd>{{ prospect.get_stage_display }}</dd>
+
+                    <dt>Status</dt>
+                    <dd>{{ prospect.get_status_display }}</dd>
+
+                    <dt>Estimated weekly spend</dt>
+                    <dd>
+                      {% if prospect.estimated_weekly_spend %}
+                        R {{ prospect.estimated_weekly_spend|floatformat:0|intcomma }} / week
+                      {% else %}
+                        <span class="text-muted">Not set</span>
+                      {% endif %}
+                    </dd>
+
+                    <dt>Notes</dt>
+                    <dd>
+                      {% if prospect.notes %}
+                        <div style="white-space:pre-wrap;">{{ prospect.notes }}</div>
+                      {% else %}
+                        <span class="text-muted">No notes yet</span>
+                      {% endif %}
+                    </dd>
+                  </dl>
+                </div>
+
+                <!-- Contact & location -->
+                <div class="tab-pane fade" id="info-contact" role="tabpanel" aria-labelledby="info-contact-tab">
+                  <dl class="dl-grid mb-0">
+                    <dt>Contact person</dt>
+                    <dd>{{ prospect.contact_name|default:"—" }}</dd>
+
+                    <dt>Phone</dt>
+                    <dd>{{ prospect.phone|default:"—" }}</dd>
+
+                    <dt>WhatsApp</dt>
+                    <dd>{{ prospect.whatsapp|default:"—" }}</dd>
+
+                    <dt>Email</dt>
+                    <dd>
+                      {% if prospect.email %}
+                        <a href="mailto:{{ prospect.email }}">{{ prospect.email }}</a>
+                      {% else %}
+                        — 
+                      {% endif %}
+                    </dd>
+
+                    <dt>Suburb</dt>
+                    <dd>{{ prospect.suburb|default:"—" }}</dd>
+
+                    <dt>City</dt>
+                    <dd>{{ prospect.city|default:"—" }}</dd>
+
+                    <dt>Province</dt>
+                    <dd>
+                      {% if prospect.province %}
+                        {{ prospect.get_province_display|default:prospect.province }}
+                      {% else %}
+                        — 
+                      {% endif %}
+                    </dd>
+                  </dl>
+                </div>
+
+                <!-- Potential profile -->
+                <div class="tab-pane fade" id="info-potential" role="tabpanel" aria-labelledby="info-potential-tab">
+                  <dl class="dl-grid mb-0">
+                    <dt>Expected client type</dt>
+                    <dd>
+                      {% if prospect.potential_client_type %}
+                        {{ prospect.get_potential_client_type_display }}
+                      {% else %}
+                        <span class="text-muted">Not set</span>
+                      {% endif %}
+                    </dd>
+
+                    <dt>Expected size tier</dt>
+                    <dd>
+                      {% if prospect.potential_size_tier %}
+                        {{ prospect.get_potential_client_size_tier_display|default:prospect.get_potential_size_tier_display }}
+                      {% else %}
+                        <span class="text-muted">Not set</span>
+                      {% endif %}
+                    </dd>
+
+                    <dt>Estimated weekly spend</dt>
+                    <dd>
+                      {% if prospect.estimated_weekly_spend %}
+                        R {{ prospect.estimated_weekly_spend|floatformat:0|intcomma }}
+                      {% else %}
+                        <span class="text-muted">Not set</span>
+                      {% endif %}
+                    </dd>
+
+                    <dt>Created by</dt>
+                    <dd>
+                      {% if prospect.created_by %}
+                        {{ prospect.created_by.get_full_name|default:prospect.created_by.username }}
+                      {% else %}
+                        — 
+                      {% endif %}
+                    </dd>
+                  </dl>
+                </div>
+
+                <!-- TIMELINE inner tab -->
+                <div class="tab-pane fade" id="info-timeline" role="tabpanel" aria-labelledby="info-timeline-tab">
+                  <div class="vstack gap-3">
+
+                    <!-- Created entry -->
+                    <div class="timeline-item">
+                      <div class="d-flex justify-content-between">
+                        <div class="fw-semibold">
+                          Prospect created
+                        </div>
+                        <div class="meta">
+                          {{ prospect.created_at|date:"Y-m-d H:i" }}
+                        </div>
+                      </div>
+                      <div class="meta">
+                        {% if prospect.created_by %}
+                          by {{ prospect.created_by.get_full_name|default:prospect.created_by.username }}
+                        {% else %}
+                          (creator not recorded)
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <!-- All updates, oldest → newest -->
+                    {% if updates_timeline %}
+                      {% for u in updates_timeline %}
+                        <div class="timeline-item">
+                          <div class="d-flex justify-content-between">
+                            <div class="fw-semibold">
+                              {{ u.get_action_type_display }}
+                              {% if u.outcome %}
+                                <span class="text-muted">· {{ u.get_outcome_display }}</span>
+                              {% endif %}
+                            </div>
+                            <div class="meta">
+                              {{ u.action_at|date:"Y-m-d H:i" }}
+                            </div>
+                          </div>
+
+                          <div class="meta mb-1">
+                            {% if u.user %}
+                              by {{ u.user.get_full_name|default:u.user.username }}
+                            {% endif %}
+                            {% if u.old_stage or u.new_stage %}
+                              · stage: 
+                              {% if u.old_stage %}
+                                {{ u.get_old_stage_display }}
+                              {% else %}
+                                —
+                              {% endif %}
+                              →
+                              {% if u.new_stage %}
+                                {{ u.get_new_stage_display }}
+                              {% else %}
+                                —
+                              {% endif %}
+                            {% endif %}
+                          </div>
+
+                          {% if u.notes %}
+                            <div style="white-space:pre-wrap;">{{ u.notes }}</div>
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    {% else %}
+                      <p class="text-muted mb-0">
+                        No timeline entries yet apart from creation.
+                      </p>
+                    {% endif %}
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- CONTACT STAGE TAB -->
+        <div class="tab-pane fade" id="tab-contact-stage" role="tabpanel" aria-labelledby="tab-contact-stage-tab">
+          <div class="row">
+            <div class="col-lg-7">
+              <div class="card mb-3">
+                <div class="card-body">
+                  <h6 class="fw-semibold mb-3">Contact history</h6>
+                  {% if contact_updates %}
+                    <div class="vstack gap-3">
+                      {% for u in contact_updates %}
+                        <div class="timeline-item">
+                          <div class="d-flex justify-content-between">
+                            <div class="fw-semibold">
+                              {{ u.get_action_type_display }}
+                              {% if u.outcome %}
+                                <span class="text-muted">· {{ u.get_outcome_display }}</span>
+                              {% endif %}
+                            </div>
+                            <div class="meta">
+                              {{ u.action_at|date:"Y-m-d H:i" }}
+                            </div>
+                          </div>
+                          <div class="meta mb-1">
+                            {% if u.user %}
+                              by {{ u.user.get_full_name|default:u.user.username }}
+                            {% endif %}
+                            {% if u.old_stage or u.new_stage %}
+                              · stage: {{ u.old_stage|default:"—" }} → {{ u.new_stage|default:"—" }}
+                            {% endif %}
+                          </div>
+                          {% if u.notes %}
+                            <div style="white-space:pre-wrap;">{{ u.notes }}</div>
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <p class="text-muted mb-0">No contact updates captured yet.</p>
+                  {% endif %}
+                </div>
+              </div>
+
+              <!-- Stage buttons -->
+              <div class="card mb-3">
+                <div class="card-body">
+                  <h6 class="fw-semibold mb-2">Contact stage outcome</h6>
+                  <p class="meta mb-2">
+                    Use these buttons when you have a clear outcome for the contact stage.
+                  </p>
+                  <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.id %}">
+                    {% csrf_token %}
+                    <button name="stage_action" value="CONTACT_PASS" class="btn btn-success me-2 mb-2"
+                            {% if not can_use_contact_stage_buttons %}disabled{% endif %}>
+                      Passed contact stage
+                    </button>
+                    <button name="stage_action" value="CONTACT_LOST" class="btn btn-outline-danger mb-2"
+                            {% if not can_use_contact_stage_buttons %}
+                              disabled
+                            {% else %}
+                              onclick="return confirm('Mark this prospect as lost at contact stage?');"
+                            {% endif %}>
+                      Mark lost at contact stage
+                    </button>
+                  </form>
+                  {% if not can_use_contact_stage_buttons %}
+                    <p class="text-muted small mb-0">
+                      Buttons inactive. Only active when this prospect is still in New/Contact stage and not closed.
+                    </p>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <!-- Log new contact -->
+            <div class="col-lg-5">
+              <div class="card mb-3">
+                <div class="card-body">
+                  <h6 class="fw-semibold mb-3">Log contact update</h6>
+                  <form method="post" action="{% url 'sales:sales-prospect-contact-log' prospect.id %}">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                      <label class="form-label mb-1">Type of contact</label>
+                      <select name="action_type" class="form-select">
+                        <option value="CALL">Call</option>
+                        <option value="WHATSAPP">WhatsApp</option>
+                        <option value="EMAIL">Email</option>
+                      </select>
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label mb-1">Outcome</label>
+                      <select name="outcome" class="form-select">
+                        <option value="">Select...</option>
+                        <option value="NO_ANSWER">No answer</option>
+                        <option value="ANSWERED">Answered</option>
+                        <option value="INTERESTED">Interested</option>
+                        <option value="NOT_INTERESTED">Not interested</option>
+                        <option value="FOLLOW_UP_AGREED">Follow-up agreed</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label mb-1">When did this happen?</label>
+                      <input type="datetime-local" name="action_at"
+                             class="form-control"
+                             value="{{ today|date:'Y-m-d' }}T09:00">
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label mb-1">Notes</label>
+                      <textarea name="notes" class="form-control" rows="3"
+                                placeholder="e.g. Called at 10:30, no answer. Left WhatsApp."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Save contact update</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SITE VISIT TAB -->
+        <div class="tab-pane fade" id="tab-site-visit" role="tabpanel" aria-labelledby="tab-site-visit-tab">
+          <div class="row">
+            <div class="col-lg-7">
+              <div class="card mb-3">
+                <div class="card-body">
+                  <h6 class="fw-semibold mb-3">Site visit history</h6>
+                  {% if site_visit_updates %}
+                    <div class="vstack gap-3">
+                      {% for u in site_visit_updates %}
+                        <div class="timeline-item">
+                          <div class="d-flex justify-content-between">
+                            <div class="fw-semibold">
+                              {{ u.get_action_type_display }}
+                              {% if u.outcome %}
+                                <span class="text-muted">· {{ u.get_outcome_display }}</span>
+                              {% endif %}
+                            </div>
+                            <div class="meta">
+                              {{ u.action_at|date:"Y-m-d H:i" }}
+                            </div>
+                          </div>
+                          <div class="meta mb-1">
+                            {% if u.user %}
+                              by {{ u.user.get_full_name|default:u.user.username }}
+                            {% endif %}
+                            {% if u.old_stage or u.new_stage %}
+                              · stage: {{ u.old_stage|default:"—" }} → {{ u.new_stage|default:"—" }}
+                            {% endif %}
+                          </div>
+                          {% if u.visit_date or u.visit_contact_name %}
+                            <div class="meta mb-1">
+                              {% if u.visit_date %}Visit date: {{ u.visit_date }}{% endif %}
+                              {% if u.visit_time_arrived %} · Arrived: {{ u.visit_time_arrived }}{% endif %}
+                              {% if u.visit_time_left %} · Left: {{ u.visit_time_left }}{% endif %}
+                              {% if u.visit_contact_name %} · Met with: {{ u.visit_contact_name }}{% endif %}
+                            </div>
+                          {% endif %}
+                          {% if u.notes %}
+                            <div style="white-space:pre-wrap;">{{ u.notes }}</div>
+                          {% endif %}
+                          {% if u.visit_photo %}
+                            <div class="mt-2">
+                              <img src="{{ u.visit_photo.url }}" alt="Visit photo" class="img-fluid rounded">
+                            </div>
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <p class="text-muted mb-0">No site visit updates captured yet.</p>
+                  {% endif %}
+                </div>
+              </div>
+
+              <!-- Stage buttons -->
+              <div class="card mb-3">
+                <div class="card-body">
+                  <h6 class="fw-semibold mb-2">Site visit stage outcome</h6>
+                  <p class="meta mb-2">
+                    Use these buttons once you know if the site visit stage has passed or if the lead is dead.
+                  </p>
+                  <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.id %}">
+                    {% csrf_token %}
+                    <button name="stage_action" value="SITE_VISIT_PASS" class="btn btn-success me-2 mb-2"
+                            {% if not can_use_site_visit_stage_buttons %}disabled{% endif %}>
+                      Passed site visit stage
+                    </button>
+                    <button name="stage_action" value="SITE_VISIT_LOST" class="btn btn-outline-danger mb-2"
+                            {% if not can_use_site_visit_stage_buttons %}
+                              disabled
+                            {% else %}
+                              onclick="return confirm('Mark this prospect as lost after site visit?');"
+                            {% endif %}>
+                      Mark lost after site visit
+                    </button>
+                  </form>
+                  {% if not can_use_site_visit_stage_buttons %}
+                    <p class="text-muted small mb-0">
+                      Buttons inactive. Only active when this prospect is at site visit stage and not closed.
+                    </p>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <!-- Log new site visit -->
+            <div class="col-lg-5">
+              <div class="card mb-3">
+                <div class="card-body">
+                  <h6 class="fw-semibold mb-3">Log site visit</h6>
+                  <form method="post"
+                        action="{% url 'sales:sales-prospect-site-visit-log' prospect.id %}"
+                        enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                      <label class="form-label mb-1">Visit date</label>
+                      <input type="date" name="visit_date" class="form-control"
+                             value="{{ today|date:'Y-m-d' }}">
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label mb-1">Time arrived</label>
+                      <input type="time" name="visit_time_arrived" class="form-control">
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label mb-1">Time left</label>
+                      <input type="time" name="visit_time_left" class="form-control">
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label mb-1">Person you met with</label>
+                      <input type="text" name="visit_contact_name" class="form-control"
+                             placeholder="e.g. Store manager, John">
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label mb-1">Notes</label>
+                      <textarea name="notes" class="form-control" rows="3"
+                                placeholder="Outcome of visit, what was discussed, samples left behind, etc."></textarea>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label mb-1">Photo (optional)</label>
+                      <input type="file" name="visit_photo" class="form-control" accept="image/*">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Save site visit</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- NEGOTIATION TAB -->
+        <div class="tab-pane fade" id="tab-negotiation" role="tabpanel" aria-labelledby="tab-negotiation-tab">
+          <div class="row">
+            <div class="col-lg-7">
+              <div class="card mb-3">
+                <div class="card-body">
+                  <h6 class="fw-semibold mb-3">Negotiation history</h6>
+                  {% if negotiation_updates %}
+                    <div class="vstack gap-3">
+                      {% for u in negotiation_updates %}
+                        <div class="timeline-item">
+                          <div class="d-flex justify-content-between">
+                            <div class="fw-semibold">
+                              Negotiation
+                              {% if u.outcome %}
+                                <span class="text-muted">· {{ u.get_outcome_display }}</span>
+                              {% endif %}
+                            </div>
+                            <div class="meta">
+                              {{ u.action_at|date:"Y-m-d H:i" }}
+                            </div>
+                          </div>
+                          <div class="meta mb-1">
+                            {% if u.user %}
+                              by {{ u.user.get_full_name|default:u.user.username }}
+                            {% endif %}
+                            {% if u.old_stage or u.new_stage %}
+                              · stage: {{ u.old_stage|default:"—" }} → {{ u.new_stage|default:"—" }}
+                            {% endif %}
+                          </div>
+
+                          {% if u.negotiation_products %}
+                            <div class="mb-1">
+                              <strong>Products they want now:</strong><br>
+                              <div style="white-space:pre-wrap;">{{ u.negotiation_products }}</div>
+                            </div>
+                          {% endif %}
+
+                          {% if u.negotiation_menu_opportunities %}
+                            <div class="mb-1">
+                              <strong>Future menu opportunities:</strong><br>
+                              <div style="white-space:pre-wrap;">{{ u.negotiation_menu_opportunities }}</div>
+                            </div>
+                          {% endif %}
+
+                          {% if u.negotiation_competitor_info %}
+                            <div class="mb-1">
+                              <strong>Current supplier / pricing:</strong><br>
+                              <div style="white-space:pre-wrap;">{{ u.negotiation_competitor_info }}</div>
+                            </div>
+                          {% endif %}
+
+                          {% if u.notes %}
+                            <div>
+                              <strong>Extra notes:</strong><br>
+                              <div style="white-space:pre-wrap;">{{ u.notes }}</div>
+                            </div>
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <p class="text-muted mb-0">No negotiation updates captured yet.</p>
+                  {% endif %}
+                </div>
+              </div>
+
+              <!-- Stage buttons -->
+              <div class="card mb-3">
+                <div class="card-body">
+                  <h6 class="fw-semibold mb-2">Negotiation stage outcome</h6>
+                  <p class="meta mb-2">
+                    Use these buttons once you know if this prospect is moving forward, won, or lost.
+                  </p>
+                  <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.id %}">
+                    {% csrf_token %}
+                    <button name="stage_action" value="NEGOTIATION_PASS" class="btn btn-success me-2 mb-2"
+                            {% if not can_use_negotiation_stage_buttons %}disabled{% endif %}>
+                      Move to negotiation
+                    </button>
+                    <button name="stage_action" value="NEGOTIATION_WON" class="btn btn-outline-success me-2 mb-2"
+                            {% if not can_use_negotiation_stage_buttons %}
+                              disabled
+                            {% else %}
+                              onclick="return confirm('Mark this prospect as won?');"
+                            {% endif %}>
+                      Mark as won
+                    </button>
+                    <button name="stage_action" value="NEGOTIATION_LOST" class="btn btn-outline-danger mb-2"
+                            {% if not can_use_negotiation_stage_buttons %}
+                              disabled
+                            {% else %}
+                              onclick="return confirm('Mark this prospect as lost at negotiation?');"
+                            {% endif %}>
+                      Mark as lost
+                    </button>
+                  </form>
+                  {% if not can_use_negotiation_stage_buttons %}
+                    <p class="text-muted small mb-0">
+                      Buttons inactive. Only active when this prospect is at negotiation stage and not closed.
+                    </p>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <!-- Log negotiation -->
+            <div class="col-lg-5">
+              <div class="card mb-3">
+                <div class="card-body">
+                  <h6 class="fw-semibold mb-3">Log negotiation update</h6>
+                  <form method="post" action="{% url 'sales:sales-prospect-negotiation-log' prospect.id %}">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                      <label class="form-label mb-1">Outcome</label>
+                      <select name="outcome" class="form-select">
+                        <option value="">Select...</option>
+                        <option value="INTERESTED">Interested</option>
+                        <option value="DEAL_WON">Deal won</option>
+                        <option value="DEAL_LOST">Deal lost</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label mb-1">When did this negotiation happen?</label>
+                      <input type="datetime-local" name="action_at" class="form-control">
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label mb-1">Products they want now</label>
+                      <textarea name="negotiation_products" class="form-control" rows="2"
+                                placeholder="e.g. 10kg wings/week, 20kg drumsticks, 5 boxes chips..."></textarea>
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label mb-1">What else is on their menu / future opportunities?</label>
+                      <textarea name="negotiation_menu_opportunities" class="form-control" rows="2"
+                                placeholder="e.g. They also sell burgers, russians, pizza – possible add-on deals later."></textarea>
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label mb-1">Current supplier / pricing (optional)</label>
+                      <textarea name="negotiation_competitor_info" class="form-control" rows="2"
+                                placeholder="e.g. Currently buying wings at RXX/kg from YYY, deliveries Tues/Thurs."></textarea>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label mb-1">Extra notes</label>
+                      <textarea name="notes" class="form-control" rows="3"
+                                placeholder="Objections, decision maker notes, delivery days they prefer, etc."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Save negotiation update</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- WON / CONVERSION TAB -->
+        <div class="tab-pane fade" id="tab-won" role="tabpanel" aria-labelledby="tab-won-tab">
+          <div class="card mb-3">
+            <div class="card-body">
+              <h6 class="fw-semibold mb-3">Conversion</h6>
+
+              {% if prospect.client %}
+                <p class="mb-2">
+                  This prospect has been converted to a client:
+                </p>
+                <p class="mb-3">
+                  <strong>{{ prospect.client }}</strong><br>
+                  Client number: {{ prospect.client.client_number }}<br>
+                  Status: {{ prospect.client.get_status_display }}
+                </p>
+                <a href="{% url 'view-client' prospect.client.id %}" class="btn btn-outline-success">
+                  View client profile
+                </a>
+              {% else %}
+                <p class="mb-3">
+                  This prospect is not yet linked to a client record.
+                </p>
+                <button type="button" class="btn btn-outline-secondary" disabled>
+                  Convert to client (wire up later)
+                </button>
+              {% endif %}
+
+              <hr class="my-3">
+
+              <h6 class="fw-semibold mb-2">Reopen this prospect</h6>
+              <p class="text-muted mb-2">
+                Use this if the prospect comes back after saying no, or if you want to work
+                them again in a new sales cycle. This will reopen the pipeline and restart the time-based tracking.
+              </p>
+
+              {% if can_reopen %}
+                <form method="post"
+                      action="{% url 'sales:sales-prospect-reopen' prospect.id %}"
+                      onsubmit="return confirm('Reopen this prospect and restart the pipeline?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-warning">
+                    Reopen prospect
+                  </button>
+                </form>
+              {% else %}
+                <button type="button" class="btn btn-outline-secondary" disabled>
+                  Reopen (not available in current state)
+                </button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+      </div> <!-- /.tab-content -->
+
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

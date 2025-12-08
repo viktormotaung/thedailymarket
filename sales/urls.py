@@ -16,6 +16,46 @@ urlpatterns = [
         views.prospect_update_create,
         name="sales-prospect-add-update",
     ),
+    path(
+        "prospects/<int:pk>/stage-action/",
+        views.prospect_stage_action,
+        name="sales-prospect-stage-action",
+    ),
+    path(
+        "prospects/<int:pk>/edit/",
+        views.prospect_edit,
+        name="sales-prospect-edit",
+    ),
+    # Stage action buttons (pass / lost etc.)
+    path(
+        "prospects/<int:pk>/stage-action/",
+        views.prospect_stage_action,
+        name="sales-prospect-stage-action",
+    ),
+
+    # Re-open closed prospect
+    path(
+        "prospects/<int:pk>/reopen/",
+        views.prospect_reopen,
+        name="sales-prospect-reopen",
+    ),
+
+    # NEW: logging endpoints for each stage tab
+    path(
+        "prospects/<int:pk>/contact-log/",
+        views.prospect_contact_log,
+        name="sales-prospect-contact-log",
+    ),
+    path(
+        "prospects/<int:pk>/site-visit-log/",
+        views.prospect_site_visit_log,
+        name="sales-prospect-site-visit-log",
+    ),
+    path(
+        "prospects/<int:pk>/negotiation-log/",
+        views.prospect_negotiation_log,
+        name="sales-prospect-negotiation-log",
+    ),
 
     # Clients (sales view over existing clients)
     path("clients/", views.clients, name="sales-clients"),

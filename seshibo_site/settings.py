@@ -172,15 +172,15 @@ CELERY_BEAT_SCHEDULE = {
 # ---------------------------
 # EMAIL
 # ---------------------------
-EMAIL_HOST = os.getenv("EMAIL_HOST", "mail.seshibodailymarket.co.za")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "mail.thedailymarket.co.za")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "accounts@seshibodailymarket.co.za")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "accounts@thedailymarket.co.za")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Seshibo Daily Market <accounts@seshibodailymarket.co.za>")
-SUPPORT_FROM_EMAIL = os.getenv("SUPPORT_FROM_EMAIL", "Seshibo Support <support@seshibodailymarket.co.za>")
-SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "support@seshibodailymarket.co.za")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "The Daily Market <accounts@thedailymarket.co.za>")
+SUPPORT_FROM_EMAIL = os.getenv("SUPPORT_FROM_EMAIL", "The Daily Market Support <support@thedailymarket.co.za>")
+SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "support@thedailymarket.co.za")
 
 # ---------------------------
 # STATIC & MEDIA FILES
@@ -242,3 +242,17 @@ PAYFAST_PASSPHRASE = os.getenv("PAYFAST_PASSPHRASE", "HaPPy2025GiLmore")
 # ---------------------------
 SESSION_COOKIE_AGE = int(os.getenv("SESSION_COOKIE_AGE", 600))
 SESSION_SAVE_EVERY_REQUEST = os.getenv("SESSION_SAVE_EVERY_REQUEST", "True") == "True"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "DEBUG" if DEBUG else "WARNING",
+    },
+}

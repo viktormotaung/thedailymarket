@@ -6,7 +6,7 @@ from django.contrib.auth.views import LoginView
 from django.urls import reverse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
-from .models import SupplierLead
+from .models import SupplierLead, HeroSlide 
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from suppliers.models import Supplier
@@ -100,6 +100,7 @@ from invoices.models import Invoice
 from orders.models import Order
 from credit.models import FunderMember 
 from clients.models import Client
+from django.db.models import OuterRef, Subquery, Value, DateTimeField
 import random
 from django.db.models import (
     Sum, Q, DecimalField, IntegerField, OuterRef, Subquery, F, Value
@@ -580,8 +581,23 @@ def wholesale_assist(request):
     })
 
 def home(request):
-    suppliers = Supplier.objects.filter(is_active=True, visible=True).only("id", "name", "logo").order_by("name")
-    return render(request, "home/index.html", {"suppliers": suppliers})
+    suppliers = Supplier.objects.filter(
+        is_active=True,
+        visible=True
+    ).only("id", "name", "logo").order_by("name")
+
+    hero_slides = HeroSlide.objects.filter(
+        is_active=True
+    ).order_by("sort_order", "id")[:3]  # limit to 3
+
+    return render(
+        request,
+        "home/index.html",
+        {
+            "suppliers": suppliers,
+            "hero_slides": hero_slides,
+        }
+    )
 
 def logout_view(request):
     logout(request)
@@ -975,14 +991,12 @@ def product_detail(request, slug):
         Product.objects
         .select_related("category")
         .prefetch_related(
-            # pricing rows live on Product
             Prefetch(
                 "pricing_rows",
                 queryset=ProductPricing.objects
                     .select_related("supplier")
                     .order_by("-is_primary", "supplier_price_excl")
             ),
-            # grab variants in a stable order
             Prefetch(
                 "variants",
                 queryset=ProductVariant.objects.order_by("pack_size", "id")
@@ -991,38 +1005,47 @@ def product_detail(request, slug):
         slug=slug,
     )
 
-    # Prefer product.wholesale_price; otherwise use first active row’s wholesale_excl
-    def wholesale_ex_for_product(p: Product) -> Decimal:
-        base = p.wholesale_price
-        if base:
+    # 🔹 We are wholesale-only on this view
+    selected_channel = "wholesale"
+
+    # --- 1. Base wholesale price (ex VAT) for this product ---
+    def base_ex_for_product(p: Product) -> Decimal:
+        # a) Prefer Product.wholesale_price (via helper)
+        base = p.price_for_channel("wholesale")
+        if base and base > 0:
             return _r2(base)
+
+        # b) Fall back to first pricing row (already ordered primary/cheapest)
         row = next(iter(p.pricing_rows.all()), None)
-        return _r2(row.wholesale_price_excl if row else Decimal("0.00"))
+        if not row:
+            return Decimal("0.00")
+        return _r2(row.wholesale_price_excl)
 
-    wholesale_ex_main = wholesale_ex_for_product(product)
+    base_ex_main = base_ex_for_product(product)
 
-    # Build variant list with display price:
-    # 1) use override if present
-    # 2) else scale parent wholesale by pack_size if scales_with_pack
+    # --- 2. Build variant list with a wholesale display_price_ex ---
     variant_list = []
     for v in product.variants.all():
-        # start from parent wholesale
-        derived = wholesale_ex_main
-        if v.scales_with_pack and v.pack_size:
-            try:
-                derived = _r2(Decimal(str(derived)) * Decimal(str(v.pack_size)))
-            except Exception:
-                pass
+        override = v.wholesale_price_override
+        derived = v.wholesale_derived  # uses product.wholesale_price * pack_size when scalable
 
-        display_wh = v.wholesale_price_override if v.wholesale_price_override not in (None, Decimal("0.00")) else derived
-        v.display_wholesale_ex = _r2(display_wh)  # attach a convenient attribute
+        if override not in (None, Decimal("0.00")):
+            display = override
+        elif derived not in (None, Decimal("0.00")):
+            display = derived
+        else:
+            display = base_ex_main  # fall back to product base wholesale
+
+        v.display_price_ex = _r2(display)
         variant_list.append(v)
 
     context = {
         "product": product,
+        # 👇 This is now DEFINITELY wholesale ex VAT
+        "wholesale_ex": base_ex_main,
+        "selected_channel": selected_channel,  # template checks this
         "variants": variant_list,
-        "wholesale_ex": wholesale_ex_main,       # product-level wholesale (ex VAT)
-        "typical_pack_sizes": [1.5, 2.5, 5, 10], # for UI hints
+        "typical_pack_sizes": [1.5, 2.5, 5, 10],
     }
     return render(request, "home/product_detail.html", context)
 
@@ -1097,58 +1120,76 @@ def _resolve_client_for(user):
     return None
 
 
+def _resolve_client_for(user):
+    """
+    Try to resolve the business Client record for this authenticated user.
+
+    Priority:
+      1) user.client (OneToOne / FK relation on Client model)
+      2) Match Client by email (fallback, if configured that way)
+    """
+    if not user.is_authenticated:
+        return None
+
+    # 1) Direct relation: user.client
+    try:
+        return user.client
+    except (AttributeError, Client.DoesNotExist):
+        pass
+
+    # 2) Fallback: match by email, if available
+    if user.email:
+        return Client.objects.filter(email__iexact=user.email).first()
+
+    return None
+
+
 @login_required
 def orders(request):
     """
-    List orders for the logged-in user's client (or all if staff/superuser),
-    annotated with the latest invoice info for each order.
+    Show ALL orders (no client filtering for now),
+    annotated with latest invoice info.
     """
-    user = request.user
-    client = _resolve_client_for(user)
 
-    # Base queryset with a sort column that always exists
+    # Base queryset: everything
     qs = (
-        Order.objects.select_related("client")
-        .annotate(sort_ts=Coalesce("submitted_at", "order_date", "updated_at", Value(now())))
+        Order.objects
+        .select_related("client")
+        .annotate(
+            sort_ts=Coalesce(
+                "submitted_at",
+                "order_date",
+                "updated_at",
+                Value(now()),
+            )
+        )
+        .order_by("-sort_ts", "-id")
     )
 
-    # Restrict for non-staff
-    if not (user.is_staff or user.is_superuser):
-        if client:
-            qs = qs.filter(client=client)
-        else:
-            qs = qs.none()
-
-    # Subquery to get the latest invoice for each order (by id desc)
-    latest_invoice_qs = (
-        Invoice.objects.filter(order_id=OuterRef("pk"))
-        .order_by("-id")
-        .values("id")[:1]
-    )
+    # Latest invoice per order
+    latest_invoice = Invoice.objects.filter(order_id=OuterRef("pk")).order_by("-id")
 
     qs = qs.annotate(
-        invoice_id=Subquery(latest_invoice_qs),
-        invoice_status=Subquery(
-            Invoice.objects.filter(order_id=OuterRef("pk")).order_by("-id").values("status")[:1]
-        ),
-        invoice_amount_due=Subquery(
-            Invoice.objects.filter(order_id=OuterRef("pk")).order_by("-id").values("amount_due")[:1]
-        ),
-        invoice_due_date=Subquery(
-            Invoice.objects.filter(order_id=OuterRef("pk")).order_by("-id").values("due_date")[:1]
-        ),
-    ).order_by("-sort_ts", "-id")
-
-    page_obj = Paginator(qs, 25).get_page(request.GET.get("page"))
-
-    return render(
-        request,
-        "home/orders.html",
-        {
-            "client": client,
-            "orders": page_obj,
-        },
+        invoice_id=Subquery(latest_invoice.values("id")[:1]),
+        invoice_status=Subquery(latest_invoice.values("status")[:1]),
+        invoice_amount_due=Subquery(latest_invoice.values("amount_due")[:1]),
+        invoice_due_date=Subquery(latest_invoice.values("due_date")[:1]),
     )
+
+    paginator = Paginator(qs, 25)
+    page_number = request.GET.get("page") or 1
+
+    try:
+        page_obj = paginator.page(page_number)
+    except (PageNotAnInteger, EmptyPage):
+        page_obj = paginator.page(1)
+
+    context = {
+        "orders_page": page_obj,          # page object
+        "orders_total": paginator.count,  # simple integer
+    }
+    return render(request, "home/orders.html", context)
+
 
     
 def _user_can_access_order(user, order) -> bool:

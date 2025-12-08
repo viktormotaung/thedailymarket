@@ -28,3 +28,23 @@ class SupplierLead(models.Model):
 
     def __str__(self):
         return f"{self.business_name} ({self.full_name})"
+    
+class HeroSlide(models.Model):
+    label = models.CharField(
+        max_length=50, blank=True,
+        help_text="Small text above the title, e.g. 'Limited time', 'New'."
+    )
+    title = models.CharField(max_length=120)
+    subtitle = models.TextField(blank=True)
+    slide_image = models.ImageField(upload_to="hero_slides/", blank=True, null=True)
+
+    button_text = models.CharField(max_length=40, blank=True, default="View offer")
+    link_url = models.URLField(blank=True, help_text="Optional link when user clicks the button.")
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return self.title

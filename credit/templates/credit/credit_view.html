@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Credit · {{ client }} - Seshibo Daily Market</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
 
   <style>
     :root{
@@ -34,7 +35,12 @@
         position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w);
         overflow-y:auto; z-index:1020;
       }
-      .content{ margin-left:var(--sidebar-w); height:100vh; overflow:auto; -webkit-overflow-scrolling:touch; }
+      .content{
+        margin-left:var(--sidebar-w);
+        height:100vh;
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
+      }
     }
 
     /* Mobile: fixed top bar, content scrolls */
@@ -156,7 +162,7 @@
     <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-orders order-view order-edit order-create' %}active{% endif %}">Orders</a>
     <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
     <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-transactions transaction-view transaction-edit transaction-create' %}active{% endif %}">Transactions</a>
-    <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name in 'credit-credit credit-view credit-edit credit-create' %}active{% endif %}">Credit</a>
+    <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
 
     {# ---- Deliveries dropdown (DESKTOP) ---- #}
     <div class="mb-2">
@@ -213,7 +219,6 @@
 
     <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
 
-    {# No extra margin to avoid large gap #}
     <div>
       <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
         {% csrf_token %}
@@ -245,7 +250,7 @@
           {% endif %}
         </div>
 
-        {# ------- Funder line (new) ------- #}
+        {# Funder line #}
         <div class="mt-2 small">
           <span class="text-muted">Funder:</span>
           {% if account.funder %}
@@ -258,11 +263,18 @@
             <span class="text-muted">None</span>
           {% endif %}
         </div>
-        {# ----- end funder line ----- #}
       </div>
-      <div class="d-flex gap-2">
+      <div class="d-flex flex-wrap gap-2">
         <a href="{% url 'staff-credit' %}" class="btn btn-outline-secondary">Back to Credit</a>
         <a href="{% url 'credit-edit' client.id %}" class="btn btn-primary">Edit Credit</a>
+
+        {# New: Record Credit Repayment button #}
+        <button type="button"
+                class="btn btn-success"
+                data-bs-toggle="modal"
+                data-bs-target="#creditRepaymentModal">
+          <i class="bi bi-wallet2 me-1"></i> Record Credit Repayment
+        </button>
       </div>
     </div>
 
@@ -320,12 +332,86 @@
       </div>
     </div>
 
+    <!-- Open Credit Exposure -->
+    <div class="card shadow-sm mb-3">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <div>
+          <strong>Open Credit Exposure</strong>
+          <div class="small text-muted">
+            Shows invoices where credit is used but not fully repaid yet.
+          </div>
+        </div>
+        <div class="small fw-semibold">
+          Total outstanding: R{{ open_credit_total|floatformat:2 }}
+        </div>
+      </div>
+      <div class="card-body p-0">
+        {% if open_invoices %}
+          <div class="table-responsive">
+            <table class="table table-striped table-bordered mb-0">
+              <thead>
+                <tr>
+                  <th style="width:12%; font-size:13px;">Invoice</th>
+                  <th style="width:16%; font-size:13px;">Invoice Date</th>
+                  <th style="width:16%; font-size:13px;">Due Date</th>
+                  <th style="width:14%; font-size:13px;">Credit Used</th>
+                  <th style="width:14%; font-size:13px;">Repaid</th>
+                  <th style="width:14%; font-size:13px;">Outstanding</th>
+                  <th style="width:14%; font-size:13px;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for inv in open_invoices %}
+                  <tr>
+                    <td style="font-size:13px;">
+                      <a href="{% url 'invoice-view' inv.invoice_id %}">
+                        #{{ inv.invoice_id }}
+                      </a>
+                    </td>
+                    <td style="font-size:13px;">{{ inv.invoice_date|date:"Y-m-d" }}</td>
+                    <td style="font-size:13px;">
+                      {% if inv.due_date %}{{ inv.due_date|date:"Y-m-d" }}{% else %}—{% endif %}
+                    </td>
+                    <td style="font-size:13px;">R{{ inv.credit_used|floatformat:2 }}</td>
+                    <td style="font-size:13px;">R{{ inv.credit_repaid|floatformat:2 }}</td>
+                    <td style="font-size:13px; font-weight:600;">
+                      R{{ inv.outstanding|floatformat:2 }}
+                    </td>
+                    <td style="font-size:13px;">
+                      {% if inv.status == "paid" %}
+                        <span class="badge bg-success">Paid</span>
+                      {% elif inv.status == "overdue" %}
+                        <span class="badge bg-danger">Overdue</span>
+                      {% elif inv.status == "partial" %}
+                        <span class="badge bg-warning text-dark">Partial</span>
+                      {% else %}
+                        <span class="badge bg-secondary">Unpaid</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="p-3 text-muted">
+            No open credit exposure. All credit is fully repaid.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
     <!-- Logs + Transactions -->
     <div class="row g-3">
       <!-- Credit Logs -->
       <div class="col-lg-5">
         <div class="card shadow-sm h-100">
-          <div class="card-header bg-white"><strong>Credit Logs</strong></div>
+          <div class="card-header bg-white">
+            <strong>Credit Logs</strong>
+            <div class="small text-muted">
+              Limit changes and approvals (who changed what, when, and why).
+            </div>
+          </div>
           <div class="card-body p-0">
             {% if logs %}
               <div class="table-responsive">
@@ -373,7 +459,12 @@
       <!-- Credit Transactions -->
       <div class="col-lg-7">
         <div class="card shadow-sm h-100">
-          <div class="card-header bg-white"><strong>Credit Transactions</strong></div>
+          <div class="card-header bg-white">
+            <strong>Credit Transactions</strong>
+            <div class="small text-muted">
+              How credit is issued, used, repaid and adjusted (ledger entries).
+            </div>
+          </div>
           <div class="card-body p-0">
             {% if transactions %}
               <div class="table-responsive">
@@ -419,6 +510,121 @@
     </div>
   </main>
 
+  <!-- Credit Repayment Modal -->
+  <div class="modal fade" id="creditRepaymentModal" tabindex="-1" aria-labelledby="creditRepaymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="creditRepaymentModalLabel">
+            Record Credit Repayment
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <p class="mb-3">
+            What would you like to do for this credit repayment?
+          </p>
+          <ul class="mb-3">
+            <li><strong>Send Request Payment</strong> – send a payment link / request to the client.</li>
+            <li><strong>Confirm Payment</strong> – capture a manual EFT payment that has already reflected.</li>
+          </ul>
+
+          <!-- Hidden form area, revealed when clicking "Confirm Payment" -->
+          <div id="repayFormWrapper" class="border-top pt-3 mt-3 d-none">
+            <form method="post" action="{% url 'credit-record-repayment' client.id %}">
+              {% csrf_token %}
+
+              <div class="mb-2">
+                <label class="form-label mb-0 small">Merchant ID</label>
+                <input type="text"
+                       class="form-control form-control-sm"
+                       name="merchant_id"
+                       value="SES_DAILY_MARKET_01"
+                       readonly>
+              </div>
+
+              <div class="mb-2">
+                <label class="form-label mb-0 small">Merchant Name</label>
+                <input type="text"
+                       class="form-control form-control-sm"
+                       name="merchant_name"
+                       value="Seshibo Daily Market"
+                       readonly>
+              </div>
+
+              <div class="mb-2">
+                <label class="form-label mb-0 small">Client</label>
+                <input type="text"
+                       class="form-control form-control-sm"
+                       value="{{ client }} ({{ client.client_number }})"
+                       readonly>
+              </div>
+
+              <div class="mb-2">
+                <label class="form-label mb-0 small">Amount (R)</label>
+                <input type="number"
+                       step="0.01"
+                       class="form-control form-control-sm"
+                       name="amount"
+                       value="{{ credit_used|floatformat:2 }}">
+              </div>
+
+              <div class="mb-2">
+                <label class="form-label mb-0 small">Reference</label>
+                <input type="text"
+                       class="form-control form-control-sm"
+                       name="reference"
+                       value="CREDIT-{{ client.client_number }}-repayment">
+              </div>
+
+              <div class="mt-3 d-flex justify-content-end">
+                <button type="submit" class="btn btn-success btn-sm">
+                  Save Repayment
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="modal-footer d-flex justify-content-between">
+          <a href="#"
+             class="btn btn-outline-primary btn-sm"
+             id="btnSendCreditRequest">
+            <i class="bi bi-send me-1"></i> Send Request Payment
+          </a>
+
+          <button type="button"
+                  class="btn btn-success btn-sm"
+                  id="btnShowRepayForm">
+            <i class="bi bi-check2-circle me-1"></i> Confirm Payment
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const btnShowRepayForm = document.getElementById("btnShowRepayForm");
+      const repayFormWrapper = document.getElementById("repayFormWrapper");
+      const btnSendCreditRequest = document.getElementById("btnSendCreditRequest");
+
+      if (btnShowRepayForm && repayFormWrapper) {
+        btnShowRepayForm.addEventListener("click", function () {
+          repayFormWrapper.classList.remove("d-none");
+          btnShowRepayForm.textContent = "Edit Payment Details";
+        });
+      }
+
+      if (btnSendCreditRequest) {
+        btnSendCreditRequest.addEventListener("click", function (e) {
+          e.preventDefault();
+          alert("Payment-link feature coming soon. For now, use Confirm Payment to capture manual EFTs.");
+        });
+      }
+    });
+  </script>
 </body>
 </html>

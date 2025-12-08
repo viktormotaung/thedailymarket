@@ -280,7 +280,7 @@ class ProspectForm(forms.ModelForm):
     """
     Main create / edit form for Prospects.
 
-    - Owner will usually be set in the view (request.user), so it's excluded.
+    - Owner & created_by are set in the view (from request.user), so excluded.
     - Client link is managed when you convert a prospect to a client, so also excluded.
     """
 
@@ -464,7 +464,7 @@ class ProspectUpdateForm(forms.ModelForm):
         self.current_stage = kwargs.pop("current_stage", None)
         super().__init__(*args, **kwargs)
 
-        # Make action_at default to now (browser-local) if not set
+        # Default action_at (for the datetime-local input)
         if not self.initial.get("action_at"):
             self.initial["action_at"] = timezone.now().strftime("%Y-%m-%dT%H:%M")
 
@@ -474,27 +474,33 @@ class ProspectUpdateForm(forms.ModelForm):
     def save(self, commit=True):
         """
         On save:
+        - Set old_stage to the prospect's current stage (if available).
         - If new_stage is set and different from prospect.stage:
           * populate old_stage/new_stage on the update
-          * update the Prospect.stage and last_contact_at
-        - Always set last_contact_at on the Prospect to action_at
+          * update the Prospect.stage
+        - Always set Prospect.last_contact_at = action_at
         """
         update = super().save(commit=False)
 
-        prospect = update.prospect  # must be set in the view via form.instance.prospect
+        prospect = getattr(update, "prospect", None)
         if prospect:
-            # Stage transition
+            current_stage = prospect.stage
+
+            # If user selected a new_stage, record transition
             if update.new_stage:
-                current_stage = prospect.stage
-                if current_stage != update.new_stage:
+                if update.new_stage != current_stage:
                     update.old_stage = current_stage
                     prospect.stage = update.new_stage
+            else:
+                # No new_stage given; keep old_stage = current stage for history if not already set
+                if not update.old_stage:
+                    update.old_stage = current_stage
 
-            # Update last_contact_at from action_at
-            prospect.last_contact_at = update.action_at
+            # Sync last_contact_at with this interaction
+            prospect.last_contact_at = update.action_at or timezone.now()
 
             if commit:
-                prospect.save()
+                prospect.save(update_fields=["stage", "last_contact_at", "updated_at"])
 
         if commit:
             update.save()

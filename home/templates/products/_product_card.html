@@ -40,9 +40,7 @@
           <div class="mt-auto d-flex align-items-baseline justify-content-between">
             <div>
               <div class="fw-bold">R {{ price|floatformat:2|intcomma }}</div>
-              <div class="small text-muted">
-                {% if inc %}Incl VAT{% else %}Excl VAT{% endif %} • {{ lbl|default:"Price" }}
-              </div>
+              
             </div>
             {% if p.slug %}
               <a class="btn btn-sm btn-outline-secondary" href="{% url 'product-detail' p.slug %}">Details</a>

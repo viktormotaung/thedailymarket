@@ -1,20 +1,22 @@
-# invoices/models.py
 from __future__ import annotations
 
 from decimal import Decimal
 from datetime import date, datetime, timedelta
+import math
+from calendar import monthrange
+from collections import defaultdict
+from typing import Callable, Optional
+
+from django.conf import settings
 from django.db import models, transaction
-from django.db.models import Sum, Q
+from django.db.models import Sum
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils.timezone import localdate, now
+
 from clients.models import Client
 from orders.models import Order
-from credit.models import CreditEntry  
-from collections import defaultdict
-from calendar import monthrange
-import math
-from typing import Callable, Optional, Tuple
-from django.conf import settings
-
+from credit.models import CreditEntry
 
 
 def r2(x: Decimal | None) -> Decimal:
@@ -23,6 +25,10 @@ def r2(x: Decimal | None) -> Decimal:
         return Decimal("0.00")
     return Decimal(x).quantize(Decimal("0.01"))
 
+
+# ====================================================================
+# Invoice
+# ====================================================================
 
 class Invoice(models.Model):
     order = models.OneToOneField(
@@ -49,13 +55,19 @@ class Invoice(models.Model):
     )
 
     # Snapshots
-    order_total_inc   = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
-    amount_due        = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))  # deposit due
-    deposit_required  = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
-    deposit_paid      = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
-    credit_used       = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))  # planned 70%
+    order_total_inc = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    amount_due = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00"),
+        help_text="Deposit due (cash portion).",
+    )
+    deposit_required = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    deposit_paid = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    credit_used = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00"),
+        help_text="Portion going onto credit (after deposit).",
+    )
 
-    # Deprecated shim
+    # Deprecated shim (kept for migrations/backwards compatibility)
     credit_usage_applied = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal("0.00"),
         help_text="(Deprecated) Old delta tracker when pushing to ledger directly.",
@@ -78,32 +90,75 @@ class Invoice(models.Model):
     def __str__(self) -> str:
         return f"Invoice #{self.id or '—'} · {self.client} · {self.status}"
 
-    # ---------- Core logic ----------
+    # ---------- Core logic (deposit + credit) ----------
 
     def calculate_totals(self) -> None:
         """
         Compute deposit/credit snapshots from the linked order & client.
-        CREDIT clients (ACTIVE):
-          - 30% upfront cash deposit, 70% planned on credit ledger.
-        Non-credit:
-          - 100% upfront cash deposit, 0 credit.
-        (NOTE) We only *post* credit once deposit is fully paid; see can_release_credit().
+
+        For CREDIT clients (account_type='CREDIT' and credit_status='ACTIVE'):
+        - Use the client's CreditAccount.credit_deposit_pct (0, 30, 50 or 100)
+          to decide the cash deposit.
+        - The remaining portion goes onto credit (credit_used).
+        - Due date is invoice_date + payment_term days (0D, 3D, 7D).
+
+        For non-credit clients (or if no CreditAccount exists):
+        - 100% upfront cash deposit, 0 credit.
+        - Due date is invoice_date (0-day account).
         """
         total = r2(self.order.grand_total_inc)
         self.order_total_inc = total
 
-        if self.client.account_type == "CREDIT" and self.client.credit_status == "ACTIVE":
-            self.deposit_required = r2(total * Decimal("0.30"))
-            self.credit_used = r2(total - self.deposit_required)  # planned 70%
-            self.amount_due = self.deposit_required
-            if not self.due_date:
-                self.due_date = localdate() + timedelta(days=3)
-        else:
-            self.deposit_required = total
+        # Defaults: non-credit behaviour
+        deposit_pct = Decimal("100.00")  # 100% cash upfront
+        term_days = 0                    # due today
+
+        is_credit_client = (
+            self.client.account_type == "CREDIT"
+            and self.client.credit_status == "ACTIVE"
+        )
+
+        if is_credit_client:
+            # Try to read settings from the client's CreditAccount
+            ca = getattr(self.client, "credit_account", None)
+
+            if ca is not None:
+                # 1) Deposit percentage (0, 30, 50, 100)
+                try:
+                    if ca.credit_deposit_pct is not None:
+                        deposit_pct = Decimal(str(ca.credit_deposit_pct))
+                except Exception:
+                    # If anything is weird, fall back to full deposit
+                    deposit_pct = Decimal("100.00")
+
+                # 2) Payment term → due date offset
+                term_code = (getattr(ca, "payment_term", "0D") or "0D").upper()
+                if term_code == "3D":
+                    term_days = 3
+                elif term_code == "7D":
+                    term_days = 7
+                else:
+                    term_days = 0  # treat anything else as 0-day
+            else:
+                # CREDIT client but no CreditAccount yet:
+                # You can customise this behaviour if you want different defaults.
+                pass
+
+        # Compute deposit + credit portions
+        self.deposit_required = r2(total * (deposit_pct / Decimal("100")))
+        self.credit_used = r2(total - self.deposit_required)
+
+        # For non-credit clients, ensure no credit is used (safety clamp)
+        if not is_credit_client:
             self.credit_used = Decimal("0.00")
-            self.amount_due = total
-            if not self.due_date:
-                self.due_date = localdate()
+
+        # Amount currently due is always the deposit portion
+        self.amount_due = self.deposit_required
+
+        # Set due_date only if not already set
+        if not self.due_date:
+            base_date = self.invoice_date or localdate()
+            self.due_date = base_date + timedelta(days=term_days)
 
     @classmethod
     def create_for_order(cls, order: Order) -> "Invoice":
@@ -140,7 +195,10 @@ class Invoice(models.Model):
          - client is an ACTIVE credit client, AND
          - the invoice deposit is fully paid (status==paid or deposit_paid >= amount_due).
         """
-        is_credit_client = (self.client.account_type == "CREDIT" and self.client.credit_status == "ACTIVE")
+        is_credit_client = (
+            self.client.account_type == "CREDIT"
+            and self.client.credit_status == "ACTIVE"
+        )
         return is_credit_client and self.is_fully_paid()
 
     def ensure_credit_after_deposit(self):
@@ -202,7 +260,10 @@ class Invoice(models.Model):
             self.remove_credit_issue_txn()
             return None
 
-        tx = Transaction.objects.filter(invoice=self, transaction_type="credit_issue").first()
+        tx = Transaction.objects.filter(
+            invoice=self,
+            transaction_type="credit_issue",
+        ).first()
         if tx:
             changed = False
             if r2(tx.amount) != target:
@@ -230,6 +291,7 @@ class Invoice(models.Model):
     def remove_credit_issue_txn(self):
         """Delete any existing 'credit_issue' transaction for this invoice."""
         from transactions.models import Transaction  # lazy import
+
         q = Transaction.objects.filter(invoice=self, transaction_type="credit_issue")
         for tx in q.order_by("-created_at", "-id"):
             tx.delete()
@@ -435,6 +497,10 @@ class Invoice(models.Model):
         super().delete(*args, **kwargs)
 
 
+# ====================================================================
+# Daily overdue summary
+# ====================================================================
+
 class DailyOverdueSummary(models.Model):
     """
     Stores the result of the daily overdue sweep so you can report/audit
@@ -454,31 +520,95 @@ class DailyOverdueSummary(models.Model):
     def __str__(self) -> str:
         return f"Overdue Summary {self.run_date} (new={self.new_overdue}, total={self.total_overdue})"
 
+
+# ====================================================================
+# Commission: cost-based, per invoice
+# ====================================================================
+
+# ====================================================================
+# Commission: cost-based, per invoice
+# ====================================================================
+
 class CommissionEntry(models.Model):
     """
-    One row per invoice that records the commission earned for that invoice.
-    CommissionEntry is created/updated when an Invoice becomes fully paid.
+    One row per invoice that records commission on COST, not selling price.
+    - cost_total: total cost of products on invoice (snapshot).
+    - rep_rate / rep_amount: commission for sales rep.
+    - supervisor_rate / supervisor_amount: commission for supervisor (optional).
+    - is_new_business: whether this is the client's first paid invoice.
     """
+
+    COMMISSION_RATE_CHOICES = [
+        (Decimal("1.00"), "1%"),
+        (Decimal("1.50"), "1.5%"),
+        (Decimal("2.00"), "2%"),
+        (Decimal("2.50"), "2.5%"),
+        (Decimal("3.00"), "3%"),
+        (Decimal("3.50"), "3.5%"),
+        (Decimal("4.00"), "4%"),
+    ]
 
     rep = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="commission_entries",
         help_text="Snapshot of the sales rep who owned the client when commission was generated.",
     )
 
+    supervisor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="supervisor_commission_entries",
+        help_text="Snapshot of the supervisor at commission time (optional).",
+    )
+
     invoice = models.OneToOneField(
-        Invoice,
+        "Invoice",
         on_delete=models.CASCADE,
         related_name="commission_entry",
         help_text="Invoice that generated this commission entry (created when invoice is paid).",
     )
 
-    invoice_total = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
-    rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"),
-                               help_text="Commission percent (e.g. 5.00 for 5%).")
-    amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    # COST-based snapshot (ex VAT)
+    cost_total = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Total COST of products on invoice (ex VAT).",
+    )
+
+    # Rep commission
+    rep_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        choices=COMMISSION_RATE_CHOICES,
+        default=Decimal("3.50"),  # default 3.5% (new business)
+        help_text="Commission percent for sales rep (on cost).",
+    )
+    rep_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    # Supervisor commission
+    supervisor_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        choices=COMMISSION_RATE_CHOICES,
+        default=Decimal("1.00"),  # default 1% for supervisor
+        help_text="Commission percent for supervisor (on cost).",
+    )
+    supervisor_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
     is_new_business = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -486,35 +616,98 @@ class CommissionEntry(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["rep"]),
+            models.Index(fields=["supervisor"]),
             models.Index(fields=["is_new_business"]),
         ]
 
     def __str__(self):
-        return f"CommissionEntry #{self.id} - Invoice {self.invoice_id} - R{self.amount}"
+        return (
+            f"CommissionEntry #{self.id} - Invoice {self.invoice_id} - "
+            f"Rep R{self.rep_amount} / Sup R{self.supervisor_amount}"
+        )
 
+    # ---------- amount recomputation ----------
+
+    def recompute_amounts(self):
+        """
+        Recalculate rep_amount and supervisor_amount from:
+        - cost_total
+        - rep_rate
+        - supervisor_rate
+        and whether a supervisor is set.
+        """
+        if self.cost_total is None:
+            return
+
+        base = self.cost_total or Decimal("0.00")
+
+        # Rep commission
+        self.rep_amount = r2(
+            base * (self.rep_rate / Decimal("100"))
+        )
+
+        # Supervisor commission only if there *is* a supervisor
+        if self.supervisor:
+            self.supervisor_amount = r2(
+                base * (self.supervisor_rate / Decimal("100"))
+            )
+        else:
+            self.supervisor_amount = Decimal("0.00")
+
+    def save(self, *args, **kwargs):
+        # Always keep amounts in sync with rates, cost_total and supervisor
+        self.recompute_amounts()
+        super().save(*args, **kwargs)
+
+
+# ====================================================================
+# MonthlyCommission + adjustments
+# ====================================================================
 
 class MonthlyCommission(models.Model):
     """
     Aggregated monthly commission for a rep (one row per rep / year / month).
-    Stores recurring commissions, new-business commissions, the chosen tier and bonus,
-    and the final total payout for that month.
+    Uses cost-based commissions from CommissionEntry.
     """
 
-    rep = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="monthly_commissions")
+    rep = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="monthly_commissions",
+    )
     year = models.IntegerField(db_index=True)
     month = models.IntegerField(db_index=True)  # 1..12
 
-    recurring_sales_total = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal("0.00"))
-    recurring_commission_total = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal("0.00"))
+    recurring_sales_total = models.DecimalField(
+        max_digits=16, decimal_places=2, default=Decimal("0.00")
+    )
+    recurring_commission_total = models.DecimalField(
+        max_digits=16, decimal_places=2, default=Decimal("0.00")
+    )
 
-    new_business_total = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal("0.00"))
-    new_business_commission = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal("0.00"))
+    new_business_total = models.DecimalField(
+        max_digits=16, decimal_places=2, default=Decimal("0.00")
+    )
+    new_business_commission = models.DecimalField(
+        max_digits=16, decimal_places=2, default=Decimal("0.00")
+    )
 
-    weekly_average = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
-    commission_rate_pct = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
-    monthly_cash_bonus = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    weekly_average = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0.00")
+    )
+    commission_rate_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Effective commission % on recurring cost (for reporting).",
+    )
+    monthly_cash_bonus = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00")
+    )
 
-    total_payout = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal("0.00"))
+    total_payout = models.DecimalField(
+        max_digits=16, decimal_places=2, default=Decimal("0.00")
+    )
 
     paid = models.BooleanField(default=False)
     paid_on = models.DateField(null=True, blank=True)
@@ -536,7 +729,11 @@ class CommissionAdjustment(models.Model):
     Keeps the payroll audit trail tidy.
     """
 
-    monthly_commission = models.ForeignKey(MonthlyCommission, on_delete=models.CASCADE, related_name="adjustments")
+    monthly_commission = models.ForeignKey(
+        MonthlyCommission,
+        on_delete=models.CASCADE,
+        related_name="adjustments",
+    )
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     reason = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -545,34 +742,16 @@ class CommissionAdjustment(models.Model):
         return f"Adjustment {self.amount} for {self.monthly_commission}"
 
 
-# -------------------------
-# Commission tier config
-# -------------------------
-# Each tuple: (weekly_threshold, commission_pct, monthly_cash_bonus)
-# Should be ordered descending by threshold.
-COMMISSION_TIERS = [
-    (Decimal("35000"), Decimal("8.00"), Decimal("4000.00")),
-    (Decimal("30000"), Decimal("7.00"), Decimal("3000.00")),
-    (Decimal("25000"), Decimal("6.00"), Decimal("2000.00")),
-    (Decimal("20000"), Decimal("5.00"), Decimal("1000.00")),
-    (Decimal("10000"), Decimal("4.00"), Decimal("0.00")),
-]
+# ====================================================================
+# Commission helpers & aggregation
+# ====================================================================
+
+def weeks_in_month(year: int, month: int) -> Decimal:
+    """Return a reasonable week count for a month (ceil(days/7))."""
+    days = monthrange(year, month)[1]
+    return Decimal(str(math.ceil(days / 7)))
 
 
-def pick_tier_for_weekly_avg(weekly_avg: Decimal) -> Tuple[Decimal, Decimal]:
-    """
-    Return (rate_pct, monthly_bonus) for a given weekly average value.
-    If below the lowest threshold, returns (0.00, 0.00).
-    """
-    for threshold, pct, bonus in COMMISSION_TIERS:
-        if weekly_avg >= threshold:
-            return pct, bonus
-    return Decimal("0.00"), Decimal("0.00")
-
-
-# -------------------------
-# Helpers: new-business detection & per-invoice creation
-# -------------------------
 def invoice_is_new_business(invoice: Invoice) -> bool:
     """
     True if this is the client's first paid invoice (based on paid_date ordering).
@@ -586,62 +765,97 @@ def invoice_is_new_business(invoice: Invoice) -> bool:
     return not prior_exists
 
 
+def compute_invoice_cost_excl(invoice: Invoice) -> Decimal:
+    """
+    Approximate total COST of the invoice based on Product.cost_price (ex VAT) * quantity
+    for each OrderItem. If a product has no cost_price, we treat it as 0.00.
+
+    NOTE: This uses CURRENT product.cost_price. If you later change cost_price
+    and recompute commissions, old invoices will reflect the new cost.
+    """
+    order = invoice.order
+    total = Decimal("0.00")
+
+    # Avoid N+1: load products with each order item
+    items = order.items.select_related("product")
+
+    for item in items:
+        product = item.product
+        cost_per_unit = getattr(product, "cost_price", None) or Decimal("0.00")
+        qty = item.quantity or Decimal("0.00")
+        total += r2(cost_per_unit * qty)
+
+    return r2(total)
+
+
+def resolve_rep_and_supervisor_for_invoice(invoice: Invoice):
+    """
+    Decide who the sales rep and supervisor are for this invoice.
+
+    - Rep: taken from client.account_manager (User).
+    - Supervisor: taken from that rep's SalesRepProfile.supervisor (if it exists).
+    """
+    client = invoice.client
+
+    # Main sales rep = account_manager on the client
+    rep = getattr(client, "account_manager", None)
+
+    supervisor = None
+    if rep is not None:
+        # rep.sales_rep_profile is the OneToOne from SalesRepProfile.user
+        sales_profile = getattr(rep, "sales_rep_profile", None)
+        supervisor = getattr(sales_profile, "supervisor", None) if sales_profile else None
+
+    return rep, supervisor
+
+
 def create_or_update_commission_entry_for_invoice(invoice: Invoice) -> CommissionEntry:
     """
-    Create or update CommissionEntry for a fully paid invoice.
-    - If invoice is new business -> immediately set rate = 8% and compute amount.
-    - Otherwise, create entry with rate 0 and amount 0; monthly job will set final rate/amount.
-    The rep is taken from invoice.client.account_manager (snapshot).
+    Create or update CommissionEntry for a fully paid invoice, based on COST (not selling price).
+
+    - Base = sum(Product.cost_price * quantity) over all order items.
+    - If invoice is new business -> rep_rate = 3.5% (on cost).
+    - If repeat business        -> rep_rate = 2.5% (on cost).
+    - Supervisor uses 1% on cost (if linked via SalesRepProfile.supervisor).
     """
-    rep = getattr(invoice.client, "account_manager", None)
-    inv_total = r2(invoice.order_total_inc or getattr(invoice.order, "grand_total_inc", Decimal("0.00")))
+    # 1) Resolve rep and supervisor
+    rep, supervisor = resolve_rep_and_supervisor_for_invoice(invoice)
+
+    # 2) New vs repeat
     is_new = invoice_is_new_business(invoice)
 
-    if is_new:
-        rate_pct = Decimal("8.00")
-        amount = r2(inv_total * (rate_pct / Decimal("100")))
-    else:
-        rate_pct = Decimal("0.00")
-        amount = Decimal("0.00")
+    # 3) Cost base
+    cost_total = compute_invoice_cost_excl(invoice)
 
+    # 4) Pick commission rates
+    rep_rate_pct = Decimal("3.50") if is_new else Decimal("2.50")
+    supervisor_rate_pct = Decimal("1.00")
+
+    # 5) Create / update entry.
+    #    We do NOT pass amounts here – save() will recompute them.
     ce, _ = CommissionEntry.objects.update_or_create(
         invoice=invoice,
         defaults={
             "rep": rep,
-            "invoice_total": inv_total,
-            "rate": rate_pct,
-            "amount": amount,
+            "supervisor": supervisor,
+            "cost_total": cost_total,
+            "rep_rate": rep_rate_pct,
+            "supervisor_rate": supervisor_rate_pct,
             "is_new_business": is_new,
         },
     )
     return ce
 
 
-# Signal: create commission entry when invoice becomes fully paid
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-
-
 @receiver(post_save, sender=Invoice)
 def invoice_post_save_create_commission(sender, instance: Invoice, created, **kwargs):
     """
     When an Invoice becomes fully paid (deposit_paid >= amount_due / status == 'paid' and paid_date present),
-    ensure there's a CommissionEntry for auditing. New-business entries get immediate 8% calculation.
-    Recurring entries are updated later by monthly aggregation.
+    ensure there's a CommissionEntry for auditing (cost-based, with fixed %).
     """
     if not instance.is_fully_paid():
         return
-    # create/update CommissionEntry
     create_or_update_commission_entry_for_invoice(instance)
-
-
-# -------------------------
-# Monthly calculation / aggregation
-# -------------------------
-def weeks_in_month(year: int, month: int) -> Decimal:
-    """Return a reasonable week count for a month (ceil(days/7))."""
-    days = monthrange(year, month)[1]
-    return Decimal(str(math.ceil(days / 7)))
 
 
 def calculate_monthly_commissions(
@@ -652,93 +866,75 @@ def calculate_monthly_commissions(
     force_recalc: bool = False,
 ) -> None:
     """
-    Calculate monthly commissions for all reps with paid invoices in the month.
+    Calculate monthly commissions per rep based on CommissionEntry rows:
 
-    Arguments:
-    - year, month: ints for the period to calculate (e.g. 2025, 11)
-    - require_kpi_fn: optional function(rep, year, month) -> bool that returns True if the rep met KPI eligibility.
-                      If provided and it returns False for a rep, the monthly_cash_bonus is set to 0.
-    - force_recalc: if True, existing MonthlyCommission rows will be re-calculated/overwritten.
-
-    Behaviour:
-    - Collect all Invoices with paid_date in the month.
-    - Ensure CommissionEntry exists for each (create placeholder if missing).
-    - Group CommissionEntry by rep.
-    - For each rep:
-        - Sum recurring (non-new) invoice totals for month
-        - Compute weekly average = recurring_total / weeks_in_month
-        - Pick tier (rate_pct, monthly_bonus)
-        - Compute recurring_commission_total = recurring_total * rate_pct
-        - Sum new-business commissions (already stored in CommissionEntry.amount)
-        - Create/update MonthlyCommission with totals and set total_payout
-        - Update CommissionEntry rows for recurring invoices to store final rate & amount
+    - recurring_* = totals for repeat business (is_new_business=False)
+    - new_business_* = totals for first invoices (is_new_business=True)
+    - weekly_average = recurring_sales_total / weeks_in_month (for reporting)
+    - commission_rate_pct = effective % on recurring cost
+      (recurring_commission_total / recurring_sales_total)
+    - monthly_cash_bonus is 0 for now; you can plug in require_kpi_fn to turn it on/off.
     """
     first_day = date(year, month, 1)
     last_day = date(year, month, monthrange(year, month)[1])
 
-    # fetch paid invoices in range
-    paid_invoices_qs = Invoice.objects.filter(paid_date__gte=first_day, paid_date__lte=last_day).select_related("client", "client__account_manager").prefetch_related("commission_entry")
+    # pull all commission entries whose invoice was paid in this month
+    ces = (
+        CommissionEntry.objects
+        .filter(invoice__paid_date__gte=first_day, invoice__paid_date__lte=last_day)
+        .select_related("rep")
+    )
 
-    # Ensure CommissionEntry exists for each invoice; group by rep
-    reps_map = defaultdict(list)  # rep -> list[(invoice, commission_entry)]
-    for inv in paid_invoices_qs:
-        ce = getattr(inv, "commission_entry", None)
-        if ce is None:
-            ce = create_or_update_commission_entry_for_invoice(inv)
-        rep = ce.rep
-        # skip invoices with no rep assigned (surface them via admin later)
-        if rep is None:
+    reps_map: dict = defaultdict(list)
+    for ce in ces:
+        if ce.rep is None:
             continue
-        reps_map[rep].append((inv, ce))
+        reps_map[ce.rep].append(ce)
 
     weeks = weeks_in_month(year, month)
 
-    # Process each rep
-    for rep, items in reps_map.items():
-        recurring_total = Decimal("0.00")
-        recurring_entries = []
+    for rep, entries in reps_map.items():
+        recurring_sales_total = Decimal("0.00")
+        recurring_comm_total = Decimal("0.00")
         new_business_total = Decimal("0.00")
-        new_business_commission_total = Decimal("0.00")
+        new_business_comm_total = Decimal("0.00")
 
-        for inv, ce in items:
+        for ce in entries:
             if ce.is_new_business:
-                new_business_total += ce.invoice_total
-                new_business_commission_total += ce.amount
+                new_business_total += ce.cost_total
+                new_business_comm_total += ce.rep_amount
             else:
-                recurring_total += ce.invoice_total
-                recurring_entries.append((inv, ce))
+                recurring_sales_total += ce.cost_total
+                recurring_comm_total += ce.rep_amount
 
-        weekly_avg = r2(recurring_total / weeks) if weeks > 0 else Decimal("0.00")
+        weekly_average = r2(recurring_sales_total / weeks) if weeks > 0 else Decimal("0.00")
 
-        rate_pct, monthly_bonus = pick_tier_for_weekly_avg(weekly_avg)
+        # Effective commission rate on recurring cost
+        if recurring_sales_total > 0:
+            commission_rate_pct = r2(
+                (recurring_comm_total / recurring_sales_total) * Decimal("100")
+            )
+        else:
+            commission_rate_pct = Decimal("0.00")
 
-        # If KPI checker provided and fails, zero the monthly bonus
+        monthly_cash_bonus = Decimal("0.00")
         if require_kpi_fn is not None and not require_kpi_fn(rep, year, month):
-            monthly_bonus = Decimal("0.00")
+            monthly_cash_bonus = Decimal("0.00")
 
-        recurring_commission_total = r2(recurring_total * (rate_pct / Decimal("100")))
+        total_payout = r2(recurring_comm_total + new_business_comm_total + monthly_cash_bonus)
 
-        total_payout = r2(recurring_commission_total + new_business_commission_total + monthly_bonus)
-
-        # create/update MonthlyCommission
-        mc, created = MonthlyCommission.objects.update_or_create(
-            rep=rep, year=year, month=month,
+        MonthlyCommission.objects.update_or_create(
+            rep=rep,
+            year=year,
+            month=month,
             defaults={
-                "recurring_sales_total": r2(recurring_total),
-                "recurring_commission_total": recurring_commission_total,
+                "recurring_sales_total": r2(recurring_sales_total),
+                "recurring_commission_total": r2(recurring_comm_total),
                 "new_business_total": r2(new_business_total),
-                "new_business_commission": r2(new_business_commission_total),
-                "weekly_average": weekly_avg,
-                "commission_rate_pct": rate_pct,
-                "monthly_cash_bonus": monthly_bonus,
+                "new_business_commission": r2(new_business_comm_total),
+                "weekly_average": weekly_average,
+                "commission_rate_pct": commission_rate_pct,
+                "monthly_cash_bonus": monthly_cash_bonus,
                 "total_payout": total_payout,
-            }
+            },
         )
-
-        # Update recurring CommissionEntry rows with final rate & per-invoice amounts
-        for inv, ce in recurring_entries:
-            new_amount = r2(ce.invoice_total * (rate_pct / Decimal("100")))
-            if ce.rate != rate_pct or ce.amount != new_amount:
-                ce.rate = rate_pct
-                ce.amount = new_amount
-                ce.save(update_fields=["rate", "amount"])

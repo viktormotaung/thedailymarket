@@ -1,25 +1,26 @@
-from django.db.models import Sum, F, ExpressionWrapper, DecimalField
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models.functions import Coalesce
 from decimal import Decimal
 from datetime import timedelta
-from django.utils.timezone import now
-from django.contrib.auth.decorators import user_passes_test
-from django.shortcuts import render, get_object_or_404, redirect
-from django.utils.timezone import localdate
+from django.conf import settings
 from django.contrib import messages
-
-
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db.models import Sum, F, ExpressionWrapper, DecimalField
+from django.db.models.functions import Coalesce
+from django.http import HttpResponse
+from django.shortcuts import render, get_object_or_404, redirect
+from django.utils.timezone import now, localdate
 
 from invoices.models import Invoice
-from django.contrib.auth.decorators import user_passes_test
+from credit.models import CreditEntry  # 👈 for credit repayments
 
 DAY_OPTIONS = [7, 14, 30, 60]
+
 
 def staff_check(user):
     return user.is_authenticated and user.is_staff
 
-staff_required = user_passes_test(staff_check, login_url='/portal/client/login/')
+
+staff_required = user_passes_test(staff_check, login_url="/portal/client/login/")
+
 
 @login_required
 @staff_required
@@ -32,7 +33,7 @@ def invoice_list(request):
     if days not in DAY_OPTIONS:
         days = 7
 
-    # NEW: pull filters safely for the template
+    # Filters for template
     search = request.GET.get("q", "").strip()
     filter_status = request.GET.get("status", "").strip()
     date_from = request.GET.get("from", "")
@@ -41,12 +42,13 @@ def invoice_list(request):
     recent_start = now().date() - timedelta(days=days)
 
     recent_qs = (
-        Invoice.objects
-        .filter(created_at__date__gte=recent_start)
-        .annotate(balance=ExpressionWrapper(
-            F("amount_due") - F("deposit_paid"),
-            output_field=DecimalField(max_digits=12, decimal_places=2)
-        ))
+        Invoice.objects.filter(created_at__date__gte=recent_start)
+        .annotate(
+            balance=ExpressionWrapper(
+                F("amount_due") - F("deposit_paid"),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            )
+        )
     )
 
     recent_unpaid_qs = recent_qs.exclude(status="paid")
@@ -68,8 +70,6 @@ def invoice_list(request):
         "recent_paid_total": recent_paid_total,
         "recent_paid_count": recent_qs.filter(status="paid").count(),
         "invoices": recent_qs.select_related("client", "order").order_by("-created_at"),
-
-        # NEW: template inputs
         "search": search,
         "filter_status": filter_status,
         "date_from": date_from,
@@ -77,9 +77,6 @@ def invoice_list(request):
         "status_choices": Invoice.STATUS_CHOICES,
     }
     return render(request, "invoices/invoice_list.html", context)
-
-
-
 
 
 @login_required
@@ -104,7 +101,23 @@ def invoice_view(request, pk):
         and invoice.due_date is not None
         and invoice.due_date < today
     )
+
+    # deposit balance
     deposit_outstanding = max(invoice.amount_due - (invoice.deposit_paid or 0), 0)
+
+    # CREDIT BALANCE
+    from credit.models import CreditEntry
+    from django.db.models import Sum
+
+    credit_repaid = (
+        CreditEntry.objects.filter(
+            invoice=invoice,
+            kind=CreditEntry.REPAYMENT,
+            credit_account__client=client,
+        ).aggregate(total=Sum("amount"))["total"]
+        or Decimal("0.00")
+    )
+    credit_outstanding = (invoice.credit_used or Decimal("0.00")) - credit_repaid
 
     return render(
         request,
@@ -116,19 +129,76 @@ def invoice_view(request, pk):
             "items": items,
             "is_overdue": is_overdue,
             "deposit_outstanding": deposit_outstanding,
+            "credit_outstanding": credit_outstanding,
         },
     )
-    
+
+@login_required
+@staff_required
+def invoice_confirm_payment(request, pk):
+    """
+    'Confirm Payment' from the modal (manual capture).
+
+    - For deposit: records a cash Transaction using Invoice.record_payment().
+    - For credit: records a CreditEntry repayment using Invoice.record_credit_repayment().
+    The amount + reference come from the popup form (pre-populated but editable).
+    """
+    invoice = get_object_or_404(Invoice, pk=pk)
+
+    if request.method != "POST":
+        return redirect("invoice-view", pk=pk)
+
+    kind = (request.POST.get("kind") or "deposit").lower()  # "deposit" or "credit"
+    raw_amount = (request.POST.get("amount") or "").replace(",", "").strip()
+    reference = request.POST.get("reference") or f"INV-{invoice.id}: {kind}"
+
+    try:
+        amount = Decimal(raw_amount)
+    except (InvalidOperation, TypeError):
+        messages.error(request, "Invalid amount entered.")
+        return redirect("invoice-view", pk=pk)
+
+    if amount <= 0:
+        messages.error(request, "Amount must be greater than zero.")
+        return redirect("invoice-view", pk=pk)
+
+    note = f"Manual {kind} payment captured on invoice screen."
+
+    if kind == "credit":
+        # This hits the credit ledger (CreditEntry) only – not deposit.
+        invoice.record_credit_repayment(
+            amount,
+            reference=reference,
+            note=note,
+        )
+        messages.success(
+            request,
+            f"Credit repayment of R{amount:.2f} recorded for Invoice #{invoice.id}.",
+        )
+    else:
+        # This hits the deposit / cash side.
+        invoice.record_payment(
+            amount,
+            reference=reference,
+            note=note,
+        )
+        messages.success(
+            request,
+            f"Deposit payment of R{amount:.2f} recorded for Invoice #{invoice.id}.",
+        )
+
+    return redirect("invoice-view", pk=pk)
+
 @login_required
 @staff_required
 def invoice_create(request):
-    return render(request, 'invoices/invoice_create.html')
+    return render(request, "invoices/invoice_create.html")
 
 
 @login_required
 @staff_required
 def invoice_edit(request, pk):
-    return render(request, 'invoices/invoice_edit.html')
+    return render(request, "invoices/invoice_edit.html")
 
 
 @login_required
@@ -136,7 +206,7 @@ def invoice_edit(request, pk):
 def invoice_download(request, pk):
     invoice = get_object_or_404(
         Invoice.objects.select_related("order", "client"),
-        pk=pk
+        pk=pk,
     )
 
     # Try to import ReportLab; fall back gracefully if missing
@@ -181,14 +251,24 @@ def invoice_download(request, pk):
     p.setFont("Helvetica", 10)
     p.drawString(20 * mm, y, f"{client}")
     y -= 5 * mm
-    if client.address_line1:
+    if getattr(client, "address_line1", ""):
         p.drawString(20 * mm, y, client.address_line1)
         y -= 5 * mm
-    addr_line = ", ".join(filter(None, [client.suburb, client.city, client.province, client.postal_code]))
+    addr_line = ", ".join(
+        filter(
+            None,
+            [
+                getattr(client, "suburb", ""),
+                getattr(client, "city", ""),
+                getattr(client, "province", ""),
+                getattr(client, "postal_code", ""),
+            ],
+        )
+    )
     if addr_line:
         p.drawString(20 * mm, y, addr_line)
         y -= 5 * mm
-    if client.country:
+    if getattr(client, "country", ""):
         p.drawString(20 * mm, y, client.country)
         y -= 8 * mm
 
@@ -221,8 +301,11 @@ def invoice_download(request, pk):
             y -= 6 * mm
             p.setFont("Helvetica", 10)
 
-        p.drawString(20 * mm, y, it.sku or (it.product.sku if it.product_id else ""))
-        p.drawString(45 * mm, y, (it.product_name or (it.product.name if it.product_id else ""))[:50])
+        sku = it.sku or (it.product.sku if it.product_id else "")
+        name = it.product_name or (it.product.name if it.product_id else "")
+
+        p.drawString(20 * mm, y, sku)
+        p.drawString(45 * mm, y, name[:50])
         p.drawRightString(135 * mm, y, f"{it.quantity}")
         p.drawRightString(160 * mm, y, f"{it.unit_price_excl:.2f}")
         p.drawRightString(190 * mm, y, f"{it.line_total_excl:.2f}")
@@ -276,3 +359,30 @@ def invoice_download(request, pk):
     p.showPage()
     p.save()
     return response
+
+
+# ============= NEW: payment actions from the modal =============
+
+@login_required
+@staff_required
+def invoice_send_payment_request(request, pk):
+    """
+    'Send Request Payment' from the modal.
+    For now, just sets a message – you can later plug in WhatsApp / email logic.
+    """
+    invoice = get_object_or_404(Invoice, pk=pk)
+    kind = (request.GET.get("kind") or "deposit").lower()
+
+    if kind == "credit":
+        label = "credit repayment"
+    else:
+        label = "deposit"
+
+    # TODO: integrate with your actual "send payment link" logic.
+    messages.success(
+        request,
+        f"Payment request for {label} on Invoice #{invoice.id} has been queued (placeholder).",
+    )
+    return redirect("invoice-view", pk=pk)
+
+

@@ -1,4 +1,3 @@
-# credit/admin.py
 from decimal import Decimal
 from datetime import timedelta
 
@@ -126,6 +125,8 @@ class CreditAccountAdmin(admin.ModelAdmin):
     base_list_display = [
         "client",
         "client_number",
+        "payment_term_label",          # NEW
+        "credit_deposit_pct_display",  # NEW
         "credit_limit",
         "credit_used",
         "credit_available_display",
@@ -145,6 +146,13 @@ class CreditAccountAdmin(admin.ModelAdmin):
     )
     ordering = ("client__name",)
 
+    # Some nice filters for your new fields
+    list_filter = (
+        *(("funder",) if model_has_field(CreditAccount, "funder") else ()),
+        "payment_term",
+        "credit_deposit_pct",
+    )
+
     # Respect optional funder FK
     raw_id_fields = ("client",) + (("funder",) if model_has_field(CreditAccount, "funder") else ())
 
@@ -163,6 +171,8 @@ class CreditAccountAdmin(admin.ModelAdmin):
     # Fields shown on the form (inject 'funder' if present)
     base_fields = [
         "client",
+        "payment_term",          # NEW
+        "credit_deposit_pct",    # NEW
         "credit_limit",
         "credit_used",
         "credit_available_display",
@@ -175,10 +185,27 @@ class CreditAccountAdmin(admin.ModelAdmin):
 
     actions = ["recompute_credit_used_from_ledger"]
 
+    # ---- display helpers ----
+
     def client_number(self, obj):
         return getattr(obj.client, "client_number", "")
     client_number.short_description = "Client #"
     client_number.admin_order_field = "client__client_number"
+
+    def payment_term_label(self, obj):
+        # uses get_FOO_display from the choices on the model
+        try:
+            return obj.get_payment_term_display()
+        except Exception:
+            return getattr(obj, "payment_term", "—")
+    payment_term_label.short_description = "Payment term"
+
+    def credit_deposit_pct_display(self, obj):
+        try:
+            return f"{obj.credit_deposit_pct:.0f}%"
+        except Exception:
+            return "—"
+    credit_deposit_pct_display.short_description = "Deposit %"
 
     def credit_available_display(self, obj):
         return obj.credit_available
@@ -295,7 +322,9 @@ if HAS_CREDIT_ENTRY:
             "note",
             *(("posted_at",) if model_has_field(CreditEntry, "posted_at") else ()),
         )
-        readonly_fields = ("entry_type_display", "reference_display") + (("posted_at",) if "posted_at" in fields else ())
+        readonly_fields = ("entry_type_display", "reference_display") + (
+            ("posted_at",) if "posted_at" in fields else ()
+        )
 
         # ---- Display helpers (must live on the Admin class) ----
         def client(self, obj):

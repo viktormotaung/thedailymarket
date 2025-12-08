@@ -1,3 +1,4 @@
+#profiles/models
 from django.conf import settings
 from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
@@ -223,13 +224,21 @@ class SalesRepProfile(models.Model):
         help_text="Hashed staff authorisation code; set via admin form.",
     )
 
-    # In SalesRepProfile model
     department = models.CharField(
         max_length=50,
         default="Sales",
         help_text="Department for this sales rep.",
     )
 
+    # ✅ NEW: supervisor for this rep
+    supervisor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="supervised_reps",
+        help_text="Supervisor/manager responsible for this sales rep.",
+    )
 
     notes = models.TextField(blank=True)
 

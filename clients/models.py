@@ -1,6 +1,6 @@
 # clients/models.py
 from decimal import Decimal
-
+from datetime import timedelta
 from django.apps import apps
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -385,7 +385,7 @@ class Prospect(models.Model):
     STAGE_CHOICES = [
         ("NEW", "New"),
         ("CONTACTED", "Contacted"),
-        ("SAMPLES_GIVEN", "Samples given"),
+        ("SITE_VISIT", "Site visit"),
         ("NEGOTIATION", "Negotiation"),
         ("WON", "Won"),
         ("LOST", "Lost"),
@@ -404,6 +404,15 @@ class Prospect(models.Model):
         blank=True,
         related_name="prospects",
         help_text="Sales rep responsible for this prospect.",
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="prospects_created",
+        help_text="Who originally created this prospect.",
     )
 
     # ---- Identity / contact ----
@@ -508,20 +517,139 @@ class Prospect(models.Model):
             models.Index(fields=["status"]),
             models.Index(fields=["owner", "stage"]),
             models.Index(fields=["city", "province"]),
+            models.Index(fields=["created_by", "created_at"]),
         ]
 
     def __str__(self) -> str:
         return self.name
 
+    # ---------- Existing helpers ----------
+
     @property
     def samples_count(self) -> int:
-        """Convenience for your prospects table: how many sample-related updates exist."""
+        """
+        How many sample / site-visit related updates exist.
+        Useful for prospects table / stats.
+        """
         return self.updates.filter(action_type="SAMPLE").count()
 
     @property
     def last_update(self):
         """Return the most recent update, if any."""
         return self.updates.order_by("-created_at").first()
+
+    # ---------- SLA / time-based helpers ----------
+
+    @property
+    def age_days(self) -> int:
+        """
+        How many days since this prospect was created.
+        Used for SLA / pipeline health.
+        """
+        if not self.created_at:
+            return 0
+        today = timezone.localdate()
+        created_date = self.created_at.date()
+        return (today - created_date).days
+
+    @property
+    def is_closed(self) -> bool:
+        """A simple flag for won/lost (stops the SLA clock)."""
+        return self.stage in ["WON", "LOST"]
+
+    @property
+    def is_overdue(self) -> bool:
+        """
+        Overdue if:
+        - not closed (not WON/LOST), AND
+        - more than 7 days since created
+        """
+        if self.is_closed:
+            return False
+        return self.age_days > 7
+
+    @property
+    def sla_status(self) -> str:
+        """
+        Human-friendly SLA label:
+        - 'Closed' (WON/LOST)
+        - 'Fresh' (0–2 days)
+        - 'On track' (3–7 days)
+        - 'Overdue' (8–14 days)
+        - 'Very overdue' (>14 days)
+        """
+        if self.is_closed:
+            return "Closed"
+
+        days = self.age_days
+        if days <= 2:
+            return "Fresh"
+        elif days <= 7:
+            return "On track"
+        elif days <= 14:
+            return "Overdue"
+        else:
+            return "Very overdue"
+
+    # ---------- Helper: unified logger for all actions ----------
+
+    def log_update(
+        self,
+        *,
+        user=None,
+        action_type: str,
+        outcome: str = "",
+        notes: str = "",
+        action_at=None,
+        new_stage: str | None = None,
+        touch_last_contact: bool = True,
+    ):
+        """
+        Convenience helper to record any interaction on this prospect.
+
+        - Creates a ProspectUpdate with:
+          - old_stage = current self.stage
+          - new_stage = new_stage (or keeps same stage if not provided)
+        - Optionally moves the prospect to new_stage
+        - Optionally updates last_contact_at
+        """
+        from django.apps import apps
+
+        if action_at is None:
+            action_at = timezone.now()
+
+        old_stage = self.stage
+        stage_to_set = new_stage or old_stage
+
+        ProspectUpdate = apps.get_model("clients", "ProspectUpdate")
+
+        update = ProspectUpdate.objects.create(
+            prospect=self,
+            user=user,
+            action_type=action_type,
+            outcome=outcome or "",
+            action_at=action_at,
+            old_stage=old_stage or "",
+            new_stage=stage_to_set or "",
+            notes=notes or "",
+        )
+
+        # Update prospect stage / last contact if required
+        fields_to_update = []
+        if new_stage and new_stage != old_stage:
+            self.stage = new_stage
+            fields_to_update.append("stage")
+
+        if touch_last_contact:
+            self.last_contact_at = action_at
+            fields_to_update.append("last_contact_at")
+
+        if fields_to_update:
+            fields_to_update.append("updated_at")
+            self.save(update_fields=fields_to_update)
+
+        return update
+
 
 
 class ProspectUpdate(models.Model):
@@ -537,7 +665,8 @@ class ProspectUpdate(models.Model):
         ("WHATSAPP", "WhatsApp"),
         ("VISIT", "Visit"),
         ("EMAIL", "Email"),
-        ("SAMPLE", "Sample delivered"),
+        ("SAMPLE", "Sample delivered / site visit"),
+        ("NEGOTIATION", "Negotiation / deal discussion"),
         ("OTHER", "Other"),
     ]
 
@@ -608,6 +737,17 @@ class ProspectUpdate(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # For site visit actions
+    visit_date = models.DateField(null=True, blank=True)
+    visit_time_arrived = models.TimeField(null=True, blank=True)
+    visit_time_left = models.TimeField(null=True, blank=True)
+    visit_contact_name = models.CharField(max_length=120, blank=True)
+    visit_photo = models.ImageField(
+        upload_to="prospects/site_visits/",
+        null=True,
+        blank=True,
+    )
+
     class Meta:
         ordering = ["-action_at", "-created_at"]
         indexes = [
@@ -615,6 +755,20 @@ class ProspectUpdate(models.Model):
             models.Index(fields=["action_type"]),
             models.Index(fields=["outcome"]),
         ]
+
+    # For negotiation actions
+    negotiation_products = models.TextField(
+        blank=True,
+        help_text="What products they are interested in (now).",
+    )
+    negotiation_menu_opportunities = models.TextField(
+        blank=True,
+        help_text="Other menu items / future opportunities to target later.",
+    )
+    negotiation_competitor_info = models.TextField(
+        blank=True,
+        help_text="Current supplier, approximate pricing, or deal constraints (optional).",
+    )
 
     def __str__(self) -> str:
         label = dict(self.ACTION_CHOICES).get(self.action_type, self.action_type)

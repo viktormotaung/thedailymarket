@@ -409,10 +409,38 @@ class FunderWeekSummary(models.Model):
 # CreditAccount: running totals + link to funder
 # ====================================================================
 class CreditAccount(models.Model):
+    TERM_CHOICES = [
+        ("0D", "0 Day Account"),
+        ("3D", "3 Day Account"),
+        ("7D", "7 Day Account"),
+    ]
+
+    DEPOSIT_CHOICES = [
+        (Decimal("0.00"), "0%"),
+        (Decimal("30.00"), "30%"),
+        (Decimal("50.00"), "50%"),
+        (Decimal("100.00"), "100%"),
+    ]
     client       = models.OneToOneField(Client, on_delete=models.CASCADE, related_name="credit_account")
     funder       = models.ForeignKey(
         Funder, null=True, blank=True,
         on_delete=models.SET_NULL, related_name="credit_accounts"
+    )
+    # NEW: 3-day vs 7-day account
+    payment_term = models.CharField(
+        max_length=3,
+        choices=TERM_CHOICES,
+        default="0D",
+        help_text="How long the client has to settle credit purchases (e.g. 3 or 7 days).",
+    )
+
+    # NEW: required credit deposit percentage
+    credit_deposit_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        choices=DEPOSIT_CHOICES,
+        default=Decimal("100.00"),  # you can change this default if you prefer e.g. 30.00 or 0.00
+        help_text="Deposit percentage required when using credit (0%, 30%, 50% or 100%).",
     )
     credit_limit = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     credit_used  = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))

@@ -14,7 +14,8 @@
     html, body { height: 100%; }
     body { min-height: 100vh; display: flex; flex-direction: column; }
     :root { --brand:#0b5c39; --brand-dark:#094c30; }
-    /* ---------- Base / Navbar (desktop) ---------- */
+
+    /* ---------- Navbar (desktop) ---------- */
     .navbar-brand img { height:85px; max-height:100px; width:auto; }
     .navbar { background: var(--brand); }
     .navbar .nav-link, .navbar .navbar-brand, .navbar .dropdown-toggle { color:#fff !important; }
@@ -26,7 +27,6 @@
     .navbar .dropdown-item:hover { background:#094c30; color:#fff; }
     .navbar .dropdown-divider { border-color:rgba(255,255,255,.2); }
 
-    /* Normalize tab spacing/shape */
     .navbar .navbar-nav { align-items:center; gap:.25rem; }
     .navbar .nav-link {
       display:inline-flex; align-items:center;
@@ -48,29 +48,39 @@
       .col-lg-30{flex:0 0 30%; max-width:30%;}
     }
 
-    /* Variations grid */
+    /* Variants */
     .variant-card { position: relative; cursor: pointer; }
-    .variant-card .price-bar{
-      border-top:1px solid #eee;
-      padding:.5rem .75rem;
-      text-align:center;
-      font-weight:700;
-    }
-    .variant-card .meta{
-      font-size:.8rem;
-      color:#6c757d;
-      text-align:center;
-      padding:.25rem .75rem .75rem;
-    }
     .object-fit-cover{ object-fit:cover; height:180px; }
+
+    /* Variant grid styling */
+    .variants .card.variant-card{
+      border-radius:.75rem; overflow:hidden;
+      border:1px solid rgba(0,0,0,.06);
+      transition:transform .12s ease, box-shadow .12s ease;
+      height:100%;
+    }
+    .variants .card.variant-card:hover{
+      transform:translateY(-2px); box-shadow:0 10px 28px rgba(0,0,0,.12);
+    }
+    .variants .ratio{ --bs-aspect-ratio:70%; background:#f8faf9; }
+    .variants .price-pill{
+      position:absolute; top:.75rem; left:.75rem;
+      background:#0b5c39; color:#fff; font-weight:700; font-size:.9rem;
+      padding:.35rem .6rem; border-radius:.5rem;
+      box-shadow:0 6px 18px rgba(11,92,57,.25);
+    }
+    .variants .variant-footer{
+      border-top:1px solid rgba(0,0,0,.06);
+      padding:.75rem; display:flex; gap:.5rem; align-items:stretch;
+    }
+    .variants .input-group-text{ background:#f7f9f8; }
 
     /* ---------- Mobile top bar + offcanvas ---------- */
     .offcanvas-header.brand-skin { background:#0b5c39; color:#fff; }
     .offcanvas-body.brand-skin { background:#0b5c39; color:#fff; }
     .offcanvas-body .nav-link { color:#fff; padding:.55rem 0; }
     .offcanvas-body .nav-link:hover { color:#d4f3e3; }
-  
-    /* Active highlight inside green offcanvas (mobile) */
+
     .offcanvas-body.brand-skin .nav-link.active,
     .offcanvas-body.brand-skin .nav-link:focus,
     .offcanvas-body.brand-skin .nav-link:hover,
@@ -85,11 +95,13 @@
     .offcanvas-body.brand-skin .text-uppercase.small.opacity-75 {
       color: rgba(255,255,255,.75) !important;
     }
+
     /* Footer */
     footer { background:#0b5c39; color:#fff; }
     footer a { color:#fff; }
     footer a:hover { color:#d4f3e3; text-decoration:underline; }
     .footer .border-light { border-color:rgba(255,255,255,.35) !important; }
+
     @media (max-width:991.98px){ .navbar-brand img{ height:40px; } }
   </style>
 </head>
@@ -97,7 +109,6 @@
   <!-- Auth/Profile flags for JS gating -->
   <script>
     const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};
-    /* If you have a view-provided boolean like has_customer_profile, prefer that here. */
     const HAS_PROFILE = {% if request.user.is_authenticated and request.user.customer_profile %}true{% else %}false{% endif %};
   </script>
 
@@ -256,7 +267,9 @@
       <nav aria-label="breadcrumb" class="small mb-2">
         <ol class="breadcrumb mb-0">
           <li class="breadcrumb-item"><a href="{% url 'products' %}">Products</a></li>
-          <li class="breadcrumb-item"><a href="{% url 'products' %}?category={{ product.category.id }}">{{ product.category.name }}</a></li>
+          <li class="breadcrumb-item">
+            <a href="{% url 'products' %}?category={{ product.category.id }}">{{ product.category.name }}</a>
+          </li>
           <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
         </ol>
       </nav>
@@ -289,12 +302,18 @@
           <!-- Headline prices -->
           <div class="d-flex flex-wrap gap-5 my-3">
             <div>
-              <div class="text-muted small">Price (ex VAT)</div>
-              <div class="price-big">{% if wholesale_ex %}R {{ wholesale_ex|floatformat:2|intcomma }}{% else %}R —{% endif %}</div>
+              <div class="text-muted small">Price</div>
+              <div class="price-big">
+                {% if wholesale_ex %}
+                  R {{ wholesale_ex|floatformat:2|intcomma }}
+                {% else %}
+                  R —
+                {% endif %}
+              </div>
             </div>
           </div>
 
-          <!-- Add to cart -->
+          <!-- Add to cart (base product) -->
           <form id="addToCartForm" method="post" action="{% url 'cart' %}" class="d-flex align-items-center gap-2">
             {% csrf_token %}
             <input type="hidden" name="product_id" value="{{ product.id }}">
@@ -311,169 +330,193 @@
     </div>
   </section>
 
-  <!-- ===== Lower: Variations (<=4) + Description ===== -->
+  <!-- ===== Lower: Variations + Description ===== -->
   <section class="py-5 border-top">
     <div class="container">
       <div class="row g-5 d-lg-flex">
 
         <!-- Variations grid (pre-packed) -->
-      <!-- Variations grid (pre-packed) -->
-      <!-- Variations grid (pre-packed) -->
-      <div class="col-12 col-lg-70">
-        <h5 class="mb-3">Pre-packed options</h5>
+        <div class="col-12 col-lg-70">
+          <h5 class="mb-3">Pre-packed options</h5>
 
-        <style>
-          /* Equal, tidy cards */
-          .variants .card.variant-card{
-            border-radius:.75rem; overflow:hidden;
-            border:1px solid rgba(0,0,0,.06);
-            transition:transform .12s ease, box-shadow .12s ease;
-            height:100%;
-          }
-          .variants .card.variant-card:hover{ transform:translateY(-2px); box-shadow:0 10px 28px rgba(0,0,0,.12); }
-          .variants .ratio{ --bs-aspect-ratio:70%; background:#f8faf9; }
-          .variants .price-pill{
-            position:absolute; top:.75rem; left:.75rem;
-            background:#0b5c39; color:#fff; font-weight:700; font-size:.9rem;
-            padding:.35rem .6rem; border-radius:.5rem; box-shadow:0 6px 18px rgba(11,92,57,.25);
-          }
-          .variants .variant-footer{
-            border-top:1px solid rgba(0,0,0,.06);
-            padding:.75rem; display:flex; gap:.5rem; align-items:stretch;
-          }
-          .variants .input-group-text{ background:#f7f9f8; }
-          .variants .btn-brand{ background:#0b5c39; border-color:#0b5c39; color:#fff; }
-          .variants .btn-brand:hover{ background:#094c30; border-color:#094c30; color:#fff; }
-        </style>
+          {% if product.variants.all|length %}
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 variants">
+              {% for v in product.variants.all|slice:":4" %}
 
-        {% if product.variants.all|length %}
-          <!-- row-cols keeps equal column widths at each breakpoint -->
-          <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 variants">
-            {% for v in product.variants.all|slice:":4" %}
+                {% if selected_channel == 'wholesale' %}
+                  {% with override=v.wholesale_price_override derived=v.wholesale_derived %}
+                    <div class="col">
+                      <div class="card variant-card position-relative">
+                        <div class="price-pill">
+                          {% if override %}
+                            R {{ override|floatformat:2|intcomma }} <small>ex VAT</small>
+                          {% elif derived %}
+                            R {{ derived|floatformat:2|intcomma }} <small>ex VAT</small>
+                          {% elif wholesale_ex %}
+                            R {{ wholesale_ex|floatformat:2|intcomma }} <small>ex VAT</small>
+                          {% else %}
+                            <small>Price</small> —
+                          {% endif %}
+                        </div>
 
-              {% if selected_channel == 'wholesale' %}
-                {% with price=v.wholesale_price_override %}
-                  <div class="col">
-                    <div class="card variant-card position-relative">
-                      <div class="price-pill">
-                        {% if price %}R {{ price|floatformat:2|intcomma }} <small>ex VAT</small>{% else %}<small>Price</small> —{% endif %}
-                      </div>
+                        <div class="ratio">
+                          {% if v.image %}
+                            <img src="{{ v.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ v.name|default_if_none:product.name }}">
+                          {% elif product.image %}
+                            <img src="{{ product.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ product.name }}">
+                          {% else %}
+                            <div class="d-flex align-items-center justify-content-center w-100 h-100 text-muted">
+                              <i class="bi bi-box-seam" style="font-size:2rem;"></i>
+                            </div>
+                          {% endif %}
+                        </div>
 
-                      <div class="ratio">
-                        {% if v.image %}
-                          <img src="{{ v.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ v.name|default_if_none:product.name }}">
-                        {% elif product.image %}
-                          <img src="{{ product.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ product.name }}">
-                        {% else %}
-                          <div class="d-flex align-items-center justify-content-center w-100 h-100 text-muted">
-                            <i class="bi bi-box-seam" style="font-size:2rem;"></i>
+                        <div class="card-body pb-0">
+                          <div class="fw-semibold">
+                            {{ v.name|default_if_none:"" }}
+                            {% if not v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% endif %}
                           </div>
-                        {% endif %}
-                      </div>
+                          <div class="text-muted small">
+                            {% if v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% else %}&nbsp;{% endif %}
+                          </div>
 
-                      <div class="card-body pb-0">
-                        <div class="fw-semibold">{{ v.name|default_if_none:"" }}{% if not v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% endif %}</div>
-                        <div class="text-muted small">
-                          {% if v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% else %}&nbsp;{% endif %}
+                          <!-- Inline price under variant name -->
+                          <div class="mt-1 fw-bold small">
+                            {% if override %}
+                              R {{ override|floatformat:2|intcomma }} <span class="text-muted">ex VAT</span>
+                            {% elif derived %}
+                              R {{ derived|floatformat:2|intcomma }} <span class="text-muted">ex VAT</span>
+                            {% elif wholesale_ex %}
+                              R {{ wholesale_ex|floatformat:2|intcomma }} <span class="text-muted">ex VAT</span>
+                            {% else %}
+                              <span class="text-muted">Price to be confirmed</span>
+                            {% endif %}
+                          </div>
+                        </div>
+
+                        <div class="variant-footer">
+                          <form method="post" action="{% url 'cart' %}" class="d-flex w-100 gap-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="variant_id" value="{{ v.id }}">
+                            <div class="input-group">
+                              <span class="input-group-text">Qty</span>
+                              <input type="number" name="qty" value="1" min="1" class="form-control">
+                            </div>
+                            <button class="btn btn-brand flex-fill" type="submit"
+                              {% if not override and not derived and not wholesale_ex %}disabled{% endif %}>
+                              <i class="bi bi-bag-plus me-1"></i> Add to cart
+                            </button>
+                          </form>
                         </div>
                       </div>
-
-                      <div class="variant-footer">
-                        <form method="post" action="{% url 'cart' %}" class="d-flex w-100 gap-2">
-                          {% csrf_token %}
-                          <input type="hidden" name="product_id" value="{{ product.id }}">
-                          <input type="hidden" name="variant_id" value="{{ v.id }}">
-                          <div class="input-group">
-                            <span class="input-group-text">Qty</span>
-                            <input type="number" name="qty" value="1" min="1" class="form-control">
-                          </div>
-                          <button class="btn btn-brand flex-fill" type="submit" {% if not price %}disabled{% endif %}>
-                            <i class="bi bi-bag-plus me-1"></i> Add to cart
-                          </button>
-                        </form>
-                      </div>
                     </div>
-                  </div>
-                {% endwith %}
-              {% else %}
-                {% with price=v.retail_price_override %}
-                  <div class="col">
-                    <div class="card variant-card position-relative">
-                      <div class="price-pill">
-                        {% if price %}R {{ price|floatformat:2|intcomma }} <small>ex VAT</small>{% else %}<small>Price</small> —{% endif %}
-                      </div>
+                  {% endwith %}
+                {% else %}
+                  {% with override=v.retail_price_override derived=v.retail_derived %}
+                    <div class="col">
+                      <div class="card variant-card position-relative">
+                        <div class="price-pill">
+                          {% if override %}
+                            R {{ override|floatformat:2|intcomma }} <small>ex VAT</small>
+                          {% elif derived %}
+                            R {{ derived|floatformat:2|intcomma }} <small>ex VAT</small>
+                          {% elif wholesale_ex %}
+                            R {{ wholesale_ex|floatformat:2|intcomma }} <small>ex VAT</small>
+                          {% else %}
+                            <small>Price</small> —
+                          {% endif %}
+                        </div>
 
-                      <div class="ratio">
-                        {% if v.image %}
-                          <img src="{{ v.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ v.name|default_if_none:product.name }}">
-                        {% elif product.image %}
-                          <img src="{{ product.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ product.name }}">
-                        {% else %}
-                          <div class="d-flex align-items-center justify-content-center w-100 h-100 text-muted">
-                            <i class="bi bi-box-seam" style="font-size:2rem;"></i>
+                        <div class="ratio">
+                          {% if v.image %}
+                            <img src="{{ v.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ v.name|default_if_none:product.name }}">
+                          {% elif product.image %}
+                            <img src="{{ product.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ product.name }}">
+                          {% else %}
+                            <div class="d-flex align-items-center justify-content-center w-100 h-100 text-muted">
+                              <i class="bi bi-box-seam" style="font-size:2rem;"></i>
+                            </div>
+                          {% endif %}
+                        </div>
+
+                        <div class="card-body pb-0">
+                          <div class="fw-semibold">
+                            {{ v.name|default_if_none:"" }}
+                            {% if not v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% endif %}
                           </div>
-                        {% endif %}
-                      </div>
+                          <div class="text-muted small">
+                            {% if v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% else %}&nbsp;{% endif %}
+                          </div>
 
-                      <div class="card-body pb-0">
-                        <div class="fw-semibold">{{ v.name|default_if_none:"" }}{% if not v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% endif %}</div>
-                        <div class="text-muted small">
-                          {% if v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% else %}&nbsp;{% endif %}
+                          <!-- Inline price under variant name -->
+                          <div class="mt-1 fw-bold small">
+                            {% if override %}
+                              R {{ override|floatformat:2|intcomma }} <span class="text-muted">ex VAT</span>
+                            {% elif derived %}
+                              R {{ derived|floatformat:2|intcomma }} <span class="text-muted">ex VAT</span>
+                            {% elif wholesale_ex %}
+                              R {{ wholesale_ex|floatformat:2|intcomma }} <span class="text-muted">ex VAT</span>
+                            {% else %}
+                              <span class="text-muted">Price to be confirmed</span>
+                            {% endif %}
+                          </div>
+                        </div>
+
+                        <div class="variant-footer">
+                          <form method="post" action="{% url 'cart' %}" class="d-flex w-100 gap-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="variant_id" value="{{ v.id }}">
+                            <div class="input-group">
+                              <span class="input-group-text">Qty</span>
+                              <input type="number" name="qty" value="1" min="1" class="form-control">
+                            </div>
+                            <button class="btn btn-brand flex-fill" type="submit"
+                              {% if not override and not derived and not wholesale_ex %}disabled{% endif %}>
+                              <i class="bi bi-bag-plus me-1"></i> Add to cart
+                            </button>
+                          </form>
                         </div>
                       </div>
-
-                      <div class="variant-footer">
-                        <form method="post" action="{% url 'cart' %}" class="d-flex w-100 gap-2">
-                          {% csrf_token %}
-                          <input type="hidden" name="product_id" value="{{ product.id }}">
-                          <input type="hidden" name="variant_id" value="{{ v.id }}">
-                          <div class="input-group">
-                            <span class="input-group-text">Qty</span>
-                            <input type="number" name="qty" value="1" min="1" class="form-control">
-                          </div>
-                          <button class="btn btn-brand flex-fill" type="submit" {% if not price %}disabled{% endif %}>
-                            <i class="bi bi-bag-plus me-1"></i> Add to cart
-                          </button>
-                        </form>
-                      </div>
                     </div>
-                  </div>
-                {% endwith %}
-              {% endif %}
+                  {% endwith %}
+                {% endif %}
 
-            {% endfor %}
-          </div>
+              {% endfor %}
+            </div>
 
-          <div class="small text-muted mt-2">
-            Showing up to four variations. Prices reflect <strong>{{ selected_channel|default:'retail'|title }}</strong> overrides where set (ex VAT).
-          </div>
-        {% else %}
-          <div class="alert alert-light border d-flex align-items-center" role="alert">
-            <i class="bi bi-info-circle me-2"></i>
-            <div>No product variations available yet.</div>
-          </div>
-        {% endif %}
+            <div class="small text-muted mt-2">
+              Showing up to four variations. Prices reflect
+              <strong>{{ selected_channel|default:'retail'|title }}</strong> overrides where set (ex VAT).
+            </div>
+          {% else %}
+            <div class="alert alert-light border d-flex align-items-center" role="alert">
+              <i class="bi bi-info-circle me-2"></i>
+              <div>No product variations available yet.</div>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Description -->
+        <div class="col-12 col-lg-30">
+          <h5 class="mb-3">Description</h5>
+          {% if product.description %}
+            <p class="text-muted mb-0">{{ product.description }}</p>
+          {% else %}
+            <p class="text-muted mb-0">Detailed product information will appear here soon.</p>
+          {% endif %}
+        </div>
+
       </div>
-
-
-
-
-      <!-- Description -->
-      <div class="col-12 col-lg-30">
-        <h5 class="mb-3">Description</h5>
-        {% if product.description %}
-          <p class="text-muted mb-0">{{ product.description }}</p>
-        {% else %}
-          <p class="text-muted mb-0">Detailed product information will appear here soon.</p>
-        {% endif %}
-      </div>
-
     </div>
   </section>
 
   <!-- Footer -->
   <footer class="mt-auto">
-    <div class="container py-4 text-center small">© {% now "Y" %} The Daily Market • Quality You Can Trust</div>
+    <div class="container py-4 text-center small">
+      © {% now "Y" %} The Daily Market • Quality You Can Trust
+    </div>
   </footer>
 
   <!-- Unified modal for auth/profile gating -->
@@ -502,7 +545,7 @@
       modal.show();
     }
 
-    // Add-to-cart gate
+    // Add-to-cart gate (base product)
     document.getElementById('addToCartForm')?.addEventListener('submit', function(e){
       if (!IS_AUTHENTICATED) {
         e.preventDefault();
