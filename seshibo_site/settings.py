@@ -243,16 +243,4 @@ PAYFAST_PASSPHRASE = os.getenv("PAYFAST_PASSPHRASE", "HaPPy2025GiLmore")
 SESSION_COOKIE_AGE = int(os.getenv("SESSION_COOKIE_AGE", 600))
 SESSION_SAVE_EVERY_REQUEST = os.getenv("SESSION_SAVE_EVERY_REQUEST", "True") == "True"
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-        },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "DEBUG" if DEBUG else "WARNING",
-    },
-}
+
