@@ -122,11 +122,10 @@ class CustomerProfileForm(forms.ModelForm):
 
     class Meta:
         model = CustomerProfile
-        fields = ["profile_type", "display_name", "phone", "company_name", "tax_number", "client"]
+        fields = ["profile_type", "display_name", "phone", "client"]
         widgets = {
             "profile_type": forms.Select(attrs={"class": "form-select"}),
             "display_name": forms.TextInput(attrs={"class": "form-control"}),
             "phone": forms.TextInput(attrs={"class": "form-control"}),
-            "company_name": forms.TextInput(attrs={"class": "form-control"}),
-            "tax_number": forms.TextInput(attrs={"class": "form-control"}),
+            
         }

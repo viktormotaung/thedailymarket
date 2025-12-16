@@ -48,7 +48,8 @@ from products.models import Product  # adjust import path
 from django.contrib import messages
 from django.db import transaction
 from .forms import RegisterUserForm, ClientFullForm, CustomerProfileForm
-
+from django.db.models import Q, Prefetch
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.views import View
 from functools import wraps
 from decimal import Decimal, ROUND_HALF_UP
@@ -757,6 +758,12 @@ def staff_login(request):
 
     return render(request, "home/staff_login.html", ctx)
 
+
+@require_http_methods(["GET", "POST"])
+def consumer_login(request):
+    return render(request, "home/consumer_login.html")
+
+
 class ClientLoginView(View):
     template_name = "home/login_client.html"
     redirect_authenticated_user = True
@@ -909,76 +916,143 @@ def _effective_price_for_filtering(p: Product) -> Decimal:
 
 
 def products(request):
+    # -------------------------
+    # Read query params
+    # -------------------------
     q = (request.GET.get("q") or "").strip()
     category_id = request.GET.get("category") or ""
+    subcategory_id = request.GET.get("subcategory") or ""
     min_price = _to_decimal(request.GET.get("min_price"), None)
     max_price = _to_decimal(request.GET.get("max_price"), None)
     sort = (request.GET.get("sort") or "").strip()
 
-    # Base queryset with perf-friendly relations
+    # -------------------------
+    # Base queryset (perf-safe)
+    # -------------------------
     qs = (
         Product.objects
-        .select_related("category")
+        .select_related("category", "category__parent")
         .prefetch_related(
             Prefetch(
                 "pricing_rows",
-                queryset=ProductPricing.objects.select_related("supplier").order_by("supplier__name"),
-                to_attr="pricing_rows_all_prefetched",  # store as attribute to avoid extra queries
+                queryset=ProductPricing.objects
+                    .select_related("supplier")
+                    .order_by("supplier__name"),
+                to_attr="pricing_rows_all_prefetched",
             )
         )
     )
 
+    # -------------------------
     # Text search
+    # -------------------------
     if q:
         qs = qs.filter(
             Q(name__icontains=q) |
             Q(sku__icontains=q) |
-            Q(category__name__icontains=q)
+            Q(category__name__icontains=q) |
+            Q(category__parent__name__icontains=q)
         )
 
-    # Category filter
-    if category_id:
-        qs = qs.filter(category_id=category_id)
+    # -------------------------
+    # Category / Subcategory filtering
+    # -------------------------
+    if subcategory_id:
+        # Most specific filter (subcategory wins)
+        qs = qs.filter(category_id=subcategory_id)
 
-    # Pull into list to attach computed display prices and allow Python-side price filtering/sorting
+    elif category_id:
+        # Parent category → include all children
+        qs = qs.filter(category__parent_id=category_id)
+
+    # -------------------------
+    # Pull into Python list
+    # (needed for price logic)
+    # -------------------------
     items = list(qs)
+
     for p in items:
         _attach_display_price(p)
 
-    # Price range filtering (using effective price)
+    # -------------------------
+    # Price range filtering
+    # -------------------------
     if min_price is not None:
-        items = [p for p in items if _effective_price_for_filtering(p) >= min_price]
-    if max_price is not None:
-        items = [p for p in items if _effective_price_for_filtering(p) <= max_price]
+        items = [
+            p for p in items
+            if _effective_price_for_filtering(p) >= min_price
+        ]
 
+    if max_price is not None:
+        items = [
+            p for p in items
+            if _effective_price_for_filtering(p) <= max_price
+        ]
+
+    # -------------------------
     # Sorting
+    # -------------------------
     if sort in ("name", "-name"):
-        items.sort(key=lambda p: (p.name or "").lower(), reverse=sort.startswith("-"))
+        items.sort(
+            key=lambda p: (p.name or "").lower(),
+            reverse=sort.startswith("-")
+        )
+
     elif sort in ("price", "-price"):
-        items.sort(key=lambda p: (_effective_price_for_filtering(p), p.name.lower()), reverse=sort.startswith("-"))
+        items.sort(
+            key=lambda p: (
+                _effective_price_for_filtering(p),
+                (p.name or "").lower()
+            ),
+            reverse=sort.startswith("-")
+        )
+
     elif sort == "-created":
-        items.sort(key=lambda p: (p.created_at or p.id), reverse=True)
+        items.sort(
+            key=lambda p: (p.created_at or p.id),
+            reverse=True
+        )
+
     else:
-        # default: name A–Z
+        # Default: Name A–Z
         items.sort(key=lambda p: (p.name or "").lower())
 
+    # -------------------------
     # Pagination
-    paginator = Paginator(items, 12)  # 12 per page
+    # -------------------------
+    paginator = Paginator(items, 12)
     page = request.GET.get("page")
+
     try:
         page_obj = paginator.get_page(page)
     except (PageNotAnInteger, EmptyPage):
         page_obj = paginator.get_page(1)
 
+    # -------------------------
+    # Categories for UI
+    # -------------------------
+    categories = (
+        Category.objects
+        .filter(parent__isnull=True, is_active=True)
+        .prefetch_related("children")
+        .order_by("sort_order", "name")
+    )
+
+    # -------------------------
+    # Context
+    # -------------------------
     context = {
-        "products": page_obj,                    # Page object
-        "categories": Category.objects.filter(is_active=True).order_by("sort_order", "name"),
+        "products": page_obj,          # Page object
+        "categories": categories,      # Parents + children
         "q": q,
         "selected_category": category_id,
+        "selected_subcategory": subcategory_id,
         "sort": sort,
+        "min_price": min_price,
+        "max_price": max_price,
     }
-    return render(request, "home/products.html", context)
 
+    return render(request, "home/products.html", context)
 
 
 def _r2(x: Decimal | None) -> Decimal:

@@ -1,6 +1,6 @@
 # models.py
 from __future__ import annotations
-
+import os
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 import re
@@ -13,6 +13,7 @@ from django.db.models import Q
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils.text import slugify
+from suppliers.models import Supplier
 
 # ---------- Context flags ------------------------------------------------------
 # Used to prevent variant sync in product_post_save when set True in this thread/context.
@@ -100,45 +101,71 @@ def _next_sku_for_category(category) -> str:
 
 # ---------- Category -----------------------------------------------------------
 class Category(models.Model):
-    name = models.CharField(max_length=120, unique=True)
+    name = models.CharField(max_length=120)
     slug = models.SlugField(max_length=140, unique=True)
     description = models.TextField(blank=True)
+
+    # 👇 NEW
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="children",
+        help_text="Parent category (leave blank for top-level categories)."
+    )
+
     sort_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
-    # strictly 3-letter abbreviation
     abbreviation = models.CharField(
-        max_length=3, blank=True, db_index=True,
+        max_length=3,
+        blank=True,
+        db_index=True,
         help_text="3-letter code auto-generated from name (you can override).",
     )
 
     class Meta:
-        ordering = ["sort_order", "name"]
+        ordering = ["parent__name", "sort_order", "name"]
+        unique_together = ("parent", "name")
         indexes = [
             models.Index(fields=["slug"]),
             models.Index(fields=["is_active"]),
             models.Index(fields=["abbreviation"]),
+            models.Index(fields=["parent"]),
         ]
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)[:140]
+            base = f"{self.parent.name}-{self.name}" if self.parent else self.name
+            self.slug = slugify(base)[:140]
+
         if not self.abbreviation:
             candidates = make_abbreviation_3(self.name)
-            abbr = None
             for cand in candidates:
-                exists = Category.objects.exclude(pk=self.pk).filter(abbreviation=cand).exists()
-                if not exists:
-                    abbr = cand
+                if not Category.objects.exclude(pk=self.pk).filter(abbreviation=cand).exists():
+                    self.abbreviation = cand
                     break
-            self.abbreviation = (abbr or candidates[0])[:3]
+            if not self.abbreviation:
+                self.abbreviation = candidates[0]
+
         super().save(*args, **kwargs)
 
     def __str__(self):
+        if self.parent:
+            return f"{self.parent.name} → {self.name}"
         return self.name
 
 
 # ---------- Product ------------------------------------------------------------
+# ---------------------------
+# Image upload path
+# ---------------------------
+def product_image_path(instance, filename):
+    ext = os.path.splitext(filename)[1].lower() or ".jpg"
+    return f"products/{instance.id}/{slugify(instance.name)}{ext}"
+
+
 class Product(models.Model):
     UOM_CHOICES = [
         ("EA", "Each"),
@@ -148,13 +175,33 @@ class Product(models.Model):
         ("BOX", "Box"),
     ]
 
+    product_no = models.PositiveIntegerField(
+        unique=True,
+        db_index=True,
+        help_text="External Product Number from Excel (stable identifier)"
+    )
+
     name = models.CharField(max_length=200)
-    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        related_name="products",
+        help_text="Select the most specific category (e.g. Beef, Chicken)."
+    )
 
     sku = models.CharField(max_length=64, blank=True, null=True)
     slug = models.SlugField(max_length=220, blank=True, null=True)
-    image = models.ImageField(upload_to="product_images/", blank=True, null=True)
+
+    image = models.ImageField(
+        upload_to=product_image_path,
+        blank=True,
+        null=True
+    )
+
     uom = models.CharField(max_length=8, choices=UOM_CHOICES, default="EA")
+
+    # NEW: description for product detail page / catalog
+    description = models.TextField(blank=True)
 
     # Base (ex VAT)
     cost_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
@@ -174,11 +221,16 @@ class Product(models.Model):
         ]
 
     # ----- Price helpers -----
-    def set_retail_from_wholesale(self, margin_pct: Optional[Decimal] = None, rounding: str = "0.01") -> None:
+    def set_retail_from_wholesale(
+        self,
+        margin_pct: Optional[Decimal] = None,
+        rounding: str = "0.01"
+    ) -> None:
         pct = Decimal(margin_pct) if margin_pct is not None else _d(self.retail_margin_pct)
         base = _d(self.wholesale_price)
         self.retail_price = (base * (D1 + (pct / Decimal("100")))).quantize(
-            Decimal(rounding), rounding=ROUND_HALF_UP
+            Decimal(rounding),
+            rounding=ROUND_HALF_UP,
         )
 
     def price_for_channel(self, channel: str = "wholesale") -> Decimal:
@@ -216,7 +268,11 @@ class Product(models.Model):
                     changed = True
 
                 if changed:
-                    v.save(update_fields=["wholesale_price_override", "retail_price_override", "updated_at"])
+                    v.save(update_fields=[
+                        "wholesale_price_override",
+                        "retail_price_override",
+                        "updated_at",
+                    ])
                     updated += 1
         return updated
 
@@ -228,48 +284,69 @@ class Product(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Auto-generate SKU on create if blank: <CATEGORY_ABBR><NNN> (e.g., CHK001).
-        Keep slug + retail seeding; tiny retry to avoid rare SKU race.
+        SAFE save():
+        - First save without SKU logic
+        - Then generate SKU ONLY if needed
         """
+
+        is_create = self.pk is None
+
+        # 1️⃣ FIRST SAVE (NO SKU LOGIC)
+        if is_create:
+            super().save(*args, **kwargs)
+
+        # 2️⃣ SKU GENERATION (ONLY IF STILL MISSING)
         if not self.sku and self.category_id:
             for _ in range(5):
-                self.sku = _next_sku_for_category(self.category)
-                if not self.slug:
-                    base = slugify(self.name) or slugify(self.sku)
-                    self.slug = f"{base}-{self.sku}".lower()[:220]
-                if (self.retail_price in (None, D0)) and self.wholesale_price is not None:
-                    self.set_retail_from_wholesale()
                 try:
+                    self.sku = _next_sku_for_category(self.category)
+
+                    if not self.slug:
+                        base = slugify(self.name) or slugify(self.sku)
+                        self.slug = f"{base}-{self.sku}".lower()[:220]
+
+                    if (self.retail_price in (None, D0)) and self.wholesale_price is not None:
+                        self.set_retail_from_wholesale()
+
                     with transaction.atomic():
-                        return super().save(*args, **kwargs)
+                        super().save(update_fields=[
+                            "sku",
+                            "slug",
+                            "retail_price",
+                            "updated_at",
+                        ])
+                    break
+
                 except IntegrityError:
                     self.sku = None
                     continue
-            raise
-        else:
+
+        # 3️⃣ NORMAL UPDATE PATH
+        if not is_create:
             if not self.slug:
                 base = slugify(self.name) or slugify(self.sku)
                 self.slug = f"{base}-{self.sku}".lower()[:220]
+
             if (self.retail_price in (None, D0)) and self.wholesale_price is not None:
                 self.set_retail_from_wholesale()
-            return super().save(*args, **kwargs)
+
+            super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return f"{self.sku} · {self.name}"
-
 
 # ---------- ProductPricing -----------------------------------------------------
 class ProductPricing(models.Model):
     """
     One pricing row per (product, supplier).
 
-    You capture either:
-    - supplier_price_input as EXCL VAT (checkbox off), or
-    - supplier_price_input as INCL VAT (checkbox on, we back-calc EXCL).
-
-    We then compute wholesale/retail ladders from supplier_price_excl.
+    Supplier price is captured once and stored canonically as EXCL VAT.
+    Wholesale & Retail prices are derived from TRUE supplier cost (INCL).
     """
 
+    # -----------------------------
+    # Margins
+    # -----------------------------
     MARGIN_CHOICES = [
         (Decimal("15.00"), "15%"),
         (Decimal("17.50"), "17.50%"),
@@ -282,42 +359,65 @@ class ProductPricing(models.Model):
         (Decimal("35.00"), "35%"),
     ]
 
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="pricing_rows")
-    supplier = models.ForeignKey("suppliers.Supplier", on_delete=models.PROTECT, related_name="product_pricing")
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="pricing_rows",
+    )
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="product_pricing",
+    )
 
-    # Supplier inputs (canonical EXCL value stored here)
+    # -----------------------------
+    # Supplier pricing (canonical)
+    # -----------------------------
     supplier_price_excl = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         default=D0,
         validators=[MinValueValidator(D0)],
-        help_text="Supplier price excluding VAT (R).",
+        help_text="Supplier price EXCL VAT (R).",
     )
     supplier_vat_percent = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         default=Decimal("15.00"),
         validators=[MinValueValidator(D0), MaxValueValidator(Decimal("100.00"))],
-        help_text="Supplier VAT % (usually 15%).",
     )
 
+    supplier_price_input = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Raw price as entered (EXCL or INCL).",
+    )
+    supplier_price_is_inclusive = models.BooleanField(
+        default=False,
+        help_text="Tick if supplier_price_input is VAT inclusive.",
+    )
+
+    # -----------------------------
     # Wholesale ladder
+    # -----------------------------
     wholesale_margin_percent = models.DecimalField(
         max_digits=6,
         decimal_places=2,
         choices=MARGIN_CHOICES,
         default=Decimal("15.00"),
     )
-
     wholesale_vat_percent = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=Decimal("0.00"),
+        default=Decimal("15.00"),
         validators=[MinValueValidator(D0), MaxValueValidator(Decimal("100.00"))],
-        help_text="VAT % used for wholesale INCL.",
     )
 
+    # -----------------------------
     # Retail ladder
+    # -----------------------------
     retail_margin_percent = models.DecimalField(
         max_digits=6,
         decimal_places=2,
@@ -327,40 +427,29 @@ class ProductPricing(models.Model):
     retail_vat_percent = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=Decimal("0.00"),
+        default=Decimal("15.00"),
         validators=[MinValueValidator(D0), MaxValueValidator(Decimal("100.00"))],
-        help_text="VAT % used for retail INCL.",
     )
 
-    # Choose which pricing row drives product base prices
+    # -----------------------------
+    # Behaviour flags
+    # -----------------------------
     is_primary = models.BooleanField(
         default=False,
-        help_text="If true, this row sets Product wholesale/retail base prices.",
+        help_text="If true, sync prices to Product.",
     )
-
-    # Per-save checkbox to avoid variant sync on this operation
     skip_variant_sync = models.BooleanField(
         default=False,
-        help_text="If ticked, updating product prices from this row will NOT push prices to variants for this save.",
+        help_text="Skip pushing prices to variants on this save.",
     )
-
-    # New fields: how the supplier price was entered
-    supplier_price_is_inclusive = models.BooleanField(
-        default=False,
-        help_text="Tick if the entered supplier price is VAT inclusive.",
-    )
-    supplier_price_input = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="Optional: raw supplier price as entered on the invoice (EXCL or INCL depending on the checkbox).",
-    )
-
     is_active = models.BooleanField(default=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # -----------------------------
+    # Meta
+    # -----------------------------
     class Meta:
         unique_together = (("product", "supplier"),)
         ordering = ["supplier__name"]
@@ -369,7 +458,6 @@ class ProductPricing(models.Model):
             models.Index(fields=["is_active"]),
         ]
         constraints = [
-            # At most one primary per product
             models.UniqueConstraint(
                 fields=["product"],
                 condition=Q(is_primary=True),
@@ -378,106 +466,107 @@ class ProductPricing(models.Model):
         ]
 
     def __str__(self) -> str:
-        supplier_name = getattr(self.supplier, "name", getattr(self.supplier, "code", "Supplier"))
-        return f"{self.product.sku} · {supplier_name}"
+        return f"{self.product.sku} · {self.supplier.name}"
 
-    # ---- supplier computed ----
+    # =====================================================
+    # Computed supplier values
+    # =====================================================
     @property
     def supplier_vat_amount(self) -> Decimal:
-        return r2(_d(self.supplier_price_excl) * (_d(self.supplier_vat_percent) / Decimal("100")))
+        return r2(self.supplier_price_excl * (self.supplier_vat_percent / Decimal("100")))
 
     @property
     def supplier_price_incl(self) -> Decimal:
-        return r2(_d(self.supplier_price_excl) + _d(self.supplier_vat_amount))
+        return r2(self.supplier_price_excl + self.supplier_vat_amount)
 
-
-    # ---- WHOLESALE based on supplier INCL price ----
+    # =====================================================
+    # WHOLESALE
+    # =====================================================
     @property
     def wholesale_price_inc(self) -> Decimal:
-
-        """
-        FINAL wholesale selling price based on real supplier cost (INCL).
-        Formula:
-            wholesale_price_inc = supplier_price_incl × (1 + margin%)
-        """
-        supplier_incl = self.supplier_price_incl
-        pct = _d(self.wholesale_margin_percent) / Decimal("100")
-        return r2(supplier_incl * (D1 + pct))
+        return r2(
+            self.supplier_price_incl
+            * (D1 + (self.wholesale_margin_percent / Decimal("100")))
+        )
 
     @property
     def wholesale_price_excl(self) -> Decimal:
-        """
-        Derived EXCL price from final selling price.
-        Needed internally for product sync and variant scaling.
-        """
-        vat_rate = _d(self.wholesale_vat_percent) / Decimal("100")
-        if vat_rate <= 0:
-            return self.wholesale_price_inc
-        return r2(self.wholesale_price_inc / (D1 + vat_rate))
+        vat = self.wholesale_vat_percent / Decimal("100")
+        return (
+            self.wholesale_price_inc
+            if vat <= 0
+            else r2(self.wholesale_price_inc / (D1 + vat))
+        )
 
     @property
     def wholesale_margin_amount(self) -> Decimal:
-        """
-        Real margin based on true supplier cost.
-        """
         return r2(self.wholesale_price_inc - self.supplier_price_incl)
 
-    # ---- RETAIL based on supplier INCL price ----
+    # =====================================================
+    # RETAIL
+    # =====================================================
     @property
     def retail_price_inc(self) -> Decimal:
-        """
-        FINAL retail selling price based on real supplier cost (INCL).
-        Formula:
-            retail_price_inc = supplier_price_incl × (1 + margin%)
-        """
-        supplier_incl = self.supplier_price_incl
-        pct = _d(self.retail_margin_percent) / Decimal("100")
-        return r2(supplier_incl * (D1 + pct))
+        return r2(
+            self.supplier_price_incl
+            * (D1 + (self.retail_margin_percent / Decimal("100")))
+        )
 
     @property
     def retail_price_excl(self) -> Decimal:
-        """
-        Derived EXCL retail price for system consistency.
-        """
-        vat_rate = _d(self.retail_vat_percent) / Decimal("100")
-        if vat_rate <= 0:
-            return self.retail_price_inc
-        return r2(self.retail_price_inc / (D1 + vat_rate))
+        vat = self.retail_vat_percent / Decimal("100")
+        return (
+            self.retail_price_inc
+            if vat <= 0
+            else r2(self.retail_price_inc / (D1 + vat))
+        )
 
     @property
     def retail_margin_amount(self) -> Decimal:
-        """
-        True retail margin based on INCL supplier cost.
-        """
         return r2(self.retail_price_inc - self.supplier_price_incl)
 
-
+    # =====================================================
+    # Validation
+    # =====================================================
     def clean(self):
-        # 1) Run Django's default model validation
         super().clean()
 
-        # 2) Enforce max 5 suppliers per product (existing rule)
-        if self.product_id:
-            qs = ProductPricing.objects.filter(product=self.product)
-            if self.pk:
-                qs = qs.exclude(pk=self.pk)
-            if qs.count() >= 5:
-                raise ValidationError("You can only add up to 5 suppliers per product.")
+        # Max 5 suppliers per product
+        qs = ProductPricing.objects.filter(product=self.product)
+        if self.pk:
+            qs = qs.exclude(pk=self.pk)
+        if qs.count() >= 5:
+            raise ValidationError("You can only add up to 5 suppliers per product.")
 
-        # 3) Handle supplier input (EXCL/INCL)
-        # If supplier_price_input is None, we leave supplier_price_excl as-is
-        # (important for existing rows that already have data).
+        # Handle supplier input conversion
         if self.supplier_price_input is not None:
-            vat_rate = _d(self.supplier_vat_percent) / Decimal("100")  # e.g. 0.15
+            vat_rate = self.supplier_vat_percent / Decimal("100")
 
             if self.supplier_price_is_inclusive:
-                # User entered an INCL price → work backwards to EXCL
-                excl = _d(self.supplier_price_input) / (D1 + vat_rate)
-                self.supplier_price_excl = excl.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                self.supplier_price_excl = r2(
+                    self.supplier_price_input / (D1 + vat_rate)
+                )
             else:
-                # User entered EXCL price → just copy it
                 self.supplier_price_excl = r2(self.supplier_price_input)
 
+    # =====================================================
+    # Save
+    # =====================================================
+    def save(self, *args, **kwargs):
+        # ALWAYS compute pricing
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+        # Sync to Product if primary
+        if self.is_primary:
+            Product.objects.filter(pk=self.product_id).update(
+                wholesale_price=self.wholesale_price_excl,
+                retail_price=self.retail_price_excl,
+                retail_margin_pct=self.retail_margin_percent,
+            )
+
+            if not self.skip_variant_sync:
+                self.product.sync_variant_prices(force=True)
 
 # ---------- ProductVariant -----------------------------------------------------
 class ProductVariant(models.Model):
@@ -571,7 +660,6 @@ class ProductVariant(models.Model):
         return base
 
 
-
 # ---------- Signals & helpers: keep product/variants in sync -------------------
 def _apply_primary_pricing_to_product(pp: ProductPricing) -> None:
     """
@@ -582,9 +670,9 @@ def _apply_primary_pricing_to_product(pp: ProductPricing) -> None:
     p = pp.product
 
     # TRUE COST = supplier INCLUSIVE price
-    p.cost_price      = pp.supplier_price_incl        # 👈 IMPORTANT LINE
-    p.wholesale_price = pp.wholesale_price_excl       # ex VAT selling
-    p.retail_price    = pp.retail_price_excl          # ex VAT selling
+    p.cost_price = pp.supplier_price_incl        # 👈 IMPORTANT LINE
+    p.wholesale_price = pp.wholesale_price_excl  # ex VAT selling
+    p.retail_price = pp.retail_price_excl        # ex VAT selling
 
     if pp.skip_variant_sync:
         # Guard the product save so post_save doesn't propagate to variants.
@@ -596,7 +684,6 @@ def _apply_primary_pricing_to_product(pp: ProductPricing) -> None:
     else:
         # Normal behaviour: saving product will trigger its post_save to sync variants
         p.save(update_fields=["cost_price", "wholesale_price", "retail_price", "updated_at"])
-
 
 
 @receiver(post_save, sender=Product, dispatch_uid="product_sync_variants_on_save")
@@ -636,7 +723,9 @@ def pricing_post_save_update_product_and_variants(sender, instance: ProductPrici
     if not instance.is_active:
         # If primary got deactivated, consider picking a new one
         has_primary = ProductPricing.objects.filter(
-            product=instance.product, is_active=True, is_primary=True
+            product=instance.product,
+            is_active=True,
+            is_primary=True,
         ).exists()
         if not has_primary:
             cheapest = (
@@ -655,7 +744,9 @@ def pricing_post_save_update_product_and_variants(sender, instance: ProductPrici
 
     # Not primary: if there is no active primary at all, auto-pick cheapest.
     has_primary = ProductPricing.objects.filter(
-        product=instance.product, is_active=True, is_primary=True
+        product=instance.product,
+        is_active=True,
+        is_primary=True,
     ).exists()
     if not has_primary:
         cheapest = (

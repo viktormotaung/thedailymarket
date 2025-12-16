@@ -16,14 +16,19 @@ from django.db import transaction
 from django.forms import inlineformset_factory, BaseInlineFormSet
 from django.shortcuts import redirect, render, get_object_or_404
 from decimal import Decimal
-
+from django.core.exceptions import ValidationError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.forms import inlineformset_factory
 from django.forms.models import BaseInlineFormSet
 from django.shortcuts import get_object_or_404, redirect, render
-
+from .forms import ProductExcelUploadForm
+import traceback
+from django.http import JsonResponse
+from products.services.excel_errors import ExcelImportError
+from django.views.decorators.http import require_POST
+from .services.product_excel_importer import import_products_from_excel
 from products.models import Product, ProductVariant
 from products.forms import (
     ProductForm,
@@ -49,9 +54,11 @@ staff_required = user_passes_test(staff_check, login_url="/portal/client/login/"
 def product_list(request):
     """
     List products with filters (search, category, supplier).
-    Prefetches pricing rows + suppliers; computes a small row summary
-    showing ONE price per product: the cheapest incl-VAT for retail & wholesale.
+    Shows ONE aggregated price per product:
+    - cheapest wholesale (incl VAT)
+    - cheapest retail (incl VAT)
     """
+
     qs = (
         Product.objects
         .select_related("category")
@@ -68,7 +75,10 @@ def product_list(request):
     supplier_id = (request.GET.get("supplier") or "").strip()
 
     if search:
-        qs = qs.filter(Q(name__icontains=search) | Q(sku__icontains=search))
+        qs = qs.filter(
+            Q(name__icontains=search) |
+            Q(sku__icontains=search)
+        )
 
     if category_id:
         qs = qs.filter(category_id=category_id)
@@ -79,15 +89,15 @@ def product_list(request):
             supplier_id=supplier_id,
             is_active=True,
         )
-        qs = qs.annotate(_has_supplier=Exists(active_for_supplier)).filter(_has_supplier=True)
+        qs = qs.annotate(
+            _has_supplier=Exists(active_for_supplier)
+        ).filter(_has_supplier=True)
 
     products = list(qs)
 
-    # Build light-weight row summaries (no extra queries thanks to prefetch)
     rows = []
     for p in products:
         active_rows = [r for r in p.pricing_rows.all() if r.is_active]
-        active_supplier_count = len(active_rows)
 
         min_wholesale_inc = None
         min_retail_inc = None
@@ -95,6 +105,7 @@ def product_list(request):
         if active_rows:
             w_vals = [r.wholesale_price_inc for r in active_rows if r.wholesale_price_inc is not None]
             r_vals = [r.retail_price_inc for r in active_rows if r.retail_price_inc is not None]
+
             if w_vals:
                 min_wholesale_inc = min(w_vals)
             if r_vals:
@@ -102,7 +113,7 @@ def product_list(request):
 
         rows.append({
             "product": p,
-            "active_supplier_count": active_supplier_count,
+            "active_supplier_count": len(active_rows),
             "min_wholesale_inc": min_wholesale_inc,
             "min_retail_inc": min_retail_inc,
         })
@@ -114,9 +125,48 @@ def product_list(request):
             "rows": rows,
             "filter_categories": filter_categories,
             "filter_suppliers": filter_suppliers,
+            "search": search,
         },
     )
 
+@login_required
+@require_POST
+def product_import(request):
+    try:
+        # STEP 1: FILE PRESENCE
+        if "excel_file" not in request.FILES:
+            return JsonResponse({
+                "success": False,
+                "step": "File check",
+                "error": "No file received in request.FILES"
+            }, status=400)
+
+        # STEP 2: FORM
+        form = ProductExcelUploadForm(request.POST, request.FILES)
+        if not form.is_valid():
+            return JsonResponse({
+                "success": False,
+                "step": "Form validation",
+                "error": form.errors.as_json()
+            }, status=400)
+
+        # STEP 3: IMPORT LOGIC
+        result = import_products_from_excel(form.cleaned_data["excel_file"])
+
+        return JsonResponse({
+            "success": True,
+            "step": "Import complete",
+            "data": result
+        })
+
+    except Exception as e:
+        # 🔥 THIS IS THE KEY PART 🔥
+        return JsonResponse({
+            "success": False,
+            "step": "Unhandled backend exception",
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }, status=500)
 
 # -----------------------------------------------------
 # Product CRUD

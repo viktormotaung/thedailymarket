@@ -70,16 +70,14 @@ class CustomerProfileEditForm(forms.ModelForm):
             "display_name",
             "phone",
             "client",
-            "company_name",
-            "tax_number",
+            
         ]
         widgets = {
             "profile_type": forms.Select(attrs={"class": "form-select"}),
             "status": forms.Select(attrs={"class": "form-select"}),  # style it
             "display_name": forms.TextInput(attrs={"class": "form-control"}),
             "phone": forms.TextInput(attrs={"class": "form-control"}),
-            "company_name": forms.TextInput(attrs={"class": "form-control"}),
-            "tax_number": forms.TextInput(attrs={"class": "form-control"}),
+            
         }
         help_texts = {
             "display_name": "How we should address the customer on documents/communication.",

@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'tasks',
     'lender',
     'sales',
+    "consumers",
 
     # third party
     'django_celery_beat',
@@ -70,6 +71,8 @@ INSTALLED_APPS = [
     'image_cropping',
     'storages',
 ]
+
+
 
 THUMBNAIL_ALIASES = {"": {"logo": {"size": (400, 200), "crop": True}}}
 
@@ -189,6 +192,13 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']  # your local static sources
 STATIC_ROOT = BASE_DIR / "staticfiles"    # collectstatic target
 
+# ---------------------------
+# MEDIA FILES (LOCAL)
+# ---------------------------
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+
 # Use WhiteNoise for static files (compressed + hashed filenames)
 # Use this in production unless you choose to host static on S3/CDN
 if DJANGO_ENV == "production":
@@ -198,20 +208,6 @@ else:
 
 
 
-# ---------------------------
-# AWS S3 settings (media)
-# ---------------------------
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "eu-north-1")
-AWS_QUERYSTRING_AUTH = False  # public URLs
-AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
-
-AWS_DEFAULT_ACL = "public-read"
-# Media URL
-MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
 
 
 

@@ -14,6 +14,7 @@ urlpatterns = [
     path("portal/client/login/", views.ClientLoginView.as_view(), name="client-login"),
     path("register_profile/", views.register_profile, name="register-profile"),
     path("logout/", views.logout_view, name="logout"),
+    path("portal/consumer/login/", views.consumer_login, name="consumer-login"),
 
     # Dashboards
     path("portal/client/", views.client_dashboard, name="client-dashboard"),

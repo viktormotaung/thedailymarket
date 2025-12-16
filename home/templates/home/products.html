@@ -57,11 +57,102 @@
     .offcanvas-body.brand-skin .text-uppercase.small.opacity-75 {
       color: rgba(255,255,255,.75) !important;
     }
+    .quick-shops {
+      position: relative;
+      scroll-behavior: smooth;
+    }
+
+    /* Controls wrapper */
+    .quick-shop-controls {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    /* Base button (this was missing) */
+    .quick-shop-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: auto;
+
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      border: none;
+
+      background: rgba(255,255,255,.9);
+      box-shadow: 0 8px 20px rgba(0,0,0,.15);
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      transition: background .2s ease, transform .2s ease;
+      z-index: 5;
+    }
+
+
+    .quick-shop-btn:hover {
+      background: #ffffff;
+      transform: translateY(-50%) scale(1.05);
+    }
+
+    .quick-shop-btn.prev { left: -12px; }
+    .quick-shop-btn.next { right: -12px; }
+
+
+
 
     
-    .page-hero{ background:url("{% static 'images/products-hero.jpg' %}") center/cover no-repeat; min-height:240px; position:relative; display:flex; align-items:center; justify-content:center; color:#fff; text-align:center; }
-    .page-hero::after{content:""; position:absolute; inset:0; background:rgba(0,0,0,.45);}
-    .page-hero > *{ position:relative; z-index:1; }
+    /* ---------- HERO CAROUSEL ---------- */
+    .hero-carousel {
+      position: relative;
+    }
+
+    .hero-slide {
+      min-height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      text-align: center;
+      position: relative;
+    }
+
+    /* Placeholder backgrounds (replace later) */
+    .hero-slide-1 {
+      background: linear-gradient(
+          rgba(0,0,0,.45),
+          rgba(0,0,0,.45)
+        ),
+        url("{% static 'images/hero.png' %}") center/cover no-repeat;
+    }
+
+    .hero-slide-2 {
+      background: linear-gradient(
+          rgba(0,0,0,.45),
+          rgba(0,0,0,.45)
+        ),
+        url("{% static 'images/hero.png' %}") center/cover no-repeat;
+    }
+
+    .hero-slide-3 {
+      background: linear-gradient(
+          rgba(0,0,0,.45),
+          rgba(0,0,0,.45)
+        ),
+        url("{% static 'images/hero.png' %}") center/cover no-repeat;
+    }
+
+    .hero-slide h1 {
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+    }
+
+    .hero-slide .btn {
+      font-weight: 600;
+    }
+
     .section-heading{ font-weight:700; }
     .filter-card{ position:sticky; top:1rem; }
     .badge-available{background:#e8f5ee; color:#0b5c39; border:1px solid #cfeadf;}
@@ -119,7 +210,7 @@
       <hr class="border-light my-3">
 
       <a href="{% url 'become_supplier' %}" class="nav-link {% if request.resolver_match.url_name == 'become_supplier' or request.path == '/become_supplier/' %}active{% endif %}" data-bs-dismiss="offcanvas">Become A Supplier</a>
-      <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}" data-bs-dismiss="offcanvas">Products</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}" data-bs-dismiss="offcanvas">Shop</a>
       <a class="nav-link requires-auth {% if request.resolver_match.url_name == 'wholesale_assist' or request.path == '/wholesale_assist/' %}active{% endif %}" href="{% url 'wholesale_assist' %}" data-bs-dismiss="offcanvas">Trade Assist</a>
 
       <!-- Orders -->
@@ -140,7 +231,11 @@
         </form>
       {% else %}
         <div class="text-uppercase small opacity-75">Sign in</div>
-        <a href="{% url 'client-login' %}" class="btn btn-outline-light w-100 mt-2">Client</a>
+        <a href="{% url 'client-login' %}"
+          class="btn btn-outline-light w-100 mt-2 js-client-signin">
+          Client
+        </a>
+
         <a href="{% url 'staff-login' %}" target="_blank" class="btn btn-outline-light w-100 mt-2">Staff</a>
       {% endif %}
     </div>
@@ -182,7 +277,7 @@
 
           <li class="nav-item">
             <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}"
-               href="{% url 'products' %}">Products</a>
+               href="{% url 'products' %}">Shop</a>
           </li>
 
           <li class="nav-item">
@@ -224,7 +319,13 @@
             </li>
           {% else %}
             <li class="dropdown-header text-white-50">Sign in</li>
-            <li><a class="dropdown-item" href="{% url 'client-login' %}">Client</a></li>
+            <li>
+              <a class="dropdown-item js-client-signin"
+                href="{% url 'client-login' %}">
+                Client
+              </a>
+            </li>
+
             <li><a class="dropdown-item" href="{% url 'staff-login' %}">Staff</a></li>
           {% endif %}
         </ul>
@@ -232,12 +333,122 @@
     </div>
   </nav>
 
-  <section class="page-hero">
-    <div class="container">
-      <h1 class="fw-bold">Products</h1>
-      <p class="lead mb-0">Quality you can trust — for homes, restaurants, and retailers.</p>
+  <!-- HERO CAROUSEL -->
+  <section class="hero-carousel">
+    <div id="heroCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="7000">
+
+      <!-- Indicators (optional but recommended) -->
+      <div class="carousel-indicators">
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active"></button>
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1"></button>
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2"></button>
+      </div>
+
+      <!-- Slides -->
+      <div class="carousel-inner">
+
+        <!-- SLIDE 1 -->
+        <div class="carousel-item active">
+          <div class="hero-slide hero-slide-1">
+            <div class="container text-center">
+              <h1 class="fw-bold">Products</h1>
+              <p class="lead mb-3">
+                Quality you can trust — for homes, restaurants, and retailers.
+              </p>
+              
+            </div>
+          </div>
+        </div>
+
+        <!-- SLIDE 2 -->
+        <div class="carousel-item">
+          <div class="hero-slide hero-slide-2">
+            <div class="container text-center">
+              <h1 class="fw-bold">Reliable supply</h1>
+              <p class="lead mb-3">
+                Fresh, chilled & frozen categories — always available.
+              </p>
+              
+            </div>
+          </div>
+        </div>
+
+        <!-- SLIDE 3 -->
+        <div class="carousel-item">
+          <div class="hero-slide hero-slide-3">
+            <div class="container text-center">
+              <h1 class="fw-bold">Built for trade</h1>
+              <p class="lead mb-3">
+                Flexible supply solutions for growing businesses.
+              </p>
+              
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Controls -->
+      <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon"></span>
+      </button>
+      <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon"></span>
+      </button>
+
     </div>
   </section>
+
+  <!-- QUICK SHOPS -->
+  <section class="bg-white border-bottom py-4">
+    <div class="container" style="max-width:1200px;">
+      <h5 id="start-shopping" class="fw-semibold mb-3 text-center">
+        Start shopping
+      </h5>
+
+
+
+      {% for cat in categories %}
+        {% if cat.children.all %}
+          <div class="mb-4">
+           
+
+            <div class="d-flex gap-4 overflow-auto quick-shops">
+              {% for sub in cat.children.all %}
+                <a href="{% url 'products' %}?subcategory={{ sub.id }}"
+                  class="text-center text-decoration-none quick-shop-item">
+                  
+                  <div class="quick-shop-icon mb-2">
+                    {% if sub.icon %}
+                      <img src="{{ sub.icon.url }}" alt="{{ sub.name }}">
+                    {% else %}
+                      <i class="bi bi-grid fs-4 text-muted"></i>
+                    {% endif %}
+                  </div>
+
+                  <div class="small fw-medium text-dark">
+                    {{ sub.name }}
+                  </div>
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <!-- Scroll Controls -->
+    <div class="quick-shop-controls d-none d-md-flex">
+      <button type="button" class="quick-shop-btn prev" aria-label="Scroll left">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <button type="button" class="quick-shop-btn next" aria-label="Scroll right">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
+
+  </section>
+
 
   {% if messages %}
   <div class="container mt-3" style="max-width:1100px;">
@@ -400,15 +611,46 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content text-center">
         <div class="modal-header d-block border-0">
-          <h5 class="modal-title w-100">Sign in required</h5>
-          <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title w-100">Please sign in to access this</h5>
+          <button type="button" class="btn-close position-absolute end-0 me-3"
+                  data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          Please sign in or register to gain access here.
+          Choose how you’ll be using The Daily Market.
         </div>
         <div class="modal-footer justify-content-center border-0">
-          <a class="btn btn-outline-secondary" href="{% url 'client-login' %}">Sign In</a>
-          <a class="btn btn-primary" href="/portal/client/register/">Register</a>
+          <a class="btn btn-outline-secondary" href="{% url 'consumer-login' %}">
+            Personal
+          </a>
+          <a class="btn btn-outline-secondary" href="{% url 'client-login' %}">
+            Business
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  
+
+  <!-- ========== Profile Type Selection Modal ========== -->
+  <div class="modal fade" id="profileTypeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center">
+        <div class="modal-header d-block border-0">
+          <h5 class="modal-title w-100">How will you be using The Daily Market?</h5>
+          <button type="button" class="btn-close position-absolute end-0 me-3"
+                  data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Choose the option that best describes how you’ll be placing orders.
+        </div>
+        <div class="modal-footer justify-content-center border-0">
+          <a class="btn btn-outline-secondary" href="{% url 'consumer-login' %}">
+            Personal
+          </a>
+          <a class="btn btn-primary" href="{% url 'client-login' %}">
+            Business
+          </a>
         </div>
       </div>
     </div>
@@ -562,5 +804,43 @@
       });
     })();
   </script>
+  <script>
+    document.addEventListener("click", function (e) {
+      const link = e.target.closest(".js-client-signin");
+      if (!link) return;
+
+      e.preventDefault(); // stop redirect to client-login
+
+      const modalEl = document.getElementById("profileTypeModal");
+      if (!modalEl) return;
+
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
+        backdrop: true,
+        focus: true
+      });
+
+      modal.show();
+    });
+  </script>
+  <script>
+    (function () {
+      const track = document.querySelector('.quick-shops');
+      if (!track) return;
+
+      const prev = document.querySelector('.quick-shop-btn.prev');
+      const next = document.querySelector('.quick-shop-btn.next');
+
+      const scrollAmount = 220;
+
+      prev?.addEventListener('click', () => {
+        track.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+      });
+
+      next?.addEventListener('click', () => {
+        track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      });
+    })();
+  </script>
+
 </body>
 </html>

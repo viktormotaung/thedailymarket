@@ -271,18 +271,33 @@
 
   {% block content %}
   <main class="content">
-    <h2 class="text-center">Products</h2>
 
-    <div class="d-flex justify-content-center mb-3">
-      <a href="{% url 'product-create' %}" class="btn btn-success">Add Product</a>
+    <h2 class="text-center mb-3">Products</h2>
+
+    <!-- ACTION BUTTONS -->
+    <div class="d-flex justify-content-center gap-2 mb-3">
+      <a href="{% url 'product-create' %}" class="btn btn-success">
+        Add Product
+      </a>
+
+      <button
+        type="button"
+        class="btn btn-outline-primary"
+        data-bs-toggle="modal"
+        data-bs-target="#importModal"
+      >
+        Import from Excel
+      </button>
+
+
     </div>
+
 
     <div class="card shadow-sm">
       <div class="card-header bg-white py-2">
         <form method="get" class="row g-2 align-items-center">
-          
-          <!-- Category Filter -->
-          <div class="col-md-4 col-sm-6">
+
+          <div class="col-md-4">
             <select name="category" class="form-select form-select-sm">
               <option value="">All Categories</option>
               {% for c in filter_categories %}
@@ -292,9 +307,8 @@
               {% endfor %}
             </select>
           </div>
-      
-          <!-- Supplier Filter -->
-          <div class="col-md-4 col-sm-6">
+
+          <div class="col-md-4">
             <select name="supplier" class="form-select form-select-sm">
               <option value="">All Suppliers</option>
               {% for s in filter_suppliers %}
@@ -304,74 +318,185 @@
               {% endfor %}
             </select>
           </div>
-      
-          <!-- Buttons -->
-          <div class="col-md-4 col-sm-12 d-flex justify-content-end gap-2">
-            <button type="submit" class="btn btn-sm btn-primary px-3">Filter</button>
-            <a href="{% url 'staff-products' %}" class="btn btn-sm btn-outline-secondary px-3">Clear</a>
+
+          <div class="col-md-4 d-flex justify-content-end gap-2">
+            <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+            <a href="{% url 'staff-products' %}" class="btn btn-sm btn-outline-secondary">Clear</a>
           </div>
+
         </form>
       </div>
 
       <div class="card-body">
-        <div class="table-container">
-          <table class="table table-striped table-bordered mb-0">
-            <thead>
-              <tr>
-                <th style="width:5%; font-size:13px;">#</th>
-                <th style="width:12%; font-size:13px;">SKU</th>
-                <th style="width:20%; font-size:13px;">Product</th>
-                <th style="width:10%; font-size:13px;">Category</th>
-                <th style="width:8%; font-size:13px;">UOM</th>
-                <th style="width:8%; font-size:13px;">Suppliers</th>
-                <th style="width:20%; font-size:13px;">Retail Price (incl)</th>
-                <th style="width:20%; font-size:13px;">Wholesale Price (incl)</th>
+        <table class="table table-striped table-bordered mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>SKU</th>
+              <th>Product</th>
+              <th>Category</th>
+              <th>UOM</th>
+              <th>Suppliers</th>
+              <th>Retail (incl)</th>
+              <th>Wholesale (incl)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              {% with p=row.product %}
+              <tr onclick="window.location.href='{% url 'product-view' p.id %}'" style="cursor:pointer;">
+                <td>{{ forloop.counter }}</td>
+                <td>{{ p.sku }}</td>
+                <td>{{ p.name }}</td>
+                <td>{{ p.category.name }}</td>
+                <td>{{ p.get_uom_display }}</td>
+                <td>{{ row.active_supplier_count }}</td>
+                <td>{% if row.min_retail_inc %}R{{ row.min_retail_inc|floatformat:2 }}{% else %}—{% endif %}</td>
+                <td>{% if row.min_wholesale_inc %}R{{ row.min_wholesale_inc|floatformat:2 }}{% else %}—{% endif %}</td>
               </tr>
-            </thead>
-            <tbody>
-              {% for row in rows %}
-                {% with p=row.product %}
-                <tr style="cursor:pointer;" onclick="window.location.href='{% url 'product-view' p.id %}'">
-                  <td style="font-size:13px;">{{ forloop.counter }}</td>
-                  <td style="font-size:13px;">{{ p.sku }}</td>
-                  <td style="font-size:13px;">{{ p.name }}</td>
-                  <td style="font-size:13px;">{{ p.category.name }}</td>
-                  <td style="font-size:13px;">{{ p.get_uom_display }}</td>
-                  <td style="font-size:13px;">{{ row.active_supplier_count }}</td>
-            
-                  {# Retail (incl) — single aggregated value #}
-                  <td style="font-size:13px;">
-                    {% if row.min_retail_inc %}
-                      R{{ row.min_retail_inc|floatformat:2 }}
-                    {% else %}
-                      <span class="text-muted">—</span>
-                    {% endif %}
-                  </td>
-            
-                  {# Wholesale (incl) — single aggregated value #}
-                  <td style="font-size:13px;">
-                    {% if row.min_wholesale_inc %}
-                      R{{ row.min_wholesale_inc|floatformat:2 }}
-                    {% else %}
-                      <span class="text-muted">—</span>
-                    {% endif %}
-                  </td>
-                </tr>
-                {% endwith %}
-              {% empty %}
-                <tr>
-                  <td colspan="8" class="text-center text-muted">No products found.</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-            
-          </table>
-        </div>
+              {% endwith %}
+            {% empty %}
+              <tr>
+                <td colspan="8" class="text-center text-muted">No products found.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
+
   </main>
   {% endblock %}
 
+  <!-- Import Products Modal -->
+  <div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title">Import Products (Excel)</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+
+          <!-- RESULT BOXES -->
+          <div id="importError" class="alert alert-danger d-none"></div>
+          <div id="importSuccess" class="alert alert-success d-none"></div>
+
+          <!-- PROGRESS BAR (ADDITION) -->
+          <div id="importProgress" class="d-none">
+            <div class="progress mb-2">
+              <div
+                id="progressBar"
+                class="progress-bar progress-bar-striped progress-bar-animated"
+                style="width: 0%">
+              </div>
+            </div>
+            <small id="progressText" class="text-muted">Preparing import…</small>
+          </div>
+
+          <form id="excelImportForm">
+            {% csrf_token %}
+            <input type="file" name="excel_file" class="form-control" required>
+          </form>
+
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-success" id="uploadBtn">Upload & Import</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= IMPORT SCRIPT (ENHANCED UX ONLY) ================= -->
+
+  <script>
+    document.getElementById("uploadBtn").addEventListener("click", function () {
+
+      const form = document.getElementById("excelImportForm");
+      const errorBox = document.getElementById("importError");
+      const successBox = document.getElementById("importSuccess");
+      const progressWrap = document.getElementById("importProgress");
+      const progressBar = document.getElementById("progressBar");
+      const progressText = document.getElementById("progressText");
+      const uploadBtn = document.getElementById("uploadBtn");
+
+      errorBox.classList.add("d-none");
+      successBox.classList.add("d-none");
+
+      progressWrap.classList.remove("d-none");
+      progressBar.style.width = "5%";
+      progressText.textContent = "Uploading file…";
+
+      uploadBtn.disabled = true;
+
+      const formData = new FormData(form);
+
+      // Fake progress animation (UX best practice)
+      let pct = 5;
+      const interval = setInterval(() => {
+        if (pct < 90) {
+          pct += Math.random() * 8;
+          progressBar.style.width = pct + "%";
+        }
+      }, 400);
+
+      fetch("{% url 'product-import' %}", {
+        method: "POST",
+        body: formData,
+        headers: {
+          "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        clearInterval(interval);
+        progressBar.style.width = "100%";
+        progressBar.classList.remove("progress-bar-animated");
+        progressBar.classList.add("bg-success");
+        progressText.textContent = "Import completed";
+
+        uploadBtn.disabled = false;
+
+        if (data.success) {
+          successBox.innerHTML = `
+            <strong>✔ Import completed successfully</strong><br><br>
+            Products created: <b>${data.data.created}</b><br>
+            Products updated: <b>${data.data.updated}</b>
+          `;
+          successBox.classList.remove("d-none");
+        } else {
+          throw new Error(data.error || "Unknown import error");
+        }
+      })
+      .catch(err => {
+        clearInterval(interval);
+        progressBar.classList.remove("progress-bar-animated");
+        progressBar.classList.add("bg-danger");
+        progressText.textContent = "Import failed";
+        uploadBtn.disabled = false;
+
+        errorBox.innerHTML = `<strong>Import failed</strong><br>${err.message}`;
+        errorBox.classList.remove("d-none");
+      });
+    });
+
+    // ✅ REFRESH PAGE WHEN MODAL IS CLOSED
+    const importModal = document.getElementById("importModal");
+    importModal.addEventListener("hidden.bs.modal", function () {
+      window.location.reload();
+    });
+  </script>
+
+
+
+
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>

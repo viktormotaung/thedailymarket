@@ -11,51 +11,64 @@
 
   <style>
     :root { --brand:#0b5c39; --brand-dark:#094c30; }
+
     html, body { height: 100%; }
-    /* Sticky footer layout */
     body {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
       background:#f7faf8;
+      display:flex;
+      flex-direction:column;
     }
-    main { flex: 1 0 auto; } /* push footer to the bottom */
-    footer.site-footer { flex-shrink: 0; }
 
-    .brand-text { color: var(--brand); }
-    .logo-wrap img { height: 160px; }
-
-    .card { border-radius:.85rem; }
-    .card-header { background:var(--brand); color:#fff; border-top-left-radius:.85rem; border-top-right-radius:.85rem; }
-
-    .btn-brand { background:var(--brand); border-color:var(--brand); color:#fff; }
-    .btn-brand:hover { background:var(--brand-dark); border-color:var(--brand-dark); color:#fff; }
-
-    .footer { color:#6b7280; font-size:.85rem; }
-    .alert { padding:.5rem .75rem; margin-bottom:.75rem; }
-
-    /* Center modal content */
-    #loginFeedbackModal .modal-header {
-      justify-content: center;
-      position: relative;
-      border: 0;
+    main {
+      flex: 1 0 auto;
     }
-    #loginFeedbackModal .modal-title { width: 100%; text-align: center; }
-    #loginFeedbackModal .btn-close { position: absolute; right: 1rem; top: 1rem; }
-    #loginFeedbackModal .modal-body { text-align: center; }
-    #loginFeedbackModal .modal-footer { border: 0; justify-content: center; }
+
+    .logo-wrap img {
+      height: 160px;
+      width: auto;
+    }
+
+    .card {
+      border-radius:.85rem;
+    }
+
+    .card-header {
+      background:#025500;
+      color:#fff;
+      border-top-left-radius:.85rem;
+      border-top-right-radius:.85rem;
+    }
+
+    .btn-brand {
+      background:var(--brand);
+      border-color:var(--brand);
+      color:#fff;
+    }
+
+    .btn-brand:hover {
+      background:var(--brand-dark);
+      border-color:var(--brand-dark);
+      color:#fff;
+    }
+
+    .alert {
+      padding:.5rem .75rem;
+      margin-bottom:.75rem;
+    }
   </style>
 </head>
+
 <body>
 
   <main class="container py-4 py-lg-5">
     <div class="row justify-content-center">
-      <div class="col-12 col-lg-8 col-xl-6">
+      <div class="col-md-6 col-lg-4">
 
         <!-- Logo -->
         <div class="text-center mb-3 logo-wrap">
           <a href="/">
-            <img src="{% static 'images/seshibo-logo.png' %}" alt="Seshibo Daily Market">
+            <img src="{% static 'images/seshibo-logo.png' %}"
+                 alt="Seshibo Daily Market">
           </a>
         </div>
 
@@ -63,61 +76,78 @@
         {% if messages %}
           <div class="mb-3">
             {% for message in messages %}
-              <div class="alert alert-{{ message.tags }} mb-2">{{ message }}</div>
+              <div class="alert alert-{{ message.tags }}">{{ message }}</div>
             {% endfor %}
           </div>
         {% endif %}
 
-        <!-- Card -->
+        <!-- Error / success messages -->
+        {% if error_message %}
+          <div class="alert alert-danger">{{ error_message }}</div>
+        {% endif %}
+        {% if success_message %}
+          <div class="alert alert-success">{{ success_message }}</div>
+        {% endif %}
+
+        <!-- Login Card -->
         <div class="card shadow-sm">
-          <div class="card-header text-center fw-semibold">
-            Client Login
+          <div class="card-header text-center fw-bold">
+            Business Login
           </div>
+
           <div class="card-body p-4">
 
-            {% if error_message %}
-              <div class="alert alert-danger" role="alert">{{ error_message }}</div>
-            {% endif %}
-            {% if success_message %}
-              <div class="alert alert-success" role="alert">{{ success_message }}</div>
-            {% endif %}
-
-            <!-- Login form -->
+            <!-- Login Form -->
             <form method="post" novalidate>
               {% csrf_token %}
 
               <div class="mb-3">
                 <label for="id_username" class="form-label">Email</label>
-                <input type="email"
-                       class="form-control"
-                       id="id_username"
-                       name="username"
-                       required
-                       autocomplete="username"
-                       value="{{ prefill_username|default_if_none:'' }}">
+                <input
+                  type="email"
+                  class="form-control"
+                  id="id_username"
+                  name="username"
+                  required
+                  autocomplete="username"
+                  value="{{ prefill_username|default_if_none:'' }}"
+                >
               </div>
 
               <div class="mb-3">
                 <label for="id_password" class="form-label">Password</label>
-                <input type="password"
-                       class="form-control"
-                       id="id_password"
-                       name="password"
-                       required
-                       autocomplete="current-password">
+                <input
+                  type="password"
+                  class="form-control"
+                  id="id_password"
+                  name="password"
+                  required
+                  autocomplete="current-password"
+                >
               </div>
 
-              <button type="submit" class="btn btn-brand w-100">Login</button>
+              <button type="submit" class="btn btn-brand w-100">
+                Sign in
+              </button>
             </form>
 
+            <!-- Links -->
             <div class="text-center mt-3 small">
               <a href="{% url 'password-reset-otp' %}">Forgot Password?</a>
             </div>
 
-            <p class="text-muted mb-1 text-center mt-3">Don’t have a profile?</p>
-            <p class="text-center">
-              <a class="btn btn-outline-secondary btn-sm" href="/register_profile/">Request access here</a>
+            <hr class="my-3">
+
+            <p class="text-muted text-center mb-1">
+              Don’t have a profile?
             </p>
+            <p class="text-center mb-0">
+              <a class="btn btn-outline-secondary btn-sm"
+                 href="/register_profile/">
+                Request access here
+              </a>
+            </p>
+
           </div>
         </div>
 

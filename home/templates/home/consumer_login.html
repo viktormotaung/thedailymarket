@@ -1,0 +1,132 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Consumer Sign in · The Daily Market</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    :root { --brand:#0b5c39; --brand-dark:#094c30; }
+
+    html, body { height: 100%; }
+    body {
+      background:#f7faf8;
+      display:flex;
+      flex-direction:column;
+    }
+
+    main {
+      flex: 1 0 auto;
+    }
+
+    .logo-wrap img {
+      height: 160px;
+      width: auto;
+    }
+
+    .card {
+      border-radius:.85rem;
+    }
+
+    .card-header {
+      background:#025500;
+      color:#fff;
+      border-top-left-radius:.85rem;
+      border-top-right-radius:.85rem;
+    }
+
+    .btn-brand {
+      background:var(--brand);
+      border-color:var(--brand);
+      color:#fff;
+    }
+
+    .btn-brand:hover {
+      background:var(--brand-dark);
+      border-color:var(--brand-dark);
+      color:#fff;
+    }
+
+    .alert {
+      padding:.5rem .75rem;
+      margin-bottom:.75rem;
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="container py-4 py-lg-5">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-4">
+
+        <!-- Logo -->
+        <div class="text-center mb-3 logo-wrap">
+          <a href="/">
+            <img src="{% static 'images/seshibo-logo.png' %}"
+                 alt="Seshibo Daily Market">
+          </a>
+        </div>
+
+        <!-- Django messages -->
+        {% if messages %}
+          <div class="mb-3">
+            {% for message in messages %}
+              <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <!-- Error / success messages -->
+        {% if error_message %}
+          <div class="alert alert-danger">{{ error_message }}</div>
+        {% endif %}
+        {% if success_message %}
+          <div class="alert alert-success">{{ success_message }}</div>
+        {% endif %}
+
+        <!-- Login Card -->
+        <div class="card shadow-sm">
+          <div class="card-header text-center fw-bold">
+            Personal Login
+          </div>
+
+          <div class="card-body p-4">
+
+            
+
+            
+
+            <hr class="my-3">
+
+            <p class="text-muted text-center mb-1">
+              Coming Soon
+            </p>
+            
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Sticky footer -->
+  <footer class="site-footer py-3">
+    <div class="container text-center footer">
+      Copyright © {% now "Y" %} The Daily Market
+    </div>
+  </footer>
+
+  
+
+  <!-- Bootstrap bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  
+</body>
+</html>

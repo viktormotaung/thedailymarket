@@ -5,6 +5,8 @@ from django.contrib.auth.hashers import make_password, check_password
 from clients.models import Client
 from django.utils import timezone
 from datetime import timedelta
+from consumers.models import Consumer
+
 
 def _online_window():
     # fallback to 5 minutes if not set in settings
@@ -95,9 +97,10 @@ class StaffProfile(models.Model):
         name = (self.user.get_full_name() or self.user.get_username()).strip()
         return f"Staff Profile for {name}"
 
+
 class CustomerProfile(models.Model):
     PROFILE_CHOICES = [
-        ("PERSONAL", "Personal"),
+        ("CONSUMER", "Consumer"),
         ("BUSINESS", "Business"),
     ]
 
@@ -116,7 +119,7 @@ class CustomerProfile(models.Model):
     profile_type = models.CharField(
         max_length=10,
         choices=PROFILE_CHOICES,
-        default="PERSONAL",
+        default="CONSUMER",
         db_index=True,
     )
 
@@ -136,33 +139,37 @@ class CustomerProfile(models.Model):
         help_text="How we should address you on documents/communication.",
     )
 
+    consumer = models.OneToOneField(
+        Consumer,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="customer_profile",
+    )
+
     # Business-only linkage
     client = models.ForeignKey(
         Client,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="user_profiles",
+        related_name="customer_profiles",
         help_text="Required when profile type is Business.",
     )
-
-    # Optional business details (keep it light for now)
-    company_name = models.CharField(max_length=160, blank=True)
-    tax_number = models.CharField(max_length=60, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_seen_at = models.DateTimeField(null=True, blank=True, db_index=True)
-    # validation
-    def clean(self):
-        from django.core.exceptions import ValidationError
-        if self.profile_type == "BUSINESS" and not self.client:
-            raise ValidationError({"client": "Please link a Client for a Business profile."})
-
+    
     # convenience
     @property
     def is_business(self) -> bool:
         return self.profile_type == "BUSINESS"
+    
+    @property
+    def is_consumer(self):
+        return self.profile_type == "CONSUMER"
+
 
     @property
     def effective_client(self) -> Client | None:
@@ -183,6 +190,20 @@ class CustomerProfile(models.Model):
     def __str__(self):
         who = self.display_name or self.user.get_full_name() or self.user.get_username()
         return f"{who} · {self.get_profile_type_display()}"
+    
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.profile_type == "BUSINESS" and not self.client:
+            raise ValidationError({"client": "Business profiles must be linked to a Client."})
+
+        if self.profile_type == "CONSUMER" and not self.consumer:
+            raise ValidationError({"consumer": "Consumer profiles must be linked to a Consumer."})
+        
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 
 
 class SalesRepProfile(models.Model):
@@ -270,3 +291,4 @@ class SalesRepProfile(models.Model):
     def __str__(self):
         name = (self.user.get_full_name() or self.user.get_username()).strip()
         return f"SalesRepProfile for {name}"
+

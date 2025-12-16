@@ -14,4 +14,8 @@ urlpatterns = [
     # ✅ NEW: variant routes
     path("<int:product_id>/variants/new/", views.variant_create, name="variant-create"),
     path("variants/<int:pk>/edit/", views.variant_edit, name="variant-edit"),  # optional
+    # products/urls.py
+    path("products/import/", views.product_import, name="product-import"),
+    
+
 ]

@@ -144,3 +144,20 @@ ProductVariantFormSet = inlineformset_factory(
     extra=1,            # show one empty form initially
     can_delete=True,    # allow removing existing ones in edit
 )
+
+class ProductExcelUploadForm(forms.Form):
+    excel_file = forms.FileField(
+        label="Excel file",
+        help_text="Upload an .xlsx file with a sheet named 'Product'."
+    )
+
+    def clean_excel_file(self):
+        file = self.cleaned_data["excel_file"]
+
+        if not file.name.endswith(".xlsx"):
+            raise forms.ValidationError("Only .xlsx Excel files are supported.")
+
+        if file.size > 5 * 1024 * 1024:
+            raise forms.ValidationError("File too large (max 5MB).")
+
+        return file
