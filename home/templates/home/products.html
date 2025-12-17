@@ -57,49 +57,79 @@
     .offcanvas-body.brand-skin .text-uppercase.small.opacity-75 {
       color: rgba(255,255,255,.75) !important;
     }
+
+    /* QUICK SHOPS */
     .quick-shops {
-      position: relative;
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 2rem;
+      overflow-x: auto;
+      overflow-y: hidden;
       scroll-behavior: smooth;
+      padding: 0.5rem 0;
+      padding-left: 5.5rem;
+      padding-right: 5.5rem;
     }
 
-    /* Controls wrapper */
+    .quick-shops::-webkit-scrollbar {
+      display: none; /* clean UI */
+    }
+
+    .quick-shop-item {
+      min-width: 100px;
+      max-width: 120px;
+      text-align: center;
+    }
+
+    .quick-shop-icon img {
+      max-width: 40px;
+      max-height: 40px;
+      object-fit: contain;
+    }
+
     .quick-shop-controls {
       position: absolute;
-      inset: 0;
+      top: 50%;
+      left: 0;
+      right: 0;
+      transform: translateY(-50%);
+      z-index: 10;
       pointer-events: none;
     }
 
-    /* Base button (this was missing) */
+    .quick-shop-btn {
+      pointer-events: auto;
+    }
+
+
+    /* Arrow buttons */
     .quick-shop-btn {
       position: absolute;
       top: 50%;
       transform: translateY(-50%);
-      pointer-events: auto;
-
-      width: 42px;
-      height: 42px;
-      border-radius: 999px;
       border: none;
-
-      background: rgba(255,255,255,.9);
-      box-shadow: 0 8px 20px rgba(0,0,0,.15);
-
-      display: flex;
+      background: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+      z-index: 5;
       align-items: center;
       justify-content: center;
+    }
+    
 
-      transition: background .2s ease, transform .2s ease;
-      z-index: 5;
+    .quick-shop-btn.prev {
+      left: 0;
+      transform: translate(-50%, -50%);
     }
 
-
-    .quick-shop-btn:hover {
-      background: #ffffff;
-      transform: translateY(-50%) scale(1.05);
+    .quick-shop-btn.next {
+      right: 0;
+      transform: translate(50%, -50%);
     }
 
-    .quick-shop-btn.prev { left: -12px; }
-    .quick-shop-btn.next { right: -12px; }
+    
 
 
 
@@ -406,48 +436,52 @@
         Start shopping
       </h5>
 
+      <!-- Wrapper for arrows + scroll track -->
+      <div class="quick-shops-wrapper position-relative">
 
+        <!-- LEFT ARROW -->
+        <button
+          type="button"
+          class="quick-shop-btn prev d-none d-md-flex"
+          aria-label="Scroll left">
+          <i class="bi bi-chevron-left"></i>
+        </button>
 
-      {% for cat in categories %}
-        {% if cat.children.all %}
-          <div class="mb-4">
-           
+        <!-- SCROLL TRACK (ALL ITEMS IN ONE ROW) -->
+        <div class="quick-shops">
+          {% for cat in categories %}
+            {% for sub in cat.children.all %}
+              <a href="{% url 'products' %}?subcategory={{ sub.id }}"
+                class="text-center text-decoration-none quick-shop-item">
 
-            <div class="d-flex gap-4 overflow-auto quick-shops">
-              {% for sub in cat.children.all %}
-                <a href="{% url 'products' %}?subcategory={{ sub.id }}"
-                  class="text-center text-decoration-none quick-shop-item">
-                  
-                  <div class="quick-shop-icon mb-2">
-                    {% if sub.icon %}
-                      <img src="{{ sub.icon.url }}" alt="{{ sub.name }}">
-                    {% else %}
-                      <i class="bi bi-grid fs-4 text-muted"></i>
-                    {% endif %}
-                  </div>
+                <div class="quick-shop-icon mb-2">
+                  {% if sub.icon %}
+                    <img src="{{ sub.icon.url }}" alt="{{ sub.name }}">
+                  {% else %}
+                    <i class="bi bi-grid fs-4 text-muted"></i>
+                  {% endif %}
+                </div>
 
-                  <div class="small fw-medium text-dark">
-                    {{ sub.name }}
-                  </div>
-                </a>
-              {% endfor %}
-            </div>
-          </div>
-        {% endif %}
-      {% endfor %}
+                <div class="small fw-medium text-dark">
+                  {{ sub.name }}
+                </div>
+              </a>
+            {% endfor %}
+          {% endfor %}
+        </div>
+
+        <!-- RIGHT ARROW -->
+        <button
+          type="button"
+          class="quick-shop-btn next d-none d-md-flex"
+          aria-label="Scroll right">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+
+      </div>
     </div>
-
-    <!-- Scroll Controls -->
-    <div class="quick-shop-controls d-none d-md-flex">
-      <button type="button" class="quick-shop-btn prev" aria-label="Scroll left">
-        <i class="bi bi-chevron-left"></i>
-      </button>
-      <button type="button" class="quick-shop-btn next" aria-label="Scroll right">
-        <i class="bi bi-chevron-right"></i>
-      </button>
-    </div>
-
   </section>
+
 
 
   {% if messages %}
@@ -830,7 +864,7 @@
       const prev = document.querySelector('.quick-shop-btn.prev');
       const next = document.querySelector('.quick-shop-btn.next');
 
-      const scrollAmount = 220;
+      const scrollAmount = 260;
 
       prev?.addEventListener('click', () => {
         track.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
@@ -841,6 +875,7 @@
       });
     })();
   </script>
+
 
 </body>
 </html>

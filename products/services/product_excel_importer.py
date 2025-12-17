@@ -68,7 +68,7 @@ def import_products_from_excel(file):
         raise ValidationError("STEP 1: Excel must contain at least 3 rows")
 
     # ======================================================
-    # STEP 2 — HEADER POSITIONS (FIXED TO YOUR SHEET)
+    # STEP 2 — HEADER POSITIONS (FIXED)
     # ======================================================
     HEADER_ROW = 1   # Excel row 2
     DATA_START = 2   # Excel row 3+
@@ -77,7 +77,6 @@ def import_products_from_excel(file):
     if not headers:
         raise ValidationError("STEP 2: Header row is empty")
 
-    # EXACT column positions from your screenshot
     COL = {
         "category": 0,
         "subcategory": 1,
@@ -88,12 +87,11 @@ def import_products_from_excel(file):
         "uom": 6,
         "vat_included": 8,
         "cost_price": 9,
-        "wholesale_margin": 12,   # Wholesale Profit (%)
-        "retail_margin": 15,      # Retail Profit (%)
+        "wholesale_margin": 12,
+        "retail_margin": 15,
         "is_active": 18,
     }
 
-    # Hard header validation (no guessing)
     EXPECTED_HEADERS = {
         0: "Category",
         1: "Subcategory",
@@ -119,19 +117,20 @@ def import_products_from_excel(file):
     updated = 0
 
     # ======================================================
-    # STEP 3 — DATABASE TRANSACTION
+    # STEP 3 — PROCESS ROWS (PER-ROW TRANSACTION)
     # ======================================================
-    with transaction.atomic():
 
-        for excel_row, row in enumerate(rows[DATA_START:], start=DATA_START + 1):
+    for excel_row, row in enumerate(rows[DATA_START:], start=DATA_START + 1):
 
-            if not row or not row[COL["product_no"]]:
-                continue  # skip empty rows
+        if not row or not row[COL["product_no"]]:
+            continue
 
-            # ======================================================
-            # STEP 4 — READ ROW DATA
-            # ======================================================
-            try:
+        try:
+            with transaction.atomic():
+
+                # --------------------------------------------------
+                # STEP 4 — READ DATA
+                # --------------------------------------------------
                 category_name = str(row[COL["category"]]).strip()
                 subcategory_name = str(row[COL["subcategory"]]).strip()
                 product_name = str(row[COL["product"]]).strip()
@@ -144,7 +143,6 @@ def import_products_from_excel(file):
 
                 raw_uom = row[COL["uom"]]
                 uom = str(raw_uom).strip().upper() if raw_uom else "EA"
-
                 if uom not in {"EA", "KG", "L", "PK", "BOX"}:
                     raise ValidationError(f"Invalid UOM '{uom}'")
 
@@ -154,75 +152,70 @@ def import_products_from_excel(file):
                 retail_margin = _dec(row[COL["retail_margin"]])
                 is_active = _bool(row[COL["is_active"]])
 
-            except Exception as e:
-                raise ValidationError(
-                    f"STEP 4 (Row parsing) — Excel row {excel_row}: {e}"
+                # --------------------------------------------------
+                # STEP 5 — CATEGORY
+                # --------------------------------------------------
+                parent_cat, _ = Category.objects.get_or_create(
+                    name=category_name,
+                    parent=None,
                 )
 
-            # ======================================================
-            # STEP 5 — CATEGORY
-            # ======================================================
-            parent_cat, _ = Category.objects.get_or_create(
-                name=category_name,
-                parent=None,
-            )
-
-            sub_cat, _ = Category.objects.get_or_create(
-                name=subcategory_name,
-                parent=parent_cat,
-            )
-
-            # ======================================================
-            # STEP 6 — PRODUCT (SAFE)
-            # ======================================================
-            product, was_created = Product.objects.update_or_create(
-                product_no=product_no,
-                defaults={
-                    "name": product_name,
-                    "category": sub_cat,
-                    "description": description,
-                    "uom": uom,
-                    "cost_price": cost_price,
-                },
-            )
-
-            created += int(was_created)
-            updated += int(not was_created)
-
-            # ======================================================
-            # STEP 7 — SUPPLIER (SAFE + CODE)
-            # ======================================================
-            supplier = Supplier.objects.filter(name=supplier_name).first()
-            if not supplier:
-                supplier = Supplier.objects.create(
-                    name=supplier_name,
-                    code=generate_supplier_code(supplier_name),
-                    is_active=True,
+                sub_cat, _ = Category.objects.get_or_create(
+                    name=subcategory_name,
+                    parent=parent_cat,
                 )
 
-            # attach category (important)
-            supplier.categories.add(parent_cat)
+                # --------------------------------------------------
+                # STEP 6 — PRODUCT
+                # --------------------------------------------------
+                product, was_created = Product.objects.update_or_create(
+                    product_no=product_no,
+                    defaults={
+                        "name": product_name,
+                        "category": sub_cat,
+                        "description": description,
+                        "uom": uom,
+                        "cost_price": cost_price,
+                    },
+                )
 
-            # ======================================================
-            # STEP 8 — PRICING (THIS WAS YOUR MISSING PIECE)
-            # ======================================================
-            pricing, _ = ProductPricing.objects.update_or_create(
-                product=product,
-                supplier=supplier,
-                defaults={
-                    "supplier_price_input": cost_price,
-                    "supplier_price_is_inclusive": vat_included,
-                    "wholesale_margin_percent": wholesale_margin,
-                    "retail_margin_percent": retail_margin,
-                    "is_active": is_active,
-                },
+                created += int(was_created)
+                updated += int(not was_created)
+
+                # --------------------------------------------------
+                # STEP 7 — SUPPLIER
+                # --------------------------------------------------
+                supplier = Supplier.objects.filter(name=supplier_name).first()
+                if not supplier:
+                    supplier = Supplier.objects.create(
+                        name=supplier_name,
+                        code=generate_supplier_code(supplier_name),
+                        is_active=True,
+                    )
+
+                supplier.categories.add(parent_cat)
+
+                # --------------------------------------------------
+                # STEP 8 — PRICING
+                # --------------------------------------------------
+                pricing, _ = ProductPricing.objects.update_or_create(
+                    product=product,
+                    supplier=supplier,
+                    defaults={
+                        "supplier_price_input": cost_price,
+                        "supplier_price_is_inclusive": vat_included,
+                        "wholesale_margin_percent": wholesale_margin,
+                        "retail_margin_percent": retail_margin,
+                        "is_active": is_active,
+                    },
+                )
+
+                pricing.save()
+
+        except Exception as e:
+            raise ValidationError(
+                f"Excel row {excel_row}: {e}"
             )
-
-            # FORCE calculation & persistence
-            if hasattr(pricing, "calculate_prices"):
-                pricing.calculate_prices()
-
-            pricing.save()
 
     # ======================================================
     # STEP 9 — SUCCESS
