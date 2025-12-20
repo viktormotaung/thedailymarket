@@ -1,10 +1,17 @@
 Hi {{ user.first_name|default:user.username }},
 
-Thanks for registering with Seshibo Daily Market.
+Welcome to The Daily Market.
 
-Your account has been received and is currently under review. We’ll email you shortly once everything is approved and ready to go. After approval, you’ll be able to sign in here:
-{{ login_url }}
+Your account{% if client.name %} for {{ client.name }}{% endif %} has been successfully created.
 
-If you have any questions in the meantime, just reply to this email.
+To start placing orders, please complete your business profile. This helps us tailor pricing, delivery, and services to your needs.
 
-— Seshibo Daily Market Support
+Complete your profile:
+{{ complete_profile_url|default:"[https://thedailymarket.co.za](https://thedailymarket.co.za)" }}
+
+If you need assistance, simply reply to this email or contact us at:
+{{ support_email|default:"[support@thedailymarket.co.za](mailto:support@thedailymarket.co.za)" }}
+
+— The Daily Market Team
+
+If you didn’t sign up for this account, please ignore this email.

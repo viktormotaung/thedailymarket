@@ -13,6 +13,7 @@ urlpatterns = [
     path("portal/staff/login/", views.staff_login, name="staff-login"),
     path("portal/client/login/", views.ClientLoginView.as_view(), name="client-login"),
     path("register_profile/", views.register_profile, name="register-profile"),
+    path("register/success/", views.register_success, name="register-success",),
     path("logout/", views.logout_view, name="logout"),
     path("portal/consumer/login/", views.consumer_login, name="consumer-login"),
 
@@ -31,6 +32,7 @@ urlpatterns = [
     path("contact/", views.contact, name="contact"),
     path("trade_application/", views.trade_application, name="trade_application"),
     path("become_supplier/", views.become_supplier, name="become_supplier"),
+    path("profile/", views.profile, name="profile"),
 
     path("checkout/", views.checkout, name="checkout"),
     path("orders/<int:pk>/", views.order_view, name="view-order"),

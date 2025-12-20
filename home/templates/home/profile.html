@@ -1,0 +1,668 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>My Profile · The Daily Market</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    :root { --brand:#0b5c39; --brand-dark:#094c30; }
+
+    body { background:#f7faf8; }
+
+    .profile-card {
+      border: 0;
+      box-shadow: 0 8px 24px rgba(0,0,0,.06);
+      border-radius: .75rem;
+    }
+
+    .nav-tabs .nav-link {
+      color: #555;
+      font-weight: 500;
+    }
+
+    .nav-tabs .nav-link.active {
+      color: var(--brand);
+      border-color: var(--brand) var(--brand) #fff;
+      font-weight: 600;
+    }
+
+    .tab-pane {
+      min-height: 200px;
+    }
+  </style>
+  <style>
+    :root { --brand:#0b5c39; --brand-dark:#094c30; }
+
+    /* ---------- Base ---------- */
+    html, body { height:100%; }
+    body { min-height:100vh; display:flex; flex-direction:column; background:#f7faf8; }
+    .site-main { flex:1; }
+
+    /* ---------- Navbar (desktop) ---------- */
+    .navbar { background: var(--brand); }
+    .navbar-brand img { height:85px; max-height:100px; width:auto; }
+    .navbar .navbar-nav { align-items:center; gap:.25rem; }
+    .navbar .nav-link, .navbar .navbar-brand, .navbar .dropdown-toggle { color:#fff !important; }
+    .navbar .nav-link {
+      display:inline-flex; align-items:center;
+      padding:.6rem 1rem; line-height:1; font-weight:500; border-radius:.375rem;
+    }
+    .navbar .nav-link:hover,
+    .navbar .nav-link:focus-visible { background:rgba(255,255,255,.10); color:#fff !important; }
+    .navbar .nav-link.active { background:rgba(255,255,255,.18); }
+    .navbar .dropdown-divider { border-color:rgba(255,255,255,.2); }
+
+    /* Dropdown look & active state to match the top pill */
+    .navbar .dropdown-menu.brand{
+      background:#0b5c39;
+      border:1px solid #094c30;
+      box-shadow:0 8px 24px rgba(0,0,0,.25);
+
+      --bs-dropdown-link-active-bg: rgba(255,255,255,.18);
+      --bs-dropdown-link-active-color: #fff;
+    }
+    .navbar .dropdown-item{ color:#fff; border-radius:.375rem; }
+    .navbar .dropdown-item:hover,
+    .navbar .dropdown-item:focus,
+    .navbar .dropdown-item.active,
+    .navbar .dropdown-item:active{
+      background: rgba(255,255,255,.18) !important;
+      color:#fff !important;
+    }
+    .navbar .dropdown-item:focus{
+      box-shadow: 0 0 0 .2rem rgba(255,255,255,.12);
+      outline: 0;
+    }
+
+    /* ---------- Mobile top bar + offcanvas ---------- */
+    .offcanvas-header.brand-skin { background:#0b5c39; color:#fff; }
+    .offcanvas-body.brand-skin { background:#0b5c39; color:#fff; }
+    .offcanvas-body .nav-link { color:#fff; padding:.55rem 0; }
+    .offcanvas-body .nav-link:hover { color:#d4f3e3; }
+    .offcanvas-body.brand-skin .nav-link.active,
+    .offcanvas-body.brand-skin .nav-link:focus,
+    .offcanvas-body.brand-skin .nav-link:hover,
+    .offcanvas-body.brand-skin .dropdown-item.active,
+    .offcanvas-body.brand-skin .dropdown-item:focus,
+    .offcanvas-body.brand-skin .dropdown-item:hover {
+      background: rgba(255,255,255,.18);
+      border-radius: .375rem;
+      padding-left: .5rem;
+      color:#fff;
+    }
+    .offcanvas-body.brand-skin .text-uppercase.small.opacity-75 {
+      color: rgba(255,255,255,.75) !important;
+    }
+
+    /* ---------- Hero carousel ---------- */
+    .hero {
+      position: relative;
+      height: 70vh;
+      min-height: 420px;
+      max-height: 900px;
+      overflow: hidden;
+    }
+
+    .hero-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 1;
+    }
+
+    /* Each slide becomes a full background */
+    .hero-slide {
+      position: relative;
+      height: 100%;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    /* Content always above overlay */
+    .hero-slide .container {
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ---------- Hero controls polish ---------- */
+
+    /* Arrow buttons */
+    .carousel-control-prev,
+    .carousel-control-next {
+      width: 6%;
+      opacity: 0;
+      transition: opacity .3s ease;
+    }
+
+    .hero:hover .carousel-control-prev,
+    .hero:hover .carousel-control-next {
+      opacity: 1;
+    }
+
+    .carousel-control-prev-icon,
+    .carousel-control-next-icon {
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,.5));
+      width: 2.25rem;
+      height: 2.25rem;
+    }
+
+    /* Indicator animation sync */
+    .carousel-indicators [data-bs-target] {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .carousel-indicators [data-bs-target]::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: #ffffff;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 7s linear;
+    }
+
+    .carousel-indicators .active::after {
+      transform: scaleX(1);
+    }
+
+
+
+
+
+    /* ---------- Circles ---------- */
+    .circle {
+      width:200px; height:200px; border-radius:50%;
+      background:#0a5c39; color:#fff; display:flex; align-items:center; justify-content:center;
+      transition:transform .25s ease, background-color .25s ease, box-shadow .25s ease;
+      box-shadow:0 8px 20px rgba(0,0,0,.08);
+    }
+    .circle:hover { background:#05512e; transform:scale(1.04); }
+
+    /* ---------- Brands slider ---------- */
+    .brand-track{
+      display:flex; gap:1rem; overflow:auto; padding-bottom:.5rem;
+      scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
+    }
+    .brand-card{
+      scroll-snap-align:start; flex:0 0 auto; width:170px; height:110px;
+      display:flex; align-items:center; justify-content:center;
+      background:#fff; border-radius:.75rem; box-shadow:0 6px 18px rgba(0,0,0,.06);
+      border:1px solid rgba(0,0,0,.06);
+    }
+    .brand-logo{
+      max-width:100%; max-height:70px; width:auto; height:auto; opacity:.95; filter:grayscale(15%);
+      transition:transform .2s ease, opacity .2s ease, filter .2s ease;
+    }
+    .brand-card:hover .brand-logo{ transform:scale(1.05); opacity:1; filter:none; }
+    .brand-fab{ position:absolute; top:50%; transform:translateY(-50%); border-radius:999px; box-shadow:0 10px 28px rgba(0,0,0,.12); z-index:2; }
+    .brand-fab.prev{ left:-.25rem; } .brand-fab.next{ right:-.25rem; }
+
+    /* ---------- Buttons & tables ---------- */
+    .btn-brand{ background:var(--brand); border-color:var(--brand); color:#fff; }
+    .btn-brand:hover{ background:var(--brand-dark); border-color:var(--brand-dark); color:#fff; }
+    .table > :not(caption) > * > * { vertical-align: middle; }
+
+    /* ---------- Footer ---------- */
+    footer { background:#0b5c39; color:#fff; }
+    footer a { color:#fff; }
+    footer a:hover { color:#d4f3e3; text-decoration:underline; }
+
+    /* ---------- Responsive tweaks ---------- */
+    @media (max-width: 991.98px){
+      .navbar-brand img { height:56px; max-height:64px; }
+      .hero { height:45vh !important; min-height:320px; }
+      .circle { width:130px; height:130px; font-size:.95rem; }
+    }
+  </style>
+</head>
+    <body class="bg-light">
+  <!-- Auth flag for JS gating -->
+  <script>const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};</script>
+
+  <!-- ========== MOBILE TOP BAR (visible < lg) ========== -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="offcanvas" data-bs-target="#mobileMenu"
+              aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="/"><img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="height:40px;"></a>
+    </div>
+  </nav>
+
+  <!-- Offcanvas menu (mobile) -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header brand-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body brand-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="max-height:80px; width:auto;">
+      </div>
+
+      <!-- Top-level -->
+      <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-bs-dismiss="offcanvas">Home</a>
+      <a href="{% url 'about' %}" class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" data-bs-dismiss="offcanvas">About</a>
+
+      <!-- Divisions -->
+      <div class="mt-2 text-uppercase small opacity-75">Divisions</div>
+      <a href="{% url 'wholesale' %}" class="nav-link {% if request.path == '/wholesale/' %}active{% endif %}" data-bs-dismiss="offcanvas">Wholesale Trade</a>
+      <a href="{% url 'retail' %}" class="nav-link {% if request.path == '/retail/' %}active{% endif %}" data-bs-dismiss="offcanvas">Retail Express</a>
+      <a href="{% url 'grill' %}" class="nav-link {% if request.path == '/grill/' %}active{% endif %}" data-bs-dismiss="offcanvas">Grill Experience</a>
+
+      <hr class="border-light my-3">
+
+      <a href="{% url 'become_supplier' %}" class="nav-link {% if request.resolver_match.url_name == 'become_supplier' or request.path == '/become_supplier/' %}active{% endif %}" data-bs-dismiss="offcanvas">Become A Supplier</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}" data-bs-dismiss="offcanvas">Shop</a>
+      <a class="nav-link requires-auth {% if request.resolver_match.url_name == 'wholesale_assist' or request.path == '/wholesale_assist/' %}active{% endif %}" href="{% url 'wholesale_assist' %}" data-bs-dismiss="offcanvas">Trade Assist</a>
+
+      <!-- Orders -->
+      <div class="mt-2 text-uppercase small opacity-75">Orders</div>
+      <a class="nav-link requires-auth {% if request.path == '/orders/' %}active{% endif %}" href="{% url 'orders' %}" data-bs-dismiss="offcanvas">My Orders</a>
+      <a class="nav-link requires-auth {% if request.path == '/cart/' %}active{% endif %}" href="{% url 'cart' %}" data-bs-dismiss="offcanvas">Cart</a>
+
+      <a href="{% url 'contact' %}" class="nav-link mt-3 {% if request.path == '/contact/' %}active{% endif %}" data-bs-dismiss="offcanvas">Contact</a>
+
+      <hr class="border-light my-3">
+
+      {% if user.is_authenticated %}
+        <a href="/profile/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">My Profile</a>
+        <a href="/settings/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">Settings</a>
+        <form action="{% url 'logout' %}" method="post" class="mt-1">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-light w-100">Sign out</button>
+        </form>
+      {% else %}
+        <div class="text-uppercase small opacity-75">Sign in</div>
+        <a href="{% url 'client-login' %}"
+          class="btn btn-outline-light w-100 mt-2 js-client-signin">
+          Client
+        </a>
+
+        <a href="{% url 'staff-login' %}" target="_blank" class="btn btn-outline-light w-100 mt-2">Staff</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ========== DESKTOP NAVBAR (visible ≥ lg) ========== -->
+  <nav class="navbar navbar-expand-lg navbar-dark border-bottom d-none d-lg-block">
+    <div class="container d-flex align-items-center">
+      <a class="navbar-brand me-auto" href="/">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market">
+      </a>
+
+      <div id="nav" class="navbar-collapse justify-content-center">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">Home</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" href="/about/">About</a>
+          </li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle {% if request.path == '/grill/' or request.path == '/retail/' or request.path == '/wholesale/' %}active{% endif %}"
+               href="/divisions/" id="divisionsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Divisions
+            </a>
+            <ul class="dropdown-menu brand" aria-labelledby="divisionsDropdown">
+              <li><a class="dropdown-item {% if request.path == '/wholesale/' %}active{% endif %}" href="/wholesale/">Wholesale Trade</a></li>
+              <li><a class="dropdown-item {% if request.path == '/retail/' %}active{% endif %}" href="/retail/">Retail Express</a></li>
+              <li><a class="dropdown-item {% if request.path == '/grill/' %}active{% endif %}" href="/grill/">Grill Experience</a></li>
+            </ul>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'become_supplier' or request.path == '/become_supplier/' %}active{% endif %}"
+               href="/become_supplier/">Become A Supplier</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}"
+               href="{% url 'products' %}">Shop</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link requires-auth {% if request.resolver_match.url_name == 'wholesale_assist' or request.path == '/wholesale_assist/' %}active{% endif %}"
+               href="{% url 'wholesale_assist' %}">Trade Assist</a>
+          </li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle requires-auth {% if request.path == '/orders/' or request.path == '/cart/' %}active{% endif %}"
+               href="/order/" id="orderDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Orders
+            </a>
+            <ul class="dropdown-menu brand" aria-labelledby="orderDropdown">
+              <li><a class="dropdown-item requires-auth {% if request.path == '/orders/' %}active{% endif %}" href="/orders/">My Orders</a></li>
+              <li><a class="dropdown-item requires-auth {% if request.path == '/cart/' %}active{% endif %}" href="/cart/">Cart</a></li>
+            </ul>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == '/contact/' %}active{% endif %}" href="/contact/">Contact</a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="dropdown ms-auto">
+        <a class="nav-link p-0 dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-person-circle fs-4"></i>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end brand">
+          {% if user.is_authenticated %}
+            <li><a class="dropdown-item" href="/profile/">My Profile</a></li>
+            <li><a class="dropdown-item" href="/settings/">Settings</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form action="{% url 'logout' %}" method="post" class="px-3">
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item p-0 btn btn-link text-white">Sign out</button>
+              </form>
+            </li>
+          {% else %}
+            <li class="dropdown-header text-white-50">Sign in</li>
+            <li>
+              <a class="dropdown-item js-client-signin"
+                href="{% url 'client-login' %}">
+                Client
+              </a>
+            </li>
+
+            <li><a class="dropdown-item" href="{% url 'staff-login' %}">Staff</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+<body>
+
+  <main class="container py-4" style="max-width:1100px;">
+
+    <!-- Page heading -->
+    <div class="mb-4">
+      <h1 class="h4 mb-1">My Profile</h1>
+      <p class="text-muted mb-0">
+        Manage your account and business information
+      </p>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-body p-4">
+
+        <!-- TOP LEVEL TABS -->
+        <ul class="nav nav-tabs mb-4" role="tablist">
+          <li class="nav-item">
+            <button
+              class="nav-link active"
+              data-bs-toggle="tab"
+              data-bs-target="#user-profile"
+              type="button">
+              User Profile
+            </button>
+          </li>
+
+          <li class="nav-item">
+            <button
+              class="nav-link"
+              data-bs-toggle="tab"
+              data-bs-target="#business-profile"
+              type="button">
+              Business Profile
+            </button>
+          </li>
+
+          <li class="nav-item">
+            <button
+              class="nav-link"
+              data-bs-toggle="tab"
+              data-bs-target="#personal-profile"
+              type="button">
+              Personal Profile
+            </button>
+          </li>
+        </ul>
+
+        <!-- TAB CONTENT -->
+        <div class="tab-content">
+
+          <!-- ================= USER PROFILE ================= -->
+          <div
+            class="tab-pane fade show active"
+            id="user-profile"
+            role="tabpanel">
+
+            <form method="post" class="mt-3" style="max-width:520px;">
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="user_profile">
+
+              <div class="mb-3">
+                <label class="form-label">First name</label>
+                {{ user_form.first_name }}
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Last name</label>
+                {{ user_form.last_name }}
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Email address</label>
+                {{ user_form.email }}
+              </div>
+
+              <!-- CENTERED SAVE -->
+              <div class="d-flex justify-content-center mt-4">
+                <button type="submit" class="btn btn-brand px-5 py-2">
+                  Save User Profile
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- ================= BUSINESS PROFILE ================= -->
+          <div
+            class="tab-pane fade"
+            id="business-profile"
+            role="tabpanel">
+
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="business_profile">
+
+              <!-- BUSINESS SUB-TABS -->
+              <ul class="nav nav-pills mb-4" role="tablist">
+                <li class="nav-item">
+                  <button
+                    class="nav-link active"
+                    data-bs-toggle="pill"
+                    data-bs-target="#bp-overview"
+                    type="button">
+                    Overview
+                  </button>
+                </li>
+
+                <li class="nav-item">
+                  <button
+                    class="nav-link"
+                    data-bs-toggle="pill"
+                    data-bs-target="#bp-contact"
+                    type="button">
+                    Contact & Identity
+                  </button>
+                </li>
+
+                <li class="nav-item">
+                  <button
+                    class="nav-link"
+                    data-bs-toggle="pill"
+                    data-bs-target="#bp-address"
+                    type="button">
+                    Address & Delivery
+                  </button>
+                </li>
+
+                <li class="nav-item">
+                  <button
+                    class="nav-link"
+                    data-bs-toggle="pill"
+                    data-bs-target="#bp-compliance"
+                    type="button">
+                    Compliance
+                  </button>
+                </li>
+              </ul>
+
+              <!-- BUSINESS SUB-TAB CONTENT -->
+              <div class="tab-content">
+
+                <!-- ===== OVERVIEW (READ ONLY) ===== -->
+                <div class="tab-pane fade show active" id="bp-overview">
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label">Client Number</label>
+                      <input class="form-control" value="{{ client.client_number }}" disabled>
+                    </div>
+
+                    <div class="col-md-6">
+                      <label class="form-label">Status</label>
+                      <input class="form-control" value="{{ client.status }}" disabled>
+                    </div>
+
+                    <div class="col-md-6">
+                      <label class="form-label">Account Type</label>
+                      <input class="form-control" value="{{ client.account_type }}" disabled>
+                    </div>
+
+                    <div class="col-md-6">
+                      <label class="form-label">Credit Status</label>
+                      <input class="form-control" value="{{ client.credit_status }}" disabled>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ===== CONTACT & IDENTITY ===== -->
+                <div class="tab-pane fade" id="bp-contact">
+                  <div class="row g-3">
+                    <div class="col-md-6">{{ business_form.name.label_tag }}{{ business_form.name }}</div>
+                    <div class="col-md-6">{{ business_form.organization.label_tag }}{{ business_form.organization }}</div>
+                    <div class="col-md-6">{{ business_form.contact_person.label_tag }}{{ business_form.contact_person }}</div>
+                    <div class="col-md-6">{{ business_form.email.label_tag }}{{ business_form.email }}</div>
+                    <div class="col-md-6">{{ business_form.phone.label_tag }}{{ business_form.phone }}</div>
+                    <div class="col-md-6">{{ business_form.whatsapp.label_tag }}{{ business_form.whatsapp }}</div>
+                    <div class="col-md-6">{{ business_form.client_type.label_tag }}{{ business_form.client_type }}</div>
+                    <div class="col-md-6">{{ business_form.client_size_tier.label_tag }}{{ business_form.client_size_tier }}</div>
+                    <div class="col-md-12">{{ business_form.categories.label_tag }}{{ business_form.categories }}</div>
+                  </div>
+                </div>
+
+                <!-- ===== ADDRESS & DELIVERY ===== -->
+                <div class="tab-pane fade" id="bp-address">
+                  <div class="row g-3">
+                    <div class="col-md-6">{{ business_form.address_line1.label_tag }}{{ business_form.address_line1 }}</div>
+                    <div class="col-md-6">{{ business_form.address_line2.label_tag }}{{ business_form.address_line2 }}</div>
+                    <div class="col-md-4">{{ business_form.suburb.label_tag }}{{ business_form.suburb }}</div>
+                    <div class="col-md-4">{{ business_form.city.label_tag }}{{ business_form.city }}</div>
+                    <div class="col-md-4">{{ business_form.province.label_tag }}{{ business_form.province }}</div>
+                    <div class="col-md-4">{{ business_form.postal_code.label_tag }}{{ business_form.postal_code }}</div>
+                  </div>
+                </div>
+
+                <!-- ===== COMPLIANCE ===== -->
+                <div class="tab-pane fade" id="bp-compliance">
+                  <div class="row g-3">
+                    <div class="col-md-6">{{ business_form.vat_number.label_tag }}{{ business_form.vat_number }}</div>
+                    <div class="col-md-6">{{ business_form.company_reg_number.label_tag }}{{ business_form.company_reg_number }}</div>
+                    <div class="col-md-6">{{ business_form.price_type.label_tag }}{{ business_form.price_type }}</div>
+                    <div class="col-md-6">{{ business_form.estimated_weekly_spend.label_tag }}{{ business_form.estimated_weekly_spend }}</div>
+                    <div class="col-md-12">{{ business_form.notes.label_tag }}{{ business_form.notes }}</div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- CENTERED SAVE -->
+              <div class="d-flex justify-content-center mt-4">
+                <button type="submit" class="btn btn-brand px-5 py-2">
+                  Save Business Profile
+                </button>
+              </div>
+
+            </form>
+          </div>
+
+          <!-- ================= PERSONAL PROFILE ================= -->
+          <div
+            class="tab-pane fade"
+            id="personal-profile"
+            role="tabpanel">
+
+            <form method="post" class="mt-3" style="max-width:520px;">
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="personal_profile">
+
+              <!-- READ-ONLY SYSTEM INFO -->
+              <div class="mb-4 p-3 bg-light rounded">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Profile type</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      value="{{ customer_profile.get_profile_type_display }}"
+                      disabled>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">Status</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      value="{{ customer_profile.get_status_display }}"
+                      disabled>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                {{ personal_form.display_name.label_tag }}
+                {{ personal_form.display_name }}
+              </div>
+
+              <div class="mb-3">
+                {{ personal_form.phone.label_tag }}
+                {{ personal_form.phone }}
+              </div>
+
+              <!-- CENTERED SAVE -->
+              <div class="d-flex justify-content-center mt-4">
+                <button type="submit" class="btn btn-brand px-5 py-2">
+                  Save Personal Profile
+                </button>
+              </div>
+            </form>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

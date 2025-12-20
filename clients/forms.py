@@ -506,3 +506,66 @@ class ProspectUpdateForm(forms.ModelForm):
             update.save()
 
         return update
+    
+class ClientMinimalForm(forms.ModelForm):
+    class Meta:
+        model = Client
+        fields = [
+            "name",
+            "organization",
+            "company_reg_number",
+            "client_type",
+        ]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "organization": forms.TextInput(attrs={"class": "form-control"}),
+            "company_reg_number": forms.TextInput(attrs={"class": "form-control"}),  # 🔑
+            "client_type": forms.Select(attrs={"class": "form-select"}),
+        }
+
+
+class ClientBusinessForm(forms.ModelForm):
+    class Meta:
+        model = Client
+        fields = [
+            # --- Identity & Contact ---
+            "name",
+            "organization",
+            "contact_person",
+            "email",
+            "phone",
+            "whatsapp",
+            "client_type",
+            "client_size_tier",
+            "categories",
+
+            # --- Address ---
+            "address_line1",
+            "address_line2",
+            "suburb",
+            "city",
+            "province",
+            "postal_code",
+
+            # --- Delivery ---
+            "delivery_address_line1",
+            "delivery_address_line2",
+            "delivery_suburb",
+            "delivery_city",
+            "delivery_province",
+            "delivery_postal_code",
+            "delivery_lat",
+            "delivery_lng",
+
+            # --- Compliance ---
+            "vat_number",
+            "company_reg_number",
+            "price_type",
+            "estimated_weekly_spend",
+            "notes",
+        ]
+
+        widgets = {
+            "notes": forms.Textarea(attrs={"rows": 4}),
+            "categories": forms.CheckboxSelectMultiple(),
+        }

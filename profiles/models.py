@@ -126,7 +126,7 @@ class CustomerProfile(models.Model):
     status = models.CharField(
         max_length=8,
         choices=STATUS_CHOICES,
-        default="pending",
+        default="active",
         db_index=True,
         help_text="Approval state of this profile.",
     )
@@ -201,8 +201,13 @@ class CustomerProfile(models.Model):
             raise ValidationError({"consumer": "Consumer profiles must be linked to a Consumer."})
         
     def save(self, *args, **kwargs):
+        # Enforce display_name for business profiles
+        if self.profile_type == "BUSINESS" and self.client:
+            self.display_name = self.client.name
+
         self.full_clean()
         super().save(*args, **kwargs)
+
 
 
 

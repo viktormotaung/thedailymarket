@@ -10,7 +10,8 @@ from .models import SupplierLead, HeroSlide
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from suppliers.models import Supplier
-
+from profiles.models import CustomerProfile
+from profiles.forms import PersonalProfileForm
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
@@ -76,6 +77,7 @@ from credit.models import CreditAccount, CreditEntry
 from django.utils.http import urlencode
 from django.contrib.auth import get_user_model
 import hashlib
+from clients.forms import ClientBusinessForm
 from django.db.models import OuterRef, Subquery, Value, Q
 from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
@@ -95,6 +97,9 @@ from django.core.paginator import Paginator
 from django.db.models import OuterRef, Subquery, F
 from django.db.models.functions import Coalesce
 from django.shortcuts import render
+from typing import Optional, Tuple
+from clients.forms import ClientMinimalForm
+from .forms import UserProfileForm
 from invoices.models import Invoice
 from credit.models import CreditAccount, CreditEntry
 from invoices.models import Invoice
@@ -1264,6 +1269,58 @@ def orders(request):
     }
     return render(request, "home/orders.html", context)
 
+@login_required
+def profile(request):
+    user = request.user
+
+    # ---- Resolve / create CustomerProfile ----
+    customer_profile, _ = CustomerProfile.objects.get_or_create(
+        user=user,
+        defaults={
+            "display_name": user.get_full_name() or user.username,
+        }
+    )
+
+    # ---- Resolve / create Client ----
+    client = resolve_client_for_user(user, request=request)
+
+    # ================= USER PROFILE =================
+    if request.method == "POST" and request.POST.get("form_type") == "user_profile":
+        user_form = UserProfileForm(request.POST, instance=user)
+        if user_form.is_valid():
+            user_form.save()
+            messages.success(request, "User profile updated successfully.")
+            return redirect("profile")
+    else:
+        user_form = UserProfileForm(instance=user)
+
+    # ================= BUSINESS PROFILE =================
+    if request.method == "POST" and request.POST.get("form_type") == "business_profile":
+        business_form = ClientBusinessForm(request.POST, instance=client)
+        if business_form.is_valid():
+            business_form.save()
+            messages.success(request, "Business profile updated successfully.")
+            return redirect("profile")
+    else:
+        business_form = ClientBusinessForm(instance=client)
+
+    # ================= PERSONAL PROFILE =================
+    if request.method == "POST" and request.POST.get("form_type") == "personal_profile":
+        personal_form = PersonalProfileForm(request.POST, instance=customer_profile)
+        if personal_form.is_valid():
+            personal_form.save()
+            messages.success(request, "Personal profile updated successfully.")
+            return redirect("profile")
+    else:
+        personal_form = PersonalProfileForm(instance=customer_profile)
+
+    return render(request, "home/profile.html", {
+        "user_form": user_form,
+        "business_form": business_form,
+        "personal_form": personal_form,
+        "client": client,
+        "customer_profile": customer_profile,
+    })
 
     
 def _user_can_access_order(user, order) -> bool:
@@ -1909,17 +1966,23 @@ def _redirect_after_register(request: HttpRequest) -> str:
 
 
 def register_profile(request: HttpRequest) -> HttpResponse:
-    """Create account flow (one submit):
-       1) Save User (username = email, case-insensitive/unique)
-       2) Save Client (company)
-       3) Save Profile and LINK to the newly created Client
+    """
+    Minimal registration flow:
+    1) Create User (email = username)
+    2) Create Client (minimal fields only, status=ACTIVE)
+    3) Create Business CustomerProfile linked to User + Client
+       (display_name enforced as client.name at model level)
+
+    After success:
+    - Auto-login user
+    - Send welcome email
+    - Redirect to success page
     """
 
     def _blank_ctx():
         return {
             "user_form": RegisterUserForm(prefix="user"),
-            "profile_form": CustomerProfileForm(prefix="profile"),
-            "client_form": ClientFullForm(prefix="client"),
+            "client_form": ClientMinimalForm(prefix="client"),
         }
 
     # ---------- GET ----------
@@ -1928,49 +1991,53 @@ def register_profile(request: HttpRequest) -> HttpResponse:
 
     # ---------- POST ----------
     user_form = RegisterUserForm(request.POST, prefix="user")
-    profile_form = CustomerProfileForm(request.POST, prefix="profile")  # initial (will be rebound later)
-    client_form = ClientFullForm(request.POST, prefix="client")
+    client_form = ClientMinimalForm(request.POST, prefix="client")
 
-    # Username comes from email (so don't require a visible username field)
+    # Username comes from email
     if "username" in user_form.fields:
         user_form.fields["username"].required = False
 
     user_ok = user_form.is_valid()
     client_ok = client_form.is_valid()
 
-    # Pull candidate email for username
+    # Pull candidate email safely
     candidate_email = (
         (user_form.cleaned_data.get("email") if user_ok else None)
         or request.POST.get(f"{user_form.prefix}-email", "")
         or ""
     ).strip()
 
-    # Basic duplicate check (case-insensitive)
+    # Case-insensitive duplicate check
     if candidate_email:
         exists = (
             User.objects.filter(username__iexact=candidate_email).exists()
             or User.objects.filter(email__iexact=candidate_email).exists()
         )
         if exists:
-            user_form.add_error("email", "An account with this email already exists. Please use another email.")
+            user_form.add_error(
+                "email",
+                "An account with this email already exists. Please use another email.",
+            )
             user_ok = False
     else:
         user_form.add_error("email", "Please enter a valid email address.")
         user_ok = False
 
-    # If user/client still invalid, re-render now
+    # Early exit if forms invalid
     if not (user_ok and client_ok):
         messages.error(request, "Please fix the highlighted fields and try again.")
         return render(
             request,
             "home/register_profile.html",
-            {"user_form": user_form, "profile_form": profile_form, "client_form": client_form},
+            {
+                "user_form": user_form,
+                "client_form": client_form,
+            },
         )
 
-    # We want to roll back EVERYTHING if the profile fails validation.
-    error_context: Optional[dict] = None
-    created_bundle: Optional[Tuple[User, object, object]] = None  # (user, client, profile)
+    created_bundle: Optional[Tuple[User, Client, CustomerProfile]] = None
 
+    # ---------- ATOMIC CREATION ----------
     with transaction.atomic():
         # ---- 1) USER ----
         user = user_form.save(commit=False)
@@ -1978,78 +2045,86 @@ def register_profile(request: HttpRequest) -> HttpResponse:
         user.email = candidate_email
         user.save()
 
-        # ---- 2) CLIENT ----
+        # ---- 2) CLIENT (MINIMAL) ----
         client = client_form.save(commit=False)
+        client.status = "ACTIVE"
         client.account_manager = None
         client.save()
-        if hasattr(client_form, "save_m2m"):
-            client_form.save_m2m()
 
-        # ---- 3) PROFILE (bind to new user & client, then validate) ----
-        ProfileModel = profile_form._meta.model
-        profile_instance = ProfileModel(user=user, client=client)
-
-        # Re-bind profile form with injected client id so validators see the link
-        profile_data = request.POST.copy()
-        client_field_name = f"{profile_form.prefix}-client"
-        # only inject if the form exposes it; harmless otherwise
-        if client_field_name in profile_data or "client" in profile_form.fields:
-            profile_data[client_field_name] = str(client.pk)
-
-        # If the form includes 'client', we set it programmatically—don’t force the user to fill it
-        if "client" in profile_form.fields:
-            profile_form.fields["client"].required = False
-
-        bound_profile_form = CustomerProfileForm(
-            data=profile_data, prefix="profile", instance=profile_instance
+        # ---- 3) CUSTOMER PROFILE (BUSINESS) ----
+        profile = CustomerProfile(
+            user=user,
+            client=client,
+            profile_type="BUSINESS",
+            status="active",
         )
+        profile.save()
 
-        if not bound_profile_form.is_valid():
-            # Roll back user+client too to avoid partial rows
-            transaction.set_rollback(True)
-            error_context = {
-                "user_form": user_form,
-                "profile_form": bound_profile_form,
-                "client_form": client_form,
-            }
-        else:
-            profile = bound_profile_form.save()
-            if hasattr(bound_profile_form, "save_m2m"):
-                bound_profile_form.save_m2m()
-            created_bundle = (user, client, profile)
+        created_bundle = (user, client, profile)
 
-    # ---------- After transaction ----------
-    if error_context is not None:
-        messages.error(request, "Please fix the highlighted fields and try again.")
-        return render(request, "home/register_profile.html", error_context)
-
-    # Success
+    # ---------- POST-SUCCESS ----------
     user, client, profile = created_bundle  # type: ignore[misc]
 
-    # Best-effort post-actions (don’t block UX)
+    # Auto-login user
+    login(request, user)
+
+    # Welcome email (best-effort)
     try:
         if user.email:
             send_success_registration_email(user, client, profile)
     except Exception:
         pass
 
-    try:
-        create_support_task_for_new_registration(request, client, profile, user)
-    except Exception:
-        pass
+    # Redirect to success page
+    return redirect("register-success")
 
-    # Show success modal and reset forms
+def send_success_registration_email(user, client, profile):
+    """
+    Sends a branded HTML + text email to the newly registered user.
+    All wording is in templates:
+      - email/successful_registration.txt
+      - email/successful_registration.html
+    """
+    # Context only (no wording here)
+    ctx = {
+        "user": user,
+        "client": client,
+        "profile": profile,
+        "login_url": reverse("client-login"),  # relative URL; switch to absolute if you prefer
+    }
+
+    subject = "The Daily Market – Thanks, your account is under review"
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "accounts@thedailymarket.co.za")
+    to = [user.email or user.username]
+
+    # Render templates
+    text_body = render_to_string("email/successful_registration.txt", ctx)
+    html_body = render_to_string("email/successful_registration.html", ctx)
+
+    # Send
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=from_email,
+        to=to,
+        headers={"Reply-To": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za")},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=True)
+
+
+@login_required
+def register_success(request):
+    profile = request.user.customer_profile
+    client_name = profile.client.name if profile.client else ""
+
     return render(
         request,
-        "home/register_profile.html",
+        "home/register_success.html",
         {
-            "user_form": RegisterUserForm(prefix="user"),
-            "profile_form": CustomerProfileForm(prefix="profile"),
-            "client_form": ClientFullForm(prefix="client"),
-            "show_success_modal": True,
-        },
+            "client_name": client_name,
+        }
     )
-
 
 def create_support_task_for_new_registration(request, client, profile, user):
     # Safe URL building
@@ -2129,41 +2204,6 @@ def create_support_task_for_new_registration(request, client, profile, user):
     except Exception as e:
         print("!!! Failed to email Support about Task:", repr(e))
 
-
-
-def send_success_registration_email(user, client, profile):
-    """
-    Sends a branded HTML + text email to the newly registered user.
-    All wording is in templates:
-      - email/successful_registration.txt
-      - email/successful_registration.html
-    """
-    # Context only (no wording here)
-    ctx = {
-        "user": user,
-        "client": client,
-        "profile": profile,
-        "login_url": reverse("client-login"),  # relative URL; switch to absolute if you prefer
-    }
-
-    subject = "Seshibo Daily Market – Thanks, your account is under review"
-    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "accounts@seshibodailymarket.co.za")
-    to = [user.email or user.username]
-
-    # Render templates
-    text_body = render_to_string("email/successful_registration.txt", ctx)
-    html_body = render_to_string("email/successful_registration.html", ctx)
-
-    # Send
-    msg = EmailMultiAlternatives(
-        subject=subject,
-        body=text_body,
-        from_email=from_email,
-        to=to,
-        headers={"Reply-To": getattr(settings, "SUPPORT_EMAIL", "support@seshibodailymarket.co.za")},
-    )
-    msg.attach_alternative(html_body, "text/html")
-    msg.send(fail_silently=True)
 
 
 def _generate_4digit_otp() -> str:

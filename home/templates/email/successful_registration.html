@@ -1,13 +1,14 @@
 <!doctype html>
+
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Seshibo — Account Under Review</title>
+  <title>The Daily Market — New Account</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <!-- Email-safe, lightweight styles -->
+
   <style>
-    /* Base */
     body {
       margin: 0;
       padding: 0;
@@ -19,11 +20,9 @@
     }
     a { color: #0b5c39; }
 
-    /* Layout */
     .wrap { max-width: 640px; margin: 0 auto; padding: 24px; }
     .center { text-align: center; }
 
-    /* Card */
     .card {
       background: #ffffff;
       border-radius: 12px;
@@ -32,11 +31,9 @@
       box-shadow: 0 6px 20px rgba(0,0,0,0.06);
     }
 
-    /* Brand */
     .brand { color: #0b5c39; }
     .muted { color: #6b7280; font-size: 14px; }
 
-    /* Button */
     .btn {
       display: inline-block;
       padding: 12px 18px;
@@ -45,10 +42,9 @@
       background: #0b5c39;
       color: #ffffff !important;
       font-weight: 600;
-      margin-top: 8px;
+      margin-top: 12px;
     }
 
-    /* Divider (email-safe) */
     .hr {
       height: 1px;
       background: #eef2f7;
@@ -56,53 +52,59 @@
       margin: 18px 0 16px;
     }
   </style>
+
 </head>
 <body>
   <div class="wrap">
 
-    <!-- Header -->
-    <div class="center" style="margin-bottom: 16px;">
-      <h2 class="brand" style="margin: 0; font-weight: 800;">Seshibo Daily Market</h2>
-      <div class="muted">Account review received</div>
-    </div>
+```
+<!-- Header -->
+<div class="center" style="margin-bottom: 16px;">
+  <h2 class="brand" style="margin: 0; font-weight: 800;">The Daily Market</h2>
+  <div class="muted">Welcome — your account is ready</div>
+</div>
 
-    <!-- Card -->
-    <div class="card">
-      <p style="margin-top:0;">
-        Hi {{ user.first_name|default:user.username }},
-      </p>
+<!-- Card -->
+<div class="card">
+  <p style="margin-top:0;">
+    Hi {{ user.first_name|default:user.username }},
+  </p>
 
-      <p>
-        Thanks for registering with <strong>Seshibo Daily Market</strong>.
-        We’ve received your details{% if client.name %} for
-        <strong>{{ client.name }}</strong>{% endif %} and your account is now
-        <strong>under review</strong>.
-      </p>
+  <p>
+    Welcome to <strong>The Daily Market</strong>.
+    Your account{% if client.name %} for
+    <strong>{{ client.name }}</strong>{% endif %} has been successfully created.
+  </p>
 
-      <p>
-        You’ll receive another email shortly with approval and
-        <strong>login instructions</strong>.
-      </p>
+  <p>
+    To start placing orders, please complete your business profile.
+    This helps us tailor pricing, delivery, and services to your needs.
+  </p>
 
-      <div class="hr"></div>
+  <div class="center">
+    <a href="{{ complete_profile_url|default:'#' }}" class="btn">
+      Complete your profile
+    </a>
+  </div>
 
-      
-      
+  <div class="hr"></div>
 
-      <p style="margin: 0 0 8px;">
-        Need help? Reply to this email or contact us at
-        <a href="mailto:{{ support_email|default:'support@seshibodailymarket.co.za' }}">
-          {{ support_email|default:'support@seshibodailymarket.co.za' }}
-        </a>.
-      </p>
+  <p class="muted" style="margin: 0 0 8px;">
+    If you need assistance, simply reply to this email or contact us at
+    <a href="mailto:{{ support_email|default:'support@thedailymarket.co.za' }}">
+      {{ support_email|default:'support@thedailymarket.co.za' }}
+    </a>.
+  </p>
 
-      <p style="margin: 0;">— Seshibo Daily Market</p>
-    </div>
+  <p style="margin: 0;">— The Daily Market Team</p>
+</div>
 
-    <!-- Footer -->
-    <p class="muted center" style="margin-top: 14px;">
-      If you didn’t request this, please ignore this email.
-    </p>
+<!-- Footer -->
+<p class="muted center" style="margin-top: 14px;">
+  If you didn’t sign up for this account, please ignore this email.
+</p>
+```
+
   </div>
 </body>
 </html>

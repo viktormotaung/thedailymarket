@@ -6,6 +6,28 @@ from clients.models import Client
 from profiles.models import CustomerProfile
 from clients.models import GAUTENG_CITY_CHOICES
 
+
+class UserProfileForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "email"]
+
+        widgets = {
+            "first_name": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "First name"
+            }),
+            "last_name": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Last name"
+            }),
+            "email": forms.EmailInput(attrs={
+                "class": "form-control",
+                "placeholder": "Email address"
+            }),
+        }
+
+
 class RegisterUserForm(UserCreationForm):
     email = forms.EmailField(required=True)
 
