@@ -259,10 +259,12 @@
         </form>
       {% else %}
         <div class="text-uppercase small opacity-75">Sign in</div>
-        <a href="{% url 'client-login' %}"
+        <button type="button"
           class="btn btn-outline-light w-100 mt-2 js-client-signin">
           Client
-        </a>
+        </button>
+
+        
 
         <a href="{% url 'staff-login' %}" target="_blank" class="btn btn-outline-light w-100 mt-2">Staff</a>
       {% endif %}
@@ -761,13 +763,15 @@
     })();
   </script>
   <script>
-    document.addEventListener("click", function (e) {
-      const link = e.target.closest(".js-client-signin");
-      if (!link) return;
+    document.addEventListener('click', function (e) {
+      const el = e.target.closest('.js-client-signin');
+      if (!el) return;
 
-      e.preventDefault(); // stop redirect to client-login
+      // Always stop navigation immediately
+      e.preventDefault();
+      e.stopPropagation();
 
-      const modalEl = document.getElementById("profileTypeModal");
+      const modalEl = document.getElementById('profileTypeModal');
       if (!modalEl) return;
 
       const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
@@ -775,9 +779,17 @@
         focus: true
       });
 
+      // Defensive cleanup on close (mobile-safe)
+      modalEl.addEventListener('hidden.bs.modal', () => {
+        document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('paddingRight');
+      }, { once: true });
+
       modal.show();
     });
   </script>
+
 
 
 </body>

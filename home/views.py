@@ -2110,7 +2110,8 @@ def send_success_registration_email(user, client, profile):
         headers={"Reply-To": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za")},
     )
     msg.attach_alternative(html_body, "text/html")
-    msg.send(fail_silently=True)
+    msg.send(fail_silently=False)
+
 
 
 @login_required
