@@ -173,17 +173,18 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 # ---------------------------
-# EMAIL
+# EMAIL BACKEND (POSTMARK)
 # ---------------------------
-EMAIL_HOST = os.getenv("EMAIL_HOST", "mail.thedailymarket.co.za")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "accounts@thedailymarket.co.za")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_BACKEND = "postmark.django_backend.EmailBackend"
 
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "The Daily Market <accounts@thedailymarket.co.za>")
-SUPPORT_FROM_EMAIL = os.getenv("SUPPORT_FROM_EMAIL", "The Daily Market Support <support@thedailymarket.co.za>")
+POSTMARK_API_TOKEN = os.getenv("POSTMARK_API_TOKEN")
+
+DEFAULT_FROM_EMAIL = "The Daily Market <accounts@thedailymarket.co.za>"
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
 SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "support@thedailymarket.co.za")
+# ---------------------------
+
 
 # ---------------------------
 # STATIC & MEDIA FILES
