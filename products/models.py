@@ -348,6 +348,8 @@ class ProductPricing(models.Model):
     # Margins
     # -----------------------------
     MARGIN_CHOICES = [
+        (Decimal("10.00"), "10%"),
+        (Decimal("12.50"), "12.50%"),
         (Decimal("15.00"), "15%"),
         (Decimal("17.50"), "17.50%"),
         (Decimal("20.00"), "20%"),
@@ -357,6 +359,8 @@ class ProductPricing(models.Model):
         (Decimal("30.00"), "30%"),
         (Decimal("32.50"), "32.50%"),
         (Decimal("35.00"), "35%"),
+        (Decimal("37.50"), "37.50%"),
+        (Decimal("40.00"), "40%"),
     ]
 
     product = models.ForeignKey(

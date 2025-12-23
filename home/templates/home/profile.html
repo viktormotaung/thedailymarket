@@ -398,6 +398,31 @@
         Manage your account and business information
       </p>
     </div>
+    <!-- PROFILE COMPLETION -->
+    <div class="mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="fw-semibold">Profile completion</span>
+        <span class="fw-semibold text-muted">
+          {{ profile_completion_percent }}%
+        </span>
+      </div>
+
+      <div class="progress" style="height: 10px;">
+        <div
+          class="progress-bar
+            {% if profile_completion_percent == 100 %}
+              bg-success
+            {% elif profile_completion_percent >= 60 %}
+              bg-brand
+            {% else %}
+              bg-warning
+            {% endif %}"
+          style="width: {{ profile_completion_percent }}%;">
+        </div>
+
+      </div>
+    </div>
+
 
     <div class="card border-0 shadow-sm rounded-4">
       <div class="card-body p-4">
@@ -406,32 +431,60 @@
         <ul class="nav nav-tabs mb-4" role="tablist">
           <li class="nav-item">
             <button
-              class="nav-link active"
+              class="nav-link active d-flex align-items-center gap-2"
               data-bs-toggle="tab"
               data-bs-target="#user-profile"
               type="button">
+
               User Profile
+
+              {% if user_profile_complete %}
+                <i class="bi bi-check-circle-fill text-success"
+                  title="Profile completed"></i>
+              {% else %}
+                <i class="bi bi-x-circle-fill text-warning"
+                  title="Profile incomplete"></i>
+              {% endif %}
             </button>
+
           </li>
 
           <li class="nav-item">
             <button
-              class="nav-link"
+              class="nav-link d-flex align-items-center gap-2"
               data-bs-toggle="tab"
               data-bs-target="#business-profile"
               type="button">
+
               Business Profile
+
+              {% if business_profile_complete %}
+                <i class="bi bi-check-circle-fill text-success"></i>
+              {% else %}
+                <i class="bi bi-x-circle-fill text-warning"></i>
+              {% endif %}
             </button>
+
           </li>
 
           <li class="nav-item">
             <button
-              class="nav-link"
+              class="nav-link d-flex align-items-center gap-2"
               data-bs-toggle="tab"
               data-bs-target="#personal-profile"
               type="button">
+
               Personal Profile
+
+              {% if personal_profile_complete %}
+                <i class="bi bi-check-circle-fill text-success"
+                  title="Profile completed"></i>
+              {% else %}
+                <i class="bi bi-x-circle-fill text-warning"
+                  title="Profile incomplete"></i>
+              {% endif %}
             </button>
+
           </li>
         </ul>
 
@@ -472,130 +525,267 @@
             </form>
           </div>
 
-          <!-- ================= BUSINESS PROFILE ================= -->
-          <div
-            class="tab-pane fade"
-            id="business-profile"
-            role="tabpanel">
+          <!-- ================= BUSINESS PROFILE TAB ================= -->
+          <div class="tab-pane fade"
+              id="business-profile"
+              role="tabpanel"
+              aria-labelledby="business-profile-tab">
 
-            <form method="post">
+            <form method="post" novalidate>
               {% csrf_token %}
               <input type="hidden" name="form_type" value="business_profile">
 
-              <!-- BUSINESS SUB-TABS -->
-              <ul class="nav nav-pills mb-4" role="tablist">
+              <!-- ===== Business Profile Sub Tabs ===== -->
+              <ul class="nav nav-pills mb-4 gap-2" role="tablist">
+
                 <li class="nav-item">
-                  <button
-                    class="nav-link active"
-                    data-bs-toggle="pill"
-                    data-bs-target="#bp-overview"
-                    type="button">
+                  <button type="button"
+                          class="nav-link active"
+                          data-bs-toggle="pill"
+                          data-bs-target="#bp-overview"
+                          role="tab">
                     Overview
+                    {% if business_overview_complete %}
+                      <span class="text-success ms-1">✔</span>
+                    {% else %}
+                      <span class="text-warning ms-1">✖</span>
+                    {% endif %}
                   </button>
                 </li>
 
                 <li class="nav-item">
-                  <button
-                    class="nav-link"
-                    data-bs-toggle="pill"
-                    data-bs-target="#bp-contact"
-                    type="button">
+                  <button type="button"
+                          class="nav-link"
+                          data-bs-toggle="pill"
+                          data-bs-target="#bp-contact"
+                          role="tab">
                     Contact & Identity
+                    {% if business_contact_complete %}
+                      <span class="text-success ms-1">✔</span>
+                    {% else %}
+                      <span class="text-warning ms-1">✖</span>
+                    {% endif %}
                   </button>
                 </li>
 
                 <li class="nav-item">
-                  <button
-                    class="nav-link"
-                    data-bs-toggle="pill"
-                    data-bs-target="#bp-address"
-                    type="button">
+                  <button type="button"
+                          class="nav-link"
+                          data-bs-toggle="pill"
+                          data-bs-target="#bp-address"
+                          role="tab">
                     Address & Delivery
+                    {% if business_address_complete %}
+                      <span class="text-success ms-1">✔</span>
+                    {% else %}
+                      <span class="text-warning ms-1">✖</span>
+                    {% endif %}
                   </button>
                 </li>
 
                 <li class="nav-item">
-                  <button
-                    class="nav-link"
-                    data-bs-toggle="pill"
-                    data-bs-target="#bp-compliance"
-                    type="button">
+                  <button type="button"
+                          class="nav-link"
+                          data-bs-toggle="pill"
+                          data-bs-target="#bp-compliance"
+                          role="tab">
                     Compliance
+                    {% if business_compliance_complete %}
+                      <span class="text-success ms-1">✔</span>
+                    {% else %}
+                      <span class="text-warning ms-1">✖</span>
+                    {% endif %}
                   </button>
                 </li>
+
               </ul>
 
-              <!-- BUSINESS SUB-TAB CONTENT -->
+              <!-- ===== Sub Tab Content ===== -->
               <div class="tab-content">
 
-                <!-- ===== OVERVIEW (READ ONLY) ===== -->
-                <div class="tab-pane fade show active" id="bp-overview">
-                  <div class="row g-3">
-                    <div class="col-md-6">
-                      <label class="form-label">Client Number</label>
-                      <input class="form-control" value="{{ client.client_number }}" disabled>
-                    </div>
+                <!-- ===== Overview ===== -->
+                <div class="tab-pane fade show active" id="bp-overview" role="tabpanel">
+                  <div class="card border-0 shadow-sm p-4 mb-4">
+                    <h6 class="fw-semibold mb-3">Business Overview</h6>
 
-                    <div class="col-md-6">
-                      <label class="form-label">Status</label>
-                      <input class="form-control" value="{{ client.status }}" disabled>
-                    </div>
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        {{ business_form.name.label_tag }}
+                        {{ business_form.name }}
+                      </div>
 
-                    <div class="col-md-6">
-                      <label class="form-label">Account Type</label>
-                      <input class="form-control" value="{{ client.account_type }}" disabled>
-                    </div>
+                      <div class="col-md-6">
+                        {{ business_form.organization.label_tag }}
+                        {{ business_form.organization }}
+                      </div>
 
-                    <div class="col-md-6">
-                      <label class="form-label">Credit Status</label>
-                      <input class="form-control" value="{{ client.credit_status }}" disabled>
+                      <div class="col-md-6">
+                        {{ business_form.client_type.label_tag }}
+                        {{ business_form.client_type }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.client_size_tier.label_tag }}
+                        {{ business_form.client_size_tier }}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <!-- ===== CONTACT & IDENTITY ===== -->
-                <div class="tab-pane fade" id="bp-contact">
-                  <div class="row g-3">
-                    <div class="col-md-6">{{ business_form.name.label_tag }}{{ business_form.name }}</div>
-                    <div class="col-md-6">{{ business_form.organization.label_tag }}{{ business_form.organization }}</div>
-                    <div class="col-md-6">{{ business_form.contact_person.label_tag }}{{ business_form.contact_person }}</div>
-                    <div class="col-md-6">{{ business_form.email.label_tag }}{{ business_form.email }}</div>
-                    <div class="col-md-6">{{ business_form.phone.label_tag }}{{ business_form.phone }}</div>
-                    <div class="col-md-6">{{ business_form.whatsapp.label_tag }}{{ business_form.whatsapp }}</div>
-                    <div class="col-md-6">{{ business_form.client_type.label_tag }}{{ business_form.client_type }}</div>
-                    <div class="col-md-6">{{ business_form.client_size_tier.label_tag }}{{ business_form.client_size_tier }}</div>
-                    <div class="col-md-12">{{ business_form.categories.label_tag }}{{ business_form.categories }}</div>
+                <!-- ===== Contact & Identity ===== -->
+                <div class="tab-pane fade" id="bp-contact" role="tabpanel">
+                  <div class="card border-0 shadow-sm p-4 mb-4">
+                    <h6 class="fw-semibold mb-3">Contact & Identity</h6>
+
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        {{ business_form.contact_person.label_tag }}
+                        {{ business_form.contact_person }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.email.label_tag }}
+                        {{ business_form.email }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.phone.label_tag }}
+                        {{ business_form.phone }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.whatsapp.label_tag }}
+                        {{ business_form.whatsapp }}
+                      </div>
+
+                      <div class="col-12">
+                        {{ business_form.categories.label_tag }}
+                        {{ business_form.categories }}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <!-- ===== ADDRESS & DELIVERY ===== -->
-                <div class="tab-pane fade" id="bp-address">
-                  <div class="row g-3">
-                    <div class="col-md-6">{{ business_form.address_line1.label_tag }}{{ business_form.address_line1 }}</div>
-                    <div class="col-md-6">{{ business_form.address_line2.label_tag }}{{ business_form.address_line2 }}</div>
-                    <div class="col-md-4">{{ business_form.suburb.label_tag }}{{ business_form.suburb }}</div>
-                    <div class="col-md-4">{{ business_form.city.label_tag }}{{ business_form.city }}</div>
-                    <div class="col-md-4">{{ business_form.province.label_tag }}{{ business_form.province }}</div>
-                    <div class="col-md-4">{{ business_form.postal_code.label_tag }}{{ business_form.postal_code }}</div>
+                <!-- ===== Address & Delivery ===== -->
+                <div class="tab-pane fade" id="bp-address" role="tabpanel">
+                  <div class="card border-0 shadow-sm p-4 mb-4">
+
+                    <h6 class="fw-semibold mb-4">Business Address</h6>
+
+                    <div class="row g-3 mb-4">
+                      <div class="col-12">
+                        {{ business_form.address_line1.label_tag }}
+                        {{ business_form.address_line1 }}
+                      </div>
+
+                      <div class="col-12">
+                        {{ business_form.address_line2.label_tag }}
+                        {{ business_form.address_line2 }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.suburb.label_tag }}
+                        {{ business_form.suburb }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.city.label_tag }}
+                        {{ business_form.city }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.province.label_tag }}
+                        {{ business_form.province }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.postal_code.label_tag }}
+                        {{ business_form.postal_code }}
+                      </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h6 class="fw-semibold mb-3">Delivery Address</h6>
+                    <p class="text-muted small mb-4">
+                      If different from your business address, please provide your delivery address below.
+                      A representative will confirm the exact delivery location during site verification.
+                    </p>
+
+                    <div class="row g-3">
+                      <div class="col-12">
+                        {{ business_form.delivery_address_line1.label_tag }}
+                        {{ business_form.delivery_address_line1 }}
+                      </div>
+
+                      <div class="col-12">
+                        {{ business_form.delivery_address_line2.label_tag }}
+                        {{ business_form.delivery_address_line2 }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.delivery_suburb.label_tag }}
+                        {{ business_form.delivery_suburb }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.delivery_city.label_tag }}
+                        {{ business_form.delivery_city }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.delivery_province.label_tag }}
+                        {{ business_form.delivery_province }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.delivery_postal_code.label_tag }}
+                        {{ business_form.delivery_postal_code }}
+                      </div>
+
+                      <!-- Lat/Lng intentionally hidden -->
+                      {{ business_form.delivery_lat.as_hidden }}
+                      {{ business_form.delivery_lng.as_hidden }}
+                    </div>
+
                   </div>
                 </div>
 
-                <!-- ===== COMPLIANCE ===== -->
-                <div class="tab-pane fade" id="bp-compliance">
-                  <div class="row g-3">
-                    <div class="col-md-6">{{ business_form.vat_number.label_tag }}{{ business_form.vat_number }}</div>
-                    <div class="col-md-6">{{ business_form.company_reg_number.label_tag }}{{ business_form.company_reg_number }}</div>
-                    <div class="col-md-6">{{ business_form.price_type.label_tag }}{{ business_form.price_type }}</div>
-                    <div class="col-md-6">{{ business_form.estimated_weekly_spend.label_tag }}{{ business_form.estimated_weekly_spend }}</div>
-                    <div class="col-md-12">{{ business_form.notes.label_tag }}{{ business_form.notes }}</div>
+
+                <!-- ===== Compliance ===== -->
+                <div class="tab-pane fade" id="bp-compliance" role="tabpanel">
+                  <div class="card border-0 shadow-sm p-4 mb-4">
+                    <h6 class="fw-semibold mb-3">Compliance</h6>
+
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        {{ business_form.vat_number.label_tag }}
+                        {{ business_form.vat_number }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.company_reg_number.label_tag }}
+                        {{ business_form.company_reg_number }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.price_type.label_tag }}
+                        {{ business_form.price_type }}
+                      </div>
+
+                      <div class="col-md-6">
+                        {{ business_form.estimated_weekly_spend.label_tag }}
+                        {{ business_form.estimated_weekly_spend }}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
               </div>
 
-              <!-- CENTERED SAVE -->
-              <div class="d-flex justify-content-center mt-4">
-                <button type="submit" class="btn btn-brand px-5 py-2">
+              <!-- ===== Save Button ===== -->
+              <div class="text-end">
+                <button type="submit" class="btn btn-primary">
                   Save Business Profile
                 </button>
               </div>
@@ -654,15 +844,71 @@
               </div>
             </form>
           </div>
+        </div>
+      </div>
+    </div>
+    {% if show_profile_complete_popup %}
+    <div class="modal fade" id="profileCompleteModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-center p-3">
+
+          <div class="modal-header border-0">
+            <h5 class="modal-title w-100">
+              🎉 Profile Completed
+            </h5>
+            <button type="button"
+                    class="btn-close position-absolute end-0 me-3"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+          </div>
+
+          <div class="modal-body">
+            <p class="mb-2 fw-semibold">
+              Thank you for completing your profile.
+            </p>
+            <p class="text-muted mb-0">
+              Please allow <strong>30–60 minutes</strong> (during our normal working hours)
+              for your account to be verified.
+              <br><br>
+              You will receive an <strong>email confirmation</strong> once verification
+              has been completed.
+            </p>
+          </div>
+
+          <div class="modal-footer border-0 justify-content-center">
+            <button type="button"
+                    class="btn btn-brand px-4"
+                    data-bs-dismiss="modal">
+              Got it
+            </button>
+          </div>
 
         </div>
       </div>
     </div>
+    {% endif %}
+
   </main>
-
-
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  {% if show_profile_complete_popup %}
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const modalEl = document.getElementById("profileCompleteModal");
+      if (!modalEl) return;
+
+      const modal = new bootstrap.Modal(modalEl, {
+        backdrop: "static",
+        keyboard: false
+      });
+
+      modal.show();
+    });
+  </script>
+  {% endif %}
+
+
+  
 
 </body>
 </html>

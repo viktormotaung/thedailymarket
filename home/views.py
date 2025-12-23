@@ -100,6 +100,8 @@ from django.shortcuts import render
 from typing import Optional, Tuple
 from clients.forms import ClientMinimalForm
 from .forms import UserProfileForm
+import hashlib
+import urllib.parse
 from invoices.models import Invoice
 from credit.models import CreditAccount, CreditEntry
 from invoices.models import Invoice
@@ -279,74 +281,6 @@ def _resolve_client_for_user(user, *, request=None) -> Client | None:
     return None
 
 
-@login_required
-def payfast_start(request):
-    if request.method != "POST":
-        return HttpResponseBadRequest("Invalid method")
-
-    invoice_id = request.POST.get("invoice_id")
-    amount_raw = request.POST.get("amount")
-
-    # Basic validation
-    if not invoice_id or not amount_raw:
-        return HttpResponseBadRequest("Missing parameters")
-
-    # Optional: verify invoice & outstanding matches your DB to prevent tampering
-    # try:
-    #     inv = Invoice.objects.get(pk=invoice_id, client__user=request.user)
-    # except Invoice.DoesNotExist:
-    #     raise Http404("Invoice not found")
-    # if Decimal(amount_raw).quantize(Decimal("0.01")) != inv.ta_outstanding.quantize(Decimal("0.01")):
-    #     return HttpResponseBadRequest("Amount mismatch")
-
-    # Prepare PayFast payload
-    amount = _format_amount(Decimal(amount_raw))
-    merchant_id = settings.PAYFAST_MERCHANT_ID
-    merchant_key = settings.PAYFAST_MERCHANT_KEY
-    passphrase = getattr(settings, "PAYFAST_PASSPHRASE", "")
-
-    # Build absolute return / notify / cancel URLs
-    return_url = request.build_absolute_uri(reverse("payfast_return"))
-    cancel_url = request.build_absolute_uri(reverse("payfast_cancel"))
-    notify_url = request.build_absolute_uri(reverse("payfast_notify"))
-
-    # Payment “item” info
-    item_name = f"TA Invoice #{invoice_id}"
-    m_payment_id = f"INV{invoice_id}"  # your internal reference
-
-    # Payer details (best-effort)
-    first = getattr(request.user, "first_name", "") or "Customer"
-    last = getattr(request.user, "last_name", "") or "User"
-    email = getattr(request.user, "email", "") or "customer@example.com"
-
-    data = {
-        "merchant_id": merchant_id,
-        "merchant_key": merchant_key,
-        "return_url": return_url,
-        "cancel_url": cancel_url,
-        "notify_url": notify_url,
-        "m_payment_id": m_payment_id,
-        "amount": amount,
-        "item_name": item_name,
-        # optional meta
-        "name_first": first[:100],
-        "name_last": last[:100],
-        "email_address": email[:100],
-        # Custom vars you can read back in ITN (notify):
-        "custom_str1": str(invoice_id),
-        "custom_str2": "trade_assist",
-    }
-
-    # Signature (if passphrase configured)
-    signature = _build_signature(data, passphrase=passphrase)
-    data["signature"] = signature
-
-    # Render auto-posting form to PayFast sandbox endpoint
-    payfast_action = "https://sandbox.payfast.co.za/eng/process"  # switch to live when ready
-    return render(request, "payments/payfast_redirect.html", {
-        "action": payfast_action,
-        "fields": data,
-    })
 
 @login_required
 def wholesale_assist(request):
@@ -1066,6 +1000,9 @@ def _r2(x: Decimal | None) -> Decimal:
     return x.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 def product_detail(request, slug):
+    # =========================================================
+    # PRODUCT
+    # =========================================================
     product = get_object_or_404(
         Product.objects
         .select_related("category")
@@ -1084,48 +1021,82 @@ def product_detail(request, slug):
         slug=slug,
     )
 
-    # 🔹 We are wholesale-only on this view
+    # =========================================================
+    # USER / CLIENT CONTEXT  ✅ THIS WAS MISSING
+    # =========================================================
+    client = None
+    customer_profile = None
+
+    if request.user.is_authenticated:
+        # Resolve client exactly the same way as profile view
+        client = resolve_client_for_user(request.user, request=request)
+
+        # Ensure customer_profile exists (mirrors profile view logic)
+        customer_profile, _ = CustomerProfile.objects.get_or_create(
+            user=request.user,
+            defaults={
+                "display_name": request.user.get_full_name() or request.user.username,
+            }
+        )
+
+    # =========================================================
+    # CHANNEL
+    # =========================================================
     selected_channel = "wholesale"
 
-    # --- 1. Base wholesale price (ex VAT) for this product ---
+    # =========================================================
+    # BASE WHOLESALE PRICE (EX VAT)
+    # =========================================================
     def base_ex_for_product(p: Product) -> Decimal:
-        # a) Prefer Product.wholesale_price (via helper)
         base = p.price_for_channel("wholesale")
         if base and base > 0:
             return _r2(base)
 
-        # b) Fall back to first pricing row (already ordered primary/cheapest)
         row = next(iter(p.pricing_rows.all()), None)
         if not row:
             return Decimal("0.00")
+
         return _r2(row.wholesale_price_excl)
 
     base_ex_main = base_ex_for_product(product)
 
-    # --- 2. Build variant list with a wholesale display_price_ex ---
+    # =========================================================
+    # VARIANTS (DISPLAY PRICE EX VAT)
+    # =========================================================
     variant_list = []
     for v in product.variants.all():
         override = v.wholesale_price_override
-        derived = v.wholesale_derived  # uses product.wholesale_price * pack_size when scalable
+        derived = v.wholesale_derived
 
         if override not in (None, Decimal("0.00")):
             display = override
         elif derived not in (None, Decimal("0.00")):
             display = derived
         else:
-            display = base_ex_main  # fall back to product base wholesale
+            display = base_ex_main
 
         v.display_price_ex = _r2(display)
         variant_list.append(v)
 
+    # =========================================================
+    # CONTEXT  ✅ client + customer_profile INCLUDED
+    # =========================================================
     context = {
         "product": product,
-        # 👇 This is now DEFINITELY wholesale ex VAT
+
+        # Pricing
         "wholesale_ex": base_ex_main,
-        "selected_channel": selected_channel,  # template checks this
         "variants": variant_list,
         "typical_pack_sizes": [1.5, 2.5, 5, 10],
+
+        # Channel
+        "selected_channel": selected_channel,
+
+        # 🔑 REQUIRED FOR ADD-TO-CART GATE
+        "client": client,
+        "customer_profile": customer_profile,
     }
+
     return render(request, "home/product_detail.html", context)
 
 _CLIENT_HAS_USER_FK = any(f.name == "user" for f in Client._meta.fields)
@@ -1223,57 +1194,51 @@ def _resolve_client_for(user):
     return None
 
 
+
 @login_required
 def orders(request):
     """
-    Show ALL orders (no client filtering for now),
-    annotated with latest invoice info.
+    List all orders belonging to the signed-in client's account.
     """
 
-    # Base queryset: everything
-    qs = (
+    # Resolve client linked to this user
+    client = resolve_client_for_user(request.user, request=request)
+
+    if not client:
+        # Safety fallback: user has no client yet
+        return render(request, "orders/orders.html", {
+            "orders": [],
+            "client": None,
+        })
+
+    # Optional status filter (?status=pending)
+    status_filter = request.GET.get("status")
+
+    orders_qs = (
         Order.objects
-        .select_related("client")
-        .annotate(
-            sort_ts=Coalesce(
-                "submitted_at",
-                "order_date",
-                "updated_at",
-                Value(now()),
-            )
-        )
-        .order_by("-sort_ts", "-id")
+        .filter(client=client)
+        .select_related("client", "created_by", "approved_by")
+        .prefetch_related("items", "items__product")
+        .order_by("-submitted_at")
     )
 
-    # Latest invoice per order
-    latest_invoice = Invoice.objects.filter(order_id=OuterRef("pk")).order_by("-id")
+    if status_filter:
+        orders_qs = orders_qs.filter(status=status_filter)
 
-    qs = qs.annotate(
-        invoice_id=Subquery(latest_invoice.values("id")[:1]),
-        invoice_status=Subquery(latest_invoice.values("status")[:1]),
-        invoice_amount_due=Subquery(latest_invoice.values("amount_due")[:1]),
-        invoice_due_date=Subquery(latest_invoice.values("due_date")[:1]),
-    )
+    return render(request, "home/orders.html", {
+        "orders": orders_qs,
+        "client": client,
+        "status_filter": status_filter,
+    })
 
-    paginator = Paginator(qs, 25)
-    page_number = request.GET.get("page") or 1
-
-    try:
-        page_obj = paginator.page(page_number)
-    except (PageNotAnInteger, EmptyPage):
-        page_obj = paginator.page(1)
-
-    context = {
-        "orders_page": page_obj,          # page object
-        "orders_total": paginator.count,  # simple integer
-    }
-    return render(request, "home/orders.html", context)
 
 @login_required
 def profile(request):
     user = request.user
 
-    # ---- Resolve / create CustomerProfile ----
+    # =================================================
+    # RESOLVE / CREATE CUSTOMER PROFILE (GUARANTEED)
+    # =================================================
     customer_profile, _ = CustomerProfile.objects.get_or_create(
         user=user,
         defaults={
@@ -1281,47 +1246,193 @@ def profile(request):
         }
     )
 
-    # ---- Resolve / create Client ----
+    # =================================================
+    # RESOLVE CLIENT (SINGLE SOURCE OF TRUTH)
+    # =================================================
     client = resolve_client_for_user(user, request=request)
 
-    # ================= USER PROFILE =================
+    # -------------------------------------------------
+    # SAFETY: client must always exist for this view
+    # -------------------------------------------------
+    if client is None:
+        messages.error(request, "Unable to load business profile.")
+        return redirect("home")
+
+    # =================================================
+    # HANDLE FORMS
+    # =================================================
+
+    # ---- User Profile ----
+    user_form = UserProfileForm(instance=user)
     if request.method == "POST" and request.POST.get("form_type") == "user_profile":
         user_form = UserProfileForm(request.POST, instance=user)
         if user_form.is_valid():
             user_form.save()
             messages.success(request, "User profile updated successfully.")
             return redirect("profile")
-    else:
-        user_form = UserProfileForm(instance=user)
 
-    # ================= BUSINESS PROFILE =================
+    # ---- Business Profile ----
+    business_form = ClientBusinessForm(instance=client)
     if request.method == "POST" and request.POST.get("form_type") == "business_profile":
         business_form = ClientBusinessForm(request.POST, instance=client)
         if business_form.is_valid():
             business_form.save()
             messages.success(request, "Business profile updated successfully.")
             return redirect("profile")
-    else:
-        business_form = ClientBusinessForm(instance=client)
 
-    # ================= PERSONAL PROFILE =================
+    # ---- Personal Profile ----
+    personal_form = PersonalProfileForm(instance=customer_profile)
     if request.method == "POST" and request.POST.get("form_type") == "personal_profile":
         personal_form = PersonalProfileForm(request.POST, instance=customer_profile)
         if personal_form.is_valid():
             personal_form.save()
             messages.success(request, "Personal profile updated successfully.")
             return redirect("profile")
-    else:
-        personal_form = PersonalProfileForm(instance=customer_profile)
 
+    # =================================================
+    # PROFILE COMPLETENESS HELPERS
+    # =================================================
+    def is_filled(value):
+        return value is not None and str(value).strip() != ""
+
+    # ================= USER =================
+    user_profile_complete = all([
+        is_filled(user.first_name),
+        is_filled(user.last_name),
+        is_filled(user.email),
+    ])
+
+    # ================= PERSONAL =================
+    personal_profile_complete = all([
+        is_filled(customer_profile.display_name),
+        is_filled(customer_profile.phone),
+    ])
+
+    # ================= BUSINESS =================
+    business_overview_complete = True
+
+    business_contact_complete = all([
+        is_filled(client.name),
+        is_filled(client.contact_person),
+        is_filled(client.email),
+        is_filled(client.phone),
+    ])
+
+    business_address_complete = all([
+        is_filled(client.address_line1),
+        is_filled(client.suburb),
+        is_filled(client.city),
+        is_filled(client.province),
+        is_filled(client.postal_code),
+    ])
+
+    business_compliance_complete = all([
+        is_filled(client.price_type),
+        is_filled(client.estimated_weekly_spend),
+        is_filled(client.vat_number) or is_filled(client.company_reg_number),
+    ])
+
+    business_profile_complete = all([
+        business_contact_complete,
+        business_address_complete,
+        business_compliance_complete,
+    ])
+
+    # =================================================
+    # PROFILE COMPLETION %
+    # =================================================
+    completed_sections = [
+        user_profile_complete,
+        personal_profile_complete,
+        business_contact_complete,
+        business_address_complete,
+        business_compliance_complete,
+        business_overview_complete,
+        business_profile_complete,
+    ]
+
+    completed_count = sum(1 for s in completed_sections if s)
+    total_sections = len(completed_sections)
+
+    profile_completion_percent = (
+        int((completed_count / total_sections) * 100)
+        if total_sections else 0
+    )
+
+    # =================================================
+    # FIRST-TIME COMPLETION ACTION
+    # =================================================
+    show_profile_complete_popup = False
+
+    if profile_completion_percent == 100:
+        if not request.session.get("profile_completion_acknowledged"):
+            show_profile_complete_popup = True
+            request.session["profile_completion_acknowledged"] = True
+
+            create_support_task_for_new_registration(
+                request=request,
+                client=client,
+                user=user,
+            )
+
+    # =================================================
+    # RENDER
+    # =================================================
     return render(request, "home/profile.html", {
         "user_form": user_form,
         "business_form": business_form,
         "personal_form": personal_form,
+
+        # 🔑 CRITICAL CONTEXT (used by JS elsewhere)
         "client": client,
         "customer_profile": customer_profile,
+
+        # Completion flags
+        "user_profile_complete": user_profile_complete,
+        "personal_profile_complete": personal_profile_complete,
+        "business_profile_complete": business_profile_complete,
+
+        "business_overview_complete": business_overview_complete,
+        "business_contact_complete": business_contact_complete,
+        "business_address_complete": business_address_complete,
+        "business_compliance_complete": business_compliance_complete,
+
+        "profile_completion_percent": profile_completion_percent,
+        "show_profile_complete_popup": show_profile_complete_popup,
     })
 
+def create_support_task_for_new_registration(*, request, client, user):
+    """
+    Creates a one-time verification task for a newly completed client profile.
+    """
+
+    # Defensive: do not create duplicates
+    existing = Task.objects.filter(
+        title__icontains="Verify new client",
+        content_type=ContentType.objects.get_for_model(client),
+        object_id=client.id,
+    ).exists()
+
+    if existing:
+        return
+
+    Task.objects.create(
+        title=f"Verify new client: {client.name}",
+        description=(
+            f"A new client has completed their profile and requires verification.\n\n"
+            f"Client: {client.name}\n"
+            f"Contact person: {client.contact_person}\n"
+            f"Email: {client.email}\n\n"
+            f"Please verify this client within 30–60 minutes."
+        ),
+        status=Task.Status.PENDING,
+        priority=Task.Priority.HIGH,
+        department=Task.Department.COMPLIANCE,
+        created_by=user,
+        due_at=timezone.now() + timedelta(minutes=60),
+        content_type=ContentType.objects.get_for_model(client),
+        object_id=client.id,
+    )
     
 def _user_can_access_order(user, order) -> bool:
     if user.is_staff or user.is_superuser:
@@ -1343,93 +1454,6 @@ def _user_can_access_order(user, order: Order) -> bool:
     return bool(client and order.client_id == client.id)
 
 
-@login_required
-def order_view(request, pk):
-    """
-    Order detail page with inline PayFast 'Pay now' button when invoice is unpaid.
-    Expects settings:
-      - PAYFAST_USE_SANDBOX (bool)
-      - PAYFAST_PROCESS_URL (optional; else picked by USE_SANDBOX)
-      - PAYFAST_MERCHANT_ID / PAYFAST_MERCHANT_KEY (pair must match sandbox/live)
-      - PAYFAST_PASSPHRASE (optional, recommended)
-    """
-    # Fetch order (+ guard access)
-    order = get_object_or_404(
-        Order.objects.select_related("client").prefetch_related("items__product"),
-        pk=pk,
-    )
-    if not _user_can_access_order(request.user, order):
-        raise Http404("Order not found")
-
-    # Invoice (robust fetch)
-    invoice = getattr(order, "invoice", None) or Invoice.objects.filter(order_id=order.id).first()
-
-    ctx = {
-        "order": order,
-        "invoice": invoice,
-        "payfast_fields": None,
-        "PAYFAST_PROCESS_URL": None,
-    }
-
-    # Nothing to prepare if there isn't an unpaid balance
-    status = (getattr(invoice, "status", "") or "").lower() if invoice else ""
-    amount_due = Decimal(getattr(invoice, "amount_due", 0) or 0) if invoice else Decimal("0.00")
-    if not (invoice and status != "paid" and amount_due > 0):
-        return render(request, "home/view_order.html", ctx)
-
-    # Build absolute URLs from named routes (no namespace used in your urls.py)
-    return_url = request.build_absolute_uri(reverse("payfast_return"))
-    cancel_url = request.build_absolute_uri(reverse("payfast_cancel"))
-    notify_url = request.build_absolute_uri(reverse("payfast_ipn"))
-
-    # Format amount: 2 decimals, dot separator
-    amt = amount_due.quantize(Decimal("0.01"))
-    amount_str = f"{amt:.2f}"
-
-    # Choose endpoint & creds (sandbox vs live)
-    use_sandbox = getattr(settings, "PAYFAST_USE_SANDBOX", True)
-    process_url = (
-        getattr(settings, "PAYFAST_PROCESS_URL", None)
-        or ("https://sandbox.payfast.co.za/eng/process" if use_sandbox else "https://www.payfast.co.za/eng/process")
-    )
-    merchant_id = getattr(settings, "PAYFAST_MERCHANT_ID", "")
-    merchant_key = getattr(settings, "PAYFAST_MERCHANT_KEY", "")
-
-    # Build the minimum required field set
-    pf = {
-        "merchant_id": merchant_id,
-        "merchant_key": merchant_key,
-        "return_url": return_url,
-        "cancel_url": cancel_url,
-        "notify_url": notify_url,
-        "m_payment_id": (str(getattr(invoice, "uuid", "")) or f"INV-{invoice.id}"),
-        "amount": amount_str,
-        "item_name": f"Invoice {getattr(invoice, 'number', f'INV-{invoice.id}')}",
-        "email_address": getattr(request.user, "email", "") or "",
-        # Optional extras (uncomment as needed):
-        # "name_first": request.user.first_name or "",
-        # "name_last": request.user.last_name or "",
-        # "custom_str1": str(request.user.id),
-    }
-
-    # Signature (recommended if you configured a passphrase in your PayFast dashboard)
-    passphrase = getattr(settings, "PAYFAST_PASSPHRASE", "")
-    if passphrase:
-        # PayFast requires URL-encoded string of fields in key order + &passphrase=...
-        query = urlencode(pf)
-        sign_str = f"{query}&passphrase={passphrase}"
-        pf["signature"] = hashlib.md5(sign_str.encode("utf-8")).hexdigest()
-        # If your account is set to SHA256, switch to:
-        # pf["signature"] = hashlib.sha256(sign_str.encode("utf-8")).hexdigest()
-
-    # Optional debug log to verify endpoint/merchant pairing
-    log.info("PayFast post → url=%s id=%r key=%r amount=%s", process_url, merchant_id, merchant_key, amount_str)
-
-    ctx.update({
-        "payfast_fields": pf,
-        "PAYFAST_PROCESS_URL": process_url,
-    })
-    return render(request, "home/view_order.html", ctx)
 
 
 def about(request):
@@ -1818,31 +1842,57 @@ def _get_client_for_user(user):
     except Exception:
         return None
 
+def generate_payfast_signature(data, passphrase=None):
+    pairs = []
+
+    for key, value in data:
+        if value != "":
+            encoded = urllib.parse.quote_plus(str(value))
+            pairs.append(f"{key}={encoded}")
+
+    param_string = "&".join(pairs)
+
+    if passphrase:
+        param_string += f"&passphrase={passphrase}"
+
+    print("\nPAYFAST PARAM STRING (FINAL):")
+    print(param_string)
+
+    signature = hashlib.md5(param_string.encode("utf-8")).hexdigest()
+
+    print("PAYFAST SIGNATURE:")
+    print(signature)
+
+    return signature
+    
 
 @login_required
 def checkout(request):
     """
     Turn the session cart into a real Order + OrderItems, then auto-approve and redirect.
-    GET  -> simple confirmation (or skip straight to POST if you prefer).
-    POST -> create order from session cart and redirect to view-order.
+
+    GET  -> confirmation page
+    POST -> create order from session cart and redirect to view-order
     """
-    # 1) Read session cart (uses your existing helper)
+
+    # =========================================================
+    # 1) LOAD CART (SESSION SAFE)
+    # =========================================================
     scart = _get_session_cart(request)
-    _calc_cart_totals(scart)  # ensure totals up to date
+    _calc_cart_totals(scart)  # MUST only write STRINGS to session
 
     # Guard: empty cart
     if not scart.get("lines"):
         messages.info(request, "Your cart is empty.")
         return redirect("cart")
 
-    # 2) Resolve client from the user's customer profile
-    #    - Business profiles must have a linked Client
-    #    - Personal profiles can also link to a Client or you can choose to create one
+    # =========================================================
+    # 2) RESOLVE CLIENT
+    # =========================================================
     profile = getattr(request.user, "customer_profile", None)
     client: Client | None = None
-    if profile and profile.profile_type == "BUSINESS" and profile.client_id:
-        client = profile.client
-    elif profile and profile.profile_type == "PERSONAL" and profile.client_id:
+
+    if profile and profile.client_id:
         client = profile.client
 
     if client is None:
@@ -1850,13 +1900,22 @@ def checkout(request):
             request,
             "Please complete your profile and link a client before checking out."
         )
-        return redirect("profile")  # change to your profile route name
+        return redirect("profile")
 
+    if client.status != "ACTIVE":
+        messages.error(
+            request,
+            "Your account is not yet verified. Please wait for approval before checkout."
+        )
+        return redirect("cart")
+
+    # =========================================================
+    # 3) GET → CONFIRMATION
+    # =========================================================
     if request.method == "GET":
-        # Optional confirmation page – shows a summary using the cart template snippet
         return render(request, "home/checkout_confirm.html", {
             "cart": {
-                "lines": scart["lines"],
+                "lines": scart.get("lines", []),
                 "subtotal_excl": scart.get("subtotal_excl"),
                 "vat_total": scart.get("vat_total"),
                 "total_incl": scart.get("total_incl"),
@@ -1864,95 +1923,369 @@ def checkout(request):
             "client": client,
         })
 
-    # 3) POST: create Order + OrderItems inside a single transaction
+    # =========================================================
+    # 4) POST → CREATE ORDER (ATOMIC)
+    # =========================================================
     with transaction.atomic():
+
         order = Order.objects.create(
             client=client,
             created_by=request.user,
             channel="WEB",
-            status="pending",     # will be flipped to approved below
+            status="pending",
             customer_notes=request.POST.get("customer_notes", "").strip(),
         )
 
-        # Build items from session cart lines
         items_to_create: list[OrderItem] = []
+
         for ln in scart.get("lines", []):
             try:
-                product = Product.objects.select_related("category").get(pk=ln["product_id"])
-            except Product.DoesNotExist:
-                # skip bad/missing products gracefully
+                product = Product.objects.select_related("category").get(
+                    pk=ln["product_id"]
+                )
+            except (Product.DoesNotExist, KeyError):
                 continue
 
-            qty = Decimal(str(ln.get("qty", 1)))
-            unit = Decimal(str(ln.get("unit_price_excl", "0")))
+            # 🔐 Convert SESSION STRINGS → DECIMAL
+            qty = Decimal(str(ln.get("qty", "1")))
+            unit_price_excl = Decimal(str(ln.get("unit_price_excl", "0.00")))
+
+            if qty <= 0:
+                continue
 
             items_to_create.append(
                 OrderItem(
                     order=order,
                     category=product.category,
                     product=product,
-                    sku=ln.get("sku", "") or (product.sku or ""),
-                    product_name=ln.get("name", "") or product.name,
-                    uom=ln.get("uom", "") or product.uom,  # snapshot
+                    sku=ln.get("sku") or product.sku or "",
+                    product_name=ln.get("name") or product.name,
+                    uom=ln.get("uom") or product.uom,
                     quantity=qty,
-                    unit_price_excl=unit,
-                    # discount_excl defaults to 0.00; vat_percent defaults to 0.00
+                    unit_price_excl=unit_price_excl,
+                    # discount_excl defaults to 0.00
+                    # vat_percent defaults to 0.00
                 )
             )
 
-        if items_to_create:
-            OrderItem.objects.bulk_create(items_to_create)
-        else:
-            # No valid lines -> abort
+        if not items_to_create:
             order.delete()
-            messages.error(request, "We couldn’t create your order because no valid items were found.")
+            messages.error(
+                request,
+                "We couldn’t create your order because no valid items were found."
+            )
             return redirect("cart")
 
-        # Compute order totals/snapshots
+        OrderItem.objects.bulk_create(items_to_create)
+
+        # Snapshot totals
         order.recalc_totals(save=True)
 
-        # 4) Auto-approve (this will also ensure invoice + delivery artifacts)
+        # =====================================================
+        # 5) AUTO-APPROVE
+        # =====================================================
         try:
             order.mark_approved(request.user)
         except Exception:
-            # defensive fallback; normally not needed
-            from django.utils.timezone import now
+            # Defensive fallback
             order.status = "approved"
             order.approved_by = request.user
             order.approved_at = now()
-            order.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
+            order.save(update_fields=[
+                "status", "approved_by", "approved_at", "updated_at"
+            ])
 
-    # 5) Clear the cart and redirect to the order view
-    request.session["cart"] = {"lines": []}
+    # =========================================================
+    # 6) CLEAR CART (JSON SAFE)
+    # =========================================================
+    request.session["cart"] = {
+        "lines": [],
+        "subtotal_excl": "0.00",
+        "vat_total": "0.00",
+        "total_incl": "0.00",
+    }
     request.session.modified = True
 
-    messages.success(request, f"Order #{order.id} has been placed and approved.")
+    messages.success(
+        request,
+        f"Order #{order.id} has been placed and approved."
+    )
+
     return redirect("view-order", pk=order.id)
 
+@login_required
+def payfast_start(request):
+    if request.method != "POST":
+        return HttpResponseBadRequest("Invalid method")
+
+    invoice_id = request.POST.get("invoice_id")
+    amount_raw = request.POST.get("amount")
+
+    # Basic validation
+    if not invoice_id or not amount_raw:
+        return HttpResponseBadRequest("Missing parameters")
+
+    # Optional: verify invoice & outstanding matches your DB to prevent tampering
+    # try:
+    #     inv = Invoice.objects.get(pk=invoice_id, client__user=request.user)
+    # except Invoice.DoesNotExist:
+    #     raise Http404("Invoice not found")
+    # if Decimal(amount_raw).quantize(Decimal("0.01")) != inv.ta_outstanding.quantize(Decimal("0.01")):
+    #     return HttpResponseBadRequest("Amount mismatch")
+
+    # Prepare PayFast payload
+    amount = _format_amount(Decimal(amount_raw))
+    merchant_id = settings.PAYFAST_MERCHANT_ID
+    merchant_key = settings.PAYFAST_MERCHANT_KEY
+    passphrase = getattr(settings, "PAYFAST_PASSPHRASE", "")
+
+    # Build absolute return / notify / cancel URLs
+    return_url = request.build_absolute_uri(reverse("payfast_return"))
+    cancel_url = request.build_absolute_uri(reverse("payfast_cancel"))
+    notify_url = request.build_absolute_uri(reverse("payfast_notify"))
+
+    # Payment “item” info
+    item_name = f"TA Invoice #{invoice_id}"
+    m_payment_id = f"INV{invoice_id}"  # your internal reference
+
+    # Payer details (best-effort)
+    first = getattr(request.user, "first_name", "") or "Customer"
+    last = getattr(request.user, "last_name", "") or "User"
+    email = getattr(request.user, "email", "") or "customer@example.com"
+
+    data = {
+        "merchant_id": merchant_id,
+        "merchant_key": merchant_key,
+        "return_url": return_url,
+        "cancel_url": cancel_url,
+        "notify_url": notify_url,
+        "m_payment_id": m_payment_id,
+        "amount": amount,
+        "item_name": item_name,
+        # optional meta
+        "name_first": first[:100],
+        "name_last": last[:100],
+        "email_address": email[:100],
+        # Custom vars you can read back in ITN (notify):
+        "custom_str1": str(invoice_id),
+        "custom_str2": "trade_assist",
+    }
+
+    # Signature (if passphrase configured)
+    signature = _build_signature(data, passphrase=passphrase)
+    data["signature"] = signature
+
+    # Render auto-posting form to PayFast sandbox endpoint
+    payfast_action = "https://sandbox.payfast.co.za/eng/process"  # switch to live when ready
+    return render(request, "payments/payfast_redirect.html", {
+        "action": payfast_action,
+        "fields": data,
+    })
+
+@login_required
+def payfast_return(request):
+    messages.success(request, "Payment received. Awaiting confirmation.")
+    return redirect("orders")
 
 
 @login_required
-def view_order(request, order_id: int):
-    """
-    Minimal order detail page so the redirect has somewhere to land.
-    """
-    order = get_object_or_404(
-        Order.objects.select_related("client").prefetch_related("items__product", "items__category"),
-        pk=order_id
-    )
-    return render(request, "home/view_order.html", {"order": order})
-
-
-def payfast_return(request):
-    return HttpResponse("Thanks! We'll email you a receipt shortly.")
-
 def payfast_cancel(request):
-    return HttpResponse("Payment cancelled.")
+    messages.warning(request, "Payment was cancelled.")
+    return redirect("orders")
 
 @csrf_exempt  # PayFast posts from their servers
 def payfast_ipn(request):
     # TODO: verify signature, amount, source IP, etc., then mark invoice paid.
     return HttpResponse("OK")
+
+
+@login_required
+def view_order(request, pk: int):
+    """
+    Display a single order belonging to the signed-in client.
+    """
+
+    # Resolve the client linked to this user
+    client = resolve_client_for_user(request.user, request=request)
+
+    if not client:
+        return render(request, "home/view_order.html", {
+            "order": None,
+            "client": None,
+            "invoice": None,
+        })
+
+    # Fetch the order securely (must belong to this client)
+    order = get_object_or_404(
+        Order.objects
+        .select_related("client", "created_by", "approved_by")
+        .prefetch_related("items", "items__product"),
+        pk=pk,
+        client=client,
+    )
+
+    # Fetch invoice (may or may not exist yet)
+    invoice = Invoice.objects.filter(order=order).first()
+
+    return render(request, "home/view_order.html", {
+        "order": order,
+        "client": client,
+        "invoice": invoice,
+    })
+
+logger = logging.getLogger(__name__)
+
+@csrf_exempt
+def payfast_itn(request):
+    data = request.POST.dict()
+
+    # 1) Verify signature
+    signature = data.pop("signature", None)
+
+    def generate_signature(data, passphrase=None):
+        pairs = []
+        for key in sorted(data.keys()):
+            pairs.append(f"{key}={data[key]}")
+        payload = "&".join(pairs)
+        if passphrase:
+            payload += f"&passphrase={passphrase}"
+        return hashlib.md5(payload.encode("utf-8")).hexdigest()
+
+    expected = generate_signature(data, settings.PAYFAST_PASSPHRASE)
+    if signature != expected:
+        return HttpResponse("Invalid signature", status=400)
+
+    # 2) Confirm payment
+    if data.get("payment_status") == "COMPLETE":
+        invoice_id = data.get("m_payment_id").replace("INV-", "")
+        invoice = Invoice.objects.get(pk=invoice_id)
+
+        invoice.mark_paid(
+            amount=data.get("amount_gross"),
+            payment_reference=data.get("pf_payment_id")
+        )
+
+    return HttpResponse("OK")
+
+
+
+@login_required
+def pay_invoice(request, pk):
+    if request.method != "GET":
+        return HttpResponse(status=405)
+
+    client = resolve_client_for_user(request.user, request=request)
+
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("order", "order__client"),
+        pk=pk,
+        order__client=client
+    )
+
+    # 🔒 PAYFAST FIELD ORDER (EXACT)
+    signature_data = [
+        ("merchant_id", settings.PAYFAST_MERCHANT_ID),
+        ("return_url", "http://127.0.0.1:8000/payfast/return/"),
+        ("cancel_url", "http://127.0.0.1:8000/payfast/cancel/"),
+        ("notify_url", "http://127.0.0.1:8000/payfast/itn/"),
+
+        ("name_first", "Victor"),
+        ("name_last", "Motaung"),
+        ("email_address", "Viktormotaung@gmail.com"),
+
+        ("m_payment_id", f"INV-{invoice.id}"),
+        ("amount", f"{invoice.amount_due:.2f}"),
+        ("item_name", f"Invoice #{invoice.id}"),
+    ]
+
+    # ✅ Generate signature (NO merchant_key here)
+    signature = generate_payfast_signature(
+        signature_data,
+        settings.PAYFAST_PASSPHRASE
+    )
+
+    # ✅ Build POST data (merchant_key IS INCLUDED HERE)
+    payfast_data = dict(signature_data)
+    payfast_data["merchant_key"] = settings.PAYFAST_MERCHANT_KEY
+    payfast_data["signature"] = signature
+
+    return render(request, "home/payfast_redirect.html", {
+        "payfast_url": settings.PAYFAST_PROCESS_URL,
+        "data": payfast_data,
+    })
+
+
+    # ✅ Generate signature (NO merchant_key here)
+    signature = generate_payfast_signature(
+        signature_data,
+        settings.PAYFAST_PASSPHRASE
+    )
+
+    # ✅ Build POST data (merchant_key IS INCLUDED HERE)
+    payfast_data = dict(signature_data)
+    payfast_data["merchant_key"] = settings.PAYFAST_MERCHANT_KEY
+    payfast_data["signature"] = signature
+
+    return render(request, "home/payfast_redirect.html", {
+        "payfast_url": settings.PAYFAST_PROCESS_URL,
+        "data": payfast_data,
+    })
+
+
+
+@csrf_exempt
+def payfast_itn(request):
+    data = request.POST.dict()
+
+    # 1️⃣ Verify signature
+    received_signature = data.pop("signature", "")
+    calculated_signature = generate_payfast_signature(data)
+
+    if received_signature != calculated_signature:
+        return HttpResponse("Invalid signature", status=400)
+
+    # 2️⃣ Validate with PayFast
+    response = requests.post(
+        settings.PAYFAST_PROCESS_URL.replace("/eng/process", "/eng/query/validate"),
+        data=data,
+        timeout=10
+    )
+
+    if response.text.strip().lower() != "valid":
+        return HttpResponse("Invalid PayFast response", status=400)
+
+    # 3️⃣ Process payment
+    payment_id = data.get("m_payment_id", "")
+    if not payment_id.startswith("INV-"):
+        return HttpResponse("Invalid payment reference", status=400)
+
+    invoice_id = int(payment_id.replace("INV-", ""))
+    invoice = Invoice.objects.select_for_update().get(pk=invoice_id)
+
+    if invoice.amount_due > 0:
+        invoice.mark_paid(
+            reference=data.get("pf_payment_id"),
+            paid_at=now()
+        )
+
+    return HttpResponse("OK")
+
+@login_required
+def view_invoice(request, pk):
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("order", "order__client"),
+        pk=pk,
+        order__client=resolve_client_for_user(request.user, request=request),
+    )
+
+    return render(request, "home/view_invoice.html", {
+        "invoice": invoice,
+        "client": invoice.order.client,
+    })
+
+
+
+
 
 def _redirect_after_register(request: HttpRequest) -> str:
     """
@@ -1969,7 +2302,8 @@ def register_profile(request: HttpRequest) -> HttpResponse:
     """
     Minimal registration flow:
     1) Create User (email = username)
-    2) Create Client (minimal fields only, status=ACTIVE)
+    2) Create Client (minimal fields only, status=PENDING)
+
     3) Create Business CustomerProfile linked to User + Client
        (display_name enforced as client.name at model level)
 
@@ -1978,7 +2312,7 @@ def register_profile(request: HttpRequest) -> HttpResponse:
     - Send welcome email
     - Redirect to success page
     """
-
+    
     def _blank_ctx():
         return {
             "user_form": RegisterUserForm(prefix="user"),
@@ -2047,7 +2381,7 @@ def register_profile(request: HttpRequest) -> HttpResponse:
 
         # ---- 2) CLIENT (MINIMAL) ----
         client = client_form.save(commit=False)
-        client.status = "ACTIVE"
+        client.status = "PENDING"  
         client.account_manager = None
         client.save()
 
@@ -2127,7 +2461,7 @@ def register_success(request):
         }
     )
 
-def create_support_task_for_new_registration(request, client, profile, user):
+
     # Safe URL building
     try:
         client_url = request.build_absolute_uri(reverse("client-view", args=[client.id]))

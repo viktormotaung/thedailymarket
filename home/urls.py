@@ -23,7 +23,6 @@ urlpatterns = [
     # Client tabs
     path("products/", views.products, name="products"),
     path("products/<slug:slug>/", views.product_detail, name="product-detail"),
-    path("orders/", views.orders, name="orders"),
     path("cart/", views.cart, name="cart"),
     path("wholesale_assist/", views.wholesale_assist, name="wholesale_assist"),
     path("grill/", views.grill, name="grill"),
@@ -35,13 +34,22 @@ urlpatterns = [
     path("profile/", views.profile, name="profile"),
 
     path("checkout/", views.checkout, name="checkout"),
-    path("orders/<int:pk>/", views.order_view, name="view-order"),
-    path("orders/<int:pk>/", views.order_view, name="order-detail"),
+    path("orders/<int:pk>/", views.view_order, name="view-order"),
+    path("orders/", views.orders, name="orders"),
+    path("invoice/<int:pk>/", views.view_invoice, name="view-invoice"),
+    path("invoice/<int:pk>/pay/", views.pay_invoice, name="pay-invoice"),
+    path("invoice/<int:pk>/pay/", views.pay_invoice, name="pay-invoice"),
+
+
+
+
+    
 
     # PayFast endpoints
-    path("payments/return/", views.payfast_return, name="payfast_return"),
-    path("payments/cancel/", views.payfast_cancel, name="payfast_cancel"),
-    path("payments/payfast/ipn/", views.payfast_ipn, name="payfast_ipn"),
+    path("payfast/return/", views.payfast_return, name="payfast-return"),
+    path("payfast/cancel/", views.payfast_cancel, name="payfast-cancel"),
+    path("payfast/itn/", views.payfast_itn, name="payfast-itn"),
+
 
     # ---------- Password reset (OTP) ----------
     path("password-reset/", views.OtpResetPageView.as_view(), name="password-reset-otp"),

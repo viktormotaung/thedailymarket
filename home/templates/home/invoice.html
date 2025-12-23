@@ -1,0 +1,83 @@
+{% if order.invoice %}
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+  <div class="card-body p-4">
+
+    <h6 class="fw-semibold mb-3">Invoice Summary</h6>
+
+    <!-- STATUS -->
+    <div class="d-flex justify-content-between mb-2">
+      <span class="text-muted">Invoice Status</span>
+      <span class="badge
+        {% if order.invoice.status == 'paid' %} bg-success
+        {% elif order.invoice.status == 'partial' %} bg-warning text-dark
+        {% elif order.invoice.status == 'overdue' %} bg-danger
+        {% else %} bg-secondary
+        {% endif %}
+      ">
+        {{ order.invoice.get_status_display }}
+      </span>
+    </div>
+
+    <!-- TOTAL -->
+    <div class="d-flex justify-content-between mb-2">
+      <span class="text-muted">Invoice Total</span>
+      <span>
+        R {{ order.invoice.order_total_inc|floatformat:2|intcomma }}
+      </span>
+    </div>
+
+    <!-- DEPOSIT -->
+    <div class="d-flex justify-content-between mb-2">
+      <span class="text-muted">Deposit Required</span>
+      <span>
+        R {{ order.invoice.deposit_required|floatformat:2|intcomma }}
+      </span>
+    </div>
+
+    <div class="d-flex justify-content-between mb-2">
+      <span class="text-muted">Deposit Paid</span>
+      <span>
+        R {{ order.invoice.deposit_paid|floatformat:2|intcomma }}
+      </span>
+    </div>
+
+    {% if order.invoice.credit_used > 0 %}
+    <div class="d-flex justify-content-between mb-2">
+      <span class="text-muted">On Credit</span>
+      <span>
+        R {{ order.invoice.credit_used|floatformat:2|intcomma }}
+      </span>
+    </div>
+    {% endif %}
+
+    <hr>
+
+    <!-- AMOUNT DUE -->
+    <div class="d-flex justify-content-between fw-semibold mb-3">
+      <span>Amount Due Now</span>
+      <span>
+        R {{ order.invoice.amount_due|floatformat:2|intcomma }}
+      </span>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="d-grid gap-2">
+
+      <button class="btn btn-outline-primary"
+              data-bs-toggle="modal"
+              data-bs-target="#invoiceModal">
+        View Invoice
+      </button>
+
+      {% if order.invoice.amount_due > 0 %}
+        <a href="{% url 'pay-invoice' order.invoice.id %}"
+           class="btn btn-success">
+          Pay Deposit
+        </a>
+      {% endif %}
+
+    </div>
+
+  </div>
+</div>
+{% endif %}

@@ -190,155 +190,103 @@
     </div>
   </nav>
 
-  <!-- Main -->
-  <section class="py-4 site-main">
-    <div class="container" style="max-width:1200px;">
+  {% block content %}
+  <main class="container py-4" style="max-width:1200px;">
 
-      <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
-        <div>
-          <h1 class="h4 mb-1">My Orders</h1>
-          <div class="text-muted small">
-            {% if orders.paginator.count %}
-              {{ orders.paginator.count|intcomma }} total
-            {% else %}
-              0 orders
-            {% endif %}
-          </div>
-        </div>
-      </div>
+    <!-- ===== Page Header ===== -->
+    <div class="mb-4">
+      <h1 class="h4 mb-1">My Orders</h1>
+      <p class="text-muted mb-0">
+        View and track your past and current orders
+      </p>
+    </div>
 
-      {% if messages %}
-        {% for message in messages %}
-          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
+    <!-- ===== Orders Card ===== -->
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-body p-0">
 
-      {% if orders and orders.object_list %}
-        <div class="card border-0 shadow-sm">
-          <div class="table-responsive">
-            <table class="table align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th style="width:110px;">Order #</th>
-                  <th>Client</th>
-                  <th style="width:160px;">Date</th>
-                  <th style="width:160px;">Status</th>
-                  <th class="text-end" style="width:160px;">Total (inc)</th>
-                  <th style="width:220px;">Invoice</th>
-                  <th class="text-end" style="width:160px;"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for o in orders.object_list %}
-                  <tr>
-                    <td class="small-mono">#{{ o.id }}</td>
-                    <td>
-                      {% if o.client %}{{ o.client.name|default:o.client }}{% else %}—{% endif %}
-                    </td>
-                    <td class="small">
-                      {% if o.submitted_at %}
-                        {{ o.submitted_at|date:"Y-m-d H:i" }}
-                      {% elif o.order_date %}
-                        {{ o.order_date|date:"Y-m-d" }}
-                      {% else %}
-                        —
-                      {% endif %}
-                    </td>
-                    <td>
-                      <span class="badge
-                        {% if o.status == 'complete' %}bg-success
-                        {% elif o.status == 'approved' %}bg-primary
-                        {% elif o.status == 'pending' %}bg-secondary
-                        {% elif o.status == 'cancelled' %}bg-danger
-                        {% elif o.status == 'ready_for_delivery' %}bg-info
-                        {% elif o.status == 'out_for_delivery' %}bg-warning text-dark
-                        {% else %}bg-light text-dark{% endif %}">
-                        {{ o.get_status_display|default:o.status }}
-                      </span>
-                    </td>
-                    <td class="text-end small-mono">
-                      {% if o.grand_total_inc %}
-                        R {{ o.grand_total_inc|floatformat:2|intcomma }}
-                      {% elif o.total_incl %}
-                        R {{ o.total_incl|floatformat:2|intcomma }}
-                      {% else %}—{% endif %}
-                    </td>
-                    <td>
-                      {% if o.invoice_id %}
-                        <div class="d-flex flex-column gap-1">
-                          <div class="d-flex align-items-center gap-2">
-                            <span class="small-mono">INV{{ o.invoice_id|stringformat:"06d" }}</span>
-                            <span class="badge
-                              {% if o.invoice_status == 'paid' %}bg-success
-                              {% elif o.invoice_status == 'unpaid' %}bg-warning text-dark
-                              {% elif o.invoice_status == 'overdue' %}bg-danger
-                              {% else %}bg-secondary{% endif %}">
-                              {{ o.invoice_status|capfirst }}
-                            </span>
-                          </div>
-                          <div class="small text-muted">
-                            {% if o.invoice_amount_due is not None %}
-                              Due: R {{ o.invoice_amount_due|floatformat:2|intcomma }}
-                            {% endif %}
-                            {% if o.invoice_due_date %}
-                              • by {{ o.invoice_due_date|date:"Y-m-d" }}
-                            {% endif %}
-                          </div>
-                        </div>
-                      {% else %}
-                        <span class="text-muted small">—</span>
-                      {% endif %}
-                    </td>
-                    <td class="text-end">
-                      <a href="{% url 'view-order' o.id %}" class="btn btn-sm btn-brand">
-                        <i class="bi bi-eye me-1"></i>View
-                      </a>
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {% if orders %}
 
-        {% if orders.paginator.num_pages > 1 %}
-          <nav aria-label="Orders pagination" class="mt-3">
-            <ul class="pagination justify-content-center">
-              {% if orders.has_previous %}
-                <li class="page-item"><a class="page-link" href="?page={{ orders.previous_page_number }}">Prev</a></li>
-              {% else %}
-                <li class="page-item disabled"><span class="page-link">Prev</span></li>
-              {% endif %}
+        <div class="table-responsive">
+          <table class="table align-middle mb-0 table-hover">
 
-              {% for num in orders.paginator.page_range %}
-                {% if num == orders.number %}
-                  <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                {% elif num > orders.number|add:-3 and num < orders.number|add:3 %}
-                  <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
-                {% endif %}
+            <thead class="table-light">
+              <tr>
+                <th class="ps-4">Order #</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th class="text-end">Total</th>
+                <th class="text-end pe-4"></th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {% for order in orders %}
+              <tr
+                class="order-row"
+                role="button"
+                onclick="window.location.href='{% url 'view-order' order.id %}'"
+
+              >
+                <td class="ps-4 fw-semibold">
+                  {{ order.order_number|default:order.id }}
+                </td>
+
+                <td>
+                  {{ order.submitted_at|date:"d M Y" }}
+                </td>
+
+                <td>
+                  <span class="badge
+                    {% if order.status == 'PENDING' %} bg-warning
+                    {% elif order.status == 'APPROVED' %} bg-primary
+                    {% elif order.status == 'DELIVERED' %} bg-success
+                    {% elif order.status == 'CANCELLED' %} bg-secondary
+                    {% else %} bg-light text-dark
+                    {% endif %}">
+                    {{ order.get_status_display }}
+                  </span>
+                </td>
+
+                <td class="text-end fw-semibold">
+                  {% if order.grand_total %}
+                    R {{ order.grand_total|floatformat:2 }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+
+
+                <td class="text-end pe-4">
+                  <i class="bi bi-chevron-right text-muted"></i>
+                </td>
+              </tr>
               {% endfor %}
+            </tbody>
 
-              {% if orders.has_next %}
-                <li class="page-item"><a class="page-link" href="?page={{ orders.next_page_number }}">Next</a></li>
-              {% else %}
-                <li class="page-item disabled"><span class="page-link">Next</span></li>
-              {% endif %}
-            </ul>
-          </nav>
-        {% endif %}
-      {% else %}
-        <div class="text-center text-muted py-5">
-          <i class="bi bi-receipt fs-1 d-block mb-2"></i>
-          <p class="lead mb-1">No orders yet</p>
-          <p>When you place an order, it will show up here.</p>
-          <a class="btn btn-outline-secondary" href="{% url 'products' %}">
-            <i class="bi bi-box-seam me-1"></i>Browse Products
+          </table>
+        </div>
+
+        {% else %}
+
+        <!-- ===== Empty State ===== -->
+        <div class="text-center py-5">
+          <i class="bi bi-bag fs-1 text-muted mb-3"></i>
+          <h6 class="fw-semibold">No orders yet</h6>
+          <p class="text-muted mb-3">
+            You haven’t placed any orders yet.
+          </p>
+          <a href="{% url 'products' %}" class="btn btn-brand">
+            Start Shopping
           </a>
         </div>
-      {% endif %}
 
+        {% endif %}
+      </div>
     </div>
-  </section>
+
+  </main>
+  {% endblock %}
 
   <!-- Footer -->
   <footer class="text-white mt-auto" style="background:var(--brand);">

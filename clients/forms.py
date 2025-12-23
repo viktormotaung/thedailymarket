@@ -537,7 +537,6 @@ class ClientBusinessForm(forms.ModelForm):
             "whatsapp",
             "client_type",
             "client_size_tier",
-            "categories",
 
             # --- Address ---
             "address_line1",
@@ -562,10 +561,5 @@ class ClientBusinessForm(forms.ModelForm):
             "company_reg_number",
             "price_type",
             "estimated_weekly_spend",
-            "notes",
+           
         ]
-
-        widgets = {
-            "notes": forms.Textarea(attrs={"rows": 4}),
-            "categories": forms.CheckboxSelectMultiple(),
-        }

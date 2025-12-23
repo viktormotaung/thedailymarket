@@ -106,11 +106,7 @@
   </style>
 </head>
 <body>
-  <!-- Auth/Profile flags for JS gating -->
-  <script>
-    const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};
-    const HAS_PROFILE = {% if request.user.is_authenticated and request.user.customer_profile %}true{% else %}false{% endif %};
-  </script>
+  
 
   <!-- ===== NAV (mobile) ===== -->
   <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
@@ -272,255 +268,218 @@
   </nav>
 
   <!-- ===== Header / top summary ===== -->
-  <section class="hero py-4">
-    <div class="container">
-      <nav aria-label="breadcrumb" class="small mb-2">
-        <ol class="breadcrumb mb-0">
-          <li class="breadcrumb-item"><a href="{% url 'products' %}">Products</a></li>
-          <li class="breadcrumb-item">
-            <a href="{% url 'products' %}?category={{ product.category.id }}">{{ product.category.name }}</a>
-          </li>
-          <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
-        </ol>
-      </nav>
+<section class="hero py-4">
+  <div class="container">
+    <nav aria-label="breadcrumb" class="small mb-2">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item">
+          <a href="{% url 'products' %}">Products</a>
+        </li>
+        <li class="breadcrumb-item">
+          <a href="{% url 'products' %}?category={{ product.category.id }}">
+            {{ product.category.name }}
+          </a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">
+          {{ product.name }}
+        </li>
+      </ol>
+    </nav>
 
-      <div class="row g-4 align-items-start">
-        <div class="col-md-5">
-          {% if product.image %}
-            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid rounded shadow-sm">
-          {% else %}
-            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height:320px;">
-              <i class="bi bi-image text-muted" style="font-size:3rem;"></i>
-            </div>
-          {% endif %}
+    <div class="row g-4 align-items-start">
+      <div class="col-md-5">
+        {% if product.image %}
+          <img src="{{ product.image.url }}"
+               alt="{{ product.name }}"
+               class="img-fluid rounded shadow-sm">
+        {% else %}
+          <div class="bg-light rounded d-flex align-items-center justify-content-center"
+               style="height:320px;">
+            <i class="bi bi-image text-muted" style="font-size:3rem;"></i>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="col-md-7">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <h1 class="h3 mb-0">{{ product.name }}</h1>
+          <span class="badge rounded-pill
+            {% if product.is_available|default:True %}
+              badge-available
+            {% else %}
+              badge-out
+            {% endif %}">
+            {% if product.is_available|default:True %}
+              In stock
+            {% else %}
+              Out
+            {% endif %}
+          </span>
         </div>
 
-        <div class="col-md-7">
-          <div class="d-flex align-items-center gap-2 mb-1">
-            <h1 class="h3 mb-0">{{ product.name }}</h1>
-            <span class="badge rounded-pill {% if product.is_available|default:True %}badge-available{% else %}badge-out{% endif %}">
-              {% if product.is_available|default:True %}In stock{% else %}Out{% endif %}
+        <div class="small text-muted mb-2">
+          SKU <strong>{{ product.sku }}</strong> •
+          {{ product.category.name }} •
+          {{ product.get_uom_display }}
+        </div>
+
+        <div class="text-muted small">
+          Prices per {{ product.get_uom_display|lower }}
+        </div>
+
+        <!-- Headline prices -->
+        <div class="d-flex flex-wrap gap-5 my-3">
+          <div>
+            <div class="text-muted small">Price</div>
+            <div class="price-big">
+              {% if wholesale_ex %}
+                R {{ wholesale_ex|floatformat:2|intcomma }}
+              {% else %}
+                R —
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Add to cart (BASE PRODUCT) ===== -->
+        <form method="post"
+              action="{% url 'cart' %}"
+              data-add-to-cart
+              class="d-flex align-items-center gap-2">
+          {% csrf_token %}
+          <input type="hidden" name="product_id" value="{{ product.id }}">
+
+          <div class="input-group" style="max-width:260px;">
+            <span class="input-group-text">
+              Qty ({{ product.get_uom_display }})
             </span>
+            <input type="number"
+                   name="qty"
+                   value="1"
+                   min="1"
+                   class="form-control">
           </div>
 
-          <div class="small text-muted mb-2">
-            SKU <strong>{{ product.sku }}</strong> • {{ product.category.name }} • {{ product.get_uom_display }}
-          </div>
+          <button class="btn btn-brand" type="submit">
+            <i class="bi bi-bag-plus me-1"></i>
+            Add to cart
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
 
-          <div class="text-muted small">Prices per {{ product.get_uom_display|lower }}</div>
+<!-- ===== Lower: Variations + Description ===== -->
+<section class="py-5 border-top">
+  <div class="container">
+    <div class="row g-5 d-lg-flex">
 
-          <!-- Headline prices -->
-          <div class="d-flex flex-wrap gap-5 my-3">
-            <div>
-              <div class="text-muted small">Price</div>
-              <div class="price-big">
-                {% if wholesale_ex %}
-                  R {{ wholesale_ex|floatformat:2|intcomma }}
-                {% else %}
-                  R —
-                {% endif %}
+      <!-- Variations grid -->
+      <div class="col-12 col-lg-70">
+        <h5 class="mb-3">Pre-packed options</h5>
+
+        {% if product.variants.all|length %}
+          <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 variants">
+            {% for v in product.variants.all|slice:":4" %}
+              <div class="col">
+                <div class="card variant-card position-relative">
+
+                  <div class="price-pill">
+                    {% if v.wholesale_price_override %}
+                      R {{ v.wholesale_price_override|floatformat:2|intcomma }}
+                    {% elif v.wholesale_derived %}
+                      R {{ v.wholesale_derived|floatformat:2|intcomma }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+
+                  <div class="ratio">
+                    {% if v.image %}
+                      <img src="{{ v.image.url }}"
+                           class="w-100 h-100 object-fit-cover"
+                           alt="{{ v.name|default_if_none:product.name }}">
+                    {% elif product.image %}
+                      <img src="{{ product.image.url }}"
+                           class="w-100 h-100 object-fit-cover"
+                           alt="{{ product.name }}">
+                    {% else %}
+                      <div class="d-flex align-items-center justify-content-center
+                                  w-100 h-100 text-muted">
+                        <i class="bi bi-box-seam" style="font-size:2rem;"></i>
+                      </div>
+                    {% endif %}
+                  </div>
+
+                  <div class="card-body pb-0">
+                    <div class="fw-semibold">
+                      {{ v.name|default_if_none:"" }}
+                      {% if not v.name %}
+                        {{ v.pack_size|floatformat:1 }}
+                        {{ v.get_uom_display|lower }}
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="variant-footer">
+                    <!-- ===== Add to cart (VARIANT) ===== -->
+                    <form method="post"
+                          action="{% url 'cart' %}"
+                          data-add-to-cart
+                          class="d-flex w-100 gap-2">
+                      {% csrf_token %}
+                      <input type="hidden"
+                             name="product_id"
+                             value="{{ product.id }}">
+                      <input type="hidden"
+                             name="variant_id"
+                             value="{{ v.id }}">
+
+                      <div class="input-group">
+                        <span class="input-group-text">Qty</span>
+                        <input type="number"
+                               name="qty"
+                               value="1"
+                               min="1"
+                               class="form-control">
+                      </div>
+
+                      <button class="btn btn-brand flex-fill" type="submit">
+                        <i class="bi bi-bag-plus me-1"></i>
+                        Add to cart
+                      </button>
+                    </form>
+                  </div>
+
+                </div>
               </div>
-            </div>
+            {% endfor %}
           </div>
-
-          <!-- Add to cart (base product) -->
-          <form id="addToCartForm" method="post" action="{% url 'cart' %}" class="d-flex align-items-center gap-2">
-            {% csrf_token %}
-            <input type="hidden" name="product_id" value="{{ product.id }}">
-            <div class="input-group" style="max-width:260px;">
-              <span class="input-group-text">Qty ({{ product.get_uom_display }})</span>
-              <input type="number" name="qty" value="1" min="1" class="form-control">
-            </div>
-            <button class="btn btn-brand" type="submit">
-              <i class="bi bi-bag-plus me-1"></i>Add to cart
-            </button>
-          </form>
-        </div>
+        {% else %}
+          <div class="alert alert-light border d-flex align-items-center">
+            <i class="bi bi-info-circle me-2"></i>
+            <div>No product variations available yet.</div>
+          </div>
+        {% endif %}
       </div>
-    </div>
-  </section>
 
-  <!-- ===== Lower: Variations + Description ===== -->
-  <section class="py-5 border-top">
-    <div class="container">
-      <div class="row g-5 d-lg-flex">
-
-        <!-- Variations grid (pre-packed) -->
-        <div class="col-12 col-lg-70">
-          <h5 class="mb-3">Pre-packed options</h5>
-
-          {% if product.variants.all|length %}
-            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 variants">
-              {% for v in product.variants.all|slice:":4" %}
-
-                {% if selected_channel == 'wholesale' %}
-                  {% with override=v.wholesale_price_override derived=v.wholesale_derived %}
-                    <div class="col">
-                      <div class="card variant-card position-relative">
-                        <div class="price-pill">
-                          {% if override %}
-                            R {{ override|floatformat:2|intcomma }} <small>ex VAT</small>
-                          {% elif derived %}
-                            R {{ derived|floatformat:2|intcomma }} <small>ex VAT</small>
-                          {% elif wholesale_ex %}
-                            R {{ wholesale_ex|floatformat:2|intcomma }} <small>ex VAT</small>
-                          {% else %}
-                            <small>Price</small> —
-                          {% endif %}
-                        </div>
-
-                        <div class="ratio">
-                          {% if v.image %}
-                            <img src="{{ v.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ v.name|default_if_none:product.name }}">
-                          {% elif product.image %}
-                            <img src="{{ product.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ product.name }}">
-                          {% else %}
-                            <div class="d-flex align-items-center justify-content-center w-100 h-100 text-muted">
-                              <i class="bi bi-box-seam" style="font-size:2rem;"></i>
-                            </div>
-                          {% endif %}
-                        </div>
-
-                        <div class="card-body pb-0">
-                          <div class="fw-semibold">
-                            {{ v.name|default_if_none:"" }}
-                            {% if not v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% endif %}
-                          </div>
-                          <div class="text-muted small">
-                            {% if v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% else %}&nbsp;{% endif %}
-                          </div>
-
-                          <!-- Inline price under variant name -->
-                          <div class="mt-1 fw-bold small">
-                            {% if override %}
-                              R {{ override|floatformat:2|intcomma }} <span class="text-muted">ex VAT</span>
-                            {% elif derived %}
-                              R {{ derived|floatformat:2|intcomma }} <span class="text-muted">ex VAT</span>
-                            {% elif wholesale_ex %}
-                              R {{ wholesale_ex|floatformat:2|intcomma }} <span class="text-muted">ex VAT</span>
-                            {% else %}
-                              <span class="text-muted">Price to be confirmed</span>
-                            {% endif %}
-                          </div>
-                        </div>
-
-                        <div class="variant-footer">
-                          <form method="post" action="{% url 'cart' %}" class="d-flex w-100 gap-2">
-                            {% csrf_token %}
-                            <input type="hidden" name="product_id" value="{{ product.id }}">
-                            <input type="hidden" name="variant_id" value="{{ v.id }}">
-                            <div class="input-group">
-                              <span class="input-group-text">Qty</span>
-                              <input type="number" name="qty" value="1" min="1" class="form-control">
-                            </div>
-                            <button class="btn btn-brand flex-fill" type="submit"
-                              {% if not override and not derived and not wholesale_ex %}disabled{% endif %}>
-                              <i class="bi bi-bag-plus me-1"></i> Add to cart
-                            </button>
-                          </form>
-                        </div>
-                      </div>
-                    </div>
-                  {% endwith %}
-                {% else %}
-                  {% with override=v.retail_price_override derived=v.retail_derived %}
-                    <div class="col">
-                      <div class="card variant-card position-relative">
-                        <div class="price-pill">
-                          {% if override %}
-                            R {{ override|floatformat:2|intcomma }} <small>ex VAT</small>
-                          {% elif derived %}
-                            R {{ derived|floatformat:2|intcomma }} <small>ex VAT</small>
-                          {% elif wholesale_ex %}
-                            R {{ wholesale_ex|floatformat:2|intcomma }} <small>ex VAT</small>
-                          {% else %}
-                            <small>Price</small> —
-                          {% endif %}
-                        </div>
-
-                        <div class="ratio">
-                          {% if v.image %}
-                            <img src="{{ v.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ v.name|default_if_none:product.name }}">
-                          {% elif product.image %}
-                            <img src="{{ product.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ product.name }}">
-                          {% else %}
-                            <div class="d-flex align-items-center justify-content-center w-100 h-100 text-muted">
-                              <i class="bi bi-box-seam" style="font-size:2rem;"></i>
-                            </div>
-                          {% endif %}
-                        </div>
-
-                        <div class="card-body pb-0">
-                          <div class="fw-semibold">
-                            {{ v.name|default_if_none:"" }}
-                            {% if not v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% endif %}
-                          </div>
-                          <div class="text-muted small">
-                            {% if v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% else %}&nbsp;{% endif %}
-                          </div>
-
-                          <!-- Inline price under variant name -->
-                          <div class="mt-1 fw-bold small">
-                            {% if override %}
-                              R {{ override|floatformat:2|intcomma }} <span class="text-muted">ex VAT</span>
-                            {% elif derived %}
-                              R {{ derived|floatformat:2|intcomma }} <span class="text-muted">ex VAT</span>
-                            {% elif wholesale_ex %}
-                              R {{ wholesale_ex|floatformat:2|intcomma }} <span class="text-muted">ex VAT</span>
-                            {% else %}
-                              <span class="text-muted">Price to be confirmed</span>
-                            {% endif %}
-                          </div>
-                        </div>
-
-                        <div class="variant-footer">
-                          <form method="post" action="{% url 'cart' %}" class="d-flex w-100 gap-2">
-                            {% csrf_token %}
-                            <input type="hidden" name="product_id" value="{{ product.id }}">
-                            <input type="hidden" name="variant_id" value="{{ v.id }}">
-                            <div class="input-group">
-                              <span class="input-group-text">Qty</span>
-                              <input type="number" name="qty" value="1" min="1" class="form-control">
-                            </div>
-                            <button class="btn btn-brand flex-fill" type="submit"
-                              {% if not override and not derived and not wholesale_ex %}disabled{% endif %}>
-                              <i class="bi bi-bag-plus me-1"></i> Add to cart
-                            </button>
-                          </form>
-                        </div>
-                      </div>
-                    </div>
-                  {% endwith %}
-                {% endif %}
-
-              {% endfor %}
-            </div>
-
-            <div class="small text-muted mt-2">
-              Showing up to four variations. Prices reflect
-              <strong>{{ selected_channel|default:'retail'|title }}</strong> overrides where set (ex VAT).
-            </div>
-          {% else %}
-            <div class="alert alert-light border d-flex align-items-center" role="alert">
-              <i class="bi bi-info-circle me-2"></i>
-              <div>No product variations available yet.</div>
-            </div>
-          {% endif %}
-        </div>
-
-        <!-- Description -->
-        <div class="col-12 col-lg-30">
-          <h5 class="mb-3">Description</h5>
-          {% if product.description %}
-            <p class="text-muted mb-0">{{ product.description }}</p>
-          {% else %}
-            <p class="text-muted mb-0">Detailed product information will appear here soon.</p>
-          {% endif %}
-        </div>
-
+      <!-- Description -->
+      <div class="col-12 col-lg-30">
+        <h5 class="mb-3">Description</h5>
+        {% if product.description %}
+          <p class="text-muted mb-0">{{ product.description }}</p>
+        {% else %}
+          <p class="text-muted mb-0">
+            Detailed product information will appear here soon.
+          </p>
+        {% endif %}
       </div>
+
     </div>
-  </section>
+  </div>
+</section>
+
 
   <!-- Footer -->
   <footer class="mt-auto">
@@ -535,8 +494,10 @@
       <div class="modal-content text-center">
         <div class="modal-header d-block border-0">
           <h5 class="modal-title w-100">Please sign in to access this</h5>
-          <button type="button" class="btn-close position-absolute end-0 me-3"
-                  data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button"
+                  class="btn-close position-absolute end-0 me-3"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"></button>
         </div>
         <div class="modal-body">
           Choose how you’ll be using The Daily Market.
@@ -552,17 +513,19 @@
       </div>
     </div>
   </div>
-  
-  
 
   <!-- ========== Profile Type Selection Modal ========== -->
   <div class="modal fade" id="profileTypeModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content text-center">
         <div class="modal-header d-block border-0">
-          <h5 class="modal-title w-100">How will you be using The Daily Market?</h5>
-          <button type="button" class="btn-close position-absolute end-0 me-3"
-                  data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title w-100">
+            How will you be using The Daily Market?
+          </h5>
+          <button type="button"
+                  class="btn-close position-absolute end-0 me-3"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"></button>
         </div>
         <div class="modal-body">
           Choose the option that best describes how you’ll be placing orders.
@@ -579,120 +542,159 @@
     </div>
   </div>
 
-  <!-- Scripts -->
+  <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
   <script>
-    function showActionModal({ title, bodyHtml, footerHtml }) {
-      const modalEl = document.getElementById('authProfileModal');
-      document.getElementById('authProfileModalTitle').textContent = title || 'Action required';
-      document.getElementById('authProfileModalBody').innerHTML = bodyHtml || '';
-      document.getElementById('authProfileModalFooter').innerHTML = footerHtml || '';
-      const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-      modal.show();
+  /* ============================================================
+    GLOBAL FLAGS (SINGLE SOURCE OF TRUTH)
+  ============================================================ */
+  const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};
+  const HAS_PROFILE = {% if request.user.is_authenticated and request.user.customer_profile %}true{% else %}false{% endif %};
+  const CLIENT_ACTIVE = {% if request.user.is_authenticated and client and client.status == "ACTIVE" %}true{% else %}false{% endif %};
+
+  /* ============================================================
+    SHOW AUTH REQUIRED MODAL (NO CONTENT OVERRIDE)
+  ============================================================ */
+  function showAuthRequiredModal() {
+    const modalEl = document.getElementById('authRequiredModal');
+    if (!modalEl) return;
+
+    bootstrap.Modal.getOrCreateInstance(modalEl, {
+      backdrop: true,
+      focus: true
+    }).show();
+  }
+
+  /* ============================================================
+    GENERIC ACTION MODAL (REUSES authRequiredModal)
+  ============================================================ */
+  function showActionModal({ title, bodyHtml, footerHtml }) {
+    const modalEl = document.getElementById('authRequiredModal');
+    if (!modalEl) return;
+
+    modalEl.querySelector('.modal-title').textContent = title;
+    modalEl.querySelector('.modal-body').innerHTML = bodyHtml;
+    modalEl.querySelector('.modal-footer').innerHTML = footerHtml;
+
+    bootstrap.Modal.getOrCreateInstance(modalEl, {
+      backdrop: true,
+      focus: true
+    }).show();
+  }
+
+  /* ============================================================
+    ADD TO CART GATE (BASE + VARIANTS)
+  ============================================================ */
+  document.addEventListener('submit', function (e) {
+    const form = e.target.closest('form[data-add-to-cart]');
+    if (!form) return;
+
+    // Not logged in
+    if (!IS_AUTHENTICATED) {
+      e.preventDefault();
+      showAuthRequiredModal();
+      return;
     }
 
-    // Add-to-cart gate (base product)
-    document.getElementById('addToCartForm')?.addEventListener('submit', function(e){
-      if (!IS_AUTHENTICATED) {
-        e.preventDefault();
-        showActionModal({
-          title: 'Sign in required',
-          bodyHtml: 'Please sign in or register to add items to your cart.',
-          footerHtml: `
-            <a class="btn btn-outline-secondary" href="{% url 'client-login' %}">Sign In</a>
-            <a class="btn btn-primary" href="/portal/client/register/">Register</a>
-          `
-        });
-        return;
-      }
-      if (!HAS_PROFILE) {
-        e.preventDefault();
-        showActionModal({
-          title: 'Complete your profile',
-          bodyHtml: 'You need a customer profile before you can add items to your cart.',
-          footerHtml: `
-            <a class="btn btn-outline-secondary" href="/portal/client/register/">Create Profile</a>
-            <a class="btn btn-primary" href="/profile/">Go to My Profile</a>
-          `
-        });
-      }
-    });
-
-    // Gate .requires-auth links/buttons
-    document.addEventListener('click', function (e) {
-      const el = e.target.closest('.requires-auth');
-      if (!el) return;
-
-      if (!IS_AUTHENTICATED) {
-        e.preventDefault();
-        showActionModal({
-          title: 'Sign in required',
-          bodyHtml: 'Please sign in or register to access this feature.',
-          footerHtml: `
-            <a class="btn btn-outline-secondary" href="{% url 'client-login' %}">Sign In</a>
-            <a class="btn btn-primary" href="/portal/client/register/">Register</a>
-          `
-        });
-        return;
-      }
-      if (!HAS_PROFILE) {
-        e.preventDefault();
-        showActionModal({
-          title: 'Complete your profile',
-          bodyHtml: 'You need a customer profile to access this feature.',
-          footerHtml: `
-            <a class="btn btn-outline-secondary" href="/portal/client/register/">Create Profile</a>
-            <a class="btn btn-primary" href="/profile/">Go to My Profile</a>
-          `
-        });
-      }
-    });
-
-    // Close offcanvas then navigate
-    (function () {
-      if (typeof bootstrap === "undefined") return;
-      const offcanvasEl = document.getElementById("mobileMenu");
-      if (!offcanvasEl) return;
-
-      const selectors = [
-        "#mobileMenu a.nav-link",
-        "#mobileMenu a.dropdown-item",
-        "#mobileMenu .btn.btn-outline-light",
-        "#mobileMenu a.btn"
-      ].join(",");
-
-      offcanvasEl.querySelectorAll(selectors).forEach(function (el) {
-        el.addEventListener("click", function (e) {
-          const href = el.getAttribute("href") || "";
-          if (!href || href === "#" || href.startsWith("javascript:")) return;
-
-          e.preventDefault();
-          const oc = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
-          offcanvasEl.addEventListener("hidden.bs.offcanvas", function () {
-            window.location.href = href;
-          }, { once: true });
-          oc.hide();
-        });
+    // Logged in, no profile
+    if (!HAS_PROFILE) {
+      e.preventDefault();
+      showActionModal({
+        title: 'Complete your profile',
+        bodyHtml: `
+          <p>You need to complete your profile before adding items to your cart.</p>
+        `,
+        footerHtml: `
+          <a class="btn btn-primary" href="{% url 'profile' %}">
+            Complete Profile
+          </a>
+        `
       });
-    })();
-  </script>
-  <script>
-    document.addEventListener("click", function (e) {
-      const link = e.target.closest(".js-client-signin");
-      if (!link) return;
+      return;
+    }
 
-      e.preventDefault(); // stop redirect to client-login
-
-      const modalEl = document.getElementById("profileTypeModal");
-      if (!modalEl) return;
-
-      const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
-        backdrop: true,
-        focus: true
+    // Profile complete but client NOT verified
+    if (!CLIENT_ACTIVE) {
+      e.preventDefault();
+      showActionModal({
+        title: 'Account not yet verified',
+        bodyHtml: `
+          <p class="fw-semibold mb-2">
+            You can only add items to your cart once your account has been verified.
+          </p>
+          <p class="mb-2">
+            Thank you for completing your profile. Our team is currently reviewing
+            your account.
+          </p>
+          <p class="mb-0">
+            Please allow <strong>30–60 minutes</strong> (during normal working hours).
+            You will receive an email confirmation once verification is complete.
+          </p>
+        `,
+        footerHtml: `
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            Got it
+          </button>
+        `
       });
+      return;
+    }
 
-      modal.show();
-    });
+    // All good → allow submit
+  });
+
+  /* ============================================================
+    GATE LINKS THAT REQUIRE AUTH (.requires-auth)
+  ============================================================ */
+  document.addEventListener('click', function (e) {
+    const el = e.target.closest('.requires-auth');
+    if (!el) return;
+
+    if (!IS_AUTHENTICATED) {
+      e.preventDefault();
+      showAuthRequiredModal();
+      return;
+    }
+
+    if (!HAS_PROFILE || !CLIENT_ACTIVE) {
+      e.preventDefault();
+      showActionModal({
+        title: 'Account not ready',
+        bodyHtml: `
+          <p>Your account must be fully set up and verified
+          before accessing this feature.</p>
+        `,
+        footerHtml: `
+          <a class="btn btn-primary" href="{% url 'profile' %}">
+            View My Profile
+          </a>
+        `
+      });
+    }
+  });
+
+  /* ============================================================
+    PROFILE TYPE SELECTOR (js-client-signin)
+  ============================================================ */
+  document.addEventListener('click', function (e) {
+    const link = e.target.closest('.js-client-signin');
+    if (!link) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const modalEl = document.getElementById('profileTypeModal');
+    if (!modalEl) return;
+
+    bootstrap.Modal.getOrCreateInstance(modalEl, {
+      backdrop: true,
+      focus: true
+    }).show();
+  });
   </script>
+
+
+
 </body>
 </html>
