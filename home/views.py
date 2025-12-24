@@ -1842,18 +1842,17 @@ def _get_client_for_user(user):
     except Exception:
         return None
 
-def generate_payfast_signature(data, passphrase=None):
-    pairs = []
+def generate_payfast_signature(data, passphrase):
+    parts = []
 
     for key, value in data:
         if value != "":
-            encoded = urllib.parse.quote_plus(str(value))
-            pairs.append(f"{key}={encoded}")
+            parts.append(f"{key}={urllib.parse.quote_plus(str(value))}")
 
-    param_string = "&".join(pairs)
+    param_string = "&".join(parts)
 
     if passphrase:
-        param_string += f"&passphrase={passphrase}"
+        param_string += "&passphrase=" + urllib.parse.quote_plus(passphrase)
 
     print("\nPAYFAST PARAM STRING (FINAL):")
     print(param_string)
@@ -2171,9 +2170,6 @@ def payfast_itn(request):
 
 @login_required
 def pay_invoice(request, pk):
-    if request.method != "GET":
-        return HttpResponse(status=405)
-
     client = resolve_client_for_user(request.user, request=request)
 
     invoice = get_object_or_404(
@@ -2182,31 +2178,28 @@ def pay_invoice(request, pk):
         order__client=client
     )
 
-    # 🔒 PAYFAST FIELD ORDER (EXACT)
-    signature_data = [
+    data = [
         ("merchant_id", settings.PAYFAST_MERCHANT_ID),
-        ("return_url", "http://127.0.0.1:8000/payfast/return/"),
-        ("cancel_url", "http://127.0.0.1:8000/payfast/cancel/"),
-        ("notify_url", "http://127.0.0.1:8000/payfast/itn/"),
+        ("merchant_key", settings.PAYFAST_MERCHANT_KEY),
+        ("return_url", "https://yourdomain.co.za/payfast/return/"),
+        ("cancel_url", "https://yourdomain.co.za/payfast/cancel/"),
+        ("notify_url", "https://yourdomain.co.za/payfast/itn/"),
 
-        ("name_first", "Victor"),
-        ("name_last", "Motaung"),
-        ("email_address", "Viktormotaung@gmail.com"),
+        ("name_first", invoice.order.client.contact_person.split()[0]),
+        ("name_last", invoice.order.client.contact_person.split()[-1]),
+        ("email_address", invoice.order.client.email),
 
         ("m_payment_id", f"INV-{invoice.id}"),
         ("amount", f"{invoice.amount_due:.2f}"),
         ("item_name", f"Invoice #{invoice.id}"),
     ]
 
-    # ✅ Generate signature (NO merchant_key here)
     signature = generate_payfast_signature(
-        signature_data,
-        settings.PAYFAST_PASSPHRASE
+        data=data,
+        passphrase=settings.PAYFAST_PASSPHRASE
     )
 
-    # ✅ Build POST data (merchant_key IS INCLUDED HERE)
-    payfast_data = dict(signature_data)
-    payfast_data["merchant_key"] = settings.PAYFAST_MERCHANT_KEY
+    payfast_data = dict(data)
     payfast_data["signature"] = signature
 
     return render(request, "home/payfast_redirect.html", {
@@ -2214,22 +2207,6 @@ def pay_invoice(request, pk):
         "data": payfast_data,
     })
 
-
-    # ✅ Generate signature (NO merchant_key here)
-    signature = generate_payfast_signature(
-        signature_data,
-        settings.PAYFAST_PASSPHRASE
-    )
-
-    # ✅ Build POST data (merchant_key IS INCLUDED HERE)
-    payfast_data = dict(signature_data)
-    payfast_data["merchant_key"] = settings.PAYFAST_MERCHANT_KEY
-    payfast_data["signature"] = signature
-
-    return render(request, "home/payfast_redirect.html", {
-        "payfast_url": settings.PAYFAST_PROCESS_URL,
-        "data": payfast_data,
-    })
 
 
 

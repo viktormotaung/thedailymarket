@@ -221,18 +221,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ---------------------------
 # PAYFAST
 # ---------------------------
-PAYFAST_USE_SANDBOX = os.getenv("PAYFAST_USE_SANDBOX", "True") == "True"
+PAYFAST_MERCHANT_ID = "32012381"
+PAYFAST_MERCHANT_KEY = "zb8wl3tesqdck"
+PAYFAST_PASSPHRASE = "HaPPy2025GiLmore"
+PAYFAST_PROCESS_URL = "https://www.payfast.co.za/eng/process"
 
-if PAYFAST_USE_SANDBOX:
-    PAYFAST_PROCESS_URL = "https://sandbox.payfast.co.za/eng/process"
-    PAYFAST_MERCHANT_ID = os.getenv("PAYFAST_MERCHANT_ID_SANDBOX", "10000100")
-    PAYFAST_MERCHANT_KEY = os.getenv("PAYFAST_MERCHANT_KEY_SANDBOX", "46f0cd694581a")
-else:
-    PAYFAST_PROCESS_URL = "https://www.payfast.co.za/eng/process"
-    PAYFAST_MERCHANT_ID = os.getenv("PAYFAST_MERCHANT_ID")
-    PAYFAST_MERCHANT_KEY = os.getenv("PAYFAST_MERCHANT_KEY")
-
-PAYFAST_PASSPHRASE = os.getenv("PAYFAST_PASSPHRASE", "HaPPy2025GiLmore")
 
 # ---------------------------
 # SESSIONS
