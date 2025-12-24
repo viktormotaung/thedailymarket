@@ -175,7 +175,9 @@ CELERY_BEAT_SCHEDULE = {
 # EMAIL — Postmark API
 EMAIL_BACKEND = "postmarker.django.EmailBackend"
 
-POSTMARK_TOKEN = os.getenv("POSTMARK_TOKEN")
+POSTMARK = {
+    "TOKEN": os.getenv("POSTMARK_TOKEN"),
+}
 
 DEFAULT_FROM_EMAIL = "The Daily Market <accounts@thedailymarket.co.za>"
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
