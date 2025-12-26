@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECRET KEY & DEBUG
 # ---------------------------
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "fallback-secret-key-for-dev")
-DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
+DEBUG = "True"
 DJANGO_ENV = os.getenv("DJANGO_ENV", "development")  # "production" when live
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", ".onrender.com,localhost,127.0.0.1").split(",")
