@@ -134,7 +134,6 @@
 
       {% if user.is_authenticated %}
         <a href="/profile/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">My Profile</a>
-        <a href="/settings/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">Settings</a>
         <form action="{% url 'logout' %}" method="post" class="mt-1">
           {% csrf_token %}
           <button type="submit" class="btn btn-light w-100">Sign out</button>
@@ -193,7 +192,6 @@
         <ul class="dropdown-menu dropdown-menu-end brand">
           {% if user.is_authenticated %}
             <li><a class="dropdown-item" href="/profile/">My Profile</a></li>
-            <li><a class="dropdown-item" href="/settings/">Settings</a></li>
             <li><hr class="dropdown-divider"></li>
             <li>
               <form action="{% url 'logout' %}" method="post" class="px-3">
@@ -376,7 +374,7 @@
               <div class="tab-pane fade" id="after" role="tabpanel" aria-labelledby="after-tab">
                 <ol class="mb-0">
                   <li>Use your Trade Assist on eligible purchases (subject to your limit).</li>
-                  <li><strong>Settle within {{ settle_days }} day{% if settle_days != 1 %}s{% endif %}</strong> on TA-funded invoices.</li>
+                  <li><strong>Settle within 3 - 7 day{% if settle_days != 1 %}s{% endif %}</strong> on TA-funded invoices.</li>
                   <li>Staying current may unlock <strong>higher limits</strong> over time.</li>
                   <li>Late or missed settlements may <strong>pause</strong> your Trade Assist.</li>
                   <li>We may adjust or withdraw the facility based on account conduct.</li>

@@ -1232,175 +1232,6 @@ def orders(request):
     })
 
 
-@login_required
-def profile(request):
-    user = request.user
-
-    # =================================================
-    # RESOLVE / CREATE CUSTOMER PROFILE (GUARANTEED)
-    # =================================================
-    customer_profile, _ = CustomerProfile.objects.get_or_create(
-        user=user,
-        defaults={
-            "display_name": user.get_full_name() or user.username,
-        }
-    )
-
-    # =================================================
-    # RESOLVE CLIENT (SINGLE SOURCE OF TRUTH)
-    # =================================================
-    client = resolve_client_for_user(user, request=request)
-
-    # -------------------------------------------------
-    # SAFETY: client must always exist for this view
-    # -------------------------------------------------
-    if client is None:
-        messages.error(request, "Unable to load business profile.")
-        return redirect("home")
-
-    # =================================================
-    # HANDLE FORMS
-    # =================================================
-
-    # ---- User Profile ----
-    user_form = UserProfileForm(instance=user)
-    if request.method == "POST" and request.POST.get("form_type") == "user_profile":
-        user_form = UserProfileForm(request.POST, instance=user)
-        if user_form.is_valid():
-            user_form.save()
-            messages.success(request, "User profile updated successfully.")
-            return redirect("profile")
-
-    # ---- Business Profile ----
-    business_form = ClientBusinessForm(instance=client)
-    if request.method == "POST" and request.POST.get("form_type") == "business_profile":
-        business_form = ClientBusinessForm(request.POST, instance=client)
-        if business_form.is_valid():
-            business_form.save()
-            messages.success(request, "Business profile updated successfully.")
-            return redirect("profile")
-
-    # ---- Personal Profile ----
-    personal_form = PersonalProfileForm(instance=customer_profile)
-    if request.method == "POST" and request.POST.get("form_type") == "personal_profile":
-        personal_form = PersonalProfileForm(request.POST, instance=customer_profile)
-        if personal_form.is_valid():
-            personal_form.save()
-            messages.success(request, "Personal profile updated successfully.")
-            return redirect("profile")
-
-    # =================================================
-    # PROFILE COMPLETENESS HELPERS
-    # =================================================
-    def is_filled(value):
-        return value is not None and str(value).strip() != ""
-
-    # ================= USER =================
-    user_profile_complete = all([
-        is_filled(user.first_name),
-        is_filled(user.last_name),
-        is_filled(user.email),
-    ])
-
-    # ================= PERSONAL =================
-    personal_profile_complete = all([
-        is_filled(customer_profile.display_name),
-        is_filled(customer_profile.phone),
-    ])
-
-    # ================= BUSINESS =================
-    business_overview_complete = True
-
-    business_contact_complete = all([
-        is_filled(client.name),
-        is_filled(client.contact_person),
-        is_filled(client.email),
-        is_filled(client.phone),
-    ])
-
-    business_address_complete = all([
-        is_filled(client.address_line1),
-        is_filled(client.suburb),
-        is_filled(client.city),
-        is_filled(client.province),
-        is_filled(client.postal_code),
-    ])
-
-    business_compliance_complete = all([
-        is_filled(client.price_type),
-        is_filled(client.estimated_weekly_spend),
-        is_filled(client.vat_number) or is_filled(client.company_reg_number),
-    ])
-
-    business_profile_complete = all([
-        business_contact_complete,
-        business_address_complete,
-        business_compliance_complete,
-    ])
-
-    # =================================================
-    # PROFILE COMPLETION %
-    # =================================================
-    completed_sections = [
-        user_profile_complete,
-        personal_profile_complete,
-        business_contact_complete,
-        business_address_complete,
-        business_compliance_complete,
-        business_overview_complete,
-        business_profile_complete,
-    ]
-
-    completed_count = sum(1 for s in completed_sections if s)
-    total_sections = len(completed_sections)
-
-    profile_completion_percent = (
-        int((completed_count / total_sections) * 100)
-        if total_sections else 0
-    )
-
-    # =================================================
-    # FIRST-TIME COMPLETION ACTION
-    # =================================================
-    show_profile_complete_popup = False
-
-    if profile_completion_percent == 100:
-        if not request.session.get("profile_completion_acknowledged"):
-            show_profile_complete_popup = True
-            request.session["profile_completion_acknowledged"] = True
-
-            create_support_task_for_new_registration(
-                request=request,
-                client=client,
-                user=user,
-            )
-
-    # =================================================
-    # RENDER
-    # =================================================
-    return render(request, "home/profile.html", {
-        "user_form": user_form,
-        "business_form": business_form,
-        "personal_form": personal_form,
-
-        # 🔑 CRITICAL CONTEXT (used by JS elsewhere)
-        "client": client,
-        "customer_profile": customer_profile,
-
-        # Completion flags
-        "user_profile_complete": user_profile_complete,
-        "personal_profile_complete": personal_profile_complete,
-        "business_profile_complete": business_profile_complete,
-
-        "business_overview_complete": business_overview_complete,
-        "business_contact_complete": business_contact_complete,
-        "business_address_complete": business_address_complete,
-        "business_compliance_complete": business_compliance_complete,
-
-        "profile_completion_percent": profile_completion_percent,
-        "show_profile_complete_popup": show_profile_complete_popup,
-    })
-
 def create_support_task_for_new_registration(*, request, client, user):
     """
     Creates a one-time verification task for a newly completed client profile.
@@ -2264,15 +2095,6 @@ def view_invoice(request, pk):
 
 
 
-def _redirect_after_register(request: HttpRequest) -> str:
-    """
-    Decide where to send the user after successful registration.
-    Prefers a 'next' param (GET/POST). Falls back to 'home'.
-    """
-    nxt = request.GET.get("next") or request.POST.get("next")
-    if nxt:
-        return nxt
-    return reverse("home")
 
 
 def register_profile(request: HttpRequest) -> HttpResponse:
@@ -2389,6 +2211,7 @@ def register_profile(request: HttpRequest) -> HttpResponse:
     # Redirect to success page
     return redirect("register-success")
 
+
 def send_success_registration_email(user, client, profile):
     """
     Sends a branded HTML + text email to the newly registered user.
@@ -2424,7 +2247,6 @@ def send_success_registration_email(user, client, profile):
     msg.send(fail_silently=False)
 
 
-
 @login_required
 def register_success(request):
     profile = request.user.customer_profile
@@ -2439,82 +2261,186 @@ def register_success(request):
     )
 
 
-    # Safe URL building
-    try:
-        client_url = request.build_absolute_uri(reverse("client-view", args=[client.id]))
-    except Exception:
-        client_url = ""
-    try:
-        profile_url = request.build_absolute_uri(reverse("customer_profile"))
-    except Exception:
-        profile_url = ""
+def _redirect_after_register(request: HttpRequest) -> str:
+    """
+    Decide where to send the user after successful registration.
+    Prefers a 'next' param (GET/POST). Falls back to 'home'.
+    """
+    nxt = request.GET.get("next") or request.POST.get("next")
+    if nxt:
+        return nxt
+    return reverse("home")
 
-    title = f"New registration: {getattr(client, 'name', 'Client')} ({user.email or user.username})"
 
-    # Plain text description used for Task (keeps admin list clean)
-    body_lines = [
-        "A new customer registration has been completed.",
-        "",
-        f"Client: {getattr(client, 'name', '')}",
-        f"User:   {user.get_full_name() or user.username}",
-        f"Email:  {user.email or user.username}",
-    ]
-    if client_url:
-        body_lines.append(f"Client page:  {client_url}")
-    if profile_url:
-        body_lines.append(f"Profile page: {profile_url}")
-    body_lines.append("")
-    body_lines.append("Please review and activate as needed.")
-    body_text_for_task = "\n".join(body_lines)
+@login_required
+def profile(request):
+    user = request.user
 
-    # Create Task now (synchronous)
-    try:
-        Task.objects.create(
-            title=title,
-            description=body_text_for_task,
-            status=Task.Status.OPEN,
-            priority=Task.Priority.MEDIUM,
-            department=Task.Department.SUPPORT,
-            created_by=None,
-            assigned_to=None,
-            due_at=timezone.now() + timedelta(days=2),
-            content_type=ContentType.objects.get_for_model(client),
-            object_id=client.id,
-        )
-    except Exception as e:
-        print("!!! Failed to create Task:", repr(e))
-
-    # ---- Notify Support using HTML + text templates ----
-    try:
-        ctx = {
-            "title": title,
-            "client": client,
-            "user": user,
-            "profile": profile,
-            "client_url": client_url,
-            "profile_url": profile_url,
+    # =================================================
+    # RESOLVE / CREATE CUSTOMER PROFILE (GUARANTEED)
+    # =================================================
+    customer_profile, _ = CustomerProfile.objects.get_or_create(
+        user=user,
+        defaults={
+            "display_name": user.get_full_name() or user.username,
         }
-        subject = f"[Seshibo] {title}"
-        support_to = getattr(settings, "SUPPORT_EMAIL", "support@seshibodailymarket.co.za")
-        from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "accounts@seshibodailymarket.co.za")
+    )
 
-        # templates you’ll create in:
-        #   home/templates/email/support_new_registration.txt
-        #   home/templates/email/support_new_registration.html
-        text_body = render_to_string("email/support_new_registration.txt", ctx)
-        html_body = render_to_string("email/support_new_registration.html", ctx)
+    # =================================================
+    # RESOLVE CLIENT (SINGLE SOURCE OF TRUTH)
+    # =================================================
+    client = resolve_client_for_user(user, request=request)
 
-        msg = EmailMultiAlternatives(
-            subject=subject,
-            body=text_body,
-            from_email=from_email,
-            to=[support_to],
-            headers={"Reply-To": support_to},
-        )
-        msg.attach_alternative(html_body, "text/html")
-        msg.send(fail_silently=True)
-    except Exception as e:
-        print("!!! Failed to email Support about Task:", repr(e))
+    # -------------------------------------------------
+    # SAFETY: client must always exist for this view
+    # -------------------------------------------------
+    if client is None:
+        messages.error(request, "Unable to load business profile.")
+        return redirect("home")
+
+    # =================================================
+    # HANDLE FORMS
+    # =================================================
+
+    # ---- User Profile ----
+    user_form = UserProfileForm(instance=user)
+    if request.method == "POST" and request.POST.get("form_type") == "user_profile":
+        user_form = UserProfileForm(request.POST, instance=user)
+        if user_form.is_valid():
+            user_form.save()
+            messages.success(request, "User profile updated successfully.")
+            return redirect("profile")
+
+    # ---- Business Profile ----
+    business_form = ClientBusinessForm(instance=client)
+    if request.method == "POST" and request.POST.get("form_type") == "business_profile":
+        business_form = ClientBusinessForm(request.POST, instance=client)
+        if business_form.is_valid():
+            business_form.save()
+            messages.success(request, "Business profile updated successfully.")
+            return redirect("profile")
+
+    # ---- Personal Profile ----
+    personal_form = PersonalProfileForm(instance=customer_profile)
+    if request.method == "POST" and request.POST.get("form_type") == "personal_profile":
+        personal_form = PersonalProfileForm(request.POST, instance=customer_profile)
+        if personal_form.is_valid():
+            personal_form.save()
+            messages.success(request, "Personal profile updated successfully.")
+            return redirect("profile")
+
+    # =================================================
+    # PROFILE COMPLETENESS HELPERS
+    # =================================================
+    def is_filled(value):
+        return value is not None and str(value).strip() != ""
+
+    # ================= USER =================
+    user_profile_complete = all([
+        is_filled(user.first_name),
+        is_filled(user.last_name),
+        is_filled(user.email),
+    ])
+
+    # ================= PERSONAL =================
+    personal_profile_complete = all([
+        is_filled(customer_profile.display_name),
+        is_filled(customer_profile.phone),
+    ])
+
+    # ================= BUSINESS =================
+    business_overview_complete = True
+
+    business_contact_complete = all([
+        is_filled(client.name),
+        is_filled(client.contact_person),
+        is_filled(client.email),
+        is_filled(client.phone),
+    ])
+
+    business_address_complete = all([
+        is_filled(client.address_line1),
+        is_filled(client.suburb),
+        is_filled(client.city),
+        is_filled(client.province),
+        is_filled(client.postal_code),
+    ])
+
+    business_compliance_complete = all([
+        is_filled(client.price_type),
+        is_filled(client.estimated_weekly_spend),
+        is_filled(client.vat_number) or is_filled(client.company_reg_number),
+    ])
+
+    business_profile_complete = all([
+        business_contact_complete,
+        business_address_complete,
+        business_compliance_complete,
+    ])
+
+    # =================================================
+    # PROFILE COMPLETION %
+    # =================================================
+    completed_sections = [
+        user_profile_complete,
+        personal_profile_complete,
+        business_contact_complete,
+        business_address_complete,
+        business_compliance_complete,
+        business_overview_complete,
+        business_profile_complete,
+    ]
+
+    completed_count = sum(1 for s in completed_sections if s)
+    total_sections = len(completed_sections)
+
+    profile_completion_percent = (
+        int((completed_count / total_sections) * 100)
+        if total_sections else 0
+    )
+
+    # =================================================
+    # FIRST-TIME COMPLETION ACTION
+    # =================================================
+    show_profile_complete_popup = False
+
+    if profile_completion_percent == 100:
+        if not request.session.get("profile_completion_acknowledged"):
+            show_profile_complete_popup = True
+            request.session["profile_completion_acknowledged"] = True
+
+            create_support_task_for_new_registration(
+                request=request,
+                client=client,
+                user=user,
+            )
+
+    # =================================================
+    # RENDER
+    # =================================================
+    return render(request, "home/profile.html", {
+        "user_form": user_form,
+        "business_form": business_form,
+        "personal_form": personal_form,
+
+        # 🔑 CRITICAL CONTEXT (used by JS elsewhere)
+        "client": client,
+        "customer_profile": customer_profile,
+
+        # Completion flags
+        "user_profile_complete": user_profile_complete,
+        "personal_profile_complete": personal_profile_complete,
+        "business_profile_complete": business_profile_complete,
+
+        "business_overview_complete": business_overview_complete,
+        "business_contact_complete": business_contact_complete,
+        "business_address_complete": business_address_complete,
+        "business_compliance_complete": business_compliance_complete,
+
+        "profile_completion_percent": profile_completion_percent,
+        "show_profile_complete_popup": show_profile_complete_popup,
+    })
+
 
 
 
