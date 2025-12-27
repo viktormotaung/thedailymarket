@@ -449,9 +449,10 @@
         <div class="quick-shops">
           {% for cat in categories %}
             {% for sub in cat.children.all %}
-              <a href="{% url 'products' %}?subcategory={{ sub.id }}"
-                class="text-center text-decoration-none quick-shop-item">
-
+              <a
+                href="{% url 'products' %}?subcategory={{ sub.id }}"
+                class="text-center text-decoration-none quick-shop-item"
+              >
                 <div class="quick-shop-icon mb-2">
                   {% if sub.icon %}
                     <img src="{{ sub.icon.url }}" alt="{{ sub.name }}">
@@ -467,6 +468,7 @@
             {% endfor %}
           {% endfor %}
         </div>
+
 
         <!-- RIGHT ARROW -->
         <button
@@ -509,18 +511,26 @@
                   </div>
                 </div>
 
-                <!-- Category -->
+                <!-- ================= SUB-CATEGORY FILTER ================= -->
                 <div class="mb-3">
-                  <label class="form-label">Category</label>
-                  <select name="category" class="form-select">
+                  <label class="form-label fw-semibold">Category</label>
+
+                  <select name="subcategory" class="form-select">
                     <option value="">All categories</option>
-                    {% for cat in categories %}
-                      <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:"s" %}selected{% endif %}>
-                        {{ cat.name }}
-                      </option>
+
+                    {% for category in categories %}
+                      {% for sub in category.children.all %}
+                        <option
+                          value="{{ sub.id }}"
+                          {% if selected_subcategory == sub.id|stringformat:"s" %}selected{% endif %}
+                        >
+                          {{ sub.name }}
+                        </option>
+                      {% endfor %}
                     {% endfor %}
                   </select>
                 </div>
+
 
                 <!-- Price -->
                 <div class="mb-3">
@@ -596,30 +606,50 @@
             </div>
 
             {% if products.paginator.num_pages > 1 %}
-              <nav aria-label="Page navigation" class="mt-4">
-                <ul class="pagination justify-content-center">
-                  {% if products.has_previous %}
-                    <li class="page-item"><a class="page-link" href="?q={{ request.GET.q }}&category={{ request.GET.category }}&min_price={{ request.GET.min_price }}&max_price={{ request.GET.max_price }}&sort={{ request.GET.sort }}&page={{ products.previous_page_number }}">Prev</a></li>
-                  {% else %}
-                    <li class="page-item disabled"><span class="page-link">Prev</span></li>
-                  {% endif %}
+            <nav aria-label="Page navigation" class="mt-4">
+              <ul class="pagination justify-content-center">
 
-                  {% for num in products.paginator.page_range %}
-                    {% if num == products.number %}
-                      <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                    {% elif num > products.number|add:-3 and num < products.number|add:3 %}
-                      <li class="page-item"><a class="page-link" href="?q={{ request.GET.q }}&category={{ request.GET.category }}&min_price={{ request.GET.min_price }}&max_price={{ request.GET.max_price }}&sort={{ request.GET.sort }}&page={{ num }}">{{ num }}</a></li>
-                    {% endif %}
-                  {% endfor %}
+                {% if products.has_previous %}
+                  <li class="page-item">
+                    <a class="page-link"
+                      href="?{{ query_string }}&page={{ products.previous_page_number }}">
+                      Prev
+                    </a>
+                  </li>
+                {% else %}
+                  <li class="page-item disabled"><span class="page-link">Prev</span></li>
+                {% endif %}
 
-                  {% if products.has_next %}
-                    <li class="page-item"><a class="page-link" href="?q={{ request.GET.q }}&category={{ request.GET.category }}&min_price={{ request.GET.min_price }}&max_price={{ request.GET.max_price }}&sort={{ request.GET.sort }}&page={{ products.next_page_number }}">Next</a></li>
-                  {% else %}
-                    <li class="page-item disabled"><span class="page-link">Next</span></li>
+                {% for num in products.paginator.page_range %}
+                  {% if num == products.number %}
+                    <li class="page-item active">
+                      <span class="page-link">{{ num }}</span>
+                    </li>
+                  {% elif num > products.number|add:-3 and num < products.number|add:3 %}
+                    <li class="page-item">
+                      <a class="page-link"
+                        href="?{{ query_string }}&page={{ num }}">
+                        {{ num }}
+                      </a>
+                    </li>
                   {% endif %}
-                </ul>
-              </nav>
+                {% endfor %}
+
+                {% if products.has_next %}
+                  <li class="page-item">
+                    <a class="page-link"
+                      href="?{{ query_string }}&page={{ products.next_page_number }}">
+                      Next
+                    </a>
+                  </li>
+                {% else %}
+                  <li class="page-item disabled"><span class="page-link">Next</span></li>
+                {% endif %}
+
+              </ul>
+            </nav>
             {% endif %}
+
           {% else %}
             <div class="text-center text-muted py-5">
               <i class="bi bi-box-seam fs-1 d-block mb-2"></i>

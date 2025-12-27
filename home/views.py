@@ -851,9 +851,6 @@ def _effective_price_for_filtering(p: Product) -> Decimal:
     return Decimal("0")
 
 
-
-
-
 def products(request):
     # -------------------------
     # Read query params
@@ -978,6 +975,14 @@ def products(request):
     )
 
     # -------------------------
+    # Preserve filters for pagination
+    # -------------------------
+    querydict = request.GET.copy()
+    querydict.pop("page", None)   # remove page safely
+    query_string = querydict.urlencode()
+
+
+    # -------------------------
     # Context
     # -------------------------
     context = {
@@ -989,6 +994,7 @@ def products(request):
         "sort": sort,
         "min_price": min_price,
         "max_price": max_price,
+        "query_string": query_string,
     }
 
     return render(request, "home/products.html", context)
@@ -1194,7 +1200,6 @@ def _resolve_client_for(user):
     return None
 
 
-
 @login_required
 def orders(request):
     """
@@ -1283,8 +1288,6 @@ def _user_can_access_order(user, order: Order) -> bool:
         return True
     client = _resolve_client_for(user)
     return bool(client and order.client_id == client.id)
-
-
 
 
 def about(request):

@@ -29,9 +29,7 @@
       {{ p.category.name }} • SKU: {{ p.sku }} • {{ p.get_uom_display }}
     </div>
 
-    {% if p.description %}
-      <p class="text-muted small mb-2">{{ p.description|truncatewords:16 }}</p>
-    {% endif %}
+    
 
     {# ---------- Price block (priority: display_* -> retail -> wholesale -> supplier from) ---------- #}
     {% with lbl=p.display_price_label excl=p.display_price_excl inc=p.display_price_inc %}
