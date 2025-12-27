@@ -35,6 +35,72 @@
     .btn-brand{ background:var(--brand); border-color:var(--brand); color:#fff; }
     .btn-brand:hover{ background:var(--brand-dark); border-color:var(--brand-dark); color:#fff; }
 
+    /* ================= ORDER STATUS TRACKER ================= */
+    .order-tracker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 1.5rem 0 2rem;
+    }
+
+    .order-step {
+      position: relative;
+      flex: 1;
+      text-align: center;
+    }
+
+    .order-step::after {
+      content: "";
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      width: 100%;
+      height: 4px;
+      background: #dee2e6;
+      z-index: 0;
+    }
+
+    .order-step:last-child::after {
+      display: none;
+    }
+
+    .step-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #dee2e6;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-label {
+      margin-top: 0.4rem;
+      font-size: 0.75rem;
+      color: #6c757d;
+    }
+
+    /* completed */
+    .order-step.completed .step-icon,
+    .order-step.completed::after {
+      background: #198754;
+    }
+
+    /* active */
+    .order-step.active .step-icon {
+      background: #0b5c39;
+    }
+
+    .order-step.active .step-label {
+      font-weight: 600;
+      color: #0b5c39;
+    }
+
+
     @media (max-width:991.98px){ .navbar-brand img{ height:40px; } }
   </style>
 </head>
@@ -217,6 +283,107 @@
     </div>
 
     <div class="row g-4">
+      <!-- ================= ORDER STATUS TRACKER ================= -->
+      {% with s=order.status %}
+      <div class="order-tracker">
+
+        <!-- Step 1: Order Placed -->
+        <div class="order-step completed">
+          <div class="step-icon">
+            <i class="bi bi-check"></i>
+          </div>
+          <div class="step-label">Order Placed</div>
+        </div>
+
+        <!-- Step 2: Approved -->
+        <div class="order-step
+          {% if s == 'approved' or s == 'at_warehouse' or s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
+            completed
+          {% endif %}
+          {% if s == 'approved' %}active{% endif %}
+        ">
+          <div class="step-icon">
+            {% if s == 'approved' or s == 'at_warehouse' or s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
+              <i class="bi bi-check"></i>
+            {% else %}
+              <i class="bi bi-clock"></i>
+            {% endif %}
+          </div>
+          <div class="step-label">Approved</div>
+        </div>
+
+        <!-- Step 3: At Warehouse -->
+        <div class="order-step
+          {% if s == 'at_warehouse' or s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
+            completed
+          {% endif %}
+          {% if s == 'at_warehouse' %}active{% endif %}
+        ">
+          <div class="step-icon">
+            {% if s == 'at_warehouse' or s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
+              <i class="bi bi-check"></i>
+            {% else %}
+              <i class="bi bi-box-seam"></i>
+            {% endif %}
+          </div>
+          <div class="step-label">At Warehouse</div>
+        </div>
+
+        <!-- Step 4: Ready for Delivery -->
+        <div class="order-step
+          {% if s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
+            completed
+          {% endif %}
+          {% if s == 'ready_for_delivery' %}active{% endif %}
+        ">
+          <div class="step-icon">
+            {% if s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
+              <i class="bi bi-check"></i>
+            {% else %}
+              <i class="bi bi-bag-check"></i>
+            {% endif %}
+          </div>
+          <div class="step-label">Ready</div>
+        </div>
+
+        <!-- Step 5: Out for Delivery -->
+        <div class="order-step
+          {% if s == 'out_for_delivery' or s == 'complete' %}
+            completed
+          {% endif %}
+          {% if s == 'out_for_delivery' %}active{% endif %}
+        ">
+          <div class="step-icon">
+            {% if s == 'out_for_delivery' or s == 'complete' %}
+              <i class="bi bi-check"></i>
+            {% else %}
+              <i class="bi bi-truck"></i>
+            {% endif %}
+          </div>
+          <div class="step-label">Out for Delivery</div>
+        </div>
+
+        <!-- Step 6: Complete -->
+        <div class="order-step
+          {% if s == 'complete' %}
+            completed active
+          {% endif %}
+        ">
+          <div class="step-icon">
+            {% if s == 'complete' %}
+              <i class="bi bi-check"></i>
+            {% else %}
+              <i class="bi bi-flag"></i>
+            {% endif %}
+          </div>
+          <div class="step-label">Complete</div>
+        </div>
+
+      </div>
+      {% endwith %}
+
+
+
 
       <!-- ================= LEFT ================= -->
       <div class="col-lg-8">
@@ -249,10 +416,10 @@
                     </td>
                     <td class="text-end">{{ item.quantity }}</td>
                     <td class="text-end">
-                      R {{ item.final_unit_price|floatformat:2|intcomma }}
+                      R {{ item.unit_price_excl|floatformat:2|intcomma }}
                     </td>
                     <td class="text-end fw-semibold">
-                      R {{ item.total_price|floatformat:2|intcomma }}
+                      R {{ item.line_total_inc|floatformat:2|intcomma }}
                     </td>
                   </tr>
                   {% endfor %}
@@ -303,7 +470,25 @@
               </div>
 
               <div class="d-flex justify-content-between fw-semibold mb-3">
-                <span>Amount Due Now</span>
+                <span>Order Total</span>
+                <span>
+                  R {{ invoice.order_total_inc|floatformat:2|intcomma }}
+                </span>
+              </div>
+              <div class="d-flex justify-content-between fw-semibold mb-3">
+                <span>Due Before Delivery</span>
+                <span>
+                  R {{ invoice.deposit_required|floatformat:2|intcomma }}
+                </span>
+              </div>
+              <div class="d-flex justify-content-between fw-semibold mb-3">
+                <span>Credit Used</span>
+                <span>
+                  R {{ invoice.credit_used|floatformat:2|intcomma }}
+                </span>
+              </div>
+              <div class="d-flex justify-content-between fw-semibold mb-3">
+                <span>Total Outstanding</span>
                 <span>
                   R {{ invoice.amount_due|floatformat:2|intcomma }}
                 </span>
@@ -315,10 +500,17 @@
                   View Invoice
                 </a>
 
+                <div class="d-flex justify-content-between fw-semibold mb-3">
+                  <span>Due Now</span>
+                  <span>
+                    R {{ invoice.amount_due|floatformat:2|intcomma }}
+                  </span>
+                </div>
+
                 {% if invoice.amount_due > 0 %}
                   <a href="{% url 'pay-invoice' invoice.id %}"
                     class="btn btn-success">
-                    Pay Deposit
+                    Pay Amount
                   </a>
                 {% endif %}
               </div>
@@ -347,7 +539,7 @@
             <div class="d-flex justify-content-between fw-semibold">
               <span>Total</span>
               <span>
-                R {{ order.grand_total|floatformat:2|intcomma }}
+                R {{ order.grand_total_inc|floatformat:2|intcomma }}
               </span>
             </div>
 

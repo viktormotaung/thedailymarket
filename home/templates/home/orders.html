@@ -247,8 +247,8 @@
                 </td>
 
                 <td class="text-end fw-semibold">
-                  {% if order.grand_total %}
-                    R {{ order.grand_total|floatformat:2 }}
+                  {% if order.grand_total_inc %}
+                    R {{ order.grand_total_inc|floatformat:2 }}
                   {% else %}
                     —
                   {% endif %}
