@@ -135,6 +135,11 @@ def credit_edit(request, client_id):
             new_credit_status = form.cleaned_data["credit_status"]
             new_credit_status_norm = new_credit_status.upper()
             new_limit = form.cleaned_data["credit_limit"]
+
+            # ✅ NEW FIELDS
+            new_payment_term = form.cleaned_data["payment_term"]
+            new_deposit_pct = form.cleaned_data["credit_deposit_pct"]
+
             note = form.cleaned_data.get("note") or ""
             new_funder = form.cleaned_data.get("funder")
 
@@ -157,13 +162,33 @@ def credit_edit(request, client_id):
 
                 # 2️⃣ Update CREDIT ACCOUNT funder
                 updates_account = []
+
                 if account.funder_id != (new_funder.pk if new_funder else None):
                     account.funder = new_funder
                     updates_account.append("funder")
 
                 if updates_account:
                     account.save(update_fields=updates_account + ["updated_at"])
-                    print(f"[DEBUG] CreditAccount {account.id} updated fields: {updates_account}")
+                    print(
+                        f"[DEBUG] CreditAccount {account.id} updated fields: {updates_account}"
+                    )
+
+                # 2️⃣b Update payment rules (NEW)
+                updates_rules = []
+
+                if account.payment_term != new_payment_term:
+                    account.payment_term = new_payment_term
+                    updates_rules.append("payment_term")
+
+                if account.credit_deposit_pct != new_deposit_pct:
+                    account.credit_deposit_pct = new_deposit_pct
+                    updates_rules.append("credit_deposit_pct")
+
+                if updates_rules:
+                    account.save(update_fields=updates_rules + ["updated_at"])
+                    print(
+                        f"[DEBUG] CreditAccount {account.id} updated rules: {updates_rules}"
+                    )
 
                 # 3️⃣ Update credit limit (audited path)
                 if new_limit != prev_limit:
@@ -216,6 +241,8 @@ def credit_edit(request, client_id):
             "account_type": client.account_type,
             "credit_status": client.credit_status,
             "credit_limit": account.credit_limit,
+            "payment_term": account.payment_term,
+            "credit_deposit_pct": account.credit_deposit_pct,
             "funder": account.funder_id,
             "note": "",
         })
