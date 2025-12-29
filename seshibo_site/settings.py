@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'lender',
     'sales',
     "consumers",
+    "django_extensions",
 
     # third party
     'django_celery_beat',

@@ -6,6 +6,21 @@ from .models import Client
 from products.models import Category
 from django.contrib import messages
 from orders.models import Order
+from django.contrib.contenttypes.models import ContentType
+from django.utils import timezone
+from celery import shared_task
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.conf import settings
+from django.urls import reverse
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from clients.models import Client
+from tasks.models import Task
+from django.contrib.contenttypes.models import ContentType
+
+User = get_user_model()
+
 
 
 
@@ -163,22 +178,141 @@ def client_create(request):
 @login_required
 @staff_required
 def client_edit(request, pk):
+    # Fetch client with related objects efficiently
     client = get_object_or_404(
-        Client.objects.select_related("account_manager").prefetch_related("categories"),
+        Client.objects.select_related("account_manager")
+                      .prefetch_related("categories"),
         pk=pk
     )
 
+    original_status = client.status  # capture status before changes
+
     if request.method == "POST":
         form = ClientForm(request.POST, instance=client)
+
         if form.is_valid():
-            client = form.save()
+            with transaction.atomic():
+                updated_client = form.save()
+
+                # 1️⃣ Close the latest task associated with this client
+                content_type = ContentType.objects.get_for_model(updated_client)
+                latest_task = Task.objects.filter(
+                    content_type=content_type,
+                    object_id=updated_client.id
+                ).order_by("-created_at").first()
+
+                if latest_task:
+                    latest_task.status = Task.Status.CLOSED
+                    latest_task.completed_at = timezone.now()
+                    latest_task.save(update_fields=["status", "completed_at", "updated_at"])
+
+                # 2️⃣ Send client status change email
+                customer_profile = updated_client.customer_profiles.select_related("user").first()
+                user = getattr(customer_profile, "user", None)
+
+                if user and user.email and original_status != updated_client.status:
+                    if original_status == "PENDING" and updated_client.status == "ACTIVE":
+                        send_email_pending_to_active(updated_client, user)
+                    elif original_status == "ACTIVE" and updated_client.status == "INACTIVE":
+                        send_email_active_to_inactive(updated_client, user)
+                    elif original_status == "INACTIVE" and updated_client.status == "ACTIVE":
+                        send_email_inactive_to_active(updated_client, user)
+
             messages.success(request, "Client updated successfully.")
-            return redirect("client-view", pk=client.pk)
+            return redirect("client-view", pk=updated_client.pk)
+
         messages.error(request, "Please fix the errors below.")
     else:
         form = ClientForm(instance=client)
 
-    return render(request, "clients/client_edit.html", {"form": form, "client": client})
+    return render(
+        request,
+        "clients/client_edit.html",
+        {"form": form, "client": client},
+    )
+
+
+def send_email_pending_to_active(client, user):
+    subject = "The Daily Market – Your account is now active"
+
+    ctx = {
+        "user": user,
+        "client": client,
+        "login_url": reverse("client-login"),
+        "support_email": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"),
+    }
+
+    text_body = render_to_string(
+        "email/client_pending_to_active.txt", ctx
+    )
+    html_body = render_to_string(
+        "email/client_pending_to_active.html", ctx
+    )
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+        headers={"Reply-To": ctx["support_email"]},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+
+def send_email_active_to_inactive(client, user):
+    subject = "The Daily Market – Your account is now inactive"
+
+    ctx = {
+        "user": user,
+        "client": client,
+        "login_url": reverse("client-login"),
+        "support_email": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"),
+    }
+
+    text_body = render_to_string(
+        "email/client_active_to_inactive.txt", ctx
+    )
+    html_body = render_to_string(
+        "email/client_active_to_inactive.html", ctx
+    )
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+        headers={"Reply-To": ctx["support_email"]},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+def send_email_inactive_to_active(client, user):
+    subject = "The Daily Market – Your account is now active"
+
+    ctx = {
+        "user": user,
+        "client": client,
+        "login_url": reverse("client-login"),
+        "support_email": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"),
+    }
+
+    text_body = render_to_string(
+        "email/client_inactive_to_active.txt", ctx
+    )
+    html_body = render_to_string(
+        "email/client_inactive_to_active.html", ctx
+    )
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+        headers={"Reply-To": ctx["support_email"]},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
 
 
 @login_required

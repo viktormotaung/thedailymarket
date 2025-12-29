@@ -47,6 +47,8 @@
 </head>
 <body>
 
+
+
   <!-- MOBILE TOP BAR -->
   <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
     <div class="container-fluid">
@@ -201,7 +203,7 @@
           <button class="btn btn-sm btn-outline-primary" {% if task.status == 'OPEN' %}disabled{% endif %}>Reopen</button>
         </form>
       </div>
-    </div>
+    </div> assignee
 
     <div class="row g-3">
       <!-- Left: Description & Comments -->
@@ -210,7 +212,7 @@
           <div class="card-body desc">
             <h6 class="text-muted">Description</h6>
             {% if task.description %}
-              <pre class="mb-0">{{ task.description }}</pre>
+              <pre class="mb-0">{{ task.description|urlize }}</pre>
             {% else %}
               <div class="text-muted">No description provided.</div>
             {% endif %}
@@ -266,7 +268,22 @@
             <h6 class="text-muted">Task Details</h6>
             <dl class="row meta">
               <dt class="col-5">Assignee</dt>
-              <dd class="col-7">{{ task.assigned_to|default:"—" }}</dd>
+              <dd class="col-7">
+                <form method="post" class="d-flex flex-column gap-1">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="assign">
+                  <select name="assigned_to" class="form-select form-select-sm">
+                    <option value="">— Select Staff —</option>
+                    {% for staff in staff_members %}
+                      <option value="{{ staff.pk }}" {% if task.assigned_to == staff.user %}selected{% endif %}>
+                        {{ staff.user.get_full_name }} ({{ staff.department }})
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn-sm btn-primary mt-1">Update</button>
+                </form>
+              </dd>
+
 
               <dt class="col-5">Created By</dt>
               <dd class="col-7">{{ task.created_by|default:"—" }}</dd>
@@ -290,9 +307,15 @@
             <h6 class="text-muted">Related</h6>
             {% if task.related_object %}
               {% if related_url %}
-                <a class="btn btn-sm btn-outline-secondary" href="{{ related_url }}">
+                <a
+                  class="btn btn-sm btn-outline-secondary"
+                  href="{{ related_url }}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   Open {{ task.content_type.app_label }}#{{ task.object_id }}
                 </a>
+
               {% else %}
                 <div class="text-muted">
                   {{ task.content_type.app_label }}#{{ task.object_id }}

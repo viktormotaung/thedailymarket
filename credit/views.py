@@ -8,7 +8,7 @@ from django.db.models import F, Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-
+from django.core.mail import EmailMultiAlternatives
 from clients.models import Client
 from transactions.models import Transaction   # ← ADD THIS
 from .models import CreditAccount, CreditLog
@@ -28,8 +28,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 from clients.models import Client
 from .models import CreditAccount, CreditLog, CreditEntry
 from .forms import CreditEditForm
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from profiles.models import CustomerProfile
 
+import logging
 
+logger = logging.getLogger(__name__)
 
 def staff_check(user):
     return user.is_authenticated and user.is_staff
@@ -112,73 +118,172 @@ def credit_list(request):
 @login_required
 @staff_required
 def credit_edit(request, client_id):
+    # Base objects
     client = get_object_or_404(Client, pk=client_id)
-    account, _created = CreditAccount.objects.get_or_create(client=client)
+    account, _ = CreditAccount.objects.get_or_create(client=client)
+
+    # Capture original state BEFORE POST
+    original_credit_status = client.credit_status
+    original_credit_status_norm = (original_credit_status or "").upper()
+    prev_limit = account.credit_limit or Decimal("0.00")
 
     if request.method == "POST":
         form = CreditEditForm(request.POST)
+
         if form.is_valid():
             new_account_type = form.cleaned_data["account_type"]
             new_credit_status = form.cleaned_data["credit_status"]
+            new_credit_status_norm = new_credit_status.upper()
             new_limit = form.cleaned_data["credit_limit"]
             note = form.cleaned_data.get("note") or ""
-            new_funder = form.cleaned_data.get("funder")  # <- make sure form has this
+            new_funder = form.cleaned_data.get("funder")
 
             with transaction.atomic():
-                # 1) Update client fields first (if changed)
+
+                # 1️⃣ Update CLIENT fields
                 updates_client = []
+
                 if client.account_type != new_account_type:
                     client.account_type = new_account_type
                     updates_client.append("account_type")
+
                 if client.credit_status != new_credit_status:
                     client.credit_status = new_credit_status
                     updates_client.append("credit_status")
+
                 if updates_client:
                     client.save(update_fields=updates_client)
+                    print(f"[DEBUG] Client {client.id} updated fields: {updates_client}")
 
-                # 2) Persist funder on the CreditAccount BEFORE any limit change
+                # 2️⃣ Update CREDIT ACCOUNT funder
                 updates_account = []
                 if account.funder_id != (new_funder.pk if new_funder else None):
                     account.funder = new_funder
                     updates_account.append("funder")
+
                 if updates_account:
                     account.save(update_fields=updates_account + ["updated_at"])
+                    print(f"[DEBUG] CreditAccount {account.id} updated fields: {updates_account}")
 
-                # 3) Change limit via the audited path (this creates CreditLog + ledger entries)
-                prev_limit = account.credit_limit or Decimal("0.00")
+                # 3️⃣ Update credit limit (audited path)
                 if new_limit != prev_limit:
-                    # IMPORTANT: do NOT set account.credit_limit directly.
                     account.set_limit(
                         new_limit,
                         authorised_by=request.user,
                         note=note,
                     )
-                    # No need to call CreditLog.objects.create() here—set_limit does it.
+                    print(
+                        f"[DEBUG] Credit limit changed from {prev_limit} to {new_limit}"
+                    )
+
+                # 4️⃣ EMAIL: resolve user via CreditAccount → Client → CustomerProfile
+                credit_client = account.client
+
+                customer_profile = (
+                    credit_client.customer_profiles
+                    .select_related("user")
+                    .first()
+                )
+
+                user = getattr(customer_profile, "user", None)
+
+                if (
+                    user
+                    and user.email
+                    and original_credit_status_norm != "ACTIVE"
+                    and new_credit_status_norm == "ACTIVE"
+                ):
+                    print(
+                        f"[DEBUG] Sending credit active email to {user.email} "
+                        f"(Client {credit_client.id})"
+                    )
+                    send_email_credit_active(credit_client, user)
+                else:
+                    print(
+                        f"[DEBUG] Email not sent. "
+                        f"user={bool(user)}, "
+                        f"email={getattr(user, 'email', None)}, "
+                        f"status_change={original_credit_status_norm}→{new_credit_status_norm}"
+                    )
 
             messages.success(request, "Credit details updated.")
             return redirect("credit-view", client_id=client.id)
+
+        messages.error(request, "Please correct the errors below.")
+
     else:
         form = CreditEditForm(initial={
             "account_type": client.account_type,
             "credit_status": client.credit_status,
             "credit_limit": account.credit_limit,
-            "funder": account.funder_id,  # prefill funder
+            "funder": account.funder_id,
             "note": "",
         })
 
-    # Snapshot numbers for the page
-    limit_ = account.credit_limit or Decimal("0.00")
-    used_ = account.credit_used or Decimal("0.00")
-    available_ = account.credit_available  # property
+    return render(
+        request,
+        "credit/credit_edit.html",
+        {
+            "client": client,
+            "account": account,
+            "form": form,
+            "limit": account.credit_limit or Decimal("0.00"),
+            "used": account.credit_used or Decimal("0.00"),
+            "available": account.credit_available,
+        },
+    )
 
-    return render(request, "credit/credit_edit.html", {
+
+def send_email_credit_active(client, user):
+    subject = "The Daily Market – Trade Assist Access Activated"
+
+    ctx = {
+        "user": user,
         "client": client,
-        "account": account,
-        "form": form,
-        "limit": limit_,
-        "used": used_,
-        "available": available_,
-    })
+        "credit_limit": client.credit_account.credit_limit or 0,
+        "login_url": reverse("client-login"),
+        "support_email": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"),
+    }
+
+    text_body = render_to_string("email/credit_active.txt", ctx)
+    html_body = render_to_string("email/credit_active.html", ctx)
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+        headers={"Reply-To": ctx["support_email"]},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+def send_email_credit_active(client, user):
+    """
+    Sends an email to the client when their credit account becomes active.
+    """
+    subject = "The Daily Market – Trade Assist Access Activated"
+
+    ctx = {
+        "user": user,
+        "client": client,
+        "credit_limit": client.credit_account.credit_limit or 0,
+        "login_url": reverse("client-login"),
+        "support_email": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"),
+    }
+
+    text_body = render_to_string("email/credit_active.txt", ctx)
+    html_body = render_to_string("email/credit_active.html", ctx)
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+        headers={"Reply-To": ctx["support_email"]},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
 
 
 @login_required

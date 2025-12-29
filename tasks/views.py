@@ -15,6 +15,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
+from profiles.models import StaffProfile
 
 from .models import Task
 
@@ -212,25 +213,22 @@ def task_reopen(request, pk: int):
 def task_view(request, pk):
     task = get_object_or_404(Task, pk=pk)
 
-    # Optional: load comments if you have a TaskComment model with FK "task" and related_name "comments"
+    # Load staff for dropdown
+    staff_members = StaffProfile.objects.filter(status="active").select_related("user")
+
+    # Load comments (if TaskComment exists)
     try:
         comments_qs = task.comments.order_by("-created_at")
     except Exception:
         comments_qs = []
 
-    # Optional: build a related URL if the linked object exposes get_absolute_url()
-    related_url = None
-    if task.related_object:
-        try:
-            if hasattr(task.related_object, "get_absolute_url"):
-                related_url = task.related_object.get_absolute_url()
-        except Exception:
-            related_url = None
+    # Related URL
+    related_url = getattr(getattr(task, "related_object", None), "get_absolute_url", lambda: None)()
 
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
 
-        # Basic authorization: staff OR the assignee OR the creator
+        # Authorization
         is_authorized = (
             request.user.is_staff
             or request.user == getattr(task, "assigned_to", None)
@@ -240,36 +238,41 @@ def task_view(request, pk):
             messages.error(request, "Not authorized to update this task.")
             return redirect(request.path)
 
-        if action == "close":
-            task.status = Task.Status.CLOSED
-            task.completed_at = timezone.now()
+        # Handle status updates
+        if action in ["close", "pending", "reopen"]:
+            if action == "close":
+                task.status = Task.Status.CLOSED
+                task.completed_at = timezone.now()
+            elif action == "pending":
+                task.status = Task.Status.PENDING
+            elif action == "reopen":
+                task.status = Task.Status.OPEN
+                task.completed_at = None
             task.save(update_fields=["status", "completed_at", "updated_at"])
-            messages.success(request, "Task closed.")
+            messages.success(request, f"Task {action}d.")
             return redirect(request.path)
 
-        elif action == "pending":
-            task.status = Task.Status.PENDING
-            # keep completed_at as-is (usually None or a past value)
-            task.save(update_fields=["status", "updated_at"])
-            messages.success(request, "Task marked as pending.")
+        # Handle assigning staff
+        elif action == "assign":
+            staff_id = request.POST.get("assigned_to")
+            try:
+                staff_profile = StaffProfile.objects.get(pk=staff_id)
+                task.assigned_to = staff_profile.user
+                task.save(update_fields=["assigned_to", "updated_at"])
+                messages.success(request, f"Task assigned to {staff_profile.user.get_full_name()}.")
+            except StaffProfile.DoesNotExist:
+                messages.error(request, "Selected staff member does not exist.")
             return redirect(request.path)
 
-        elif action == "reopen":
-            task.status = Task.Status.OPEN
-            task.completed_at = None
-            task.save(update_fields=["status", "completed_at", "updated_at"])
-            messages.success(request, "Task reopened.")
-            return redirect(request.path)
-
+        # Handle adding comments
         elif action == "add_comment":
             body = (request.POST.get("comment") or "").strip()
             if not body:
                 messages.error(request, "Comment cannot be empty.")
                 return redirect(request.path)
 
-            # Only if you have a TaskComment model
             try:
-                from .models import TaskComment  # adjust import if located elsewhere
+                from .models import TaskComment
                 TaskComment.objects.create(
                     task=task,
                     body=body,
@@ -281,14 +284,14 @@ def task_view(request, pk):
                 messages.error(request, "Comments are not enabled.")
             return redirect(request.path)
 
+        # Delete task
         elif action == "delete":
-            # Optional: allow only staff or creator to delete
             if not (request.user.is_staff or request.user == getattr(task, "created_by", None)):
                 messages.error(request, "Not authorized to delete this task.")
                 return redirect(request.path)
             task.delete()
             messages.success(request, "Task deleted.")
-            return redirect("tasks")  # back to list
+            return redirect("tasks")
 
         else:
             messages.error(request, "Unknown action.")
@@ -302,5 +305,7 @@ def task_view(request, pk):
             "task": task,
             "comments": comments_qs,
             "related_url": related_url,
+            "staff_members": staff_members,  # pass staff for dropdown
         },
     )
+

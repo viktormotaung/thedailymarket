@@ -1,0 +1,12 @@
+Hello {{ client.name }},
+
+Good news — your account with The Daily Market has been activated.
+
+You now have full access to our services and can begin placing orders or engaging with our team as needed.
+
+If you have any questions or need assistance, please contact us at support@thedailymarket.co.za.
+
+Thank you for choosing The Daily Market.
+
+Kind regards,
+The Daily Market Team

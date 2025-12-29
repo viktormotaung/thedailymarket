@@ -322,7 +322,7 @@ class CustomerProfileAdmin(admin.ModelAdmin):
         "user__first_name",
         "user__last_name",
         "phone",
-        "company_name",
+     
         "status",
     )
     autocomplete_fields = ("client",)
@@ -335,8 +335,7 @@ class CustomerProfileAdmin(admin.ModelAdmin):
                 "fields": (
                     "display_name",
                     "phone",
-                    "company_name",
-                    "tax_number",
+                    
                 )
             },
         ),

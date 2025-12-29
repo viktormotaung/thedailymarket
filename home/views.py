@@ -1242,15 +1242,18 @@ def create_support_task_for_new_registration(*, request, client, user):
     Creates a one-time verification task for a newly completed client profile.
     """
 
-    # Defensive: do not create duplicates
-    existing = Task.objects.filter(
+    # 🛑 Prevent duplicate tasks
+    if Task.objects.filter(
         title__icontains="Verify new client",
         content_type=ContentType.objects.get_for_model(client),
         object_id=client.id,
-    ).exists()
-
-    if existing:
+    ).exists():
         return
+
+    # 🔗 Build client edit URL (DEV / STAGING / LIVE safe)
+    client_edit_url = request.build_absolute_uri(
+        reverse("client-edit", args=[client.id])
+    )
 
     Task.objects.create(
         title=f"Verify new client: {client.name}",
@@ -1259,6 +1262,8 @@ def create_support_task_for_new_registration(*, request, client, user):
             f"Client: {client.name}\n"
             f"Contact person: {client.contact_person}\n"
             f"Email: {client.email}\n\n"
+            f"🔗 Open client profile:\n"
+            f"{client_edit_url}\n\n"
             f"Please verify this client within 30–60 minutes."
         ),
         status=Task.Status.PENDING,
@@ -1269,6 +1274,7 @@ def create_support_task_for_new_registration(*, request, client, user):
         content_type=ContentType.objects.get_for_model(client),
         object_id=client.id,
     )
+
     
 def _user_can_access_order(user, order) -> bool:
     if user.is_staff or user.is_superuser:

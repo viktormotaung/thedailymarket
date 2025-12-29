@@ -1,0 +1,122 @@
+{% load humanize %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>The Daily Market — Account Activated</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f7faf8;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: #111827;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    a {
+      color: #0b5c39;
+      text-decoration: none;
+    }
+
+    .wrap {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 24px 22px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+    }
+
+    .brand {
+      color: #0b5c39;
+    }
+
+    .muted {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .hr {
+      height: 1px;
+      background: #eef2f7;
+      border: 0;
+      margin: 18px 0 16px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <!-- Header -->
+    <div class="center" style="margin-bottom: 16px;">
+      <h2 class="brand" style="margin: 0; font-weight: 800;">
+        The Daily Market
+      </h2>
+      <div class="muted">
+        Your account is now active
+      </div>
+    </div>
+
+    <!-- Card -->
+    <div class="card">
+
+      <p style="margin-top: 0;">
+        Hi {{ user.first_name|default:user.username }},
+      </p>
+
+      <p>
+        We’re excited to inform you that your account
+        {% if client.name %}
+          for <strong>{{ client.name }}</strong>
+        {% endif %}
+        has been <strong>activated</strong>.
+      </p>
+
+      <p>
+        You now have access to <strong>Trade Assist</strong> and can start using all its features.
+        Your current Trade Assist limit is:
+        <strong>
+          R {{ account.credit_limit|floatformat:2|intcomma }}
+        </strong>.
+      </p>
+
+      <p>
+        To get started, log in to your account and explore available options.
+      </p>
+
+      <div class="hr"></div>
+
+      <p class="muted" style="margin: 0 0 8px;">
+        If you need any assistance, feel free to contact our support team at
+        <a href="mailto:{{ support_email|default:'support@thedailymarket.co.za' }}">
+          {{ support_email|default:'support@thedailymarket.co.za' }}
+        </a>.
+      </p>
+
+      <p style="margin: 0;">
+        — The Daily Market Team
+      </p>
+
+    </div>
+
+    <!-- Footer -->
+    <p class="muted center" style="margin-top: 14px;">
+      If you didn’t expect this message, you can safely ignore it.
+    </p>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,26 @@
+Hi {{ user.first_name|default:user.username }},
+
+Good news! Your business profile
+{% if client.name %}
+for {{ client.name }}
+{% endif %}
+now has access to Trade Assist on The Daily Market.
+
+Your current Trade Assist limit is:
+R {{ credit_limit|floatformat:2 }}
+
+This means you can now place orders using Trade Assist, subject to your
+approved limit and terms.
+
+If you have any questions or need assistance, our support team is ready
+to help.
+
+Support email:
+{{ support_email|default:"support@thedailymarket.co.za" }}
+
+You can log in here:
+{{ login_url }}
+
+Thank you for choosing The Daily Market.
+
+— The Daily Market Team
