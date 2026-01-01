@@ -40,6 +40,7 @@ urlpatterns = [
         name="sales-prospect-reopen",
     ),
 
+
     # NEW: logging endpoints for each stage tab
     path(
         "prospects/<int:pk>/contact-log/",

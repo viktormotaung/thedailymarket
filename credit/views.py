@@ -1,5 +1,7 @@
 # credit/views.py
 from decimal import Decimal
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -18,7 +20,7 @@ from django.db.models import F, Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
 from decimal import Decimal
 from django.db import transaction
-
+from django.db.models import Sum
 from decimal import Decimal
 
 from django.contrib import messages
@@ -32,6 +34,13 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from profiles.models import CustomerProfile
+import hashlib
+import urllib.parse
+
+from decimal import Decimal, ROUND_HALF_UP
+
+def r2(value: Decimal) -> Decimal:
+    return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 import logging
 
@@ -312,34 +321,58 @@ def send_email_credit_active(client, user):
     msg.attach_alternative(html_body, "text/html")
     msg.send(fail_silently=False)
 
-
 @login_required
 @staff_required
 def credit_client_view(request, client_id):
-    client = get_object_or_404(Client.objects.select_related("credit_account"), pk=client_id)
+    # ------------------------------------------------------------------
+    # Client & Credit Account
+    # ------------------------------------------------------------------
+    client = get_object_or_404(
+        Client.objects.select_related("credit_account"),
+        pk=client_id
+    )
     account, _ = CreditAccount.objects.get_or_create(client=client)
 
+    # ------------------------------------------------------------------
+    # Credit Logs (audit / ops)
+    # ------------------------------------------------------------------
     logs = account.logs.select_related("authorised_by").order_by("-created_at")
 
-    # Credit-related transactions (legacy + current)
-    tx_qs = (
+    # ------------------------------------------------------------------
+    # Legacy + current credit-related transactions (for reference only)
+    # ------------------------------------------------------------------
+    transactions = (
         Transaction.objects
         .select_related("invoice")
         .filter(
             client=client,
-            transaction_type__in=["credit_usage", "credit_repayment", "credit_issue", "adjustment"]
+            transaction_type__in=[
+                "credit_usage",
+                "credit_repayment",
+                "credit_issue",
+                "adjustment",
+            ],
         )
         .order_by("-created_at", "-id")
     )
 
-    # --- Account-level snapshots ---
-    limit_ = account.credit_limit or Decimal("0.00")
-    used_  = account.credit_used  or Decimal("0.00")
-    avail_ = (limit_ - used_) if limit_ > 0 else Decimal("0.00")
-    pct    = Decimal("0.00") if limit_ == 0 else (used_ / limit_) * Decimal("100")
+    # ------------------------------------------------------------------
+    # Account-level snapshots
+    # ------------------------------------------------------------------
+    credit_limit = account.credit_limit or Decimal("0.00")
+    credit_used = account.credit_used or Decimal("0.00")
+    credit_available = (
+        credit_limit - credit_used if credit_limit > 0 else Decimal("0.00")
+    )
+    percent_used = (
+        Decimal("0.00")
+        if credit_limit == 0
+        else (credit_used / credit_limit) * Decimal("100")
+    )
 
-    # --- Open credit exposure per invoice ---
-    # Aggregate by invoice: total usage vs total repayment
+    # ------------------------------------------------------------------
+    # Open credit exposure per invoice
+    # ------------------------------------------------------------------
     exposure_raw = (
         CreditEntry.objects
         .filter(
@@ -371,6 +404,7 @@ def credit_client_view(request, client_id):
         used = row["credit_used"] or Decimal("0.00")
         repaid = row["credit_repaid"] or Decimal("0.00")
         outstanding = used - repaid
+
         if outstanding > 0:
             open_invoices.append({
                 "invoice_id": row["invoice_id"],
@@ -382,22 +416,266 @@ def credit_client_view(request, client_id):
                 "outstanding": outstanding,
             })
 
-    open_credit_total = sum((row["outstanding"] for row in open_invoices), Decimal("0.00"))
+    open_credit_total = credit_used  # authoritative snapshot
 
-    return render(request, "credit/credit_view.html", {
+    # ------------------------------------------------------------------
+    # Credit Ledger with Running Outstanding Balance
+    # ------------------------------------------------------------------
+    # Oldest → newest for correct running math
+    credit_entries = list(
+        account.entries
+        .select_related("invoice", "transaction")
+        .order_by("posted_at", "id")
+    )
+
+    running_balance = Decimal("0.00")
+
+    for entry in credit_entries:
+        # Outstanding balance logic (IMPORTANT)
+        if entry.kind in [CreditEntry.USAGE, CreditEntry.ADJUSTMENT]:
+            running_balance += entry.amount
+
+        elif entry.kind in [CreditEntry.REPAYMENT, CreditEntry.WRITEOFF]:
+            running_balance -= entry.amount
+
+        # NOTE:
+        # - ISSUE affects credit_limit only
+        # - LIMIT_DECREASE affects credit_limit only
+        # They MUST NOT touch outstanding balance
+
+        entry.running_balance = running_balance
+
+    # Latest entry first for UI
+    credit_entries.reverse()
+
+    # ------------------------------------------------------------------
+    # Render
+    # ------------------------------------------------------------------
+    return render(
+        request,
+        "credit/credit_view.html",
+        {
+            "client": client,
+            "account": account,
+            "logs": logs,
+            "transactions": transactions,
+
+            "credit_limit": credit_limit,
+            "credit_used": credit_used,
+            "credit_available": credit_available,
+            "percent_used": percent_used.quantize(Decimal("0.01")),
+
+            "open_invoices": open_invoices,
+            "open_credit_total": open_credit_total,
+
+            # Ledger
+            "credit_entries": credit_entries,
+        },
+    )
+
+
+@login_required
+@staff_required
+@require_POST
+def credit_confirm_payment(request, client_id):
+    client = get_object_or_404(Client, pk=client_id)
+
+    amount = Decimal(request.POST.get("amount", "0"))
+    reference = request.POST.get("reference", "").strip()
+
+    if amount <= 0:
+        messages.error(request, "Amount must be greater than zero.")
+        return redirect("credit-client-view", client_id=client.id)
+
+    # Create the transaction (this will automatically create CreditEntry)
+    tx = Transaction.objects.create(
+        client=client,
+        amount=amount,
+        transaction_type="credit_repayment",
+        reference=reference,
+    )
+
+    # Refresh CreditAccount to get updated credit_used
+    ca = CreditAccount.objects.get(client=client)
+    ca.refresh_from_db()
+
+    # Print outcomes
+    print("=== Credit Repayment Recorded ===")
+    print(f"Transaction ID: {tx.id}")
+    print(f"Client: {tx.client}")
+    print(f"Amount: {tx.amount}")
+    print(f"Transaction Type: {tx.transaction_type}")
+    print(f"Business balance snapshot: {tx.balance}")
+    print(f"Client balance snapshot: {tx.client_balance}")
+
+    # Fetch the CreditEntry that was automatically created
+    credit_entry = CreditEntry.objects.filter(
+        credit_account__client_id=tx.client_id,  # <--- correct
+        kind="repayment",
+        amount=tx.amount,
+    ).order_by("-posted_at").first()
+
+    if credit_entry:
+        print("--- Linked CreditEntry ---")
+        print(f"CreditEntry ID: {credit_entry.id}")
+        print(f"Kind: {credit_entry.kind}")
+        print(f"Amount: {credit_entry.amount}")
+        print(f"CreditAccount ID: {credit_entry.credit_account_id}")
+        print(f"CreditAccount.credit_used: {credit_entry.credit_account.credit_used}")
+        print(f"CreditAccount.credit_limit: {credit_entry.credit_account.credit_limit}")
+    else:
+        print("No CreditEntry linked!")
+
+    messages.success(request, "Credit repayment recorded successfully.")
+    return redirect("credit-view", client_id=client.id)
+
+def generate_payfast_request(request, invoice_id):
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("order", "order__client"),
+        pk=invoice_id
+    )
+
+    data = [
+        ("merchant_id", settings.PAYFAST_MERCHANT_ID),
+        ("merchant_key", settings.PAYFAST_MERCHANT_KEY),
+        ("return_url", "https://yourdomain.co.za/payfast/return/"),
+        ("cancel_url", "https://yourdomain.co.za/payfast/cancel/"),
+        ("notify_url", "https://yourdomain.co.za/payfast/itn/"),
+
+        ("name_first", invoice.order.client.contact_person.split()[0]),
+        ("name_last", invoice.order.client.contact_person.split()[-1]),
+        ("email_address", invoice.order.client.email),
+
+        ("m_payment_id", f"INV-{invoice.id}"),
+        ("amount", f"{invoice.amount_due:.2f}"),
+        ("item_name", f"Invoice #{invoice.id}"),
+    ]
+
+    signature = generate_payfast_signature(
+        data=data,
+        passphrase=settings.PAYFAST_PASSPHRASE
+    )
+
+    payfast_data = dict(data)
+    payfast_data["signature"] = signature
+
+    # Build the full PayFast URL
+    from urllib.parse import urlencode
+    payfast_link = f"{settings.PAYFAST_PROCESS_URL}?{urlencode(payfast_data)}"
+
+    return JsonResponse({"payment_url": payfast_link})
+
+def generate_payfast_signature(data, passphrase):
+    parts = []
+
+    for key, value in data:
+        if value != "":
+            parts.append(f"{key}={urllib.parse.quote_plus(str(value))}")
+
+    param_string = "&".join(parts)
+
+    if passphrase:
+        param_string += "&passphrase=" + urllib.parse.quote_plus(passphrase)
+
+    print("\nPAYFAST PARAM STRING (FINAL):")
+    print(param_string)
+
+    signature = hashlib.md5(param_string.encode("utf-8")).hexdigest()
+
+    print("PAYFAST SIGNATURE:")
+    print(signature)
+
+    return signature
+
+
+@login_required
+@staff_required
+def credit_send_request(request, client_id):
+    client = get_object_or_404(Client, pk=client_id)
+
+    if not client.email:
+        return JsonResponse(
+            {"success": False, "message": "Client has no email"},
+            status=400
+        )
+
+    credit_account = get_object_or_404(CreditAccount, client=client)
+
+    outstanding = credit_account.credit_used or Decimal("0.00")
+
+    if outstanding <= 0:
+        return JsonResponse(
+            {"success": False, "message": "No outstanding credit to repay"},
+            status=400
+        )
+
+    # --- Generate PayFast link ---
+    data = [
+        ("merchant_id", settings.PAYFAST_MERCHANT_ID),
+        ("merchant_key", settings.PAYFAST_MERCHANT_KEY),
+        ("return_url", "https://yourdomain.co.za/payfast/return/"),
+        ("cancel_url", "https://yourdomain.co.za/payfast/cancel/"),
+        ("notify_url", "https://yourdomain.co.za/payfast/itn/"),
+        ("name_first", client.contact_person.split()[0]),
+        ("name_last", client.contact_person.split()[-1]),
+        ("email_address", client.email),
+        ("m_payment_id", f"CR-{client.id}"),
+        ("amount", f"{outstanding:.2f}"),
+        ("item_name", f"Credit Repayment – {client.name}"),
+    ]
+
+    signature = generate_payfast_signature(
+        data,
+        passphrase=settings.PAYFAST_PASSPHRASE
+    )
+
+    payfast_data = dict(data)
+    payfast_data["signature"] = signature
+
+    payfast_link = (
+        f"{settings.PAYFAST_PROCESS_URL}?"
+        f"{urllib.parse.urlencode(payfast_data)}"
+    )
+
+    # --- Prepare Email ---
+    subject = f"The Daily Market – Credit Repayment Request"
+
+    ctx = {
         "client": client,
-        "account": account,
-        "logs": logs,
-        "transactions": tx_qs,
+        "credit_account": credit_account,
+        "outstanding": outstanding,
+        "payfast_link": payfast_link,
+        "support_email": getattr(
+            settings,
+            "SUPPORT_EMAIL",
+            "support@thedailymarket.co.za",
+        ),
+    }
 
-        "credit_limit": limit_,
-        "credit_used": used_,
-        "credit_available": avail_,
-        "percent_used": pct.quantize(Decimal("0.01")),
+    text_body = render_to_string(
+        "email/payfast_credit_request.txt",
+        ctx
+    )
+    html_body = render_to_string(
+        "email/payfast_credit_request.html",
+        ctx
+    )
 
-        "open_invoices": open_invoices,
-        "open_credit_total": open_credit_total,
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[client.email],
+        headers={"Reply-To": ctx["support_email"]},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+    return JsonResponse({
+        "success": True,
+        "message": "Credit repayment request sent successfully."
     })
+
 
 @login_required
 @staff_required

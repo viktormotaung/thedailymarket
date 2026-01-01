@@ -16,6 +16,9 @@ from django.utils.timezone import now
 from datetime import date, timedelta
 
 from clients.models import Client
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # ---------- helpers ----------
@@ -444,6 +447,8 @@ class CreditAccount(models.Model):
     )
     credit_limit = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     credit_used  = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    # ✅ NEW FIELD
+    next_due_date = models.DateField(null=True, blank=True, help_text="Next repayment due date (optional).")
     created_at   = models.DateTimeField(auto_now_add=True)
     updated_at   = models.DateTimeField(auto_now=True)
 
@@ -510,6 +515,28 @@ class CreditAccount(models.Model):
 
     def has_met_strict_50pct_rule(self) -> Tuple[bool, Optional[str]]:
         return CreditEntry.check_50pct_rule(self.client)
+    
+    def recalculate_credit_used(self):
+        """
+        credit_used = total USAGE - total REPAYMENT
+        """
+        totals = self.entries.aggregate(
+            usage=Coalesce(
+                Sum("amount", filter=models.Q(kind="usage")),
+                Decimal("0.00")
+            ),
+            repayment=Coalesce(
+                Sum("amount", filter=models.Q(kind="repayment")),
+                Decimal("0.00")
+            ),
+        )
+
+        self.credit_used = totals["usage"] - totals["repayment"]
+        self.save(update_fields=["credit_used"])
+
+    @property
+    def credit_available(self):
+        return (self.credit_limit or Decimal("0.00")) - (self.credit_used or Decimal("0.00"))
 
 
 def _sync_allocation_for_current_state(credit_account_id: int) -> None:
@@ -536,6 +563,9 @@ def _sync_allocation_for_current_state(credit_account_id: int) -> None:
     except Exception:
         pass
 
+@property
+def outstanding(self) -> Decimal:
+    return r2(self.credit_used or Decimal("0.00"))
 
 # ====================================================================
 # CreditLog: limit change audit -> emits ledger entries
@@ -932,40 +962,99 @@ def _apply_entry_delta(ca: CreditAccount, entry: CreditEntry, reverse: bool = Fa
     Apply or unapply a CreditEntry to the account's running totals:
     - credit_used is affected by USAGE / REPAYMENT / ADJUSTMENT / WRITEOFF
     - credit_limit is affected by ISSUE / LIMIT_DECREASE
+    Safe: wrapped in transaction.on_commit.
     """
-    used  = r2(ca.credit_used or Decimal("0.00"))
-    limit = r2(ca.credit_limit or Decimal("0.00"))
-    amt   = r2(entry.amount or Decimal("0.00"))
-    sgn   = Decimal("-1.00") if reverse else Decimal("1.00")
+    try:
+        with transaction.atomic():
+            used  = r2(ca.credit_used or Decimal("0.00"))
+            limit = r2(ca.credit_limit or Decimal("0.00"))
+            amt   = r2(entry.amount or Decimal("0.00"))
+            sgn   = Decimal("-1.00") if reverse else Decimal("1.00")
 
-    if entry.kind == CreditEntry.USAGE:
-        used = used + sgn * amt
-    elif entry.kind in (CreditEntry.REPAYMENT, CreditEntry.WRITEOFF):
-        used = used - sgn * amt
-    elif entry.kind == CreditEntry.ADJUSTMENT:
-        # Convention: positive ADJUSTMENT increases 'used'.
-        used = used + sgn * amt
-    elif entry.kind == CreditEntry.ISSUE:
-        limit = limit + sgn * amt
-    elif entry.kind == CreditEntry.LIMIT_DECREASE:
-        limit = limit - sgn * amt
+            if entry.kind == CreditEntry.USAGE:
+                used += sgn * amt
+            elif entry.kind in (CreditEntry.REPAYMENT, CreditEntry.WRITEOFF):
+                used -= sgn * amt
+            elif entry.kind == CreditEntry.ADJUSTMENT:
+                used += sgn * amt
+            elif entry.kind == CreditEntry.ISSUE:
+                limit += sgn * amt
+            elif entry.kind == CreditEntry.LIMIT_DECREASE:
+                limit -= sgn * amt
 
-    if used < 0:
-        used = Decimal("0.00")
-    if limit < 0:
-        limit = Decimal("0.00")
+            used = max(used, Decimal("0.00"))
+            limit = max(limit, Decimal("0.00"))
 
-    ca.credit_used  = r2(used)
-    ca.credit_limit = r2(limit)
-    ca.save(update_fields=["credit_used", "credit_limit", "updated_at"])
+            ca.credit_used  = r2(used)
+            ca.credit_limit = r2(limit)
+            ca.save(update_fields=["credit_used", "credit_limit", "updated_at"])
+            logger.debug(f"Applied CreditEntry {entry.pk} ({entry.kind}) -> Used: {used}, Limit: {limit}")
+    except Exception as e:
+        logger.exception(f"Failed to apply CreditEntry {entry.pk}: {e}")
+        raise
 
-
+# Ensure this always runs after DB commit
 @receiver(post_save, sender=CreditEntry)
 def creditentry_apply(sender, instance: CreditEntry, created, **kwargs):
-    if created:
-        _apply_entry_delta(instance.credit_account, instance, reverse=False)
+    if not created:
+        return
 
+    transaction.on_commit(lambda: _apply_entry_delta(instance.credit_account, instance))
 
+# Keep FunderAllocation in sync safely
+@receiver(post_save, sender=CreditEntry)
+def sync_allocation_on_limit_change(sender, instance: CreditEntry, created, **kwargs):
+    if not created:
+        return
+    if instance.kind not in (CreditEntry.ISSUE, CreditEntry.LIMIT_DECREASE):
+        return
+    ca = instance.credit_account
+    if not ca.funder_id:
+        return
+
+    def _sync():
+        try:
+            _ensure_allocation_or_best_effort(
+                funder=ca.funder,
+                client=ca.client,
+                target_amount=_r2(ca.credit_limit or Decimal("0.00")),
+            )
+            # Rebuild this week's summary
+            ws = monday_of(instance.posted_at.date())
+            ca.funder.rebuild_week(ws)
+        except Exception as e:
+            logger.exception(f"Failed to sync allocation for CreditEntry {instance.pk}: {e}")
+
+    transaction.on_commit(_sync)
+
+# ---------- creators (usage, repayment, adjustment, writeoff) ----------
+# Ensure the delta is applied immediately, even if bulk_create is used
+def _create_credit_entry_safe(cls, ca: CreditAccount, kind: str, amount: Decimal, **kwargs) -> CreditEntry:
+    entry = cls.objects.create(credit_account=ca, kind=kind, amount=r2(amount), **kwargs)
+    # Immediately apply delta after commit
+    transaction.on_commit(lambda: _apply_entry_delta(ca, entry))
+    return entry
+
+# Example usage:
+@classmethod
+def record_usage(cls, *, client: Client, amount: Decimal, **kwargs):
+    ca, _ = CreditAccount.objects.get_or_create(client=client)
+    return _create_credit_entry_safe(cls, ca, cls.USAGE, amount, **kwargs)
+
+@classmethod
+def record_repayment(cls, *, client: Client, amount: Decimal, **kwargs):
+    ca, _ = CreditAccount.objects.get_or_create(client=client)
+    return _create_credit_entry_safe(cls, ca, cls.REPAYMENT, amount, **kwargs)
+
+@classmethod
+def record_adjustment(cls, *, client: Client, amount: Decimal, **kwargs):
+    ca, _ = CreditAccount.objects.get_or_create(client=client)
+    return _create_credit_entry_safe(cls, ca, cls.ADJUSTMENT, amount, **kwargs)
+
+@classmethod
+def record_writeoff(cls, *, client: Client, amount: Decimal, **kwargs):
+    ca, _ = CreditAccount.objects.get_or_create(client=client)
+    return _create_credit_entry_safe(cls, ca, cls.WRITEOFF, amount, **kwargs)
 # NEW: keep FunderAllocation in sync when credit_limit changes (ISSUE / LIMIT_DECREASE)
 @receiver(post_save, sender=CreditEntry)
 def sync_allocation_on_limit_change(sender, instance: CreditEntry, created, **kwargs):
@@ -997,8 +1086,7 @@ def sync_allocation_on_limit_change(sender, instance: CreditEntry, created, **kw
     except Exception:
         # don't block the save path on reporting; log if you have logging in place
         pass
-
-
+    
 # NEW: refresh funder week on USAGE/REPAYMENT/ADJUSTMENT/WRITEOFF as activity occurs
 @receiver(post_save, sender=CreditEntry)
 def refresh_funder_week_on_usage_like(sender, instance: CreditEntry, created, **kwargs):

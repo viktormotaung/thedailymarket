@@ -104,7 +104,51 @@
 
       <div class="col-12 col-md-4"><div class="card card-compact"><div class="d-flex justify-content-between align-items-start"><div><small class="text-muted">This Month (payable)</small><h4 class="mt-1">R{{ this_month_total|floatformat:2 }}</h4><div class="text-muted small">Unpaid: R{{ this_month_unpaid|floatformat:2 }}</div></div><div class="text-end"><small class="text-muted">Month</small><div>{{ current_month_name }} {{ current_year }}</div></div></div></div></div>
 
-      <div class="col-12 col-md-4"><div class="card card-compact"><div class="d-flex justify-content-between align-items-start"><div><small class="text-muted">Month Bonus</small><h4 class="mt-1">R{{ this_month_bonus|floatformat:2 }}</h4><div class="text-muted small">Eligible: {{ this_month_bonus_eligible|yesno:"Yes,No" }}</div></div><div class="text-end"><small class="text-muted">Status</small><div>{% if monthly_commission and monthly_commission.paid %}Paid on {{ monthly_commission.paid_on }}{% else %}Unpaid{% endif %}</div></div></div></div></div>
+      <div class="col-12 col-md-4">
+        <div class="card card-compact">
+          <div class="d-flex justify-content-between align-items-start">
+
+            <div>
+              <small class="text-muted">3-Month Trend</small>
+
+              <h4 class="mt-1">
+                {% with lm=last_3_months|last %}
+                    R{{ lm.total|floatformat:2 }}
+                {% endwith %}
+
+              </h4>
+
+              <div class="small">
+                {% if trend_direction == "up" %}
+                  <span class="text-success">
+                    ▲ {{ trend_pct|floatformat:1 }}%
+                  </span>
+                {% elif trend_direction == "down" %}
+                  <span class="text-danger">
+                    ▼ {{ trend_pct|floatformat:1 }}%
+                  </span>
+                {% else %}
+                  <span class="text-muted">
+                    ➜ 0.0%
+                  </span>
+                {% endif %}
+                <span class="text-muted">vs last month</span>
+              </div>
+            </div>
+
+            <div class="text-end">
+              <small class="text-muted">Last 3 months</small>
+              <div class="small">
+                {% for m in last_3_months %}
+                  <div>{{ m.label }}: R{{ m.total|floatformat:0 }}</div>
+                {% endfor %}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- filter + table -->
@@ -162,7 +206,12 @@
             </thead>
             <tbody>
               {% for entry in commission_entries %}
-                <tr onclick="window.location.href='{% url 'sales-commission-view' entry.id %}'" style="cursor:pointer;">
+                <tr onclick="window.location.href='{% url 'sales:sales-commission-view' entry.pk %}'"style="cursor:pointer;">
+
+
+
+
+
                   <td>#{{ entry.invoice.id }}</td>
                   <td>{{ entry.invoice.client }}</td>
                   <td>{% if entry.rep %}{{ entry.rep.get_full_name|default:entry.rep.username }}{% else %}<span class="text-muted">-</span>{% endif %}</td>

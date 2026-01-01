@@ -18,4 +18,6 @@ urlpatterns = [
         views.invoice_confirm_payment,
         name="invoice-confirm-payment",
     ),
+
+    path("<int:invoice_id>/send-request/", views.send_invoice_payment_request, name="invoice-send-request"),
 ]

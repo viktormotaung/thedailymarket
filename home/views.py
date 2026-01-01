@@ -99,6 +99,8 @@ from django.db.models.functions import Coalesce
 from django.shortcuts import render
 from typing import Optional, Tuple
 from clients.forms import ClientMinimalForm
+from datetime import date, timedelta
+
 from .forms import UserProfileForm
 import hashlib
 import urllib.parse
@@ -430,47 +432,43 @@ def wholesale_assist(request):
     # ---- 4) Active TA: Next Due (TA) and Overdue (TA) ----
     today = now().date()
 
-    # Treat outstanding as invoice.amount_due (positive) for TA-funded invoices (credit_used > 0)
-    ta_unpaid = Invoice.objects.filter(
+    # Get client's CreditAccount
+    ca, _ = CreditAccount.objects.get_or_create(client=client)
+
+    # Total outstanding (ACCOUNT-LEVEL)
+    total_outstanding = ca.credit_used or Decimal("0.00")
+    print("Total outstanding (CreditAccount.credit_used):", total_outstanding)
+
+    # Credit snapshot: only invoices funded by TA
+    ta_invoices = Invoice.objects.filter(
         client=client,
         credit_used__gt=Decimal("0.00"),
-        amount_due__gt=Decimal("0.00")
+        due_date__isnull=False
     )
 
-    # Next Due: earliest due_date >= today
-    next_due_obj = (
-        ta_unpaid
-        .filter(due_date__isnull=False, due_date__gte=today)
-        .order_by("due_date", "id")
-        .values("id", "due_date", "amount_due")
-        .first()
-    )
+    # ---- Next Due: earliest due invoice ----
+    next_due_obj = ta_invoices.filter(due_date__gte=today).order_by("due_date", "id").first()
+
     next_due = None
-    if next_due_obj:
+    if next_due_obj and total_outstanding > 0:
         next_due = type("NextDue", (), {
-            "invoice_id": next_due_obj["id"],
-            "due_date":   next_due_obj["due_date"],
-            "outstanding": next_due_obj["amount_due"],
+            "invoice_id": next_due_obj.id,                # anchor invoice
+            "due_date":   next_due_obj.due_date + timedelta(days=1),
+            "outstanding": total_outstanding,             # 🔑 ACCOUNT balance
         })()
 
-    # Overdue: due_date < today
-    overdue_qs = (
-        ta_unpaid
-        .filter(due_date__isnull=False, due_date__lt=today)
-        .order_by("due_date", "id")
-        .values("id", "due_date", "amount_due")
-    )
+    # ---- Overdue: flag only (amount still account-level) ----
+    overdue_invoices = ta_invoices.filter(due_date__lt=today)
+    overdue = overdue_invoices.exists()
 
     overdue_list = []
-    for row in overdue_qs:
-        dd = row["due_date"]
+    for inv in overdue_invoices:
         overdue_list.append({
-            "invoice_id":  row["id"],
-            "due_date":    dd,
-            "outstanding": row["amount_due"],
-            "days_overdue": (today - dd).days,
+            "invoice_id": inv.id,
+            "due_date": inv.due_date + timedelta(days=1),
+            "days_overdue": (today - inv.due_date).days,
         })
-    overdue = bool(overdue_list)
+
 
     # ---- 5) Movements (ledger) on CreditAccount ----
     try:
@@ -501,8 +499,10 @@ def wholesale_assist(request):
         "next_due": next_due,
         "overdue": overdue,
         "overdue_list": overdue_list,
+        "outstanding": total_outstanding,  # <-- use total_outstanding here
 
-        # Movements
+
+        # Movements,
         "ledger": ledger,
         "ledger_limit": limit,
 

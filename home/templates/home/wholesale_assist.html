@@ -481,7 +481,7 @@
           
                 {% if next_due %}
                   <div class="small mb-2">
-                    Invoice #{{ next_due.invoice_id }} • Due {{ next_due.due_date|date:"Y-m-d" }}<br>
+                    Due {{ next_due.due_date|date:"Y-m-d" }}<br>
                     Outstanding: <strong>R{{ next_due.outstanding|floatformat:2|intcomma }}</strong>
                   </div>
           

@@ -8,9 +8,16 @@ from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.timezone import now, localdate
-
+from django.http import JsonResponse
 from invoices.models import Invoice
 from credit.models import CreditEntry  # 👈 for credit repayments
+import hashlib
+import urllib.parse
+from django.core.mail import EmailMultiAlternatives
+from django.views.decorators.http import require_POST
+from django.template.loader import render_to_string
+
+
 
 DAY_OPTIONS = [7, 14, 30, 60]
 
@@ -130,8 +137,183 @@ def invoice_view(request, pk):
             "is_overdue": is_overdue,
             "deposit_outstanding": deposit_outstanding,
             "credit_outstanding": credit_outstanding,
+            "merchant_id": client.id,          # use client ID as merchant ID
+            "merchant_name": client.name,      # use client name as merchant name
         },
     )
+
+
+@login_required
+@staff_required
+def invoice_confirm_payment(request, pk):
+    """
+    'Confirm Payment' from the modal (manual capture).
+
+    - For deposit: records a cash Transaction using Invoice.record_payment().
+    - For credit: records a CreditEntry repayment using Invoice.record_credit_repayment().
+    The amount + reference come from the popup form (pre-populated but editable).
+    """
+    invoice = get_object_or_404(Invoice, pk=pk)
+
+    if request.method != "POST":
+        return redirect("invoice-view", pk=pk)
+
+    kind = (request.POST.get("kind") or "deposit").lower()  # "deposit" or "credit"
+    raw_amount = (request.POST.get("amount") or "").replace(",", "").strip()
+    reference = request.POST.get("reference") or f"INV-{invoice.id}: {kind}"
+
+    try:
+        amount = Decimal(raw_amount)
+    except (InvalidOperation, TypeError):
+        messages.error(request, "Invalid amount entered.")
+        return redirect("invoice-view", pk=pk)
+
+    if amount <= 0:
+        messages.error(request, "Amount must be greater than zero.")
+        return redirect("invoice-view", pk=pk)
+
+    note = f"Manual {kind} payment captured on invoice screen."
+
+    if kind == "credit":
+        # This hits the credit ledger (CreditEntry) only – not deposit.
+        invoice.record_credit_repayment(
+            amount,
+            reference=reference,
+            note=note,
+        )
+        messages.success(
+            request,
+            f"Credit repayment of R{amount:.2f} recorded for Invoice #{invoice.id}.",
+        )
+    else:
+        # This hits the deposit / cash side.
+        invoice.record_payment(
+            amount,
+            reference=reference,
+            note=note,
+        )
+        messages.success(
+            request,
+            f"Deposit payment of R{amount:.2f} recorded for Invoice #{invoice.id}.",
+        )
+
+    return redirect("invoice-view", pk=pk)
+
+
+@login_required
+def generate_payfast_request(request, invoice_id):
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("order", "order__client"),
+        pk=invoice_id
+    )
+
+    data = [
+        ("merchant_id", settings.PAYFAST_MERCHANT_ID),
+        ("merchant_key", settings.PAYFAST_MERCHANT_KEY),
+        ("return_url", "https://yourdomain.co.za/payfast/return/"),
+        ("cancel_url", "https://yourdomain.co.za/payfast/cancel/"),
+        ("notify_url", "https://yourdomain.co.za/payfast/itn/"),
+
+        ("name_first", invoice.order.client.contact_person.split()[0]),
+        ("name_last", invoice.order.client.contact_person.split()[-1]),
+        ("email_address", invoice.order.client.email),
+
+        ("m_payment_id", f"INV-{invoice.id}"),
+        ("amount", f"{invoice.amount_due:.2f}"),
+        ("item_name", f"Invoice #{invoice.id}"),
+    ]
+
+    signature = generate_payfast_signature(
+        data=data,
+        passphrase=settings.PAYFAST_PASSPHRASE
+    )
+
+    payfast_data = dict(data)
+    payfast_data["signature"] = signature
+
+    # Build the full PayFast URL
+    from urllib.parse import urlencode
+    payfast_link = f"{settings.PAYFAST_PROCESS_URL}?{urlencode(payfast_data)}"
+
+    return JsonResponse({"payment_url": payfast_link})
+
+def generate_payfast_signature(data, passphrase):
+    parts = []
+
+    for key, value in data:
+        if value != "":
+            parts.append(f"{key}={urllib.parse.quote_plus(str(value))}")
+
+    param_string = "&".join(parts)
+
+    if passphrase:
+        param_string += "&passphrase=" + urllib.parse.quote_plus(passphrase)
+
+    print("\nPAYFAST PARAM STRING (FINAL):")
+    print(param_string)
+
+    signature = hashlib.md5(param_string.encode("utf-8")).hexdigest()
+
+    print("PAYFAST SIGNATURE:")
+    print(signature)
+
+    return signature
+
+@login_required
+@require_POST
+def send_invoice_payment_request(request, invoice_id):
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("order", "order__client"),
+        pk=invoice_id
+    )
+    client = invoice.order.client
+
+    if not client.email:
+        return JsonResponse({"success": False, "message": "Client has no email"}, status=400)
+
+    # --- Generate PayFast link ---
+    data = [
+        ("merchant_id", settings.PAYFAST_MERCHANT_ID),
+        ("merchant_key", settings.PAYFAST_MERCHANT_KEY),
+        ("return_url", "https://yourdomain.co.za/payfast/return/"),
+        ("cancel_url", "https://yourdomain.co.za/payfast/cancel/"),
+        ("notify_url", "https://yourdomain.co.za/payfast/itn/"),
+        ("name_first", client.contact_person.split()[0]),
+        ("name_last", client.contact_person.split()[-1]),
+        ("email_address", client.email),
+        ("m_payment_id", f"INV-{invoice.id}"),
+        ("amount", f"{invoice.amount_due:.2f}"),
+        ("item_name", f"Invoice #{invoice.id}"),
+    ]
+
+    signature = generate_payfast_signature(data, passphrase=settings.PAYFAST_PASSPHRASE)
+    payfast_data = dict(data)
+    payfast_data["signature"] = signature
+    payfast_link = f"{settings.PAYFAST_PROCESS_URL}?{urllib.parse.urlencode(payfast_data)}"
+
+    # --- Prepare Email ---
+    subject = f"The Daily Market – Payment Request for Invoice #{invoice.id}"
+    ctx = {
+        "client": client,
+        "invoice": invoice,
+        "payfast_link": payfast_link,
+        "support_email": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"),
+    }
+
+    text_body = render_to_string("email/payfast_invoice_request.txt", ctx)
+    html_body = render_to_string("email/payfast_invoice_request.html", ctx)
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[client.email],
+        headers={"Reply-To": ctx["support_email"]},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+    return JsonResponse({"success": True, "message": "Payment request sent successfully."})
 
 @login_required
 @staff_required

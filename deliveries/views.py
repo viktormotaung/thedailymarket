@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from .models import PickingBatch, _delivery_date_for, DeliveryRun
 from django.views.decorators.http import require_POST
+from django.utils import timezone
 
 
 def staff_check(user):
@@ -93,6 +94,7 @@ def picking_start(request, pk: int):
     else:
         messages.info(request, "This batch is not in 'draft' state.")
     return redirect(f"{reverse('warehouse')}?view=warehouse")  # ✅
+
 @login_required
 @staff_required
 def picking_complete(request, pk: int):

@@ -17,6 +17,8 @@ from django.utils.timezone import localdate, now
 from clients.models import Client
 from orders.models import Order
 from credit.models import CreditEntry
+from django.db.models.signals import post_save, post_delete
+from django.db.models.functions import Coalesce
 
 
 def r2(x: Decimal | None) -> Decimal:
@@ -29,7 +31,6 @@ def r2(x: Decimal | None) -> Decimal:
 # ====================================================================
 # Invoice
 # ====================================================================
-
 class Invoice(models.Model):
     order = models.OneToOneField(
         Order, on_delete=models.CASCADE, related_name="invoice"
@@ -343,7 +344,9 @@ class Invoice(models.Model):
         for ce in self.credit_entries.filter(kind=CreditEntry.USAGE).order_by("-posted_at", "-id"):
             ce.delete()
 
-    # --- payments & status (cash deposit side) ---
+    
+
+        # --- payments & status (cash deposit side) ---
 
     def recalc_deposit_from_transactions(self, save: bool = True) -> None:
         """
@@ -496,6 +499,35 @@ class Invoice(models.Model):
 
         super().delete(*args, **kwargs)
 
+@receiver(post_save, sender=CreditEntry)
+def update_credit_next_due(sender, instance, **kwargs):
+    ca = instance.credit_account
+    # Recalculate total credit_used
+    ca.credit_used = ca.entries.filter(kind=CreditEntry.USAGE).aggregate(
+        s=Coalesce(Sum("amount"), Decimal("0.00"))
+    )["s"] or Decimal("0.00")
+
+    # Update next_due_date based on invoice due date + 1 day
+    invoice_due = getattr(instance.invoice, "due_date", None)
+    if invoice_due:
+        ca.next_due_date = invoice_due + timedelta(days=1)
+
+    ca.save(update_fields=["credit_used", "next_due_date"])
+
+
+@receiver(post_delete, sender=CreditEntry)
+def reverse_credit_next_due(sender, instance, **kwargs):
+    ca = instance.credit_account
+    # Recalculate total credit_used after deletion
+    ca.credit_used = ca.entries.filter(kind=CreditEntry.USAGE).aggregate(
+        s=Coalesce(Sum("amount"), Decimal("0.00"))
+    )["s"] or Decimal("0.00")
+
+    # Clear next_due_date if no remaining credit
+    if ca.credit_used == 0:
+        ca.next_due_date = None
+
+    ca.save(update_fields=["credit_used", "next_due_date"])
 
 # ====================================================================
 # Daily overdue summary

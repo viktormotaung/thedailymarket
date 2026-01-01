@@ -268,13 +268,18 @@
         <a href="{% url 'staff-credit' %}" class="btn btn-outline-secondary">Back to Credit</a>
         <a href="{% url 'credit-edit' client.id %}" class="btn btn-primary">Edit Credit</a>
 
-        {# New: Record Credit Repayment button #}
-        <button type="button"
-                class="btn btn-success"
-                data-bs-toggle="modal"
-                data-bs-target="#creditRepaymentModal">
-          <i class="bi bi-wallet2 me-1"></i> Record Credit Repayment
+        {# Record Credit Repayment button #}
+        <button
+            type="button"
+            class="btn btn-success"
+            data-bs-toggle="modal"
+            data-bs-target="#creditPaymentChoiceModal"
+        >
+            <i class="bi bi-wallet2 me-1"></i>
+            Record Credit Repayment
         </button>
+
+
       </div>
     </div>
 
@@ -351,13 +356,12 @@
             <table class="table table-striped table-bordered mb-0">
               <thead>
                 <tr>
-                  <th style="width:12%; font-size:13px;">Invoice</th>
+                  <th style="width:12%; font-size:13px;">Invoice ID</th>
                   <th style="width:16%; font-size:13px;">Invoice Date</th>
                   <th style="width:16%; font-size:13px;">Due Date</th>
                   <th style="width:14%; font-size:13px;">Credit Used</th>
-                  <th style="width:14%; font-size:13px;">Repaid</th>
-                  <th style="width:14%; font-size:13px;">Outstanding</th>
-                  <th style="width:14%; font-size:13px;">Status</th>
+                  <th style="width:14%; font-size:13px;">Order ID</th>
+                  
                 </tr>
               </thead>
               <tbody>
@@ -373,21 +377,8 @@
                       {% if inv.due_date %}{{ inv.due_date|date:"Y-m-d" }}{% else %}—{% endif %}
                     </td>
                     <td style="font-size:13px;">R{{ inv.credit_used|floatformat:2 }}</td>
-                    <td style="font-size:13px;">R{{ inv.credit_repaid|floatformat:2 }}</td>
-                    <td style="font-size:13px; font-weight:600;">
-                      R{{ inv.outstanding|floatformat:2 }}
-                    </td>
-                    <td style="font-size:13px;">
-                      {% if inv.status == "paid" %}
-                        <span class="badge bg-success">Paid</span>
-                      {% elif inv.status == "overdue" %}
-                        <span class="badge bg-danger">Overdue</span>
-                      {% elif inv.status == "partial" %}
-                        <span class="badge bg-warning text-dark">Partial</span>
-                      {% else %}
-                        <span class="badge bg-secondary">Unpaid</span>
-                      {% endif %}
-                    </td>
+                    <td style="font-size:13px;"> </td>
+                    
                   </tr>
                 {% endfor %}
               </tbody>
@@ -462,169 +453,244 @@
           <div class="card-header bg-white">
             <strong>Credit Transactions</strong>
             <div class="small text-muted">
-              How credit is issued, used, repaid and adjusted (ledger entries).
+              How credit is issued, used, repaid and adjusted (ledger entries) with running balance.
             </div>
           </div>
+
           <div class="card-body p-0">
-            {% if transactions %}
+            {% if credit_entries %}
               <div class="table-responsive">
                 <table class="table table-striped table-bordered mb-0">
-                  <thead>
+                  <thead class="table-light">
                     <tr>
-                      <th style="width:22%; font-size:13px;">Date</th>
-                      <th style="width:16%; font-size:13px;">Type</th>
-                      <th style="width:16%; font-size:13px;">Amount</th>
-                      <th style="width:18%; font-size:13px;">Invoice</th>
-                      <th style="width:28%; font-size:13px;">Reference</th>
+                      <th style="width:20%; font-size:13px;">Date</th>
+                      <th style="width:20%; font-size:13px;">Type</th>
+                      <th style="width:20%; font-size:13px;">Amount</th>
+                      <th style="width:20%; font-size:13px;">Invoice</th>
+                      <th style="width:20%; font-size:13px;">Balance</th>
                     </tr>
                   </thead>
+
                   <tbody>
-                    {% for t in transactions %}
-                      <tr style="cursor:pointer" onclick="window.location.href='{% url 'transaction-view' t.id %}'">
-                        <td style="font-size:13px;">{{ t.created_at|date:"Y-m-d H:i" }}</td>
+                    {% for entry in credit_entries %}
+                      <tr>
+                        <!-- Date -->
                         <td style="font-size:13px;">
-                          <span class="badge {% if t.is_credit %}bg-success{% else %}bg-danger{% endif %}">
-                            {{ t.get_transaction_type_display }}
+                          {{ entry.posted_at|date:"Y-m-d H:i" }}
+                        </td>
+
+                        <!-- Type -->
+                        <td style="font-size:13px;">
+                          <span class="badge
+                            {% if entry.kind == 'usage' or entry.kind == 'adjustment' %}
+                              bg-danger
+                            {% elif entry.kind == 'repayment' or entry.kind == 'writeoff' %}
+                              bg-success
+                            {% elif entry.kind == 'issue' %}
+                              bg-info
+                            {% else %}
+                              bg-secondary
+                            {% endif %}
+                          ">
+                            {{ entry.get_kind_display }}
                           </span>
                         </td>
-                        <td style="font-size:13px;">
-                          {% if t.is_credit %}+{% else %}-{% endif %}R{{ t.amount|floatformat:2 }}
+
+                        <!-- Amount -->
+                        <td style="font-size:13px; white-space:nowrap;">
+                          {% if entry.kind == 'usage' or entry.kind == 'adjustment' %}
+                            <span class="text-danger">
+                              -R{{ entry.amount|floatformat:2 }}
+                            </span>
+                          {% elif entry.kind == 'repayment' or entry.kind == 'writeoff' %}
+                            <span class="text-success">
+                              +R{{ entry.amount|floatformat:2 }}
+                            </span>
+                          {% else %}
+                            <span class="text-muted">
+                              R{{ entry.amount|floatformat:2 }}
+                            </span>
+                          {% endif %}
                         </td>
+
+                        <!-- Invoice -->
                         <td style="font-size:13px;">
-                          {% if t.invoice_id %}
-                            <a href="{% url 'invoice-view' t.invoice_id %}">#{{ t.invoice_id }}</a>
-                          {% else %}—{% endif %}
+                          {% if entry.invoice %}
+                            <a href="{% url 'invoice-view' entry.invoice.id %}">
+                              #{{ entry.invoice.id }}
+                            </a>
+                          {% else %}
+                            —
+                          {% endif %}
                         </td>
-                        <td style="font-size:13px;">{{ t.reference|default:"—" }}</td>
+
+                        <!-- Running Balance -->
+                        <td style="font-size:13px; font-weight:600;">
+                          R{{ entry.running_balance|floatformat:2 }}
+                        </td>
                       </tr>
                     {% endfor %}
                   </tbody>
                 </table>
               </div>
             {% else %}
-              <div class="p-3 text-muted">No credit transactions found.</div>
+              <div class="p-3 text-muted">
+                No credit transactions found.
+              </div>
             {% endif %}
           </div>
         </div>
       </div>
+
+
+
     </div>
   </main>
 
-  <!-- Credit Repayment Modal -->
-  <div class="modal fade" id="creditRepaymentModal" tabindex="-1" aria-labelledby="creditRepaymentModalLabel" aria-hidden="true">
+  <div class="modal fade" id="creditPaymentChoiceModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
+
         <div class="modal-header">
-          <h5 class="modal-title" id="creditRepaymentModalLabel">
-            Record Credit Repayment
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title">Credit Repayment</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
 
         <div class="modal-body">
-          <p class="mb-3">
-            What would you like to do for this credit repayment?
-          </p>
-          <ul class="mb-3">
-            <li><strong>Send Request Payment</strong> – send a payment link / request to the client.</li>
-            <li><strong>Confirm Payment</strong> – capture a manual EFT payment that has already reflected.</li>
+          <p class="mb-3">What would you like to do?</p>
+          <ul class="mb-0">
+            <li><strong>Confirm Payment</strong> – capture an EFT already received.</li>
           </ul>
-
-          <!-- Hidden form area, revealed when clicking "Confirm Payment" -->
-          <div id="repayFormWrapper" class="border-top pt-3 mt-3 d-none">
-            <form method="post" action="{% url 'credit-record-repayment' client.id %}">
-              {% csrf_token %}
-
-              <div class="mb-2">
-                <label class="form-label mb-0 small">Merchant ID</label>
-                <input type="text"
-                       class="form-control form-control-sm"
-                       name="merchant_id"
-                       value="SES_DAILY_MARKET_01"
-                       readonly>
-              </div>
-
-              <div class="mb-2">
-                <label class="form-label mb-0 small">Merchant Name</label>
-                <input type="text"
-                       class="form-control form-control-sm"
-                       name="merchant_name"
-                       value="Seshibo Daily Market"
-                       readonly>
-              </div>
-
-              <div class="mb-2">
-                <label class="form-label mb-0 small">Client</label>
-                <input type="text"
-                       class="form-control form-control-sm"
-                       value="{{ client }} ({{ client.client_number }})"
-                       readonly>
-              </div>
-
-              <div class="mb-2">
-                <label class="form-label mb-0 small">Amount (R)</label>
-                <input type="number"
-                       step="0.01"
-                       class="form-control form-control-sm"
-                       name="amount"
-                       value="{{ credit_used|floatformat:2 }}">
-              </div>
-
-              <div class="mb-2">
-                <label class="form-label mb-0 small">Reference</label>
-                <input type="text"
-                       class="form-control form-control-sm"
-                       name="reference"
-                       value="CREDIT-{{ client.client_number }}-repayment">
-              </div>
-
-              <div class="mt-3 d-flex justify-content-end">
-                <button type="submit" class="btn btn-success btn-sm">
-                  Save Repayment
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
 
         <div class="modal-footer d-flex justify-content-between">
-          <a href="#"
-             class="btn btn-outline-primary btn-sm"
-             id="btnSendCreditRequest">
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            id="btnSendCreditRequest"
+            data-client-id="{{ client.id }}">
             <i class="bi bi-send me-1"></i> Send Request Payment
-          </a>
+          </button>
 
-          <button type="button"
-                  class="btn btn-success btn-sm"
-                  id="btnShowRepayForm">
+          <button
+            type="button"
+            class="btn btn-success"
+            id="btnOpenCreditConfirm"
+            data-bs-toggle="modal"
+            data-bs-target="#confirmCreditPaymentModal"
+            data-client-id="{{ client.id }}"
+            data-amount="{{ credit_used|floatformat:2 }}">
             <i class="bi bi-check2-circle me-1"></i> Confirm Payment
           </button>
         </div>
+
       </div>
     </div>
   </div>
 
+  <div class="modal fade" id="confirmCreditPaymentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+
+        <form method="post" action="{% url 'credit-confirm-payment' client.id %}">
+          {% csrf_token %}
+
+          <div class="modal-header">
+            <h5 class="modal-title">Confirm Credit Repayment</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+
+          <div class="modal-body">
+
+            <div class="mb-3">
+              <label class="form-label">Client</label>
+              <input type="text" class="form-control" value="{{ client }}" readonly>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Amount</label>
+              <div class="input-group">
+                <span class="input-group-text">R</span>
+                <input type="text" class="form-control" name="amount"
+                      id="creditConfirmAmount">
+              </div>
+            </div>
+
+            <div class="mb-0">
+              <label class="form-label">Reference</label>
+              <input type="text"
+                    class="form-control"
+                    name="reference"
+                    id="creditConfirmReference"
+                    value="CREDIT-{{ client.client_number }}">
+            </div>
+
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success">
+              <i class="bi bi-check2-circle me-1"></i> Save Payment
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const btnShowRepayForm = document.getElementById("btnShowRepayForm");
-      const repayFormWrapper = document.getElementById("repayFormWrapper");
-      const btnSendCreditRequest = document.getElementById("btnSendCreditRequest");
+  document.addEventListener("DOMContentLoaded", function () {
 
-      if (btnShowRepayForm && repayFormWrapper) {
-        btnShowRepayForm.addEventListener("click", function () {
-          repayFormWrapper.classList.remove("d-none");
-          btnShowRepayForm.textContent = "Edit Payment Details";
-        });
-      }
+    const btnSendCreditRequest = document.getElementById("btnSendCreditRequest");
+    const btnOpenCreditConfirm = document.getElementById("btnOpenCreditConfirm");
 
-      if (btnSendCreditRequest) {
-        btnSendCreditRequest.addEventListener("click", function (e) {
-          e.preventDefault();
-          alert("Payment-link feature coming soon. For now, use Confirm Payment to capture manual EFTs.");
-        });
-      }
-    });
+    const amountInput = document.getElementById("creditConfirmAmount");
+    const referenceInput = document.getElementById("creditConfirmReference");
+
+    // Prefill confirm modal
+    if (btnOpenCreditConfirm) {
+      btnOpenCreditConfirm.addEventListener("click", function () {
+        const amount = this.getAttribute("data-amount");
+        amountInput.value = parseFloat(amount).toFixed(2);
+      });
+    }
+
+    // Send payment request
+    if (btnSendCreditRequest) {
+      btnSendCreditRequest.addEventListener("click", async () => {
+        btnSendCreditRequest.disabled = true;
+        btnSendCreditRequest.innerHTML = "Sending...";
+
+        const url = "{% url 'credit-send-request' client.id %}";
+
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "X-CSRFToken": "{{ csrf_token }}",
+              "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: ""
+          });
+
+          const data = await res.json();
+          alert(data.success ? data.message : data.message);
+        } catch (e) {
+          alert("Unexpected error occurred.");
+        } finally {
+          btnSendCreditRequest.disabled = false;
+          btnSendCreditRequest.innerHTML = '<i class="bi bi-send me-1"></i> Send Request Payment';
+        }
+      });
+    }
+
+  });
   </script>
+  
+
 </body>
 </html>

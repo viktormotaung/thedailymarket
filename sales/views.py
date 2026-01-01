@@ -1423,29 +1423,46 @@ def view_invoice(request, pk):
         },
     )
 
+def prev_year_month(year, month, offset=1):
+    """
+    Return (year, month) offset months before the given year/month.
+    offset=0 => same month
+    offset=1 => previous month
+    """
+    m = month - offset
+    y = year
+    while m <= 0:
+        m += 12
+        y -= 1
+    return y, m
+
+
 
 @login_required
 def commission(request):
     """
     Commission dashboard view with filtering:
-      - Admins (is_staff or in 'Administrator' group) can view all agents and choose agent via ?agent=<id>
-      - Non-admins only see their own commissions; agent selector is hidden.
-      - Optional date filters: ?from=YYYY-MM-DD and ?to=YYYY-MM-DD
+      - Admins can view all agents (?agent=<id>)
+      - Non-admins only see their own commissions
+      - Optional date filters: ?from=YYYY-MM-DD&to=YYYY-MM-DD
     """
     user = request.user
 
-    # Admin check (staff or member of Administrator group)
+    # ------------------------------------------------------------------
+    # Admin detection
+    # ------------------------------------------------------------------
     is_admin = user.is_staff or user.groups.filter(name="Administrator").exists()
 
-    # If admin: provide agents list (users who manage clients)
     agents = None
     if is_admin:
-        # Users that have at least one managed client (managed_clients related_name)
-        agents = User.objects.filter(managed_clients__isnull=False).distinct().order_by("first_name", "last_name", "username")
+        agents = (
+            User.objects
+            .filter(managed_clients__isnull=False)
+            .distinct()
+            .order_by("first_name", "last_name", "username")
+        )
 
-    # Determine target_rep:
-    # - Admin can optionally view a specific agent via ?agent=<id>
-    # - Non-admin always restricted to themselves
+    # Determine target rep
     target_rep = None
     if is_admin:
         agent_param = request.GET.get("agent")
@@ -1457,7 +1474,9 @@ def commission(request):
     else:
         target_rep = user
 
-    # Parse optional date filters
+    # ------------------------------------------------------------------
+    # Date parsing
+    # ------------------------------------------------------------------
     def _parse_date(s):
         if not s:
             return None
@@ -1472,8 +1491,11 @@ def commission(request):
     date_from = _parse_date(request.GET.get("from"))
     date_to = _parse_date(request.GET.get("to"))
 
-    # Default periods (week and month)
+    # ------------------------------------------------------------------
+    # Periods
+    # ------------------------------------------------------------------
     today = localdate()
+
     week_start = today - timedelta(days=today.weekday())
     week_end = week_start + timedelta(days=6)
 
@@ -1481,74 +1503,168 @@ def commission(request):
     current_month = today.month
     current_month_name = today.strftime("%B")
 
-    # If user provided a custom date range, use that as the "month" period shown on cards;
-    # otherwise use calendar month
     if date_from and date_to:
         month_first = date_from
         month_last = date_to
     else:
         month_first = date(current_year, current_month, 1)
-        month_last = date(current_year, current_month, calendar.monthrange(current_year, current_month)[1])
+        month_last = date(
+            current_year,
+            current_month,
+            calendar.monthrange(current_year, current_month)[1],
+        )
 
-    # Base queryset for commission entries (paid invoices)
-    entries_qs = CommissionEntry.objects.select_related("invoice", "invoice__client", "rep").order_by("-invoice__paid_date")
+    # ------------------------------------------------------------------
+    # Base queryset
+    # ------------------------------------------------------------------
+    entries_qs = (
+        CommissionEntry.objects
+        .select_related("invoice", "invoice__client", "rep")
+        .order_by("-invoice__paid_date")
+    )
 
-    # Apply rep filter if applicable
     if target_rep:
         entries_qs = entries_qs.filter(rep=target_rep)
 
-    # Week queryset (Mon-Sun)
-    week_qs = entries_qs.filter(invoice__paid_date__gte=week_start, invoice__paid_date__lte=week_end)
-    this_week_agg = week_qs.aggregate(total=db_models.Sum("amount"))
-    this_week_total = this_week_agg.get("total") or Decimal("0.00")
+    # ------------------------------------------------------------------
+    # Weekly totals
+    # ------------------------------------------------------------------
+    week_qs = entries_qs.filter(
+        invoice__paid_date__gte=week_start,
+        invoice__paid_date__lte=week_end,
+    )
+
+    this_week_total = (
+        week_qs.aggregate(total=db_models.Sum("rep_amount")).get("total")
+        or Decimal("0.00")
+    )
     this_week_count = week_qs.count()
 
-    # Month (or custom range) queryset
+    # ------------------------------------------------------------------
+    # Monthly totals
+    # ------------------------------------------------------------------
     month_qs = entries_qs
     if month_first:
         month_qs = month_qs.filter(invoice__paid_date__gte=month_first)
     if month_last:
         month_qs = month_qs.filter(invoice__paid_date__lte=month_last)
 
-    month_agg = month_qs.aggregate(total=db_models.Sum("amount"))
-    this_month_total = month_agg.get("total") or Decimal("0.00")
+    this_month_total = (
+        month_qs.aggregate(total=db_models.Sum("rep_amount")).get("total")
+        or Decimal("0.00")
+    )
 
-    # MonthlyCommission lookup (only meaningful when target_rep is a single user and using current calendar month)
+    # ------------------------------------------------------------------
+    # MonthlyCommission (current month)
+    # ------------------------------------------------------------------
     monthly_commission = None
     this_month_unpaid = Decimal("0.00")
     this_month_bonus = Decimal("0.00")
     this_month_bonus_eligible = False
+
     if target_rep and not (date_from and date_to):
-        monthly_commission = MonthlyCommission.objects.filter(rep=target_rep, year=current_year, month=current_month).first()
+        monthly_commission = MonthlyCommission.objects.filter(
+            rep=target_rep,
+            year=current_year,
+            month=current_month,
+        ).first()
+
         if monthly_commission:
             if not monthly_commission.paid:
                 this_month_unpaid = monthly_commission.total_payout or Decimal("0.00")
-            this_month_bonus = monthly_commission.monthly_cash_bonus or Decimal("0.00")
-            this_month_bonus_eligible = (monthly_commission.monthly_cash_bonus and monthly_commission.monthly_cash_bonus > 0)
 
-    # Commission entries for the table (limit for performance). Consider pagination for production.
+            this_month_bonus = monthly_commission.monthly_cash_bonus or Decimal("0.00")
+            this_month_bonus_eligible = this_month_bonus > 0
+
+    # ------------------------------------------------------------------
+    # 3-Month trend logic (stock-style)
+    # ------------------------------------------------------------------
+    last_3_months = []
+
+    if target_rep:
+        for i in range(0, 3):
+            y, m = prev_year_month(current_year, current_month, i)
+            mc = MonthlyCommission.objects.filter(rep=target_rep, year=y, month=m).first()
+
+            last_3_months.append({
+                "year": y,
+                "month": m,
+                "label": date(y, m, 1).strftime("%b"),
+                "total": mc.total_payout if mc else Decimal("0.00"),
+            })
+
+    # Oldest → newest
+    last_3_months = list(reversed(last_3_months))
+
+    trend_direction = "flat"
+    trend_pct = Decimal("0.00")
+
+    if len(last_3_months) >= 2:
+        prev_total = last_3_months[-2]["total"]
+        curr_total = last_3_months[-1]["total"]
+
+        if prev_total > 0:
+            trend_pct = ((curr_total - prev_total) / prev_total) * Decimal("100")
+
+        if curr_total > prev_total:
+            trend_direction = "up"
+        elif curr_total < prev_total:
+            trend_direction = "down"
+
+    # ------------------------------------------------------------------
+    # Table entries (limit for performance)
+    # ------------------------------------------------------------------
     commission_entries = month_qs[:200]
 
+    last_month_total = Decimal("0.00")
+    prev_month_total = Decimal("0.00")
+
+    if len(last_3_months) >= 1:
+        last_month_total = last_3_months[-1]["total"]
+
+    if len(last_3_months) >= 2:
+        prev_month_total = last_3_months[-2]["total"]
+
+
+    # ------------------------------------------------------------------
+    # Context
+    # ------------------------------------------------------------------
     context = {
         "is_admin_viewing": is_admin,
         "agents": agents,
         "target_rep": target_rep,
+
         "this_week_total": this_week_total,
         "this_week_count": this_week_count,
         "week_start": week_start,
         "week_end": week_end,
+
         "this_month_total": this_month_total,
         "this_month_unpaid": this_month_unpaid,
         "this_month_bonus": this_month_bonus,
         "this_month_bonus_eligible": this_month_bonus_eligible,
+
         "current_month_name": current_month_name,
         "current_year": current_year,
+
+        "last_3_months": last_3_months,
+        "trend_direction": trend_direction,
+        "trend_pct": trend_pct,
+
         "commission_entries": commission_entries,
         "monthly_commission": monthly_commission,
+
         "filter_date_from": date_from,
         "filter_date_to": date_to,
+
+        "last_month_total": last_month_total,
+        "prev_month_total": prev_month_total,
     }
+
     return render(request, "commission/commission.html", context)
+
+
+
 
 @login_required
 def commission_view(request, pk):

@@ -334,19 +334,7 @@
               </button>
 
 
-              <!-- Pay Credit -->
-              <button type="button"
-                      class="btn btn-outline-primary"
-                      data-bs-toggle="modal"
-                      data-bs-target="#paymentChoiceModal"
-                      data-payment-kind="credit"
-                      {% if credit_outstanding <= 0 %}
-                          disabled
-                          style="pointer-events:none; opacity:0.5;"
-                      {% endif %}
-              >
-                <i class="bi bi-credit-card me-1"></i> Pay Credit
-              </button>
+              
 
             </div>
           </div>
@@ -430,7 +418,8 @@
     </div>
   </main>
 
-  <!-- Payment choice modal -->
+  
+  <!-- Payment Choice Modal -->
   <div class="modal fade" id="paymentChoiceModal" tabindex="-1" aria-labelledby="paymentChoiceModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -448,24 +437,36 @@
             <span class="text-lowercase" id="paymentKindLabelInline">deposit</span>?
           </p>
           <ul class="mb-0">
-            <li><strong>Send Request Payment</strong> – send a payment link / request to the client. (Coming soon)</li>
             <li><strong>Confirm Payment</strong> – capture a payment you’ve already received.</li>
           </ul>
         </div>
 
         <div class="modal-footer d-flex justify-content-between">
-          <button type="button" class="btn btn-outline-primary" id="btnSendRequest" disabled>
-            <i class="bi bi-send me-1"></i> Send Request Payment
+          <button type="button"
+                  class="btn btn-outline-primary"
+                  id="btnSendRequestPayment"
+                  data-invoice-id="{{ invoice.id }}">
+              <i class="bi bi-send me-1"></i> Send Request Payment
           </button>
 
-          <button type="button" class="btn btn-success" id="btnOpenConfirmModal">
+          <button type="button" class="btn btn-success"
+                  id="btnOpenConfirmModal"
+                  data-bs-toggle="modal"
+                  data-bs-target="#confirmPaymentModal"
+                  data-invoice-id="{{ invoice.id }}"
+                  data-deposit-outstanding="{{ deposit_outstanding }}"
+                  data-merchant-id="{{ merchant_id }}"
+                  data-merchant-name="{{ merchant_name }}"
+                  data-kind="deposit">
             <i class="bi bi-check2-circle me-1"></i> Confirm Payment
           </button>
+
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Confirm Payment Modal -->
   <!-- Confirm Payment modal (form) -->
   <div class="modal fade" id="confirmPaymentModal" tabindex="-1" aria-labelledby="confirmPaymentModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -538,63 +539,106 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    document.addEventListener("DOMContentLoaded", function () {
+  document.addEventListener("DOMContentLoaded", function () {
+      const btnOpenConfirm = document.getElementById("btnOpenConfirmModal");
+      const btnSendRequest = document.getElementById("btnSendRequestPayment");
+
       const paymentChoiceModal = document.getElementById("paymentChoiceModal");
       const confirmPaymentModal = document.getElementById("confirmPaymentModal");
 
       const kindLabel = document.getElementById("paymentKindLabel");
       const kindLabelInline = document.getElementById("paymentKindLabelInline");
-      const btnOpenConfirm = document.getElementById("btnOpenConfirmModal");
 
       const confirmKindLabel = document.getElementById("confirmKindLabel");
       const confirmKindInput = document.getElementById("confirmKindInput");
+      const confirmMerchantIdInput = document.getElementById("confirmMerchantIdInput");
+      const confirmMerchantNameInput = document.getElementById("confirmMerchantNameInput");
+      const confirmInvoiceNumberInput = document.getElementById("confirmInvoiceNumberInput");
       const confirmAmountInput = document.getElementById("confirmAmountInput");
       const confirmReferenceInput = document.getElementById("confirmReferenceInput");
 
       let currentKind = "deposit";
       let currentAmount = "{{ deposit_outstanding|floatformat:2 }}";
 
+      // Update modal fields when Payment Choice modal is shown
       if (paymentChoiceModal) {
-        paymentChoiceModal.addEventListener("show.bs.modal", function (event) {
-          const triggerBtn = event.relatedTarget;
-          if (!triggerBtn) return;
+          paymentChoiceModal.addEventListener("show.bs.modal", function (event) {
+              const triggerBtn = event.relatedTarget;
+              if (!triggerBtn) return;
 
-          const kind = (triggerBtn.getAttribute("data-payment-kind") || "deposit").toLowerCase();
-          const amount = triggerBtn.getAttribute("data-payment-amount") || "0.00";
+              const kind = (triggerBtn.getAttribute("data-payment-kind") || "deposit").toLowerCase();
+              const amount = triggerBtn.getAttribute("data-payment-amount") || "0.00";
 
-          currentKind = kind;
-          currentAmount = amount;
+              currentKind = kind;
+              currentAmount = amount;
 
-          const niceLabel = kind === "credit" ? "Credit" : "Deposit";
-          kindLabel.textContent = niceLabel;
-          kindLabelInline.textContent = niceLabel.toLowerCase();
-        });
+              const niceLabel = kind === "credit" ? "Credit" : "Deposit";
+              kindLabel.textContent = niceLabel;
+              kindLabelInline.textContent = niceLabel.toLowerCase();
+          });
       }
 
-      if (btnOpenConfirm && confirmPaymentModal) {
-        btnOpenConfirm.addEventListener("click", function () {
-          const choiceInstance = bootstrap.Modal.getInstance(paymentChoiceModal);
-          if (choiceInstance) {
-            choiceInstance.hide();
-          }
+      // Open Confirm Payment modal
+      if (btnOpenConfirm) {
+          btnOpenConfirm.addEventListener("click", function (event) {
+              const btn = event.currentTarget;
 
-          const niceLabel = currentKind === "credit" ? "Credit" : "Deposit";
-          confirmKindLabel.textContent = niceLabel;
-          confirmKindInput.value = currentKind;
+              const invoiceId = btn.getAttribute("data-invoice-id");
+              const amount = btn.getAttribute("data-deposit-outstanding");
+              const merchantId = btn.getAttribute("data-merchant-id");
+              const merchantName = btn.getAttribute("data-merchant-name");
+              const kind = btn.getAttribute("data-kind") || "deposit";
 
-          confirmAmountInput.value = currentAmount;
+              confirmKindLabel.textContent = kind.charAt(0).toUpperCase() + kind.slice(1);
+              confirmKindInput.value = kind;
 
-          if (currentKind === "credit") {
-            confirmReferenceInput.value = "INV-{{ invoice.id }}: credit";
-          } else {
-            confirmReferenceInput.value = "INV-{{ invoice.id }}: deposit";
-          }
+              confirmAmountInput.value = parseFloat(amount).toFixed(2);
+              confirmInvoiceNumberInput.value = invoiceId;
+              confirmMerchantIdInput.value = merchantId;
+              confirmMerchantNameInput.value = merchantName;
+              confirmReferenceInput.value = `INV-${invoiceId}: ${kind}`;
 
-          const confirmInstance = new bootstrap.Modal(confirmPaymentModal);
-          confirmInstance.show();
-        });
+              // show the modal
+              const confirmInstance = new bootstrap.Modal(confirmPaymentModal);
+              confirmInstance.show();
+          });
       }
-    });
-  </script>
+
+
+
+      // Send Payment Request
+      if (btnSendRequest) {
+          btnSendRequest.addEventListener("click", async () => {
+              btnSendRequest.disabled = true;
+              btnSendRequest.innerHTML = "Sending...";
+              const invoiceId = btnSendRequest.getAttribute("data-invoice-id");
+              const sendRequestUrl = "{% url 'invoice-send-request' invoice.id %}";
+
+              try {
+                  const res = await fetch(sendRequestUrl, {
+                      method: "POST",
+                      headers: {
+                          "X-CSRFToken": "{{ csrf_token }}",
+                          "Content-Type": "application/x-www-form-urlencoded"
+                      },
+                      body: ""
+                  });
+
+                  const data = await res.json();
+                  alert(data.success ? data.message : "Error: " + data.message);
+              } catch (err) {
+                  console.error(err);
+                  alert("An unexpected error occurred.");
+              } finally {
+                  btnSendRequest.disabled = false;
+                  btnSendRequest.innerHTML = '<i class="bi bi-send me-1"></i> Send Request Payment';
+              }
+          });
+      }
+  });
+  </script
+
+
 </body>
 </html>
+h
