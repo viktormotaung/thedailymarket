@@ -266,107 +266,109 @@
   </nav>
 
   <!-- ===== Header / top summary ===== -->
-<section class="hero py-4">
-  <div class="container">
-    <nav aria-label="breadcrumb" class="small mb-2">
-      <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item">
-          <a href="{% url 'products' %}">Products</a>
-        </li>
-        <li class="breadcrumb-item">
-          <a href="{% url 'products' %}?category={{ product.category.id }}">
-            {{ product.category.name }}
-          </a>
-        </li>
-        <li class="breadcrumb-item active" aria-current="page">
-          {{ product.name }}
-        </li>
-      </ol>
-    </nav>
+  <section class="hero py-4">
+    <div class="container">
+      <!-- Breadcrumb -->
+      <nav aria-label="breadcrumb" class="small mb-2">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item">
+            <a href="{% url 'products' %}">Products</a>
+          </li>
+          <li class="breadcrumb-item">
+            <a href="{% url 'products' %}?category={{ product.category.id }}">
+              {{ product.category.name }}
+            </a>
+          </li>
+          <li class="breadcrumb-item active" aria-current="page">
+            {{ product.name }}
+          </li>
+        </ol>
+      </nav>
 
-    <div class="row g-4 align-items-start">
-      <div class="col-md-5">
-        {% if product.image %}
-          <img src="{{ product.image.url }}"
-               alt="{{ product.name }}"
-               class="img-fluid rounded shadow-sm">
-        {% else %}
-          <div class="bg-light rounded d-flex align-items-center justify-content-center"
-               style="height:320px;">
-            <i class="bi bi-image text-muted" style="font-size:3rem;"></i>
-          </div>
-        {% endif %}
-      </div>
-
-      <div class="col-md-7">
-        <div class="d-flex align-items-center gap-2 mb-1">
-          <h1 class="h3 mb-0">{{ product.name }}</h1>
-          <span class="badge rounded-pill
-            {% if product.is_available|default:True %}
-              badge-available
-            {% else %}
-              badge-out
-            {% endif %}">
-            {% if product.is_available|default:True %}
-              In stock
-            {% else %}
-              Out
-            {% endif %}
-          </span>
+      <div class="row g-4 align-items-start">
+        <!-- Product Image -->
+        <div class="col-md-5">
+          {% if product.image %}
+            <img src="{{ product.image.url }}"
+                alt="{{ product.name }}"
+                class="img-fluid rounded shadow-sm">
+          {% else %}
+            <div class="bg-light rounded d-flex align-items-center justify-content-center"
+                style="height:320px;">
+              <i class="bi bi-image text-muted" style="font-size:3rem;"></i>
+            </div>
+          {% endif %}
         </div>
 
-        <div class="small text-muted mb-2">
-          SKU <strong>{{ product.sku }}</strong> •
-          {{ product.category.name }} •
-          {{ product.get_uom_display }}
-        </div>
-
-        <div class="text-muted small">
-          Prices per {{ product.get_uom_display|lower }}
-        </div>
-
-        <!-- Headline prices -->
-        <div class="d-flex flex-wrap gap-5 my-3">
-          <div>
-            <div class="text-muted small">Price</div>
-            <div class="price-big">
-              {% if wholesale_ex %}
-                R {{ wholesale_ex|floatformat:2|intcomma }}
+        <!-- Product Info -->
+        <div class="col-md-7">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <h1 class="h3 mb-0">{{ product.name }}</h1>
+            <span class="badge rounded-pill
+              {% if product.is_available|default:True %}
+                badge-available
               {% else %}
-                R —
+                badge-out
+              {% endif %}">
+              {% if product.is_available|default:True %}
+                In stock
+              {% else %}
+                Out
               {% endif %}
+            </span>
+          </div>
+
+          <div class="small text-muted mb-2">
+            SKU <strong>{{ product.sku }}</strong> •
+            {{ product.category.name }} •
+            {{ product.get_uom_display }}
+          </div>
+
+          <div class="text-muted small">
+            Prices per {{ product.get_uom_display|lower }}
+          </div>
+
+          <!-- Headline Prices -->
+          <div class="d-flex flex-wrap gap-5 my-3">
+            <div>
+              <div class="text-muted small">Price</div>
+              <div class="price-big">
+                
+                  R {{ wholesale_inc|floatformat:2|intcomma }}
+                
+              </div>
             </div>
           </div>
+
+          <!-- ===== Add to Cart (BASE PRODUCT) ===== -->
+          <form method="post"
+                action="{% url 'cart' %}"
+                data-add-to-cart
+                class="d-flex align-items-center gap-2">
+            {% csrf_token %}
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+
+            <div class="input-group" style="max-width:260px;">
+              <span class="input-group-text">
+                Qty ({{ product.get_uom_display }})
+              </span>
+              <input type="number"
+                    name="qty"
+                    value="1"
+                    min="1"
+                    class="form-control">
+            </div>
+
+            <button class="btn btn-brand" type="submit">
+              <i class="bi bi-bag-plus me-1"></i>
+              Add to cart
+            </button>
+          </form>
         </div>
-
-        <!-- ===== Add to cart (BASE PRODUCT) ===== -->
-        <form method="post"
-              action="{% url 'cart' %}"
-              data-add-to-cart
-              class="d-flex align-items-center gap-2">
-          {% csrf_token %}
-          <input type="hidden" name="product_id" value="{{ product.id }}">
-
-          <div class="input-group" style="max-width:260px;">
-            <span class="input-group-text">
-              Qty ({{ product.get_uom_display }})
-            </span>
-            <input type="number"
-                   name="qty"
-                   value="1"
-                   min="1"
-                   class="form-control">
-          </div>
-
-          <button class="btn btn-brand" type="submit">
-            <i class="bi bi-bag-plus me-1"></i>
-            Add to cart
-          </button>
-        </form>
       </div>
     </div>
-  </div>
-</section>
+  </section>
+
 
 <!-- ===== Lower: Variations + Description ===== -->
 <section class="py-5 border-top">
@@ -377,31 +379,23 @@
       <div class="col-12 col-lg-70">
         <h5 class="mb-3">Pre-packed options</h5>
 
-        {% if product.variants.all|length %}
+        {% if variants|length %}
           <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 variants">
-            {% for v in product.variants.all|slice:":4" %}
+            {% for v in variants|slice:":4" %}
               <div class="col">
                 <div class="card variant-card position-relative">
 
-                  <div class="price-pill">
-                    {% if v.wholesale_price_override %}
-                      R {{ v.wholesale_price_override|floatformat:2|intcomma }}
-                    {% elif v.wholesale_derived %}
-                      R {{ v.wholesale_derived|floatformat:2|intcomma }}
-                    {% else %}
-                      —
-                    {% endif %}
-                  </div>
-
+                  
+                  <!-- Variant Image -->
                   <div class="ratio">
                     {% if v.image %}
                       <img src="{{ v.image.url }}"
-                           class="w-100 h-100 object-fit-cover"
-                           alt="{{ v.name|default_if_none:product.name }}">
+                          class="w-100 h-100 object-fit-cover"
+                          alt="{{ v.name|default_if_none:product.name }}">
                     {% elif product.image %}
                       <img src="{{ product.image.url }}"
-                           class="w-100 h-100 object-fit-cover"
-                           alt="{{ product.name }}">
+                          class="w-100 h-100 object-fit-cover"
+                          alt="{{ product.name }}">
                     {% else %}
                       <div class="d-flex align-items-center justify-content-center
                                   w-100 h-100 text-muted">
@@ -410,37 +404,39 @@
                     {% endif %}
                   </div>
 
+                  <!-- Variant Name / Pack Size -->
                   <div class="card-body pb-0">
-                    <div class="fw-semibold">
+                    <div class="fw-semibold text-center">
                       {{ v.name|default_if_none:"" }}
                       {% if not v.name %}
-                        {{ v.pack_size|floatformat:1 }}
-                        {{ v.get_uom_display|lower }}
+                        {{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}
                       {% endif %}
                     </div>
                   </div>
 
+                  <!-- Variant Price -->
+                  <div class="price-pill text-center">
+                    R {{ v.display_price_inc|floatformat:2|intcomma }}
+                  </div>
+
+
+                  <!-- Add to Cart -->
                   <div class="variant-footer">
-                    <!-- ===== Add to cart (VARIANT) ===== -->
                     <form method="post"
                           action="{% url 'cart' %}"
                           data-add-to-cart
                           class="d-flex w-100 gap-2">
                       {% csrf_token %}
-                      <input type="hidden"
-                             name="product_id"
-                             value="{{ product.id }}">
-                      <input type="hidden"
-                             name="variant_id"
-                             value="{{ v.id }}">
+                      <input type="hidden" name="product_id" value="{{ product.id }}">
+                      <input type="hidden" name="variant_id" value="{{ v.id }}">
 
                       <div class="input-group">
                         <span class="input-group-text">Qty</span>
                         <input type="number"
-                               name="qty"
-                               value="1"
-                               min="1"
-                               class="form-control">
+                              name="qty"
+                              value="1"
+                              min="1"
+                              class="form-control">
                       </div>
 
                       <button class="btn btn-brand flex-fill" type="submit">
@@ -461,6 +457,9 @@
           </div>
         {% endif %}
       </div>
+
+
+
 
       <!-- Description -->
       <div class="col-12 col-lg-30">

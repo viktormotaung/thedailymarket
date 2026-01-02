@@ -329,17 +329,21 @@ def credit_client_view(request, client_id):
     # ------------------------------------------------------------------
     client = get_object_or_404(
         Client.objects.select_related("credit_account"),
-        pk=client_id
+        pk=client_id,
     )
     account, _ = CreditAccount.objects.get_or_create(client=client)
 
     # ------------------------------------------------------------------
     # Credit Logs (audit / ops)
     # ------------------------------------------------------------------
-    logs = account.logs.select_related("authorised_by").order_by("-created_at")
+    logs = (
+        account.logs
+        .select_related("authorised_by")
+        .order_by("-created_at")
+    )
 
     # ------------------------------------------------------------------
-    # Legacy + current credit-related transactions (for reference only)
+    # Credit-related transactions (REFERENCE ONLY)
     # ------------------------------------------------------------------
     transactions = (
         Transaction.objects
@@ -357,21 +361,32 @@ def credit_client_view(request, client_id):
     )
 
     # ------------------------------------------------------------------
-    # Account-level snapshots
+    # Account-level snapshots (LIMIT / RISK VIEW)
     # ------------------------------------------------------------------
     credit_limit = account.credit_limit or Decimal("0.00")
     credit_used = account.credit_used or Decimal("0.00")
-    credit_available = (
-        credit_limit - credit_used if credit_limit > 0 else Decimal("0.00")
+
+    raw_available = credit_limit - credit_used
+
+    credit_available = max(
+        Decimal("0.00"),
+        raw_available,
     )
+
+    over_limit_amount = (
+        abs(raw_available)
+        if raw_available < 0
+        else Decimal("0.00")
+    )
+
     percent_used = (
         Decimal("0.00")
-        if credit_limit == 0
+        if credit_limit <= 0
         else (credit_used / credit_limit) * Decimal("100")
     )
 
     # ------------------------------------------------------------------
-    # Open credit exposure per invoice
+    # Open Credit Exposure Per Invoice (RISK)
     # ------------------------------------------------------------------
     exposure_raw = (
         CreditEntry.objects
@@ -401,51 +416,53 @@ def credit_client_view(request, client_id):
 
     open_invoices = []
     for row in exposure_raw:
-        used = row["credit_used"] or Decimal("0.00")
-        repaid = row["credit_repaid"] or Decimal("0.00")
-        outstanding = used - repaid
-
+        outstanding = row["credit_used"] - row["credit_repaid"]
         if outstanding > 0:
             open_invoices.append({
                 "invoice_id": row["invoice_id"],
                 "invoice_date": row["invoice__invoice_date"],
                 "due_date": row["invoice__due_date"],
                 "status": row["invoice__status"],
-                "credit_used": used,
-                "credit_repaid": repaid,
+                "credit_used": row["credit_used"],
+                "credit_repaid": row["credit_repaid"],
                 "outstanding": outstanding,
             })
 
-    open_credit_total = credit_used  # authoritative snapshot
+    open_credit_total = credit_used  # authoritative risk number
 
     # ------------------------------------------------------------------
-    # Credit Ledger with Running Outstanding Balance
+    # CREDIT WALLET LEDGER (SOURCE OF TRUTH)
     # ------------------------------------------------------------------
-    # Oldest → newest for correct running math
     credit_entries = list(
         account.entries
         .select_related("invoice", "transaction")
-        .order_by("posted_at", "id")
+        .order_by("posted_at", "id")  # OLDEST → NEWEST
     )
 
-    running_balance = Decimal("0.00")
+    wallet_balance = Decimal("0.00")
 
     for entry in credit_entries:
-        # Outstanding balance logic (IMPORTANT)
-        if entry.kind in [CreditEntry.USAGE, CreditEntry.ADJUSTMENT]:
-            running_balance += entry.amount
+        if entry.kind in (
+            CreditEntry.ISSUE,
+            CreditEntry.REPAYMENT,
+        ):
+            wallet_balance += entry.amount
 
-        elif entry.kind in [CreditEntry.REPAYMENT, CreditEntry.WRITEOFF]:
-            running_balance -= entry.amount
+        elif entry.kind in (
+            CreditEntry.USAGE,
+            CreditEntry.WRITEOFF,
+        ):
+            wallet_balance -= entry.amount
 
-        # NOTE:
-        # - ISSUE affects credit_limit only
-        # - LIMIT_DECREASE affects credit_limit only
-        # They MUST NOT touch outstanding balance
+        elif entry.kind == CreditEntry.ADJUSTMENT:
+            wallet_balance += entry.amount
 
-        entry.running_balance = running_balance
+        # IMPORTANT:
+        # LIMIT_INCREASE / LIMIT_DECREASE
+        # DO NOT affect wallet balance
 
-    # Latest entry first for UI
+        entry.running_balance = wallet_balance
+
     credit_entries.reverse()
 
     # ------------------------------------------------------------------
@@ -460,15 +477,18 @@ def credit_client_view(request, client_id):
             "logs": logs,
             "transactions": transactions,
 
+            # Limit / Risk
             "credit_limit": credit_limit,
             "credit_used": credit_used,
             "credit_available": credit_available,
+            "over_limit_amount": over_limit_amount,
             "percent_used": percent_used.quantize(Decimal("0.01")),
 
+            # Exposure
             "open_invoices": open_invoices,
             "open_credit_total": open_credit_total,
 
-            # Ledger
+            # Wallet
             "credit_entries": credit_entries,
         },
     )

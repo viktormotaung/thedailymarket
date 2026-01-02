@@ -31,64 +31,29 @@
 
     
 
-    {# ---------- Price block (priority: display_* -> retail -> wholesale -> supplier from) ---------- #}
-    {% with lbl=p.display_price_label excl=p.display_price_excl inc=p.display_price_inc %}
-      {% if inc or excl %}
-        {% with price=inc|default_if_none:excl %}
-          <div class="mt-auto d-flex align-items-baseline justify-content-between">
-            <div>
-              <div class="fw-bold">R {{ price|floatformat:2|intcomma }}</div>
-              
-            </div>
-            {% if p.slug %}
-              <a class="btn btn-sm btn-outline-secondary" href="{% url 'product-detail' p.slug %}">Details</a>
-            {% endif %}
+    {# ---------- Price block (Wholesale price incl VAT only) ---------- #}
+    <div class="mt-auto d-flex align-items-baseline justify-content-between">
+      <div>
+        {% if p.display_price_inc %}
+          <div class="fw-bold">
+            R {{ p.display_price_inc|floatformat:2|intcomma }}
           </div>
-        {% endwith %}
-      {% else %}
-        {% if p.retail_price %}
-          <div class="mt-auto d-flex align-items-baseline justify-content-between">
-            <div>
-              <div class="fw-bold">R {{ p.retail_price|floatformat:2|intcomma }}</div>
-              <div class="small text-muted">Excl VAT • Retail</div>
-            </div>
-            {% if p.slug %}
-              <a class="btn btn-sm btn-outline-secondary" href="{% url 'product-detail' p.slug %}">Details</a>
-            {% endif %}
-          </div>
+          <div class="small text-muted">Incl VAT • Wholesale</div>
         {% elif p.wholesale_price %}
-          <div class="mt-auto d-flex align-items-baseline justify-content-between">
-            <div>
-              <div class="fw-bold">R {{ p.wholesale_price|floatformat:2|intcomma }}</div>
-              <div class="small text-muted">Excl VAT • Wholesale</div>
-            </div>
-            {% if p.slug %}
-              <a class="btn btn-sm btn-outline-secondary" href="{% url 'product-detail' p.slug %}">Details</a>
-            {% endif %}
+          {# Fallback if display_price_inc is missing #}
+          <div class="fw-bold">
+            R {{ p.wholesale_price|floatformat:2|intcomma }}
           </div>
+          <div class="small text-muted">Incl VAT • Wholesale</div>
         {% else %}
-          {% with row=p.pricing_rows.first %}
-            {% if row %}
-              <div class="mt-auto d-flex align-items-baseline justify-content-between">
-                <div>
-                  <div class="fw-bold">From R {{ row.retail_price_inc|floatformat:2|intcomma }}</div>
-                  <div class="small text-muted">Incl VAT • From supplier</div>
-                </div>
-                {% if p.slug %}
-                  <a class="btn btn-sm btn-outline-secondary" href="{% url 'product-detail' p.slug %}">Details</a>
-                {% endif %}
-              </div>
-            {% else %}
-              <div class="mt-auto d-flex align-items-baseline justify-content-between">
-                <span class="text-muted small">Pricing on request</span>
-                {% if p.slug %}
-                  <a class="btn btn-sm btn-outline-secondary" href="{% url 'product-detail' p.slug %}">Details</a>
-                {% endif %}
-              </div>
-            {% endif %}
-          {% endwith %}
+          <span class="text-muted small">Pricing on request</span>
         {% endif %}
+      </div>
+
+      {% if p.slug %}
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'product-detail' p.slug %}">Details</a>
       {% endif %}
-    {% endwith %}
+    </div>
+
   </div>
 </div>

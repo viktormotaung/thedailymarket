@@ -37,6 +37,19 @@ def _d(x) -> Decimal:
     """Coerce None -> 0 and anything else to Decimal safely."""
     return x if isinstance(x, Decimal) else (Decimal(str(x)) if x is not None else D0)
 
+from decimal import Decimal, ROUND_HALF_UP
+
+D0 = Decimal("0.00")
+
+def _r2(x: Decimal | None) -> Decimal:
+    if x is None:
+        return D0
+    return x.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+def _d(x):
+    """Shortcut to convert to Decimal"""
+    return Decimal(x)
+
 
 def make_abbreviation_3(name: str) -> list[str]:
     """
@@ -577,18 +590,15 @@ class ProductVariant(models.Model):
     """
     A pre-packed option (sub-product) for a Product.
     If overrides are blank/zero, price derives from parent product price * pack_size (when scalable).
+    Prices are stored inclusive of VAT.
     """
-    UOM_CHOICES = Product.UOM_CHOICES
+    UOM_CHOICES = Product.UOM_CHOICES  # assuming Product model exists
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="variants")
     pack_size = models.DecimalField(max_digits=8, decimal_places=2)  # e.g. 1.5, 2.5, 5, 10
     uom = models.CharField(max_length=8, choices=UOM_CHOICES, default="KG")
 
-    name = models.CharField(
-        max_length=200,
-        blank=True,
-        help_text="Optional display name; blank -> auto from pack_size + UOM.",
-    )
+    name = models.CharField(max_length=200, blank=True)
     sku = models.CharField(max_length=50, blank=True, null=True)
     slug = models.SlugField(max_length=220, unique=True, blank=True)
     image = models.ImageField(upload_to="product_images/variants/", blank=True, null=True)
@@ -597,7 +607,10 @@ class ProductVariant(models.Model):
     wholesale_price_override = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     retail_price_override = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
-    # If True, derived price = parent_price * pack_size (typical for KG/L/EA quantity packs)
+    # Stored final prices inclusive of VAT
+    wholesale_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    retail_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
     scales_with_pack = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -611,59 +624,65 @@ class ProductVariant(models.Model):
         ]
 
     def __str__(self):
-        label = self.name or f"{self.pack_size} {self.get_uom_display()}"
-        return f"{self.product.name} · {label}"
+        return self.name or f"{self.product.name} · {self.pack_size} {self.get_uom_display()}"
 
-    # --- Price helpers (ex VAT) ---
-    def price_for_channel(self, channel: str = "retail") -> Decimal:
+    # --- Helpers ---
+    def price_for_channel_inc(self, channel: str = "retail") -> Decimal:
+        """Return stored inclusive-VAT price for the given channel."""
         ch = (channel or "retail").lower()
-        if ch == "retail" and self.retail_price_override not in (None, D0):
-            return self.retail_price_override
-        if ch == "wholesale" and self.wholesale_price_override not in (None, D0):
-            return self.wholesale_price_override
-
-        base = self.product.price_for_channel(ch) or D0
-        if self.scales_with_pack and self.pack_size:
-            try:
-                return (base * _d(self.pack_size)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            except Exception:
-                return base
-        return base
+        if ch == "retail":
+            return self.retail_price or D0
+        if ch == "wholesale":
+            return self.wholesale_price or D0
+        return D0
 
     def clean(self):
         if self.scales_with_pack and self.uom != self.product.uom:
-            # Usually your scalable variants should use the same UOM as parent
-            # (relax/remove if you intentionally mix UOMs).
             raise ValidationError({"uom": "Variant UOM should match product UOM when scales_with_pack=True."})
 
-    # --- Slug/SKU/name defaults ---
+    # --- Save ---
     def save(self, *args, **kwargs):
+        VAT_RATE = Decimal("0.15")  # 15% VAT
+
+        # Defaults
         if not self.name:
             self.name = f"{self.pack_size} {self.get_uom_display()}"
         if not self.slug:
-            base = slugify(f"{self.product.slug}-{self.pack_size}-{self.uom}") or slugify(self.name)
-            self.slug = base[:220]
+            self.slug = slugify(f"{self.product.slug}-{self.pack_size}-{self.uom}")[:220]
         if not self.sku:
-            pack_tag = str(self.pack_size).replace(".", "_")
-            self.sku = f"{self.product.sku}-{pack_tag}{self.uom}"
+            self.sku = f"{self.product.sku}-{str(self.pack_size).replace('.', '_')}{self.uom}"
+
+        # --- Wholesale price inclusive VAT ---
+        base_wholesale = self.wholesale_price_override or self.product.price_for_channel("wholesale") or D0
+        if self.scales_with_pack and self.pack_size:
+            base_wholesale *= _d(self.pack_size)
+        self.wholesale_price = r2(base_wholesale * (1 + VAT_RATE))
+
+        # --- Retail price inclusive VAT ---
+        base_retail = self.retail_price_override or self.product.price_for_channel("retail") or D0
+        if self.scales_with_pack and self.pack_size:
+            base_retail *= _d(self.pack_size)
+        self.retail_price = r2(base_retail * (1 + VAT_RATE))
+
         super().save(*args, **kwargs)
 
+    # --- Derived properties (inclusive only) ---
     @property
     def wholesale_derived(self) -> Decimal:
-        # Derived from product wholesale, ignoring override
+        """Calculate derived wholesale price inclusive VAT."""
         base = self.product.price_for_channel("wholesale") or D0
         if self.scales_with_pack and self.pack_size:
-            return r2(base * _d(self.pack_size))
-        return base
+            base *= _d(self.pack_size)
+        return r2(base * Decimal("1.15"))
 
     @property
     def retail_derived(self) -> Decimal:
+        """Calculate derived retail price inclusive VAT."""
         base = self.product.price_for_channel("retail") or D0
         if self.scales_with_pack and self.pack_size:
-            return r2(base * _d(self.pack_size))
-        return base
-
-
+            base *= _d(self.pack_size)
+        return r2(base * Decimal("1.15"))
+    
 # ---------- Signals & helpers: keep product/variants in sync -------------------
 def _apply_primary_pricing_to_product(pp: ProductPricing) -> None:
     """

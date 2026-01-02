@@ -406,8 +406,15 @@ class Invoice(models.Model):
                 self.paid_date = payment_day
                 self.save(update_fields=["paid_date", "updated_at"])
 
+                # --- Update CreditAccount next_due_date to actual deposit payment day ---
+                ca = getattr(self.client, "credit_account", None)
+                if ca:
+                    ca.next_due_date = payment_day + timedelta(days=1)
+                    ca.save(update_fields=["next_due_date"])
+
         # Ensure credit artefacts reflect the (possibly new) state
         self.ensure_credit_after_deposit()
+        
 
     # --- credit repayments (ledger side only) ---
 

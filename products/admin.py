@@ -212,59 +212,41 @@ class ProductAdmin(admin.ModelAdmin):
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
     list_display = (
+        "id",
         "product",
         "pack_size",
         "uom",
-        "sku",
-        "retail_price_override",
-        "wholesale_price_override",
+        "wholesale_price_display",
+        "retail_price_display",
+        "scales_with_pack",
         "updated_at",
     )
 
-    list_filter = (
-        "uom",
-        "product__category",
-        "product__category__parent",
-    )
-
-    search_fields = (
-        "product__name",
-        "sku",
-        "name",
-    )
-
-    autocomplete_fields = ("product",)
+    list_filter = ("product", "scales_with_pack", "uom")
+    search_fields = ("product__name", "name", "sku", "slug")
 
     readonly_fields = (
-        "sku",
-        "slug",
-        "created_at",
-        "updated_at",
+        "wholesale_price",
+        "retail_price",
     )
 
     fieldsets = (
-        ("Variant Info", {
-            "fields": (
-                "product",
-                "pack_size",
-                "uom",
-                "name",
-                "image",
-            )
+        (None, {
+            "fields": ("product", "name", "sku", "slug", "image", "uom", "pack_size", "scales_with_pack")
         }),
-        ("Pricing Overrides (EXCL VAT)", {
-            "fields": (
-                "wholesale_price_override",
-                "retail_price_override",
-                "scales_with_pack",
-            )
+        ("Pricing (ex VAT overrides)", {
+            "fields": ("wholesale_price_override", "retail_price_override")
         }),
-        ("System Fields", {
-            "fields": (
-                "sku",
-                "slug",
-                "created_at",
-                "updated_at",
-            )
+        ("Pricing (inclusive VAT, auto-calculated)", {
+            "fields": ("wholesale_price", "retail_price")
         }),
     )
+
+    # --- Custom display methods for inclusive prices ---
+    def wholesale_price_display(self, obj):
+        return obj.wholesale_price or obj.wholesale_derived
+    wholesale_price_display.short_description = "Wholesale Price (incl VAT)"
+
+    def retail_price_display(self, obj):
+        return obj.retail_price or obj.retail_derived
+    retail_price_display.short_description = "Retail Price (incl VAT)"

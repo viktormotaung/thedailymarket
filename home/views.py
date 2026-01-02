@@ -807,37 +807,28 @@ def _to_decimal(val, default: Decimal = Decimal("0")) -> Decimal:
 
 def _attach_display_price(p: Product) -> None:
     """
-    Headline price = WHOLESALE (ex VAT) only.
-    Fallback: first active supplier row's ex-VAT price (from supplier).
+    Headline price = WHOLESALE (incl VAT) only.
+    Fallback: first active supplier row's wholesale price incl VAT.
     """
-    p.display_price_excl = None
     p.display_price_inc = None
     p.display_price_label = None
 
-    # 1) Wholesale first (ex VAT)
+    # 1) Wholesale price on product
     if p.wholesale_price:
-        p.display_price_excl = p.wholesale_price
+        # Compute incl VAT (assuming 15% VAT)
+        VAT_PERCENT = Decimal("15.00")
+        p.display_price_inc = (p.wholesale_price * (Decimal("1.00") + VAT_PERCENT / Decimal("100"))).quantize(Decimal("0.01"))
         p.display_price_label = "Wholesale"
         return
 
-    # 2) Fallback to first active supplier row (ex VAT only)
-    rows: Iterable[ProductPricing] = getattr(p, "pricing_rows_all_prefetched", None) or p.pricing_rows.all()
+    # 2) Fallback to first active supplier row
+    rows = getattr(p, "pricing_rows_all_prefetched", None) or p.pricing_rows.all()
     row = next((r for r in rows if getattr(r, "is_active", True)), None)
     if row:
-        # keep INC None so the template renders "Excl VAT"
-        p.display_price_excl = row.retail_price_excl
-        p.display_price_inc = None
+        p.display_price_inc = row.wholesale_price_inc  # already includes VAT
         p.display_price_label = "From supplier"
         return
 
-    # Fall back to first active supplier row (prefetched)
-    rows: Iterable[ProductPricing] = getattr(p, "pricing_rows_all_prefetched", None) or p.pricing_rows.all()
-    row = next((r for r in rows if r.is_active), None)
-    if row:
-        # Use the computed properties from your model
-        p.display_price_excl = row.retail_price_excl
-        p.display_price_inc = row.retail_price_inc
-        p.display_price_label = "From supplier"
 
 
 def _effective_price_for_filtering(p: Product) -> Decimal:
@@ -863,7 +854,7 @@ def products(request):
     sort = (request.GET.get("sort") or "").strip()
 
     # -------------------------
-    # Base queryset (perf-safe)
+    # Base queryset
     # -------------------------
     qs = (
         Product.objects
@@ -871,9 +862,7 @@ def products(request):
         .prefetch_related(
             Prefetch(
                 "pricing_rows",
-                queryset=ProductPricing.objects
-                    .select_related("supplier")
-                    .order_by("supplier__name"),
+                queryset=ProductPricing.objects.select_related("supplier").order_by("supplier__name"),
                 to_attr="pricing_rows_all_prefetched",
             )
         )
@@ -891,22 +880,19 @@ def products(request):
         )
 
     # -------------------------
-    # Category / Subcategory filtering
+    # Category / Subcategory filter
     # -------------------------
     if subcategory_id:
-        # Most specific filter (subcategory wins)
         qs = qs.filter(category_id=subcategory_id)
-
     elif category_id:
-        # Parent category → include all children
         qs = qs.filter(category__parent_id=category_id)
 
     # -------------------------
-    # Pull into Python list
-    # (needed for price logic)
+    # Pull into list (needed for price logic)
     # -------------------------
     items = list(qs)
 
+    # Attach wholesale incl VAT for each product
     for p in items:
         _attach_display_price(p)
 
@@ -914,43 +900,21 @@ def products(request):
     # Price range filtering
     # -------------------------
     if min_price is not None:
-        items = [
-            p for p in items
-            if _effective_price_for_filtering(p) >= min_price
-        ]
+        items = [p for p in items if (p.display_price_inc or Decimal("0.00")) >= min_price]
 
     if max_price is not None:
-        items = [
-            p for p in items
-            if _effective_price_for_filtering(p) <= max_price
-        ]
+        items = [p for p in items if (p.display_price_inc or Decimal("0.00")) <= max_price]
 
     # -------------------------
     # Sorting
     # -------------------------
     if sort in ("name", "-name"):
-        items.sort(
-            key=lambda p: (p.name or "").lower(),
-            reverse=sort.startswith("-")
-        )
-
+        items.sort(key=lambda p: (p.name or "").lower(), reverse=sort.startswith("-"))
     elif sort in ("price", "-price"):
-        items.sort(
-            key=lambda p: (
-                _effective_price_for_filtering(p),
-                (p.name or "").lower()
-            ),
-            reverse=sort.startswith("-")
-        )
-
+        items.sort(key=lambda p: ((p.display_price_inc or Decimal("0.00")), (p.name or "").lower()), reverse=sort.startswith("-"))
     elif sort == "-created":
-        items.sort(
-            key=lambda p: (p.created_at or p.id),
-            reverse=True
-        )
-
+        items.sort(key=lambda p: (p.created_at or p.id), reverse=True)
     else:
-        # Default: Name A–Z
         items.sort(key=lambda p: (p.name or "").lower())
 
     # -------------------------
@@ -958,7 +922,6 @@ def products(request):
     # -------------------------
     paginator = Paginator(items, 12)
     page = request.GET.get("page")
-
     try:
         page_obj = paginator.get_page(page)
     except (PageNotAnInteger, EmptyPage):
@@ -978,16 +941,15 @@ def products(request):
     # Preserve filters for pagination
     # -------------------------
     querydict = request.GET.copy()
-    querydict.pop("page", None)   # remove page safely
+    querydict.pop("page", None)
     query_string = querydict.urlencode()
-
 
     # -------------------------
     # Context
     # -------------------------
     context = {
-        "products": page_obj,          # Page object
-        "categories": categories,      # Parents + children
+        "products": page_obj,
+        "categories": categories,
         "q": q,
         "selected_category": category_id,
         "selected_subcategory": subcategory_id,
@@ -1005,6 +967,7 @@ def _r2(x: Decimal | None) -> Decimal:
         return Decimal("0.00")
     return x.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
+
 def product_detail(request, slug):
     # =========================================================
     # PRODUCT
@@ -1014,12 +977,6 @@ def product_detail(request, slug):
         .select_related("category")
         .prefetch_related(
             Prefetch(
-                "pricing_rows",
-                queryset=ProductPricing.objects
-                    .select_related("supplier")
-                    .order_by("-is_primary", "supplier_price_excl")
-            ),
-            Prefetch(
                 "variants",
                 queryset=ProductVariant.objects.order_by("pack_size", "id")
             ),
@@ -1028,16 +985,13 @@ def product_detail(request, slug):
     )
 
     # =========================================================
-    # USER / CLIENT CONTEXT  ✅ THIS WAS MISSING
+    # USER / CLIENT CONTEXT
     # =========================================================
     client = None
     customer_profile = None
 
     if request.user.is_authenticated:
-        # Resolve client exactly the same way as profile view
         client = resolve_client_for_user(request.user, request=request)
-
-        # Ensure customer_profile exists (mirrors profile view logic)
         customer_profile, _ = CustomerProfile.objects.get_or_create(
             user=request.user,
             defaults={
@@ -1051,59 +1005,45 @@ def product_detail(request, slug):
     selected_channel = "wholesale"
 
     # =========================================================
-    # BASE WHOLESALE PRICE (EX VAT)
+    # BASE PRODUCT PRICES
     # =========================================================
-    def base_ex_for_product(p: Product) -> Decimal:
-        base = p.price_for_channel("wholesale")
-        if base and base > 0:
-            return _r2(base)
-
-        row = next(iter(p.pricing_rows.all()), None)
-        if not row:
-            return Decimal("0.00")
-
-        return _r2(row.wholesale_price_excl)
-
-    base_ex_main = base_ex_for_product(product)
+    base_ex = _r2(product.price_for_channel("wholesale"))
+    base_inc = _r2(base_ex * (Decimal("1.00") + Decimal("15.00") / Decimal("100")))  # adjust VAT if needed
 
     # =========================================================
-    # VARIANTS (DISPLAY PRICE EX VAT)
+    # VARIANTS
     # =========================================================
     variant_list = []
     for v in product.variants.all():
-        override = v.wholesale_price_override
-        derived = v.wholesale_derived
+        # Use the stored price directly (already inclusive of VAT)
+        v.display_price_ex = v.wholesale_price or D0
+        v.display_price_inc = v.wholesale_price or D0
 
-        if override not in (None, Decimal("0.00")):
-            display = override
-        elif derived not in (None, Decimal("0.00")):
-            display = derived
-        else:
-            display = base_ex_main
-
-        v.display_price_ex = _r2(display)
         variant_list.append(v)
 
     # =========================================================
-    # CONTEXT  ✅ client + customer_profile INCLUDED
+    # CONTEXT
     # =========================================================
     context = {
         "product": product,
 
         # Pricing
-        "wholesale_ex": base_ex_main,
+        "wholesale_ex": base_ex,
+        "wholesale_inc": base_inc,
         "variants": variant_list,
         "typical_pack_sizes": [1.5, 2.5, 5, 10],
 
         # Channel
         "selected_channel": selected_channel,
 
-        # 🔑 REQUIRED FOR ADD-TO-CART GATE
+        # Client / Profile
         "client": client,
         "customer_profile": customer_profile,
     }
 
     return render(request, "home/product_detail.html", context)
+
+
 
 _CLIENT_HAS_USER_FK = any(f.name == "user" for f in Client._meta.fields)
 
