@@ -324,6 +324,10 @@ def send_email_credit_active(client, user):
 @login_required
 @staff_required
 def credit_client_view(request, client_id):
+    from decimal import Decimal
+    from django.db.models import Sum, Q, Value, DecimalField
+    from django.db.models.functions import Coalesce
+
     # ------------------------------------------------------------------
     # Client & Credit Account
     # ------------------------------------------------------------------
@@ -334,7 +338,7 @@ def credit_client_view(request, client_id):
     account, _ = CreditAccount.objects.get_or_create(client=client)
 
     # ------------------------------------------------------------------
-    # Credit Logs (audit / ops)
+    # Credit Logs (LIMIT AUDIT)
     # ------------------------------------------------------------------
     logs = (
         account.logs
@@ -343,7 +347,7 @@ def credit_client_view(request, client_id):
     )
 
     # ------------------------------------------------------------------
-    # Credit-related transactions (REFERENCE ONLY)
+    # Credit-related Transactions (REFERENCE ONLY)
     # ------------------------------------------------------------------
     transactions = (
         Transaction.objects
@@ -361,22 +365,17 @@ def credit_client_view(request, client_id):
     )
 
     # ------------------------------------------------------------------
-    # Account-level snapshots (LIMIT / RISK VIEW)
+    # Account-level Snapshots (LIMIT / RISK)
     # ------------------------------------------------------------------
     credit_limit = account.credit_limit or Decimal("0.00")
     credit_used = account.credit_used or Decimal("0.00")
 
     raw_available = credit_limit - credit_used
 
-    credit_available = max(
-        Decimal("0.00"),
-        raw_available,
-    )
+    credit_available = max(Decimal("0.00"), raw_available)
 
     over_limit_amount = (
-        abs(raw_available)
-        if raw_available < 0
-        else Decimal("0.00")
+        abs(raw_available) if raw_available < 0 else Decimal("0.00")
     )
 
     percent_used = (
@@ -428,10 +427,10 @@ def credit_client_view(request, client_id):
                 "outstanding": outstanding,
             })
 
-    open_credit_total = credit_used  # authoritative risk number
+    open_credit_total = credit_used
 
     # ------------------------------------------------------------------
-    # CREDIT WALLET LEDGER (SOURCE OF TRUTH)
+    # CREDIT WALLET LEDGER (MONEY ONLY)
     # ------------------------------------------------------------------
     credit_entries = list(
         account.entries
@@ -442,24 +441,26 @@ def credit_client_view(request, client_id):
     wallet_balance = Decimal("0.00")
 
     for entry in credit_entries:
+
+        # Money IN
         if entry.kind in (
             CreditEntry.ISSUE,
             CreditEntry.REPAYMENT,
         ):
             wallet_balance += entry.amount
 
+        # Money OUT
         elif entry.kind in (
             CreditEntry.USAGE,
             CreditEntry.WRITEOFF,
         ):
             wallet_balance -= entry.amount
 
+        # Signed corrections
         elif entry.kind == CreditEntry.ADJUSTMENT:
             wallet_balance += entry.amount
 
-        # IMPORTANT:
-        # LIMIT_INCREASE / LIMIT_DECREASE
-        # DO NOT affect wallet balance
+        # Anything else is ignored by design
 
         entry.running_balance = wallet_balance
 

@@ -15,7 +15,7 @@ from profiles.forms import PersonalProfileForm
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
-
+import json
 from decimal import Decimal, InvalidOperation
 from typing import Iterable
 
@@ -126,6 +126,8 @@ except Exception:
 D0 = Decimal("0.00")
 VAT_DEFAULT = Decimal("15.00")  # 15% SA standard
 
+
+
 # Optional: if you want to compute spend from orders
 try:
     from orders.models import Order
@@ -134,6 +136,14 @@ except Exception:
     HAS_ORDERS = False
 import logging
 log = logging.getLogger(__name__)
+
+from decimal import Decimal
+
+VAT = Decimal("0.15")  # 15%
+
+def with_vat(price_excl: Decimal) -> Decimal:
+    return _r2(price_excl * (1 + VAT))
+
 
 # lifetimes (suggested values)
 PWRESET_OTP_TTL_SECONDS = 120        # 2 minutes for 4-digit OTP
@@ -1276,6 +1286,149 @@ def become_supplier(request):
 
     return render(request, "home/become_supplier.html")
 
+
+def _money(x):
+    return Decimal(str(x or "0"))
+
+# ---------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------
+
+# ---------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------
+def _r2(x: Decimal | None) -> Decimal:
+    """Round to 2 decimals, treat None as 0"""
+    if x is None:
+        return D0
+    return x.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _next_line_id(cart):
+    """Generate next line ID like L0001"""
+    return f"L{len(cart['lines']) + 1:04d}"
+
+
+def pick_unit_price_inc(product, variant=None, channel=None):
+    print("=== PICK PRICE DEBUG (FINAL) ===")
+    print(f"Product: {product.id} | {product.name}")
+    print(f"Variant: {getattr(variant, 'id', None)}")
+
+    qs = ProductPricing.objects.filter(
+        product=product,
+        is_active=True,
+    ).order_by("-is_primary", "supplier_price_excl")
+
+    print(f"Pricing rows found: {qs.count()}")
+
+    for p in qs:
+        print(
+            f"PricingRow → id={p.id}, "
+            f"is_primary={p.is_primary}, "
+            f"supplier_price_excl={p.supplier_price_excl}"
+        )
+
+    # ✅ Primary price first
+    row = qs.filter(is_primary=True).first()
+    if row and row.supplier_price_excl is not None:
+        print(f"✔ Using PRIMARY supplier_price_excl: {row.supplier_price_excl}")
+        print("=== END PICK PRICE DEBUG ===")
+        return row.supplier_price_excl
+
+    # ✅ Fallback: cheapest/first active
+    row = qs.first()
+    if row and row.supplier_price_excl is not None:
+        print(f"⚠ Using FALLBACK supplier_price_excl: {row.supplier_price_excl}")
+        print("=== END PICK PRICE DEBUG ===")
+        return row.supplier_price_excl
+
+    # ❌ Hard fail-safe
+    print("❌ NO PRICE FOUND → returning 0.00")
+    print("=== END PICK PRICE DEBUG ===")
+    return Decimal("0.00")
+
+def debug_product_pricing(product):
+    print("=== PRODUCT PRICING MODEL DEBUG ===")
+    qs = ProductPricing.objects.filter(product=product)
+
+    print(f"Pricing rows found: {qs.count()}")
+
+    for p in qs:
+        print("----")
+        for field in p._meta.fields:
+            name = field.name
+            value = getattr(p, name, None)
+            print(f"{name}: {value}")
+
+    print("=== END PRODUCT PRICING DEBUG ===")
+
+
+def _calc_cart_totals(cart):
+    """
+    Calculates totals for cart.
+    Supports:
+      - session cart format (dict with product IDs as keys)
+      - checkout cart format (dict with "lines": [...])
+    Mutates cart with totals.
+    """
+
+    subtotal_excl = Decimal("0.00")
+    vat_total = Decimal("0.00")
+    total_inc = Decimal("0.00")
+
+    # Determine which list of lines to use
+    if "lines" in cart:
+        # Checkout format
+        lines_iter = cart["lines"]
+        is_checkout_format = True
+    else:
+        # Session cart format
+        lines_iter = [
+            line for line_id, line in cart.items() if not line_id.startswith("_")
+        ]
+        is_checkout_format = False
+
+    rich_lines = []
+
+    for line in lines_iter:
+        qty = Decimal(str(line.get("qty", "0")))
+        unit_excl = Decimal(str(line.get("unit_price_excl", "0.00")))
+        unit_inc = Decimal(str(line.get("unit_price_inc", "0.00")))
+
+        line_excl = unit_excl * qty
+        line_inc = unit_inc * qty
+        line_vat = line_inc - line_excl
+
+        subtotal_excl += line_excl
+        vat_total += line_vat
+        total_inc += line_inc
+
+        rich_line = {
+            "product_id": line.get("product_id"),
+            "name": line.get("name"),
+            "sku": line.get("sku"),
+            "qty": qty,
+            "unit_price_inc": unit_inc,
+            "line_total_inc": line_inc,
+        }
+        rich_lines.append(rich_line)
+
+    # Update totals
+    summary = {
+        "subtotal_excl": str(subtotal_excl),
+        "vat_total": str(vat_total),
+        "total_inc": str(total_inc),
+    }
+
+    if is_checkout_format:
+        cart["_summary"] = summary
+        cart["lines"] = rich_lines  # replace with updated lines
+    else:
+        cart["_summary"] = summary
+
+    return cart
+
+
 def _get_session_cart(request):
     """
     Session cart structure:
@@ -1306,276 +1459,144 @@ def _get_session_cart(request):
         request.session.modified = True
     return cart
 
-def _money(x):
-    return Decimal(str(x or "0"))
 
-def _q2(x):
-    return (Decimal(str(x)) if x is not None else D0).quantize(Decimal("0.01"))
-
-def _next_line_id(cart):
-    return f"L{len(cart['lines']) + 1:04d}"
-
-def _pick_price_ex(product, variant, channel: str) -> Decimal:
-    """
-    Decide EX VAT unit price for line:
-      1) variant.price_for_channel(channel) if available
-      2) product.price_for_channel(channel)
-      3) quick price field on product (retail/wholesale)
-      4) first active supplier row (retail/wholesale ladder)
-    """
-    price_ex = None
-
-    # 1) Variant method
-    if variant and hasattr(variant, "price_for_channel"):
-        try:
-            price_ex = variant.price_for_channel(channel)
-        except Exception:
-            price_ex = None
-
-    # 2) Product method
-    if (price_ex is None or _money(price_ex) == D0) and hasattr(product, "price_for_channel"):
-        try:
-            price_ex = product.price_for_channel(channel)
-        except Exception:
-            price_ex = None
-
-    # 3) Quick price fields
-    if price_ex is None or _money(price_ex) == D0:
-        if channel == "retail":
-            price_ex = product.retail_price
-        else:
-            price_ex = product.wholesale_price
-
-    # 4) Supplier fallback
-    if price_ex is None or _money(price_ex) == D0:
-        try:
-            row = product.pricing_rows.filter(is_active=True).first()
-        except Exception:
-            row = None
-        if row:
-            price_ex = row.retail_price_excl if channel == "retail" else row.wholesale_price_excl
-
-    return _q2(price_ex or D0)
-
-def _calc_cart_totals(cart_dict):
-    """
-    Mutates and returns cart_dict with:
-      - line_total_excl
-      - subtotal_excl
-      - vat_total
-      - total_incl
-    Respects per-line vat_percent and is_zero_rated flags when present.
-    """
-    subtotal = D0
-    vat_total = D0
-
-    for line in cart_dict.get("lines", []):
-        qty = _q2(line.get("qty", 0))
-        unit = _q2(line.get("unit_price_excl", 0))
-        line_total = _q2(qty * unit)
-        line["line_total_excl"] = line_total
-        subtotal += line_total
-
-        # VAT
-        is_zero = bool(line.get("is_zero_rated", False))
-        vat_pct = _q2(line.get("vat_percent", VAT_DEFAULT))
-        if is_zero:
-            vat_pct = D0
-        vat_total += _q2(line_total * (vat_pct / Decimal("100")))
-
-    cart_dict["subtotal_excl"] = _q2(subtotal)
-    cart_dict["vat_total"] = _q2(vat_total)
-    cart_dict["total_incl"] = _q2(subtotal + vat_total)
-    return cart_dict
 
 @login_required
 @require_http_methods(["GET", "POST"])
 def cart(request):
-    cart = _get_session_cart(request)
+    # Get session cart or create a default structure
+    cart = request.session.get("cart")
+    if not cart:
+        cart = {"lines": []}
+        request.session["cart"] = cart
 
+    lines = cart.setdefault("lines", [])
+
+    # ==================================================
+    # POST ACTIONS
+    # ==================================================
     if request.method == "POST":
-        action = (request.POST.get("action") or "").strip().lower()
+        action = request.POST.get("action")
 
-        # -------- ADD (from product or variant forms) --------
-        if "product_id" in request.POST or "variant_id" in request.POST:
-            channel = (request.POST.get("channel") or "retail").lower()
-            qty = max(1, int(request.POST.get("qty", "1") or 1))
-
-            product = None
-            variant = None
-            if request.POST.get("variant_id") and ProductVariant:
-                variant = get_object_or_404(ProductVariant, pk=request.POST["variant_id"])
-                product = variant.product
-            else:
-                product = get_object_or_404(Product, pk=request.POST["product_id"])
-
-            unit_price_excl = _pick_price_ex(product, variant, channel)
-
-            # Display bits
-            name = product.name
-            sku = getattr(product, "sku", "") or ""
-            uom_display = product.get_uom_display() if hasattr(product, "get_uom_display") else ""
-
-            # Variant label + discrete fields for template
-            pack_label = ""
-            variant_uom = ""
-            variant_pack_size = None
-            if variant:
-                if hasattr(variant, "get_uom_display"):
-                    variant_uom = variant.get_uom_display()
-                elif hasattr(variant, "uom") and variant.uom:
-                    variant_uom = str(variant.uom)
-
-                if hasattr(variant, "pack_size") and variant.pack_size is not None:
-                    variant_pack_size = variant.pack_size
-
-                # For the quick one-line label
-                if variant_pack_size is not None:
-                    if variant_uom:
-                        pack_label = f"{variant_pack_size:g} {variant_uom.lower()}"
-                    elif uom_display:
-                        pack_label = f"{variant_pack_size:g} {uom_display.lower()}"
-
-            # Image preference: variant > product
-            image_url = ""
-            if variant and getattr(variant, "image", None):
-                try:
-                    image_url = variant.image.url
-                except Exception:
-                    image_url = ""
-            if not image_url and getattr(product, "image", None):
-                try:
-                    image_url = product.image.url
-                except Exception:
-                    image_url = ""
-
-            # Merge line if same product/variant/channel price
-            merged = False
-            for ln in cart["lines"]:
-                if (
-                    ln["product_id"] == product.id
-                    and ln["variant_id"] == (variant.id if variant else None)
-                    and _money(ln["unit_price_excl"]) == unit_price_excl
-                ):
-                    ln["qty"] = int(ln["qty"]) + qty
-                    merged = True
-                    break
-
-            if not merged:
-                cart["lines"].append(
-                    {
-                        "id": _next_line_id(cart),
-                        "product_id": product.id,
-                        "variant_id": variant.id if variant else None,
-                        "name": name,
-                        "sku": sku,
-                        # for template "product.uom_label"
-                        "uom": uom_display or "",
-                        # for template "variant.uom / variant.uom_label / variant.pack_size"
-                        "variant_uom": variant_uom or "",
-                        "variant_pack_size": str(variant_pack_size) if variant_pack_size is not None else "",
-                        # quick pretty label used elsewhere
-                        "pack_label": pack_label,
-                        "qty": qty,
-                        "unit_price_excl": str(unit_price_excl),
-                        "image_url": image_url,
-                        # VAT info (defaults)
-                        "vat_percent": str(VAT_DEFAULT),
-                        "is_zero_rated": False,
-                    }
-                )
-
-            request.session["cart"] = cart
-            request.session.modified = True
-            messages.success(request, f"Added {qty} × {name} to your cart.")
-            return redirect("cart")
-
-        # -------- UPDATE QTY --------
-        if action == "update":
-            line_id = request.POST.get("line_id")
-            qty = max(1, int(request.POST.get("qty", "1") or 1))
-            for ln in cart["lines"]:
-                if ln["id"] == line_id:
-                    ln["qty"] = qty
-                    break
-            request.session.modified = True
-            return redirect("cart")
-
-        # -------- REMOVE LINE --------
+        # -------------------------------
+        # REMOVE LINE
+        # -------------------------------
         if action == "remove":
             line_id = request.POST.get("line_id")
-            cart["lines"] = [ln for ln in cart["lines"] if ln["id"] != line_id]
+            cart["lines"] = [l for l in lines if str(l.get("product_id")) != line_id]
+            request.session.modified = True
+            print("REMOVE LINE DEBUG → Cart after removal:", cart)
+            return redirect("cart")
+
+        # -------------------------------
+        # UPDATE QTY
+        # -------------------------------
+        if action == "update":
+            line_id = request.POST.get("line_id")
+            qty = max(1, int(request.POST.get("qty", 1)))
+
+            for l in lines:
+                if str(l.get("product_id")) == line_id:
+                    l["qty"] = qty
+                    print("UPDATE LINE DEBUG → Updated line:", l)
+                    break
+
             request.session.modified = True
             return redirect("cart")
 
-        # -------- BULK UPDATE (reserved) --------
-        if action == "bulk_update":
-            request.session.modified = True
-            return redirect("cart")
+        # -------------------------------
+        # ADD TO CART
+        # -------------------------------
+        product_id = int(request.POST.get("product_id"))
+        qty = max(1, int(request.POST.get("qty", 1)))
+        product = get_object_or_404(Product, pk=product_id)
 
-    # ---------- GET: build rich lines for template ----------
-    # ---------- GET: build rich lines for template ----------
-    rich_lines = []
-    for ln in cart["lines"]:
-        unit = _q2(ln.get("unit_price_excl"))
-        qty = int(ln.get("qty", 1))
-        line_total = _q2(unit * qty)
-
-        # Tiny proxies so template can safely access attributes
-        ProductProxy = type("ProductProxy", (), {})
-        VariantProxy = type("VariantProxy", (), {})
-        ImgProxy = type("ImgProxy", (), {})
-
-        # ---- product proxy (ALWAYS give uom & uom_label) ----
-        p = ProductProxy()
-        p.name = ln.get("name") or "Item"
-        p.sku = ln.get("sku") or ""
-        # ensure both attributes exist so template never raises VariableDoesNotExist
-        p.uom = ln.get("uom") or ""          # e.g. "Each", "Kilogram"
-        p.uom_label = ln.get("uom") or ""    # same value; template may read either
-
-        # ---- variant proxy (if present) ----
-        v = None
-        if ln.get("variant_id"):
-            v = VariantProxy()
-            # ensure these attributes always exist
-            v.uom = ln.get("variant_uom") or ""
-            v.uom_label = ln.get("variant_uom") or ""
-            # keep numeric (string ok for display; template uses floatformat)
-            v.pack_size = ln.get("variant_pack_size") or ""
-            v.pack_label = ln.get("pack_label") or ""
-
-        # ---- image proxy (if present) ----
-        img = None
-        if ln.get("image_url"):
-            img = ImgProxy()
-            img.url = ln["image_url"]
-
-        rich_lines.append(
-            {
-                "id": ln["id"],
-                "qty": qty,
-                "unit_price_excl": unit,
-                "line_total_excl": line_total,
-                "product": p,
-                "variant": v,
-                "image": img,
-            }
+        # Get the active pricing row
+        pricing = (
+            product.pricing_rows.filter(is_active=True).order_by("-is_primary").first()
         )
+        if not pricing:
+            raise ValueError(f"No pricing configured for product {product.id}")
 
-    totals = _calc_cart_totals({"lines": rich_lines})
+        # Ensure prices are valid Decimals
+        unit_price_excl = pricing.wholesale_price_excl or Decimal("0.00")
+        unit_price_inc = pricing.wholesale_price_inc or Decimal("0.00")
 
-    context = {
-        "cart": {
+        # Debug print
+        print("ADD TO CART DEBUG → Product:", product.name)
+        print("Qty:", qty)
+        print("Unit excl:", unit_price_excl, "Unit inc:", unit_price_inc)
+        print("Cart before add:", cart)
+
+        # Check if product already in cart
+        for l in lines:
+            if l["product_id"] == product.id:
+                l["qty"] += qty
+                print("Updated existing line:", l)
+                break
+        else:
+            # Append new line
+            lines.append({
+                "product_id": product.id,
+                "name": product.name,
+                "sku": product.sku,
+                "qty": qty,
+                "unit_price_excl": str(unit_price_excl),
+                "unit_price_inc": str(unit_price_inc),
+            })
+            print("Appended new line:", lines[-1])
+
+        request.session.modified = True
+        print("Cart after add:", cart)
+        return redirect("cart")
+
+    # ==================================================
+    # VIEW CART (GET)
+    # ==================================================
+    rich_lines = []
+    subtotal_excl = Decimal("0.00")
+    vat_total = Decimal("0.00")
+    total_inc = Decimal("0.00")
+
+    for line in lines:
+        qty = Decimal(str(line.get("qty", "0")))
+        unit_excl = Decimal(str(line.get("unit_price_excl", "0.00")))
+        unit_inc = Decimal(str(line.get("unit_price_inc", "0.00")))
+
+        line_excl = unit_excl * qty
+        line_inc = unit_inc * qty
+
+        subtotal_excl += line_excl
+        vat_total += (line_inc - line_excl)
+        total_inc += line_inc
+
+        rich_lines.append({
+            "id": line.get("product_id"),
+            "name": line.get("name"),
+            "sku": line.get("sku"),
+            "qty": qty,
+            "unit_inc": unit_inc,
+            "line_inc": line_inc,
+        })
+
+    print("CART GET DEBUG →", rich_lines, subtotal_excl, vat_total, total_inc)
+
+    return render(
+        request,
+        "home/cart.html",
+        {
             "lines": rich_lines,
-            "subtotal_excl": totals["subtotal_excl"],
-            "vat_total": totals["vat_total"],
-            "total_incl": totals["total_incl"],
-            "subtotal": totals["subtotal_excl"],  # alias so template fallbacks never break
-        }
-    }
-    return render(request, "home/cart.html", context)
+            "subtotal_excl": subtotal_excl,
+            "vat_total": vat_total,
+            "total_inc": total_inc,
+        },
+    )
 
+VAT_PERCENT = Decimal("15")
+
+def add_vat(price_excl: Decimal, vat_percent: Decimal = VAT_PERCENT) -> Decimal:
+    """Return price including VAT."""
+    return _r2(price_excl * (1 + vat_percent / 100))
 
 def _get_client_for_user(user):
     from clients.models import Client
@@ -1741,11 +1762,10 @@ def checkout(request):
                     product_name=ln.get("name") or product.name,
                     uom=ln.get("uom") or product.uom,
                     quantity=qty,
-                    unit_price_excl=unit_price_excl,
-                    # discount_excl defaults to 0.00
-                    # vat_percent defaults to 0.00
+                    # unit_price_excl intentionally omitted
                 )
             )
+
 
         if not items_to_create:
             order.delete()
@@ -1755,7 +1775,9 @@ def checkout(request):
             )
             return redirect("cart")
 
-        OrderItem.objects.bulk_create(items_to_create)
+        for item in items_to_create:
+            item.save()
+
 
         # Snapshot totals
         order.recalc_totals(save=True)
@@ -1888,11 +1910,15 @@ def view_order(request, pk: int):
     client = resolve_client_for_user(request.user, request=request)
 
     if not client:
-        return render(request, "home/view_order.html", {
-            "order": None,
-            "client": None,
-            "invoice": None,
-        })
+        return render(
+            request,
+            "home/view_order.html",
+            {
+                "order": None,
+                "client": None,
+                "invoice": None,
+            },
+        )
 
     # Fetch the order securely (must belong to this client)
     order = get_object_or_404(
@@ -1903,14 +1929,30 @@ def view_order(request, pk: int):
         client=client,
     )
 
+    # --------------------------------------------------
+    # Enrich order items with unit_price_inc (derived)
+    # --------------------------------------------------
+    for item in order.items.all():
+        if item.quantity and item.quantity > 0:
+            item.unit_price_inc = (
+                item.line_total_inc / item.quantity
+            ).quantize(Decimal("0.01"))
+        else:
+            item.unit_price_inc = Decimal("0.00")
+
     # Fetch invoice (may or may not exist yet)
     invoice = Invoice.objects.filter(order=order).first()
 
-    return render(request, "home/view_order.html", {
-        "order": order,
-        "client": client,
-        "invoice": invoice,
-    })
+    return render(
+        request,
+        "home/view_order.html",
+        {
+            "order": order,
+            "client": client,
+            "invoice": invoice,
+            "items": order.items.all(),  # explicit & consistent
+        },
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -1988,7 +2030,68 @@ def pay_invoice(request, pk):
     })
 
 
+@login_required
+def send_invoice_email(request, pk):
+    invoice = get_object_or_404(Invoice, pk=pk)
 
+    # Only handle POST
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Invalid request method."}, status=400)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON."}, status=400)
+
+    email_to = data.get("email")
+    recipient_name = data.get("recipient_name", "").strip()
+
+    if not email_to:
+        return JsonResponse({"success": False, "error": "No email provided."}, status=400)
+
+    if not recipient_name:
+        # fallback to user's full name or username
+        profile = invoice.client.customer_profiles.first()
+        user = profile.user if profile else None
+        if user:
+            recipient_name = user.get_full_name() or user.username
+        else:
+            recipient_name = "Valued Customer"
+
+    # Get customer profile and user
+    profile = invoice.client.customer_profiles.first()
+    user = profile.user if profile else None
+    client = invoice.client
+
+    # Build context
+    ctx = {
+        "invoice": invoice,
+        "user": user,
+        "client": client,
+        "recipient_name": recipient_name,  # <-- use in template
+        "support_email": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"),
+        "invoice_url": request.build_absolute_uri(reverse("view-invoice", args=[invoice.id])),
+    }
+
+    # Render templates
+    text_body = render_to_string("email/invoice_email.txt", ctx)
+    html_body = render_to_string("email/invoice_email.html", ctx)
+
+    # Send email
+    subject = f"The Daily Market – Invoice INV-{invoice.id}"
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "accounts@thedailymarket.co.za")
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=from_email,
+        to=[email_to],
+        headers={"Reply-To": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za")},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+    return JsonResponse({"success": True})
 
 @csrf_exempt
 def payfast_itn(request):
@@ -2035,13 +2138,17 @@ def view_invoice(request, pk):
         order__client=resolve_client_for_user(request.user, request=request),
     )
 
+    # Prefill email from first active customer profile linked to client
+    default_email = ""
+    profiles = invoice.order.client.customer_profiles.filter(status="active")
+    if profiles.exists():
+        default_email = profiles.first().user.email
+
     return render(request, "home/view_invoice.html", {
         "invoice": invoice,
         "client": invoice.order.client,
+        "default_email": default_email,  # pass to template
     })
-
-
-
 
 
 

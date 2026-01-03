@@ -416,7 +416,7 @@
                     </td>
                     <td class="text-end">{{ item.quantity }}</td>
                     <td class="text-end">
-                      R {{ item.unit_price_excl|floatformat:2|intcomma }}
+                      R {{ item.unit_price_inc|floatformat:2|intcomma }}
                     </td>
                     <td class="text-end fw-semibold">
                       R {{ item.line_total_inc|floatformat:2|intcomma }}

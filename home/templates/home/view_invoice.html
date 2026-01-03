@@ -62,13 +62,23 @@
 
 <div class="container py-4 invoice-wrapper">
 
-  <!-- BACK -->
-  <div class="mb-3">
+  <!-- BACK + ACTIONS -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
     <a href="{% url 'view-order' invoice.order.id %}"
-       class="text-decoration-none fw-medium">
+      class="text-decoration-none fw-medium">
       &larr; Back to Order
     </a>
+
+    <button class="btn btn-outline-primary btn-sm"
+            data-bs-toggle="modal"
+            data-bs-target="#sendInvoiceModal">
+      <i class="bi bi-envelope"></i> Send via Email
+    </button>
   </div>
+
+
+  
+
 
   <!-- INVOICE CARD -->
   <div class="card shadow-sm border-0 rounded-4">
@@ -79,7 +89,7 @@
         <div class="col-md-6">
           <h4 class="fw-bold mb-1">The Daily Market</h4>
           <div class="text-muted small">
-            Lapeng Agri Group (Pty) Ltd<br>
+            The Daily Market (Pty) Ltd<br>
             South Africa
           </div>
         </div>
@@ -124,8 +134,9 @@
         <div class="col-md-6 text-md-end mt-3 mt-md-0">
           <h6 class="fw-semibold">Pay To</h6>
           <div class="small">
-            Lapeng Agri Group (Pty) Ltd<br>
-            South Africa
+            The Daily Market (Pty) Ltd<br>
+            Capitec Business<br>
+            000000000
           </div>
         </div>
       </div>
@@ -135,23 +146,33 @@
         <table class="table table-bordered invoice-table align-middle">
           <thead class="table-light">
             <tr>
-              <th>Description</th>
+              <th>Item</th>
+              <th class="text-end">Qty</th>
+              <th class="text-end">Unit Price</th>
               <th class="text-end">Amount</th>
             </tr>
           </thead>
+
           <tbody>
             {% for item in invoice.order.items.all %}
             <tr>
               <td>
-                {{ item.product.name }}
-                {% if item.variant %}
-                  <span class="text-muted">({{ item.variant }})</span>
-                {% endif %}
+                {{ item.product_name }}
               </td>
+
               <td class="text-end">
-                R {{ item.total_price|floatformat:2|intcomma }}
+                {{ item.quantity|floatformat:2 }}
+              </td>
+
+              <td class="text-end">
+                R{{ item.unit_price_inc|floatformat:2|intcomma }}
+              </td>
+
+              <td class="text-end fw-semibold">
+                R{{ item.line_total_inc|floatformat:2|intcomma }}
               </td>
             </tr>
+
             {% endfor %}
           </tbody>
         </table>
@@ -199,7 +220,157 @@
 
     </div>
   </div>
-</div>
+ 
+  <!-- SEND INVOICE MODAL -->
+  <div class="modal fade" id="sendInvoiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4">
+
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-envelope"></i> Send Invoice
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Recipient Name</label>
+            <input
+              type="text"
+              class="form-control"
+              id="invoiceRecipientName"
+              value="{{ invoice.order.client.customer_profiles.first.user.get_full_name|default:invoice.order.client.customer_profiles.first.user.username }}"
+              placeholder="Full Name"
+              required
+            >
+            <div class="form-text">
+              You can change the recipient name before sending.
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Recipient Email</label>
+            <input
+              type="email"
+              class="form-control"
+              id="invoiceEmail"
+              value="{{ default_email }}"
+              placeholder="email@example.com"
+              required
+            >
+            <div class="form-text">
+              You can change the email before sending.
+            </div>
+          </div>
+
+
+
+          <div id="sendInvoiceError" class="alert alert-danger d-none"></div>
+          <div id="sendInvoiceSuccess" class="alert alert-success d-none">
+            Invoice sent successfully.
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button"
+                  class="btn btn-outline-secondary"
+                  data-bs-dismiss="modal">
+            Cancel
+          </button>
+
+          <button type="button"
+                  class="btn btn-primary"
+                  id="sendInvoiceBtn">
+            <span id="sendInvoiceBtnText">Send Invoice</span>
+            <span id="sendInvoiceSpinner"
+                  class="spinner-border spinner-border-sm ms-2 d-none"></span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const sendBtn = document.getElementById("sendInvoiceBtn");
+      const emailInput = document.getElementById("invoiceEmail");
+      const recipientNameInput = document.getElementById("invoiceRecipientName");
+
+      const spinner = document.getElementById("sendInvoiceSpinner");
+      const btnText = document.getElementById("sendInvoiceBtnText");
+
+      const errorBox = document.getElementById("sendInvoiceError");
+      const successBox = document.getElementById("sendInvoiceSuccess");
+
+      sendBtn.addEventListener("click", function () {
+        const email = emailInput.value.trim();
+        const recipientName = recipientNameInput.value.trim();
+
+        errorBox.classList.add("d-none");
+        successBox.classList.add("d-none");
+
+        if (!recipientName) {
+          errorBox.textContent = "Please enter a recipient name.";
+          errorBox.classList.remove("d-none");
+          return;
+        }
+
+        if (!email) {
+          errorBox.textContent = "Please enter a valid email address.";
+          errorBox.classList.remove("d-none");
+          return;
+        }
+
+        // UI loading state
+        sendBtn.disabled = true;
+        spinner.classList.remove("d-none");
+        btnText.textContent = "Sending...";
+
+        fetch("{% url 'send-invoice-email' invoice.id %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+          },
+          body: JSON.stringify({ email: email, recipient_name: recipientName })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            successBox.classList.remove("d-none");
+
+            setTimeout(() => {
+              const modal = bootstrap.Modal.getInstance(
+                document.getElementById("sendInvoiceModal")
+              );
+              modal.hide();
+            }, 1200);
+          } else {
+            throw new Error(data.error || "Failed to send invoice.");
+          }
+        })
+        .catch(err => {
+          errorBox.textContent = err.message;
+          errorBox.classList.remove("d-none");
+        })
+        .finally(() => {
+          sendBtn.disabled = false;
+          spinner.classList.add("d-none");
+          btnText.textContent = "Send Invoice";
+        });
+      });
+    });
+
+  </script>
+
+
+
 
 </body>
 </html>
+

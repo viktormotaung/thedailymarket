@@ -228,6 +228,7 @@
     </div>
   </nav>
 
+
   <!-- ====== MAIN ====== -->
   <main class="site-main">
     <section class="py-4">
@@ -240,217 +241,129 @@
           {% endfor %}
         {% endif %}
 
-        {% if cart and cart.lines %}
-          <!-- Desktop/table layout -->
-          <div class="d-none d-md-block">
-            <!-- NOTE: avoid nested forms; each line has its own tiny form -->
-            <div class="table-responsive">
-              <table class="table align-middle">
-                <thead class="table-light">
-                  <tr>
-                    <th colspan="2">Item</th>
-                    <th class="text-center" style="width:140px;">Qty</th>
-                    <th class="text-end" style="width:160px;">Unit (ex VAT)</th>
-                    <th class="text-end" style="width:160px;">Line Total (ex VAT)</th>
-                    <th class="text-end" style="width:60px;"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for line in cart.lines %}
-                    <tr>
-                      <td style="width:84px;">
-                        {% if line.image %}
-                          <img src="{{ line.image.url|default:line.image }}" class="line-img" alt="">
-                        {% elif line.variant and line.variant.image %}
-                          <img src="{{ line.variant.image.url|default:line.variant.image }}" class="line-img" alt="">
-                        {% elif line.product and line.product.image %}
-                          <img src="{{ line.product.image.url|default:line.product.image }}" class="line-img" alt="">
-                        {% else %}
-                          <div class="bg-light d-flex align-items-center justify-content-center line-img">
-                            <i class="bi bi-image text-muted"></i>
-                          </div>
-                        {% endif %}
-                      </td>
-                      <td>
-                        <div class="fw-semibold">
-                          {% if line.product %}{{ line.product.name }}{% else %}Item{% endif %}
-                        </div>
-                        <div class="text-muted small">
-                          {% if line.variant %}
-                            {% with v_uom=line.variant.uom|default:line.variant.uom_label %}
-                              {% if line.variant.pack_size %}{{ line.variant.pack_size|floatformat:1 }}{% endif %}
-                              {% if v_uom %} {{ v_uom|lower }}{% endif %}
-                            {% endwith %}
-                          {% else %}
-                            {% with p_uom=line.product.uom|default:line.product.uom_label %}
-                              {{ p_uom|default:"Each"|capfirst }}
-                            {% endwith %}
-                          {% endif %}
-                          {% if line.product and line.product.sku %} • SKU {{ line.product.sku }}{% endif %}
-                        </div>
-                      </td>
+        {% if lines %}
+        <!-- ================= DESKTOP ================= -->
+        <div class="d-none d-md-block">
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Item</th>
+                  <th class="text-center" style="width:140px;">Qty</th>
+                  <th class="text-end" style="width:160px;">Unit (incl VAT)</th>
+                  <th class="text-end" style="width:160px;">Line Total (incl VAT)</th>
+                  <th style="width:60px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for line in lines %}
+                <tr>
+                  <td>
+                    <div class="fw-semibold">{{ line.name }}</div>
+                    {% if line.sku %}
+                    <div class="text-muted small">SKU: {{ line.sku }}</div>
+                    {% endif %}
+                  </td>
 
-                      <td class="text-center">
-                        <form method="post" action="{% url 'cart' %}" class="d-inline-block">
-                          {% csrf_token %}
-                          <input type="hidden" name="action" value="update">
-                          <input type="hidden" name="line_id" value="{{ line.id }}">
-                          <div class="input-group input-group-sm" style="max-width:120px; margin:0 auto;">
-                            <input type="number" class="form-control text-center" name="qty" value="{{ line.qty }}" min="1" onchange="this.form.submit()">
-                            <span class="input-group-text">x</span>
-                          </div>
-                        </form>
-                      </td>
+                  <td class="text-center">
+                    <form method="post" action="{% url 'cart' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="update">
+                      <input type="hidden" name="line_id" value="{{ line.id }}">
+                      <input type="number"
+                            class="form-control form-control-sm text-center"
+                            name="qty"
+                            value="{{ line.qty }}"
+                            min="1"
+                            onchange="this.form.submit()"
+                            style="max-width:90px;margin:auto;">
+                    </form>
+                  </td>
 
-                      <td class="text-end small-mono">
-                        {% if line.unit_price_excl %}R {{ line.unit_price_excl|floatformat:2|intcomma }}{% else %}R —{% endif %}
-                      </td>
-                      <td class="text-end small-mono">
-                        {% if line.line_total_excl %}R {{ line.line_total_excl|floatformat:2|intcomma }}{% else %}R —{% endif %}
-                      </td>
-                      <td class="text-end">
-                        <form method="post" action="{% url 'cart' %}">
-                          {% csrf_token %}
-                          <input type="hidden" name="action" value="remove">
-                          <input type="hidden" name="line_id" value="{{ line.id }}">
-                          <button class="btn btn-sm btn-outline-danger" title="Remove"><i class="bi bi-x-lg"></i></button>
-                        </form>
-                      </td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
+                  <td class="text-end small-mono">
+                    R {{ line.unit_inc|floatformat:2|intcomma }}
+                  </td>
+
+                  <td class="text-end small-mono">
+                    R {{ line.line_inc|floatformat:2|intcomma }}
+                  </td>
+
+                  <td class="text-end">
+                    <form method="post" action="{% url 'cart' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="remove">
+                      <input type="hidden" name="line_id" value="{{ line.id }}">
+                      <button class="btn btn-sm btn-outline-danger" title="Remove">
+                        <i class="bi bi-x-lg"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ================= SUMMARY ================= -->
+        <div class="row mt-4">
+          <div class="col-md-6">
+            <a href="{% url 'products' %}" class="btn btn-outline-secondary">
+              <i class="bi bi-arrow-left me-1"></i>Continue shopping
+            </a>
           </div>
 
-          <!-- Mobile/cards layout -->
-          <div class="d-md-none">
-            <div class="vstack gap-3">
-              {% for line in cart.lines %}
-                <div class="card">
-                  <div class="card-body d-flex gap-3">
-                    <div>
-                      {% if line.image %}
-                        <img src="{{ line.image.url|default:line.image }}" class="line-img" alt="">
-                      {% elif line.variant and line.variant.image %}
-                        <img src="{{ line.variant.image.url|default:line.variant.image }}" class="line-img" alt="">
-                      {% elif line.product and line.product.image %}
-                        <img src="{{ line.product.image.url|default:line.product.image }}" class="line-img" alt="">
-                      {% else %}
-                        <div class="bg-light d-flex align-items-center justify-content-center line-img">
-                          <i class="bi bi-image text-muted"></i>
-                        </div>
-                      {% endif %}
-                    </div>
-                    <div class="flex-grow-1">
-                      <div class="fw-semibold">
-                        {% if line.product %}{{ line.product.name }}{% else %}Item{% endif %}
-                      </div>
-                      <div class="text-muted small mb-2">
-                        {% if line.variant %}
-                          {% with v_uom=line.variant.uom|default:line.variant.uom_label %}
-                            {% if line.variant.pack_size %}{{ line.variant.pack_size|floatformat:1 }}{% endif %}
-                            {% if v_uom %} {{ v_uom|lower }}{% endif %}
-                          {% endwith %}
-                        {% else %}
-                          {% with p_uom=line.product.uom|default:line.product.uom_label %}
-                            {{ p_uom|default:"Each"|capfirst }}
-                          {% endwith %}
-                        {% endif %}
-                      </div>
+          <div class="col-md-6">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <h6 class="mb-3">Summary</h6>
 
-                      <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                          <div class="small text-muted">Unit (ex VAT)</div>
-                          <div class="small-mono">{% if line.unit_price_excl %}R {{ line.unit_price_excl|floatformat:2|intcomma }}{% else %}R —{% endif %}</div>
-                        </div>
-                        <div class="text-end">
-                          <div class="small text-muted">Line (ex VAT)</div>
-                          <div class="small-mono fw-semibold">{% if line.line_total_excl %}R {{ line.line_total_excl|floatformat:2|intcomma }}{% else %}R —{% endif %}</div>
-                        </div>
-                      </div>
-
-                      <div class="d-flex align-items-center justify-content-between mt-2">
-                        <form method="post" action="{% url 'cart' %}" class="d-inline-block">
-                          {% csrf_token %}
-                          <input type="hidden" name="action" value="update">
-                          <input type="hidden" name="line_id" value="{{ line.id }}">
-                          <div class="input-group input-group-sm" style="max-width:160px;">
-                            <span class="input-group-text">Qty</span>
-                            <input type="number" class="form-control text-center" name="qty" value="{{ line.qty }}" min="1" onchange="this.form.submit()">
-                          </div>
-                        </form>
-                        <form method="post" action="{% url 'cart' %}">
-                          {% csrf_token %}
-                          <input type="hidden" name="action" value="remove">
-                          <input type="hidden" name="line_id" value="{{ line.id }}">
-                          <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                        </form>
-                      </div>
-
-                    </div>
-                  </div>
+                <div class="d-flex justify-content-between small mb-2">
+                  <span>Subtotal (ex VAT)</span>
+                  <span class="small-mono">R {{ subtotal_excl|floatformat:2|intcomma }}</span>
                 </div>
-              {% endfor %}
-            </div>
-          </div>
 
-          <!-- Totals -->
-          <div class="row mt-4">
-            <div class="col-md-6">
-              <a href="{% url 'products' %}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-1"></i>Continue shopping
-              </a>
-            </div>
-            <div class="col-md-6">
-              <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                  <h6 class="mb-3">Summary</h6>
+                <div class="d-flex justify-content-between small mb-2">
+                  <span>VAT</span>
+                  <span class="small-mono">R {{ vat_total|floatformat:2|intcomma }}</span>
+                </div>
 
-                  <div class="d-flex justify-content-between small mb-2">
-                    <span>Total (ex VAT)</span>
-                    <span class="small-mono">R {{ cart.subtotal_excl|default:cart.subtotal|floatformat:2|intcomma }}</span>
-                  </div>
+                <div class="d-flex justify-content-between fw-semibold">
+                  <span>Total (incl VAT)</span>
+                  <span class="small-mono">R {{ total_inc|floatformat:2|intcomma }}</span>
+                </div>
 
-                  {% if cart.vat_total %}
-                    <div class="d-flex justify-content-between small mb-2">
-                      <span>VAT</span>
-                      <span class="small-mono">R {{ cart.vat_total|floatformat:2|intcomma }}</span>
-                    </div>
-                  {% endif %}
+                <form method="post" action="{% url 'checkout' %}" class="d-grid mt-3">
+                  {% csrf_token %}
+                  <button class="btn btn-brand btn-lg">Proceed to Checkout</button>
+                </form>
 
-                  {% if cart.total_incl %}
-                    <div class="d-flex justify-content-between fw-semibold">
-                      <span>Total (incl VAT)</span>
-                      <span class="small-mono">R {{ cart.total_incl|floatformat:2|intcomma }}</span>
-                    </div>
-                  {% endif %}
-
-                  <!-- Gate checkout if not authenticated -->
-                  <form method="post" action="{% url 'checkout' %}" class="d-grid mt-3 requires-auth-form">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-brand btn-lg">Proceed to Checkout</button>
-                  </form>
-                  <div class="text-muted small mt-2">
-                    Prices shown include VAT where applicable. Zero-rated items do not attract VAT.
-                  </div>
+                <div class="text-muted small mt-2">
+                  Prices shown include VAT where applicable.
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
         {% else %}
-          <!-- Empty cart -->
-          <div class="text-center text-muted py-5">
-            <i class="bi bi-bag fs-1 d-block mb-2"></i>
-            <p class="lead mb-1">Your cart is empty</p>
-            <p>Add some items to begin your order.</p>
-            <a href="{% url 'products' %}" class="btn btn-brand requires-auth"><i class="bi bi-plus me-1"></i>Browse products</a>
-          </div>
+        <!-- ================= EMPTY ================= -->
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-bag fs-1 d-block mb-2"></i>
+          <p class="lead mb-1">Your cart is empty</p>
+          <p>Add some items to begin your order.</p>
+          <a href="{% url 'products' %}" class="btn btn-brand">
+            <i class="bi bi-plus me-1"></i>Browse products
+          </a>
+        </div>
         {% endif %}
       </div>
     </section>
   </main>
+
+
+
+
 
   <!-- Footer -->
   <footer class="text-white mt-auto" style="background:var(--brand);">

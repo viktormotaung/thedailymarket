@@ -351,6 +351,11 @@ class OrderItem(models.Model):
         validators=[MinValueValidator(Decimal("0.00"))],
         default=Decimal("0.00"),
     )
+    unit_price_inc = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        default=Decimal("0.00"),
+    )
     discount_excl = models.DecimalField(
         max_digits=12, decimal_places=2,
         default=Decimal("0.00"),
@@ -382,36 +387,18 @@ class OrderItem(models.Model):
 
     @property
     def line_total_inc(self) -> Decimal:
-        return r2(self.line_total_excl + self.line_vat_amount)
+        return r2(self.unit_price_inc * (self.quantity or Decimal("0.00")))
 
     # ---------- helper ----------
     def _client_price_mode(self) -> str:
-        """
-        Returns 'WHOLESALE' or 'RETAIL' based on the order client's price_type.
-        Defaults to RETAIL if missing/blank.
-        """
-        try:
-            pt = (self.order.client.price_type or "").strip().upper()
-        except Exception:
-            pt = ""
-        return "WHOLESALE" if pt == "WHOLESALE" else "RETAIL"
+        return "WHOLESALE"
 
     # ---------- autofill helpers ----------
     def _prefill_from_product(self):
-        """
-        Copy SKU, name, UOM from the selected Product if blank.
-        If unit price/VAT are not set, derive from the product's active pricing rows
-        based on the client's price_type:
-
-          - If client.price_type == 'Wholesale' -> use wholesale ladder
-          - Else -> use retail ladder
-          - Among active rows, pick the LOWEST ex-VAT price on that ladder
-          - Copy the ladder VAT % into vat_percent (if not already set)
-        """
         if not self.product_id:
             return
 
-        # Snapshots (only if blank — we keep snapshots once set)
+        # Snapshots
         if not self.sku:
             self.sku = self.product.sku
         if not self.product_name:
@@ -419,31 +406,29 @@ class OrderItem(models.Model):
         if not self.uom:
             self.uom = self.product.uom
 
-        # Price/VAT: only derive if price is not set (> 0 means user/staff already set it)
+        # Only derive if price is not set
         if (self.unit_price_excl or Decimal("0.00")) == Decimal("0.00"):
-            ladder = self._client_price_mode()  # 'WHOLESALE' or 'RETAIL'
             pr_qs = self.product.pricing_rows.filter(is_active=True)
-
-            best_price: Optional[Decimal] = None
-            best_vat: Optional[Decimal] = None
+            best_price_excl = None
+            best_price_inc = None
+            best_vat = None
 
             for pr in pr_qs:
-                if ladder == "WHOLESALE":
-                    price_excl = pr.wholesale_price_excl
-                    vat_pct = pr.wholesale_vat_percent
-                else:
-                    price_excl = pr.retail_price_excl
-                    vat_pct = pr.retail_vat_percent
+                price_excl = pr.wholesale_price_excl
+                price_inc = pr.wholesale_price_inc
+                vat_pct = pr.wholesale_vat_percent
 
                 if price_excl is None or price_excl <= Decimal("0.00"):
                     continue
 
-                if best_price is None or price_excl < best_price:
-                    best_price = price_excl
+                if best_price_excl is None or price_excl < best_price_excl:
+                    best_price_excl = price_excl
+                    best_price_inc = price_inc
                     best_vat = vat_pct
 
-            if best_price is not None:
-                self.unit_price_excl = best_price
+            if best_price_excl is not None:
+                self.unit_price_excl = best_price_excl
+                self.unit_price_inc = best_price_inc or best_price_excl
                 if (self.vat_percent or Decimal("0.00")) == Decimal("0.00") and best_vat is not None:
                     self.vat_percent = best_vat
 
@@ -456,37 +441,15 @@ class OrderItem(models.Model):
         if self.product and self.product.category_id != self.category_id:
             raise ValidationError("Selected product is not in the chosen category.")
 
-        # Ensure we have a unit price; try to prefill and re-validate
+        # Ensure unit prices exist
         if (self.unit_price_excl or Decimal("0.00")) == Decimal("0.00"):
             self._prefill_from_product()
             if (self.unit_price_excl or Decimal("0.00")) == Decimal("0.00"):
                 raise ValidationError("No active pricing found for this product; please enter a unit price.")
 
     def save(self, *args, **kwargs):
-        # Prefill on save so API/admin/imports all behave the same
         self._prefill_from_product()
         super().save(*args, **kwargs)
-        # keep order totals in sync
         if self.order_id:
             self.order.recalc_totals(save=True)
 
-
-# --- Credit gate on NEW orders (pre_save) ---
-@receiver(pre_save, sender=Order)
-def enforce_credit_rule_before_create(sender, instance: Order, **kwargs):
-    # Only run for brand-new orders
-    if instance.pk is None:
-        instance._enforce_credit_rule_on_create()
-
-
-# --- Safety net: ensure invoice exists when an order is saved as approved ---
-@receiver(post_save, sender=Order)
-def ensure_invoice_on_approved(sender, instance: Order, created, **kwargs):
-    if instance.status == "approved":
-        # Create invoice if missing (covers direct status changes in admin/API)
-        try:
-            instance.invoice  # relation exists?
-        except Exception:
-            from invoices.models import Invoice  # lazy import
-            if not Invoice.objects.filter(order=instance).exists():
-                Invoice.create_for_order(instance)

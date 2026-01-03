@@ -1,0 +1,18 @@
+Hi {{ user.first_name|default:user.username }},
+
+Please find your invoice INV-{{ invoice.id }} for {{ client.organization|default:client.name }} attached.
+
+Invoice Date: {{ invoice.created_at|date:"d M Y" }}
+{% if invoice.due_date %}Due Date: {{ invoice.due_date|date:"d M Y" }}{% endif %}
+Status: {{ invoice.get_status_display }}
+
+Items:
+{% for item in invoice.order.items.all %}
+- {{ item.product_name }}: {{ item.quantity }} x R{{ item.unit_price_inc }} = R{{ item.line_total_inc }}
+{% endfor %}
+
+Invoice Total: R{{ invoice.order_total_inc }}
+{% if invoice.credit_used > 0 %}Credit Used: -R{{ invoice.credit_used }}{% endif %}
+Total Payable: R{{ invoice.amount_due }}
+
+If you need assistance, contact {{ support_email|default:'support@thedailymarket.co.za' }}.
