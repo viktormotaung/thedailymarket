@@ -258,7 +258,7 @@
             <span class="text-muted">•</span>
             <span>{{ account.funder.weekly_rate_pct|floatformat:2 }}%/wk</span>
             <span class="text-muted">•</span>
-            <span>Bal R{{ account.funder.balance|floatformat:2 }}</span>
+            <span>Bal R{{ account.funder.allocatable_balance|floatformat:2 }}</span>
           {% else %}
             <span class="text-muted">None</span>
           {% endif %}

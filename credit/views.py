@@ -371,7 +371,6 @@ def credit_client_view(request, client_id):
     credit_used = account.credit_used or Decimal("0.00")
 
     raw_available = credit_limit - credit_used
-
     credit_available = max(Decimal("0.00"), raw_available)
 
     over_limit_amount = (
@@ -460,11 +459,19 @@ def credit_client_view(request, client_id):
         elif entry.kind == CreditEntry.ADJUSTMENT:
             wallet_balance += entry.amount
 
-        # Anything else is ignored by design
-
         entry.running_balance = wallet_balance
 
     credit_entries.reverse()
+
+    # ------------------------------------------------------------------
+    # FUNDER — Allocatable Balance (NEW, SAFE ADDITION)
+    # ------------------------------------------------------------------
+    funder = account.funder
+
+    allocatable_balance = funder.allocatable_balance
+
+    
+
 
     # ------------------------------------------------------------------
     # Render
@@ -491,9 +498,11 @@ def credit_client_view(request, client_id):
 
             # Wallet
             "credit_entries": credit_entries,
+
+            # Funder
+            "allocatable_balance": allocatable_balance,
         },
     )
-
 
 @login_required
 @staff_required

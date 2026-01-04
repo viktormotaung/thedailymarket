@@ -90,7 +90,7 @@
           <h4 class="fw-bold mb-1">The Daily Market</h4>
           <div class="text-muted small">
             The Daily Market (Pty) Ltd<br>
-            South Africa
+            2024 / 232233 / 07
           </div>
         </div>
 
@@ -122,7 +122,7 @@
           <h6 class="fw-semibold">Invoiced To</h6>
           <div class="small">
             {{ invoice.order.client.organization|default:invoice.order.client.name }}<br>
-            ATTN: {{ invoice.order.client.contact_person }}<br>
+            ATTN: {{ invoice.order.client.organization|default:invoice.order.client.name }}<br>
             {{ invoice.order.client.address_line1 }}<br>
             {{ invoice.order.client.city }},
             {{ invoice.order.client.province }},
@@ -136,7 +136,7 @@
           <div class="small">
             The Daily Market (Pty) Ltd<br>
             Capitec Business<br>
-            000000000
+            1053135394
           </div>
         </div>
       </div>

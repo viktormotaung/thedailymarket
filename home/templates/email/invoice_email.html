@@ -1,5 +1,4 @@
 {% load humanize %}
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -74,7 +73,7 @@
 
     <!-- Card -->
     <div class="card">
-      <p>Hi {{ recipient_name }},,</p>
+      <p>Hi {{ recipient_name }},</p>
 
       <p>
         Please find your invoice below. This invoice is for
@@ -91,7 +90,7 @@
 
       <div class="hr"></div>
 
-      <!-- Invoice Table -->
+      <!-- Invoice Items -->
       <table>
         <thead>
           <tr>
@@ -119,7 +118,37 @@
         {% if invoice.credit_used > 0 %}
         <div>Credit Used: -R{{ invoice.credit_used|floatformat:2|intcomma }}</div>
         {% endif %}
-        <div class="fw-bold" style="margin-top: 8px;">Total Payable: R{{ invoice.amount_due|floatformat:2|intcomma }}</div>
+        <div class="fw-bold" style="margin-top: 8px;">
+          Total Payable: R{{ invoice.amount_due|floatformat:2|intcomma }}
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <!-- Banking Details -->
+      <div style="margin-top: 12px;">
+        <h4 style="margin: 0 0 8px; color: #0b5c39;">Banking Details</h4>
+
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0;"><strong>Account Name:</strong></td>
+            <td style="padding: 6px 0;">The Daily Market (Pty) Ltd</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0;"><strong>Bank:</strong></td>
+            <td style="padding: 6px 0;">Capitec Business</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0;"><strong>Account Number:</strong></td>
+            <td style="padding: 6px 0;">1053135394</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0;"><strong>Payment Reference:</strong></td>
+            <td style="padding: 6px 0;">
+              INV-{{ invoice.id }} / {{ client.organization|default:client.name }}
+            </td>
+          </tr>
+        </table>
       </div>
 
       <div class="hr"></div>
@@ -130,6 +159,7 @@
           {{ support_email|default:'support@thedailymarket.co.za' }}
         </a>.
       </p>
+
       <p style="margin: 0;">— The Daily Market Team</p>
     </div>
 

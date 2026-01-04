@@ -274,19 +274,15 @@
               <dd class="col-6 col-sm-7">
                 {% if account.funder %}
                   {{ account.funder.name }}
-                  · {{ account.funder.weekly_rate_pct|floatformat:2 }}%/wk
-                  · Bal R{{ account.funder.balance|floatformat:2|intcomma }}
+                  · Bal R{{ account.funder.allocatable_balance|floatformat:2|intcomma }}
                 {% else %}
                   <span class="text-muted">None</span>
                 {% endif %}
               </dd>
 
-              <dt class="col-6 col-sm-5">Payment Term</dt>
-              <dd class="col-6 col-sm-7">R{{ used|floatformat:2|intcomma }}</dd>
-
-              <dt class="col-6 col-sm-5">Deposit Required</dt>
-              <dd class="col-6 col-sm-7">R{{ available|floatformat:2|intcomma }}</dd>
+              
             </dl>
+
 
             {% if limit > 0 %}
               {% widthratio used limit 100 as used_pct %}
