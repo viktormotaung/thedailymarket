@@ -223,7 +223,85 @@
     </div>
 
   </main>
-
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const sendBtn = document.getElementById("sendStatementBtn");
+    const emailInput = document.getElementById("statementEmail");
+    const recipientNameInput = document.getElementById("statementRecipientName");
+
+    const spinner = document.getElementById("sendStatementSpinner");
+    const btnText = document.getElementById("sendStatementBtnText");
+
+    const errorBox = document.getElementById("statementError");
+    const successBox = document.getElementById("statementSuccess");
+
+    sendBtn.addEventListener("click", function () {
+      const email = emailInput.value.trim();
+      const recipientName = recipientNameInput.value.trim();
+
+      errorBox.classList.add("d-none");
+      successBox.classList.add("d-none");
+
+      if (!recipientName) {
+        errorBox.textContent = "Please enter a recipient name.";
+        errorBox.classList.remove("d-none");
+        return;
+      }
+
+      if (!email) {
+        errorBox.textContent = "Please enter a valid email address.";
+        errorBox.classList.remove("d-none");
+        return;
+      }
+
+      // UI loading state
+      sendBtn.disabled = true;
+      spinner.classList.remove("d-none");
+      btnText.textContent = "Sending...";
+
+      fetch("{% url 'email-commission-statement' %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({
+          email: email,
+          recipient_name: recipientName,
+          agent: "{{ target_rep.id }}",
+          from: "{{ filter_date_from|date:'Y-m-d' }}",
+          to: "{{ filter_date_to|date:'Y-m-d' }}"
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          successBox.classList.remove("d-none");
+
+          setTimeout(() => {
+            const modal = bootstrap.Modal.getInstance(
+              document.getElementById("emailStatementModal")
+            );
+            modal.hide();
+          }, 1200);
+        } else {
+          throw new Error(data.error || "Failed to send statement.");
+        }
+      })
+      .catch(err => {
+        errorBox.textContent = err.message;
+        errorBox.classList.remove("d-none");
+      })
+      .finally(() => {
+        sendBtn.disabled = false;
+        spinner.classList.add("d-none");
+        btnText.textContent = "Send Statement";
+      });
+    });
+  });
+  </script>
+
+  
 </body>
 </html>

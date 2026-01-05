@@ -221,27 +221,36 @@
     </div>
   </div>
  
-  <!-- EMAIL COMMISSION STATEMENT MODAL -->
-  <div class="modal fade" id="emailStatementModal" tabindex="-1" aria-hidden="true">
+  <!-- SEND INVOICE MODAL -->
+  <div class="modal fade" id="sendInvoiceModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content rounded-4">
+      <div class="modal-content border-0 rounded-4 shadow">
 
         <div class="modal-header">
-          <h5 class="modal-title">
-            <i class="bi bi-envelope"></i> Email Commission Statement
+          <h5 class="modal-title fw-semibold">
+            Send Invoice INV-{{ invoice.id }}
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
 
         <div class="modal-body">
 
+          <!-- ERROR -->
+          <div id="sendInvoiceError" class="alert alert-danger d-none"></div>
+
+          <!-- SUCCESS -->
+          <div id="sendInvoiceSuccess" class="alert alert-success d-none">
+            Invoice sent successfully.
+          </div>
+
+          <!-- RECIPIENT NAME -->
           <div class="mb-3">
             <label class="form-label fw-semibold">Recipient Name</label>
             <input
               type="text"
               class="form-control"
-              id="statementRecipientName"
-              value="{{ target_rep.get_full_name|default:target_rep.username }}"
+              id="invoiceRecipientName"
+              value="{{ invoice.order.client.customer_profiles.first.user.get_full_name|default:invoice.order.client.customer_profiles.first.user.username }}"
               placeholder="Full Name"
               required
             >
@@ -250,13 +259,14 @@
             </div>
           </div>
 
+          <!-- EMAIL -->
           <div class="mb-3">
             <label class="form-label fw-semibold">Recipient Email</label>
             <input
               type="email"
               class="form-control"
-              id="statementEmail"
-              value="{{ target_rep.email }}"
+              id="invoiceEmail"
+              value="{{ default_email }}"
               placeholder="email@example.com"
               required
             >
@@ -265,109 +275,113 @@
             </div>
           </div>
 
-          <div id="statementError" class="alert alert-danger d-none"></div>
-          <div id="statementSuccess" class="alert alert-success d-none">
-            Commission statement sent successfully.
-          </div>
         </div>
 
         <div class="modal-footer">
-          <button type="button"
-                  class="btn btn-outline-secondary"
-                  data-bs-dismiss="modal">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal">
             Cancel
           </button>
 
-          <button type="button"
-                  class="btn btn-primary"
-                  id="sendStatementBtn">
-            <span id="sendStatementBtnText">Send Statement</span>
-            <span id="sendStatementSpinner"
-                  class="spinner-border spinner-border-sm ms-2 d-none"></span>
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="sendInvoiceBtn">
+
+            <span
+              id="sendInvoiceSpinner"
+              class="spinner-border spinner-border-sm d-none"
+              role="status"
+              aria-hidden="true">
+            </span>
+
+            <span id="sendInvoiceBtnText">Send Invoice</span>
           </button>
         </div>
 
       </div>
     </div>
   </div>
+
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
   <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const sendBtn = document.getElementById("sendStatementBtn");
-    const emailInput = document.getElementById("statementEmail");
-    const recipientNameInput = document.getElementById("statementRecipientName");
+    document.addEventListener("DOMContentLoaded", function () {
+      const sendBtn = document.getElementById("sendInvoiceBtn");
+      const emailInput = document.getElementById("invoiceEmail");
+      const recipientNameInput = document.getElementById("invoiceRecipientName");
 
-    const spinner = document.getElementById("sendStatementSpinner");
-    const btnText = document.getElementById("sendStatementBtnText");
+      const spinner = document.getElementById("sendInvoiceSpinner");
+      const btnText = document.getElementById("sendInvoiceBtnText");
 
-    const errorBox = document.getElementById("statementError");
-    const successBox = document.getElementById("statementSuccess");
+      const errorBox = document.getElementById("sendInvoiceError");
+      const successBox = document.getElementById("sendInvoiceSuccess");
 
-    sendBtn.addEventListener("click", function () {
-      const email = emailInput.value.trim();
-      const recipientName = recipientNameInput.value.trim();
+      sendBtn.addEventListener("click", function () {
+        const email = emailInput.value.trim();
+        const recipientName = recipientNameInput.value.trim();
 
-      errorBox.classList.add("d-none");
-      successBox.classList.add("d-none");
+        errorBox.classList.add("d-none");
+        successBox.classList.add("d-none");
 
-      if (!recipientName) {
-        errorBox.textContent = "Please enter a recipient name.";
-        errorBox.classList.remove("d-none");
-        return;
-      }
-
-      if (!email) {
-        errorBox.textContent = "Please enter a valid email address.";
-        errorBox.classList.remove("d-none");
-        return;
-      }
-
-      // UI loading state
-      sendBtn.disabled = true;
-      spinner.classList.remove("d-none");
-      btnText.textContent = "Sending...";
-
-      fetch("{% url 'email-commission-statement' %}", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": "{{ csrf_token }}"
-        },
-        body: JSON.stringify({
-          email: email,
-          recipient_name: recipientName,
-          agent: "{{ target_rep.id }}",
-          from: "{{ filter_date_from|date:'Y-m-d' }}",
-          to: "{{ filter_date_to|date:'Y-m-d' }}"
-        })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          successBox.classList.remove("d-none");
-
-          setTimeout(() => {
-            const modal = bootstrap.Modal.getInstance(
-              document.getElementById("emailStatementModal")
-            );
-            modal.hide();
-          }, 1200);
-        } else {
-          throw new Error(data.error || "Failed to send statement.");
+        if (!recipientName) {
+          errorBox.textContent = "Please enter a recipient name.";
+          errorBox.classList.remove("d-none");
+          return;
         }
-      })
-      .catch(err => {
-        errorBox.textContent = err.message;
-        errorBox.classList.remove("d-none");
-      })
-      .finally(() => {
-        sendBtn.disabled = false;
-        spinner.classList.add("d-none");
-        btnText.textContent = "Send Statement";
+
+        if (!email) {
+          errorBox.textContent = "Please enter a valid email address.";
+          errorBox.classList.remove("d-none");
+          return;
+        }
+
+        // UI loading state
+        sendBtn.disabled = true;
+        spinner.classList.remove("d-none");
+        btnText.textContent = "Sending...";
+
+        fetch("{% url 'send-invoice-email' invoice.id %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+          },
+          body: JSON.stringify({ email: email, recipient_name: recipientName })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            successBox.classList.remove("d-none");
+
+            setTimeout(() => {
+              const modal = bootstrap.Modal.getInstance(
+                document.getElementById("sendInvoiceModal")
+              );
+              modal.hide();
+            }, 1200);
+          } else {
+            throw new Error(data.error || "Failed to send invoice.");
+          }
+        })
+        .catch(err => {
+          errorBox.textContent = err.message;
+          errorBox.classList.remove("d-none");
+        })
+        .finally(() => {
+          sendBtn.disabled = false;
+          spinner.classList.add("d-none");
+          btnText.textContent = "Send Invoice";
+        });
       });
     });
-  });
+
   </script>
+
+
 
 
 </body>

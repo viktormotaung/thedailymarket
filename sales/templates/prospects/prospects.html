@@ -201,7 +201,6 @@
                   <th style="width:12%; font-size:13px;">Created</th>
                   <th style="width:10%; font-size:13px;">Rep</th>
                   <th style="width:8%;  font-size:13px;">Type</th>
-                  <th style="width:7%;  font-size:13px;">Size</th>
                   <th style="width:11%; font-size:13px;">Stage</th>
                   <th style="width:10%; font-size:13px;">Status</th>
                 </tr>
@@ -241,13 +240,7 @@
                         {% endif %}
                       </td>
 
-                      <td style="font-size:13px;">
-                        {% if p.potential_size_tier %}
-                          {{ p.get_potential_size_tier_display }}
-                        {% else %}
-                          <span class="text-muted">-</span>
-                        {% endif %}
-                      </td>
+                      
 
                       <td style="font-size:13px;">
                         <span class="badge bg-secondary">{{ p.get_stage_display }}</span>
