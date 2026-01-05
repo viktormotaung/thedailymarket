@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import StaffProfile, CustomerProfile, SalesRepProfile
+from .models import StaffProfile, CustomerProfile, SalesRepProfile, SalesRole
 
 User = get_user_model()
 
@@ -279,13 +279,38 @@ class StaffProfileInline(admin.StackedInline):
     readonly_fields = ("auth_code_hash", "last_seen_at")
 
 
+@admin.register(SalesRole)
+class SalesRoleAdmin(admin.ModelAdmin):
+    list_display = ("name", "code")
+    search_fields = ("name", "code")
+    ordering = ("name",)
+
+
 class SalesRepProfileInline(admin.StackedInline):
     model = SalesRepProfile
-    fk_name = "user"  # 👈 IMPORTANT: SalesRepProfile has two FKs to User (user + supervisor)
+    fk_name = "user"  # IMPORTANT: SalesRepProfile has two FKs to User
     can_delete = False
     extra = 0
-    fields = ("staff_profile", "supervisor", "department", "notes", "status", "last_seen_at", "auth_code_hash")
-    readonly_fields = ("department", "auth_code_hash", "last_seen_at")
+
+    fields = (
+        "staff_profile",
+        "roles",              # ✅ NEW (multi-select)
+        "supervisor",
+        "department",
+        "status",
+        "notes",
+        "last_seen_at",
+        "auth_code_hash",
+    )
+
+    readonly_fields = (
+        "department",
+        "auth_code_hash",
+        "last_seen_at",
+    )
+
+    filter_horizontal = ("roles",)  # ✅ clean multi-select UI
+
 
 
 # Re-register User with the inlines

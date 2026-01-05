@@ -25,7 +25,10 @@ from invoices.models import Invoice
 from django.utils.timezone import now
 from tasks.models import Task
 from django.contrib import messages
-
+from django.http import Http404
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.http import JsonResponse
 
 User = get_user_model()
 DAY_OPTIONS = [7, 14, 30, 60]
@@ -1436,42 +1439,44 @@ def prev_year_month(year, month, offset=1):
         y -= 1
     return y, m
 
-
-
 @login_required
 def commission(request):
     """
     Commission dashboard view with filtering:
-      - Admins can view all agents (?agent=<id>)
-      - Non-admins only see their own commissions
-      - Optional date filters: ?from=YYYY-MM-DD&to=YYYY-MM-DD
+      - Admin only or Admin+Sales: show all agents, filter enabled
+      - Sales only: show only self, filter disabled
+      - Weekly card = current week (filter driven)
+      - Monthly card = date-range driven
     """
     user = request.user
 
     # ------------------------------------------------------------------
-    # Admin detection
+    # Detect groups strictly
     # ------------------------------------------------------------------
-    is_admin = user.is_staff or user.groups.filter(name="Administrator").exists()
+    user_groups = list(user.groups.values_list("name", flat=True))
+    is_admin = "Administrator" in user_groups
+    is_sales = "Sales" in user_groups
 
     agents = None
+    target_rep = None
+
+    # ------------------------------------------------------------------
+    # Determine agents and target_rep
+    # ------------------------------------------------------------------
     if is_admin:
         agents = (
-            User.objects
-            .filter(managed_clients__isnull=False)
+            User.objects.filter(managed_clients__isnull=False)
             .distinct()
             .order_by("first_name", "last_name", "username")
         )
-
-    # Determine target rep
-    target_rep = None
-    if is_admin:
         agent_param = request.GET.get("agent")
         if agent_param:
             try:
                 target_rep = User.objects.get(pk=int(agent_param))
             except (User.DoesNotExist, ValueError):
                 target_rep = None
-    else:
+    elif is_sales:
+        agents = [user]
         target_rep = user
 
     # ------------------------------------------------------------------
@@ -1483,86 +1488,97 @@ def commission(request):
         try:
             return date.fromisoformat(s)
         except Exception:
-            try:
-                return datetime.strptime(s, "%Y-%m-%d").date()
-            except Exception:
-                return None
+            return None
 
-    date_from = _parse_date(request.GET.get("from"))
-    date_to = _parse_date(request.GET.get("to"))
-
-    # ------------------------------------------------------------------
-    # Periods
-    # ------------------------------------------------------------------
     today = localdate()
-
-    week_start = today - timedelta(days=today.weekday())
-    week_end = week_start + timedelta(days=6)
-
     current_year = today.year
     current_month = today.month
     current_month_name = today.strftime("%B")
 
-    if date_from and date_to:
-        month_first = date_from
-        month_last = date_to
-    else:
-        month_first = date(current_year, current_month, 1)
-        month_last = date(
-            current_year,
-            current_month,
-            calendar.monthrange(current_year, current_month)[1],
-        )
+    date_from = _parse_date(request.GET.get("from")) or date(current_year, current_month, 1)
+    date_to = _parse_date(request.GET.get("to")) or date(
+        current_year,
+        current_month,
+        calendar.monthrange(current_year, current_month)[1],
+    )
+
+    # ------------------------------------------------------------------
+    # Week range (always current week)
+    # ------------------------------------------------------------------
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
 
     # ------------------------------------------------------------------
     # Base queryset
     # ------------------------------------------------------------------
-    entries_qs = (
-        CommissionEntry.objects
-        .select_related("invoice", "invoice__client", "rep")
-        .order_by("-invoice__paid_date")
+    base_qs = CommissionEntry.objects.select_related(
+        "invoice", "invoice__client", "rep", "supervisor"
     )
 
-    if target_rep:
-        entries_qs = entries_qs.filter(rep=target_rep)
-
     # ------------------------------------------------------------------
-    # Weekly totals
+    # WEEKLY TOTALS (rep + supervisor, filter driven)
     # ------------------------------------------------------------------
-    week_qs = entries_qs.filter(
+    week_qs = base_qs.filter(
         invoice__paid_date__gte=week_start,
         invoice__paid_date__lte=week_end,
     )
 
-    this_week_total = (
-        week_qs.aggregate(total=db_models.Sum("rep_amount")).get("total")
-        or Decimal("0.00")
-    )
+    if target_rep:
+        week_rep_total = (
+            week_qs.filter(rep=target_rep)
+            .aggregate(t=Sum("rep_amount"))["t"]
+            or Decimal("0.00")
+        )
+        week_supervisor_total = (
+            week_qs.filter(supervisor=target_rep)
+            .aggregate(t=Sum("supervisor_amount"))["t"]
+            or Decimal("0.00")
+        )
+    else:
+        week_rep_total = week_qs.aggregate(t=Sum("rep_amount"))["t"] or Decimal("0.00")
+        week_supervisor_total = (
+            week_qs.aggregate(t=Sum("supervisor_amount"))["t"] or Decimal("0.00")
+        )
+
+    this_week_total = week_rep_total + week_supervisor_total
     this_week_count = week_qs.count()
 
     # ------------------------------------------------------------------
-    # Monthly totals
+    # MONTHLY TOTALS (rep + supervisor, date-range driven)
     # ------------------------------------------------------------------
-    month_qs = entries_qs
-    if month_first:
-        month_qs = month_qs.filter(invoice__paid_date__gte=month_first)
-    if month_last:
-        month_qs = month_qs.filter(invoice__paid_date__lte=month_last)
-
-    this_month_total = (
-        month_qs.aggregate(total=db_models.Sum("rep_amount")).get("total")
-        or Decimal("0.00")
+    month_qs = base_qs.filter(
+        invoice__paid_date__gte=date_from,
+        invoice__paid_date__lte=date_to,
     )
 
+    if target_rep:
+        month_rep_total = (
+            month_qs.filter(rep=target_rep)
+            .aggregate(t=Sum("rep_amount"))["t"]
+            or Decimal("0.00")
+        )
+        month_supervisor_total = (
+            month_qs.filter(supervisor=target_rep)
+            .aggregate(t=Sum("supervisor_amount"))["t"]
+            or Decimal("0.00")
+        )
+    else:
+        month_rep_total = month_qs.aggregate(t=Sum("rep_amount"))["t"] or Decimal("0.00")
+        month_supervisor_total = (
+            month_qs.aggregate(t=Sum("supervisor_amount"))["t"] or Decimal("0.00")
+        )
+
+    this_month_total = month_rep_total + month_supervisor_total
+
     # ------------------------------------------------------------------
-    # MonthlyCommission (current month)
+    # MonthlyCommission (only when viewing own current month)
     # ------------------------------------------------------------------
     monthly_commission = None
     this_month_unpaid = Decimal("0.00")
     this_month_bonus = Decimal("0.00")
     this_month_bonus_eligible = False
 
-    if target_rep and not (date_from and date_to):
+    if target_rep and not request.GET.get("from") and not request.GET.get("to"):
         monthly_commission = MonthlyCommission.objects.filter(
             rep=target_rep,
             year=current_year,
@@ -1572,12 +1588,11 @@ def commission(request):
         if monthly_commission:
             if not monthly_commission.paid:
                 this_month_unpaid = monthly_commission.total_payout or Decimal("0.00")
-
             this_month_bonus = monthly_commission.monthly_cash_bonus or Decimal("0.00")
             this_month_bonus_eligible = this_month_bonus > 0
 
     # ------------------------------------------------------------------
-    # 3-Month trend logic (stock-style)
+    # 3-Month trend (rep-based snapshot, unchanged)
     # ------------------------------------------------------------------
     last_3_months = []
 
@@ -1585,7 +1600,6 @@ def commission(request):
         for i in range(0, 3):
             y, m = prev_year_month(current_year, current_month, i)
             mc = MonthlyCommission.objects.filter(rep=target_rep, year=y, month=m).first()
-
             last_3_months.append({
                 "year": y,
                 "month": m,
@@ -1593,7 +1607,6 @@ def commission(request):
                 "total": mc.total_payout if mc else Decimal("0.00"),
             })
 
-    # Oldest → newest
     last_3_months = list(reversed(last_3_months))
 
     trend_direction = "flat"
@@ -1602,29 +1615,31 @@ def commission(request):
     if len(last_3_months) >= 2:
         prev_total = last_3_months[-2]["total"]
         curr_total = last_3_months[-1]["total"]
-
         if prev_total > 0:
             trend_pct = ((curr_total - prev_total) / prev_total) * Decimal("100")
-
         if curr_total > prev_total:
             trend_direction = "up"
         elif curr_total < prev_total:
             trend_direction = "down"
 
     # ------------------------------------------------------------------
-    # Table entries (limit for performance)
+    # Table entries (limit 200)
     # ------------------------------------------------------------------
-    commission_entries = month_qs[:200]
+    commission_entries = month_qs.order_by("-invoice__paid_date")[:200]
 
-    last_month_total = Decimal("0.00")
-    prev_month_total = Decimal("0.00")
+    last_month_total = last_3_months[-1]["total"] if last_3_months else Decimal("0.00")
+    prev_month_total = last_3_months[-2]["total"] if len(last_3_months) >= 2 else Decimal("0.00")
 
-    if len(last_3_months) >= 1:
-        last_month_total = last_3_months[-1]["total"]
+    for entry in commission_entries:
+        entry.total_rate = (
+            (entry.rep_rate or Decimal("0.00")) +
+            (entry.supervisor_rate or Decimal("0.00") if entry.supervisor else Decimal("0.00"))
+        )
 
-    if len(last_3_months) >= 2:
-        prev_month_total = last_3_months[-2]["total"]
-
+        entry.total_amount = (
+            (entry.rep_amount or Decimal("0.00")) +
+            (entry.supervisor_amount or Decimal("0.00"))
+        )
 
     # ------------------------------------------------------------------
     # Context
@@ -1661,23 +1676,177 @@ def commission(request):
         "prev_month_total": prev_month_total,
     }
 
-    return render(request, "commission/commission.html", context)
+    # ------------------------------------------------------------------
+    # Debug
+    # ------------------------------------------------------------------
+    print("=== COMMISSION DASHBOARD ===")
+    print("Target rep:", target_rep)
+    print("Week → rep:", week_rep_total, "sup:", week_supervisor_total)
+    print("Month → rep:", month_rep_total, "sup:", month_supervisor_total)
+    print("===========================")
 
+    return render(request, "commission/commission.html", context)
 
 
 
 @login_required
 def commission_view(request, pk):
-    # get the commission entry
-    commission = get_object_or_404(CommissionEntry, pk=pk)
+    user = request.user
+    user_groups = list(user.groups.values_list("name", flat=True))
 
-    # Security: staff can view any; non-staff can view only if they are the owner
-    if not request.user.is_staff and commission.rep != request.user:
-        # You can render a 403 template or raise PermissionDenied
-        from django.core.exceptions import PermissionDenied
-        raise PermissionDenied()
+    is_admin = "Administrator" in user_groups
+    is_sales = "Sales" in user_groups
 
-    return render(request, "commission/commission_view.html", {"commission": commission})
+    # ------------------------------------------------------------------
+    # Base queryset
+    # ------------------------------------------------------------------
+    qs = (
+        CommissionEntry.objects
+        .select_related(
+            "invoice",
+            "invoice__client",
+            "rep",
+            "supervisor",
+        )
+    )
+
+    entry = get_object_or_404(qs, pk=pk)
+
+    # ------------------------------------------------------------------
+    # Access control
+    # ------------------------------------------------------------------
+    if not is_admin:
+        # Sales users may only see entries where they are involved
+        if entry.rep_id != user.id and entry.supervisor_id != user.id:
+            raise Http404("You do not have permission to view this commission.")
+
+    # ------------------------------------------------------------------
+    # Derived helpers for template
+    # ------------------------------------------------------------------
+    rep_is_supervisor = (
+        entry.rep_id
+        and entry.supervisor_id
+        and entry.rep_id == entry.supervisor_id
+    )
+
+    total_commission = (
+        (entry.rep_amount or Decimal("0.00")) +
+        (entry.supervisor_amount or Decimal("0.00"))
+    )
+
+    context = {
+        "entry": entry,
+        "total_commission": total_commission,
+        "invoice": entry.invoice,
+        "client": entry.invoice.client if entry.invoice else None,
+
+        "rep": entry.rep,
+        "supervisor": entry.supervisor,
+        "rep_is_supervisor": rep_is_supervisor,
+
+        "is_admin_viewing": is_admin,
+    }
+
+    return render(
+        request,
+        "commission/commission_view.html",
+        context,
+    )
+
+@login_required
+def send_commission_statement_email(request):
+    """
+    Send commission statement email for a single rep over a filtered date range.
+    Expects POST with JSON:
+    {
+        "email": "recipient@example.com",
+        "recipient_name": "John Doe",
+        "agent": 1,
+        "from": "2026-01-01",
+        "to": "2026-01-31"
+    }
+    """
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Invalid request method."}, status=400)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON."}, status=400)
+
+    email_to = data.get("email")
+    recipient_name = data.get("recipient_name", "").strip()
+    agent_id = data.get("agent")
+    date_from = data.get("from")
+    date_to = data.get("to")
+
+    if not email_to:
+        return JsonResponse({"success": False, "error": "No email provided."}, status=400)
+    if not agent_id:
+        return JsonResponse({"success": False, "error": "No agent selected."}, status=400)
+    if not date_from or not date_to:
+        return JsonResponse({"success": False, "error": "Date range is required."}, status=400)
+
+    # Parse dates
+    try:
+        date_from_dt = datetime.strptime(date_from, "%Y-%m-%d")
+        date_to_dt = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)  # include end day
+    except ValueError:
+        return JsonResponse({"success": False, "error": "Invalid date format."}, status=400)
+
+    # Get rep
+    rep = get_object_or_404(User, pk=agent_id)
+
+    if not recipient_name:
+        recipient_name = rep.get_full_name() or rep.username
+
+    # Fetch commission entries for this rep & date range
+    entries = CommissionEntry.objects.filter(
+        rep=rep,
+        invoice__paid_date__gte=date_from_dt,
+        invoice__paid_date__lt=date_to_dt
+    ).select_related("invoice", "invoice__client")
+
+    if not entries.exists():
+        return JsonResponse({"success": False, "error": "No commission entries for this period."}, status=400)
+
+    # Calculate totals
+    total_rep = sum(e.rep_amount for e in entries)
+    total_supervisor = sum(e.supervisor_amount for e in entries)
+    total_commission = total_rep + total_supervisor
+
+    # Build context for email template
+    ctx = {
+        "entries": entries,
+        "rep": rep,
+        "recipient_name": recipient_name,
+        "from_date": date_from_dt,
+        "to_date": date_to_dt - timedelta(days=1),  # display actual end date
+        "total_rep": total_rep,
+        "total_supervisor": total_supervisor,
+        "total_commission": total_commission,
+        "support_email": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"),
+        "statement_url": request.build_absolute_uri(reverse("sales:commission")),  # optional link
+    }
+
+    # Render email
+    text_body = render_to_string("email/commission_statement.txt", ctx)
+    html_body = render_to_string("email/commission_statement.html", ctx)
+
+    subject = f"Commission Statement – {rep.get_full_name() or rep.username}"
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "accounts@thedailymarket.co.za")
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=from_email,
+        to=[email_to],
+        headers={"Reply-To": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za")},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+    return JsonResponse({"success": True})
 
 
 def _parse_date_local(date_str: str):

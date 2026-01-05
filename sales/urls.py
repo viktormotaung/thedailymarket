@@ -80,6 +80,11 @@ urlpatterns = [
     # Commission & tickets
     path("commission/", views.commission, name="sales-commission"),
     path("commission/<int:pk>/", views.commission_view, name="sales-commission-view"),
+    path(
+        "commission/email-statement/",
+        views.send_commission_statement_email,
+        name="email-commission-statement"
+    ),
 
     path("tickets/", views.tickets, name="sales-tickets"),
     path("tickets/<int:pk>/view/", views.view_ticket, name="view-ticket"),

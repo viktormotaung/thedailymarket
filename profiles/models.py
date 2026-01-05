@@ -209,6 +209,25 @@ class CustomerProfile(models.Model):
         super().save(*args, **kwargs)
 
 
+class SalesRole(models.Model):
+    """
+    Defines roles a sales user can have.
+    Users can have multiple roles.
+    """
+
+    code = models.CharField(
+        max_length=30,
+        unique=True,
+        help_text="Internal role code, e.g. rep, supervisor",
+    )
+
+    name = models.CharField(
+        max_length=50,
+        help_text="Human readable role name",
+    )
+
+    def __str__(self):
+        return self.name
 
 
 class SalesRepProfile(models.Model):
@@ -254,6 +273,14 @@ class SalesRepProfile(models.Model):
         max_length=50,
         default="Sales",
         help_text="Department for this sales rep.",
+    )
+
+    # ✅ NEW: multi-role support
+    roles = models.ManyToManyField(
+        "SalesRole",
+        blank=True,
+        related_name="sales_profiles",
+        help_text="Roles this sales user fulfills (rep, supervisor, or both).",
     )
 
     # ✅ NEW: supervisor for this rep
