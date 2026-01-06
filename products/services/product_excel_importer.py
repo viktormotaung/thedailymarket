@@ -13,8 +13,21 @@ from suppliers.models import Supplier
 # HELPERS
 # ======================================================
 
-def _bool(val):
+def _vat_included(val):
+    """
+    Excel: Yes = VAT INCLUDED
+           No  = VAT EXCLUDED
+    """
     return str(val).strip().lower() in ("yes", "true", "1")
+
+
+def _is_active(val):
+    """
+    Excel: Yes = Active
+           No  = Inactive
+    """
+    return str(val).strip().lower() in ("yes", "true", "1")
+
 
 
 def _dec(val):
@@ -146,11 +159,11 @@ def import_products_from_excel(file):
                 if uom not in {"EA", "KG", "L", "PK", "BOX"}:
                     raise ValidationError(f"Invalid UOM '{uom}'")
 
-                vat_included = _bool(row[COL["vat_included"]])
+                vat_included = _vat_included(row[COL["vat_included"]])
                 cost_price = _dec(row[COL["cost_price"]])
                 wholesale_margin = _dec(row[COL["wholesale_margin"]])
                 retail_margin = _dec(row[COL["retail_margin"]])
-                is_active = _bool(row[COL["is_active"]])
+                is_active = _is_active(row[COL["is_active"]])
 
                 # --------------------------------------------------
                 # STEP 5 — CATEGORY
@@ -224,3 +237,4 @@ def import_products_from_excel(file):
         "created": created,
         "updated": updated,
     }
+    
