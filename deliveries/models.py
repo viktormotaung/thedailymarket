@@ -1,6 +1,8 @@
 # deliveries/models.py
-from __future__ import annotations
 
+
+from __future__ import annotations
+from django.core.exceptions import ValidationError
 from decimal import Decimal
 from typing import Optional
 from datetime import date, time, timedelta
@@ -13,7 +15,7 @@ from django.db import models, transaction
 from django.utils.timezone import now
 from django.db import transaction, IntegrityError
 from django.db.models import Max
-
+from suppliers.models import Supplier
 
 
 # -----------------------------
@@ -310,50 +312,225 @@ class PickingBatch(models.Model):
         return batch, True
 
 
+
 class PickingItem(models.Model):
     """
     A single pick line derived from an OrderItem.
-    """
-    batch = models.ForeignKey(PickingBatch, on_delete=models.CASCADE, related_name="items")
-    order = models.ForeignKey("orders.Order", on_delete=models.CASCADE, related_name="picking_items")
-    order_item = models.ForeignKey("orders.OrderItem", on_delete=models.CASCADE, related_name="picking_items")
 
+    Picking semantics:
+    - Picking = supplier commitment
+    - Supplier is auto-derived from ProductPricing.is_primary
+    - Supplier & expected price are SNAPSHOTTED
+    - Actual price is captured later (consolidation)
+    """
+
+    # --------------------------------------------------
+    # Core relations
+    # --------------------------------------------------
+    batch = models.ForeignKey(
+        "deliveries.PickingBatch",
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+
+    order = models.ForeignKey(
+        "orders.Order",
+        on_delete=models.CASCADE,
+        related_name="picking_items",
+    )
+
+    order_item = models.ForeignKey(
+        "orders.OrderItem",
+        on_delete=models.CASCADE,
+        related_name="picking_items",
+    )
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        null=True,          # MUST remain nullable for legacy rows
+        blank=True,
+        editable=False,     # 🔒 locked forever
+        related_name="picking_items",
+    )
+
+    # --------------------------------------------------
+    # Snapshot fields
+    # --------------------------------------------------
     product_name = models.CharField(max_length=220)
     sku = models.CharField(max_length=64, blank=True)
     uom = models.CharField(max_length=16, blank=True)
 
-    expected_qty = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal("0.00"))])
-    picked_qty = models.DecimalField(
-        max_digits=10, decimal_places=2, default=Decimal("0.00"),
-        validators=[MinValueValidator(Decimal("0.00"))]
+    expected_qty = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
     )
 
-    is_picked = models.BooleanField(default=False, help_text="Checked off by warehouse.")
+    picked_qty = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+
+    # --------------------------------------------------
+    # 💰 Pricing snapshots
+    # --------------------------------------------------
+    expected_supplier_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Expected supplier price EXCL VAT at time of picking.",
+    )
+
+    actual_supplier_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Actual supplier price EXCL VAT as invoiced.",
+    )
+
+    is_picked = models.BooleanField(
+        default=False,
+        help_text="Supplier confirmed and quantity committed.",
+    )
+
     notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # --------------------------------------------------
+    # Meta
+    # --------------------------------------------------
     class Meta:
         ordering = ["batch_id", "order_id", "id"]
+        unique_together = [("batch", "order_item")]
         indexes = [
             models.Index(fields=["batch", "order"]),
+            models.Index(fields=["supplier"]),
+            models.Index(fields=["is_picked"]),
         ]
-        unique_together = [("batch", "order_item")]
 
     def __str__(self) -> str:
-        return f"{self.product_name} ({self.sku or 'no-sku'}) · x{self.expected_qty}"
+        return f"{self.product_name} · x{self.expected_qty}"
 
+    # --------------------------------------------------
+    # Validation
+    # --------------------------------------------------
+    def clean(self):
+        super().clean()
+
+        if self.picked_qty > self.expected_qty:
+            raise ValidationError({
+                "picked_qty": "Picked quantity cannot exceed expected quantity."
+            })
+
+    # --------------------------------------------------
+    # Save override — CRITICAL PART
+    # --------------------------------------------------
+    def save(self, *args, **kwargs):
+        is_create = self.pk is None
+
+        # --------------------------------------------
+        # 🛑 Admin safety: strip invalid supplier=0
+        # --------------------------------------------
+        if self.supplier_id in (0, "0"):
+            self.supplier_id = None
+
+        # --------------------------------------------
+        # UPDATE: restore immutable snapshot fields
+        # --------------------------------------------
+        if not is_create:
+            original = (
+                type(self)
+                .objects
+                .filter(pk=self.pk)
+                .values(
+                    "supplier_id",
+                    "expected_supplier_price",
+                )
+                .first()
+            )
+
+            if original:
+                self.supplier_id = original["supplier_id"]
+                self.expected_supplier_price = original["expected_supplier_price"]
+
+            # ❗ DO NOT full_clean on update
+            super().save(*args, **kwargs)
+            return
+
+        # --------------------------------------------
+        # CREATE: snapshot supplier + price
+        # --------------------------------------------
+        if not self.order_item_id:
+            raise ValidationError("PickingItem must be linked to an OrderItem.")
+
+        product = self.order_item.product
+
+        pricing_qs = (
+            product.pricing_rows
+            .filter(is_active=True)
+            .select_related("supplier")
+        )
+
+        if not pricing_qs.exists():
+            raise ValidationError(
+                f"Product '{product}' has no active supplier pricing."
+            )
+
+        primary_pricing = pricing_qs.filter(is_primary=True).first()
+        chosen_pricing = primary_pricing or pricing_qs.order_by("id").first()
+
+        self.supplier = chosen_pricing.supplier
+        self.expected_supplier_price = chosen_pricing.supplier_price_excl
+
+        self.product_name = self.product_name or product.name
+        self.sku = self.sku or product.sku or ""
+        self.uom = self.uom or product.uom or ""
+
+        # ✅ Validation ONLY on create
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+
+    # --------------------------------------------------
+    # Derived helpers
+    # --------------------------------------------------
+    @property
+    def price_variance(self) -> Optional[Decimal]:
+        if self.actual_supplier_price is None or self.expected_supplier_price is None:
+            return None
+        return self.actual_supplier_price - self.expected_supplier_price
+
+    @property
+    def has_price_discrepancy(self) -> bool:
+        return (
+            self.actual_supplier_price is not None
+            and self.expected_supplier_price is not None
+            and self.actual_supplier_price != self.expected_supplier_price
+        )
+
+    # --------------------------------------------------
+    # Picking action
+    # --------------------------------------------------
     def mark_picked(self, qty: Optional[Decimal] = None):
-        """
-        Mark this line picked. If qty omitted, assume fully picked.
-        """
-        if qty is None:
-            self.picked_qty = self.expected_qty
-        else:
-            self.picked_qty = max(Decimal("0.00"), qty)
+        self.picked_qty = qty if qty is not None else self.expected_qty
         self.is_picked = True
-        self.save(update_fields=["picked_qty", "is_picked", "updated_at"])
+
+        self.full_clean()
+        self.save(update_fields=[
+            "picked_qty",
+            "is_picked",
+            "updated_at",
+        ])
 
 
 # -----------------------------

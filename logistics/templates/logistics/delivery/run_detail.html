@@ -1,0 +1,167 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Delivery Run · {{ run }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    @media (min-width: 992px) {
+      main.content {
+        margin-left: 220px;
+        min-height: 100vh;
+      }
+    }
+    main.content {
+      background: #f8f9fa;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<main class="content">
+
+  <!-- ============================= -->
+  <!-- HEADER -->
+  <!-- ============================= -->
+  <div class="mb-4">
+    <h2 class="mb-1">Delivery Run</h2>
+
+    <div class="text-muted">
+      {{ run.service_date }} ·
+      {{ run.name|default:"Unnamed Run" }} ·
+
+      {% if run.status == "planned" %}
+        <span class="badge bg-secondary">Planned</span>
+      {% elif run.status == "en_route" %}
+        <span class="badge bg-primary">En Route</span>
+      {% elif run.status == "complete" %}
+        <span class="badge bg-success">Complete</span>
+      {% elif run.status == "cancelled" %}
+        <span class="badge bg-danger">Cancelled</span>
+      {% else %}
+        <span class="badge bg-light text-dark">{{ run.get_status_display }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- ACTION BAR -->
+  <!-- ============================= -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <a href="{% url 'logistics:deliveries' %}"
+       class="btn btn-outline-secondary btn-sm">
+      ← Back to Delivery Runs
+    </a>
+
+    <div>
+      {% if run.status == "planned" %}
+        <a href="{% url 'logistics:delivery-run-plan' run.id %}"
+           class="btn btn-sm btn-outline-primary">
+          Plan Route
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- RUN SUMMARY -->
+  <!-- ============================= -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-md-4">
+          <strong>Driver</strong><br>
+          {{ run.driver.get_username|default:run.driver_name|default:"Unassigned" }}
+        </div>
+
+        <div class="col-md-4">
+          <strong>Vehicle</strong><br>
+          {{ run.vehicle_label|default:"—" }}
+        </div>
+
+        <div class="col-md-4">
+          <strong>Stops</strong><br>
+          {{ run.stop_count }}
+        </div>
+
+        <div class="col-md-4">
+          <strong>Total Distance</strong><br>
+          {{ run.total_distance_km|default:"—" }} km
+        </div>
+
+        <div class="col-md-4">
+          <strong>Total Drive Time</strong><br>
+          {{ run.total_drive_min|default:"—" }} min
+        </div>
+
+        <div class="col-md-4">
+          <strong>Depot</strong><br>
+          {{ run.depot_label|default:"—" }}
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- STOPS -->
+  <!-- ============================= -->
+  <div class="card">
+    <div class="card-header">
+      <strong>Delivery Stops</strong>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-striped mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Customer</th>
+            <th>Address</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          {% for stop in run.stops.all %}
+            <tr>
+              <td>{{ stop.sequence|default:"—" }}</td>
+              <td>{{ stop.customer_name|default:"Order #"|add:stop.order_id }}</td>
+              <td>{{ stop.address_one_line|default:"—" }}</td>
+              <td>
+                {% if stop.status == "delivered" %}
+                  <span class="badge bg-success">Delivered</span>
+                {% elif stop.status == "en_route" %}
+                  <span class="badge bg-primary">En Route</span>
+                {% elif stop.status == "failed" %}
+                  <span class="badge bg-danger">Failed</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ stop.get_status_display }}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">
+                No stops assigned to this run.
+              </td>
+            </tr>
+          {% endfor %}
+
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

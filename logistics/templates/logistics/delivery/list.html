@@ -1,0 +1,203 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Delivery Runs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background: #f8f9fa;
+    }
+    .run-card {
+      border-left: 6px solid #dee2e6;
+    }
+    .run-card.status-planned { border-left-color: #0d6efd; }
+    .run-card.status-en_route { border-left-color: #ffc107; }
+    .run-card.status-complete { border-left-color: #198754; }
+    .run-card.status-cancelled { border-left-color: #dc3545; }
+  </style>
+</head>
+<body>
+
+<main class="container-fluid py-4">
+
+  <!-- ============================= -->
+  <!-- HEADER -->
+  <!-- ============================= -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-0">Delivery Runs</h2>
+      <div class="text-muted small">
+        Fleet planning & execution overview
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- FILTER BAR -->
+  <!-- ============================= -->
+  <form method="get" class="row g-2 align-items-end mb-4">
+
+    <div class="col-md-3">
+      <label class="form-label small">Service Date</label>
+      <input type="date"
+             name="date"
+             value="{{ date_filter }}"
+             class="form-control form-control-sm">
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label small">Status</label>
+      <select name="status" class="form-select form-select-sm">
+        <option value="">All statuses</option>
+        {% for code, label in STATUS_CHOICES %}
+          <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>
+            {{ label }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-3">
+      <button type="submit" class="btn btn-sm btn-primary mt-3">
+        Apply Filters
+      </button>
+      <a href="{% url 'logistics:deliveries' %}" class="btn btn-sm btn-outline-secondary mt-3">
+        Reset
+      </a>
+    </div>
+
+  </form>
+
+  <!-- ============================= -->
+  <!-- RUN LIST -->
+  <!-- ============================= -->
+  {% if runs %}
+    <div class="row g-3">
+
+      {% for run in runs %}
+        <div class="col-12">
+          <div class="card run-card status-{{ run.status }}">
+            <div class="card-body">
+
+              <div class="row align-items-center">
+
+                <!-- LEFT -->
+                <div class="col-md-4">
+                  <h5 class="mb-1">
+                    {{ run.service_date }}
+                    {% if run.name %}
+                      · {{ run.name }}
+                    {% endif %}
+                  </h5>
+
+                  <div class="small text-muted">
+                    Driver:
+                    <strong>
+                      {% if run.driver %}
+                        {{ run.driver.get_username }}
+                      {% elif run.driver_name %}
+                        {{ run.driver_name }}
+                      {% else %}
+                        Unassigned
+                      {% endif %}
+                    </strong>
+                  </div>
+
+                  {% if run.vehicle_label %}
+                    <div class="small text-muted">
+                      Vehicle: {{ run.vehicle_label }}
+                    </div>
+                  {% endif %}
+                </div>
+
+                <!-- MIDDLE -->
+                <div class="col-md-4">
+                  <div class="d-flex gap-3">
+                    <div>
+                      <div class="small text-muted">Stops</div>
+                      <strong>{{ run.stop_count }}</strong>
+                    </div>
+
+                    <div>
+                      <div class="small text-muted">Distance</div>
+                      <strong>
+                        {% if run.total_distance_km %}
+                          {{ run.total_distance_km }} km
+                        {% else %}
+                          —
+                        {% endif %}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <div class="small text-muted">Drive Time</div>
+                      <strong>
+                        {% if run.total_drive_min %}
+                          {{ run.total_drive_min }} min
+                        {% else %}
+                          —
+                        {% endif %}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- RIGHT -->
+                <div class="col-md-4 text-end">
+                  <div class="mb-2">
+                    {% if run.status == "planned" %}
+                      <span class="badge bg-primary">Planned</span>
+                    {% elif run.status == "en_route" %}
+                      <span class="badge bg-warning text-dark">En Route</span>
+                    {% elif run.status == "complete" %}
+                      <span class="badge bg-success">Complete</span>
+                    {% elif run.status == "cancelled" %}
+                      <span class="badge bg-danger">Cancelled</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{{ run.get_status_display }}</span>
+                    {% endif %}
+                  </div>
+
+                  <div class="btn-group btn-group-sm">
+                    <a href="{% url 'logistics:delivery-run-detail' run.id %}"
+                       class="btn btn-outline-primary">
+                      View
+                    </a>
+
+                    {% if run.status == "planned" %}
+                      <a href="{% url 'logistics:delivery-run-plan' run.id %}"
+                         class="btn btn-outline-secondary">
+                        Plan
+                      </a>
+                    {% endif %}
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+
+    </div>
+  {% else %}
+    <div class="text-center text-muted py-5">
+      <h5>No delivery runs found</h5>
+      <div class="small">
+        Try adjusting your filters or create a new run.
+      </div>
+    </div>
+  {% endif %}
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

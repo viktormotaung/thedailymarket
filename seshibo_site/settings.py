@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'lender',
     'sales',
     "consumers",
+    "logistics",
     "django_extensions",
 
     # third party
