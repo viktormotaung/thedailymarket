@@ -324,3 +324,40 @@ class SalesRepProfile(models.Model):
         name = (self.user.get_full_name() or self.user.get_username()).strip()
         return f"SalesRepProfile for {name}"
 
+class DriverProfile(models.Model):
+    """
+    Driver-specific profile.
+    Extends StaffProfile with fleet & shift-related data.
+    """
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("active", "Active"),
+        ("inactive", "Inactive"),
+        ("suspended", "Suspended"),
+    ]
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="driver_profile",
+    )
+
+    staff_profile = models.OneToOneField(
+        StaffProfile,
+        on_delete=models.CASCADE,
+        related_name="driver_profile",
+        help_text="Every driver must also be a staff member.",
+    )
+
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="pending",
+        db_index=True,
+    )
+
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)

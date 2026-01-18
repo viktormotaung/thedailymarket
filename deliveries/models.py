@@ -545,6 +545,7 @@ class DeliveryRun(models.Model):
     """
     A single driver's run/route for a day.
     """
+
     STATUS = [
         ("draft", "Draft"),
         ("planned", "Planned"),
@@ -555,31 +556,62 @@ class DeliveryRun(models.Model):
     ]
 
     service_date = models.DateField(db_index=True)
-    name = models.CharField(max_length=140, blank=True, help_text="Optional label, e.g. '2025-09-27 AM'.")
-    status = models.CharField(max_length=20, choices=STATUS, default="draft", db_index=True)
-
-    driver = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="delivery_runs"
+    name = models.CharField(
+        max_length=140,
+        blank=True,
+        help_text="Optional label, e.g. '2025-09-27 AM'."
     )
-    driver_name = models.CharField(max_length=140, blank=True, help_text="If driver is not a system user.")
-    vehicle_label = models.CharField(max_length=80, blank=True, help_text="e.g. 'Bakkie 1 / GP12AB GP'.")
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS,
+        default="draft",
+        db_index=True,
+    )
+
+    # ✅ DRIVER — system user ONLY
+    driver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delivery_runs",
+        help_text="Assigned driver (must be a system user with a DriverProfile)."
+    )
+
+    vehicle = models.ForeignKey(
+        "deliveries.Vehicle",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delivery_runs",
+        help_text="Assigned vehicle for this run"
+    )
 
     # Depot / start point
-    depot_label = models.CharField(max_length=140, blank=True, help_text="e.g. 'Seshibo Warehouse'.")
+    depot_label = models.CharField(max_length=140, blank=True)
     depot_lat = models.FloatField(null=True, blank=True)
     depot_lng = models.FloatField(null=True, blank=True)
     start_time = models.TimeField(null=True, blank=True)
 
-    # Optional overall stats
-    total_distance_km = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    # Aggregates
+    total_distance_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
     total_drive_min = models.PositiveIntegerField(null=True, blank=True)
     stop_count = models.PositiveIntegerField(default=0)
 
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="delivery_runs_created"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delivery_runs_created",
     )
+
     notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -589,11 +621,13 @@ class DeliveryRun(models.Model):
         ordering = ["-service_date", "-id"]
         indexes = [
             models.Index(fields=["service_date", "status"]),
+            models.Index(fields=["driver"]),
         ]
 
     def __str__(self) -> str:
-        who = self.driver.get_username() if self.driver_id else (self.driver_name or "Unassigned")
+        who = self.driver.get_username() if self.driver_id else "Unassigned"
         return f"{self.service_date} · {self.name or 'Run'} · {who} · {self.get_status_display()}"
+
 
     @property
     def has_depot_geo(self) -> bool:
@@ -619,7 +653,14 @@ class DeliveryRun(models.Model):
     def auto_plan(self):
         from .services import plan_run_sequence
         return plan_run_sequence(self)
-
+    
+    def clean(self):
+        super().clean()
+        if self.vehicle and self.vehicle.status != "active":
+            raise ValidationError({
+                "vehicle": "Only active vehicles can be assigned to a delivery run."
+            })
+    
 
 # -----------------------------
 # 3) STOPS & POD (Proof of Delivery)
@@ -690,6 +731,10 @@ class DeliveryStop(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    started_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+
     class Meta:
         ordering = ["run_id", "sequence", "id"]
         indexes = [
@@ -709,24 +754,51 @@ class DeliveryStop(models.Model):
     def address_one_line(self) -> str:
         parts = [self.address_line1, self.address_line2, self.suburb, self.city, self.province, self.postal_code]
         return ", ".join([p for p in parts if p])
+    
+    @property
+    def final_minutes(self):
+        if self.started_at and self.ended_at:
+            delta = self.ended_at - self.started_at
+            return int(delta.total_seconds() // 60)
+        return None
+    
+    @property
+    def vehicle(self):
+        return self.run.vehicle
+
 
     def snapshot_from_order(self):
         """
-        Seed snapshot fields from the Order’s current client details.
+        Seed snapshot fields from the Order’s current client details,
+        including delivery coordinates.
         """
         c = self.order.client
+
+        # ---- Identity / contact ----
         self.customer_name = str(c)
         self.phone = getattr(c, "phone", "") or ""
         self.email = getattr(c, "email", "") or ""
-        self.address_line1 = getattr(c, "address_line1", "") or ""
-        self.address_line2 = getattr(c, "address_line2", "") or ""
-        self.suburb = getattr(c, "suburb", "") or ""
-        self.city = getattr(c, "city", "") or ""
-        # prefer display name if stored as choice
-        prov_disp = getattr(c, "get_province_display", None)
-        self.province = prov_disp() if callable(prov_disp) else (getattr(c, "province", "") or "")
-        self.postal_code = getattr(c, "postal_code", "") or ""
-        self.country = getattr(c, "country", "") or ""
+
+        # ---- Address (delivery preferred) ----
+        self.address_line1 = c.delivery_address_line1 or c.address_line1 or ""
+        self.address_line2 = c.delivery_address_line2 or c.address_line2 or ""
+        self.suburb = c.delivery_suburb or c.suburb or ""
+        self.city = c.delivery_city or c.city or ""
+
+        prov_disp = getattr(c, "get_delivery_province_display", None)
+        self.province = (
+            prov_disp()
+            if callable(prov_disp)
+            else (c.delivery_province or c.province or "")
+        )
+
+        self.postal_code = c.delivery_postal_code or c.postal_code or ""
+        self.country = c.delivery_country or c.country or ""
+
+        # ---- ✅ GEO SNAPSHOT (THIS IS THE KEY PART) ----
+        self.lat = c.delivery_lat
+        self.lng = c.delivery_lng
+
 
     def mark_delivered(self, *, recipient_name: str = "", recipient_id_no: str = "", user=None):
         self.status = "delivered"
@@ -788,3 +860,132 @@ class DeliveryStopItem(models.Model):
     @property
     def variance(self) -> Decimal:
         return (self.delivered_qty or Decimal("0.00")) - (self.planned_qty or Decimal("0.00"))
+
+class DriverLocation(models.Model):
+    run = models.ForeignKey(
+        DeliveryRun,
+        on_delete=models.CASCADE,
+        related_name="locations"
+    )
+    driver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
+    lat = models.FloatField()
+    lng = models.FloatField()
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    
+    
+
+    def clean(self):
+        if self.run.driver_id != self.driver_id:
+            raise ValidationError(
+                "Driver does not match the assigned driver for this run."
+            )
+
+    class Meta:
+        ordering = ["recorded_at"]
+        indexes = [
+            models.Index(fields=["run", "recorded_at"]),
+            models.Index(fields=["driver", "recorded_at"]),
+        ]
+
+
+class RunEvent(models.Model):
+    EVENT_TYPES = [
+        ("START", "Run Started"),
+        ("STOP_ARRIVED", "Arrived at Stop"),
+        ("DELIVERED", "Delivered"),
+        ("FAILED", "Delivery Failed"),
+    ]
+
+    run = models.ForeignKey(
+        DeliveryRun,
+        on_delete=models.CASCADE,
+        related_name="events"
+    )
+
+    stop = models.ForeignKey(
+        DeliveryStop,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="events",
+    )
+
+    event_type = models.CharField(
+        max_length=20,
+        choices=EVENT_TYPES,
+    )
+
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["recorded_at"]
+        indexes = [
+            models.Index(fields=["run", "event_type"]),
+        ]
+
+
+class Vehicle(models.Model):
+    VEHICLE_TYPES = [
+        ("bakkie", "Bakkie"),
+        ("van", "Van"),
+        ("truck", "Truck"),
+        ("bike", "Motorbike"),
+        ("other", "Other"),
+    ]
+
+    STATUS = [
+        ("active", "Active"),
+        ("maintenance", "In Maintenance"),
+        ("inactive", "Inactive"),
+    ]
+
+    label = models.CharField(
+        max_length=80,
+        help_text="Friendly name, e.g. 'Bakkie 1'"
+    )
+
+    registration_number = models.CharField(
+        max_length=20,
+        unique=True,
+        help_text="Vehicle registration number"
+    )
+
+    vehicle_type = models.CharField(
+        max_length=20,
+        choices=VEHICLE_TYPES,
+        default="bakkie",
+    )
+
+    capacity_kg = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Optional load capacity"
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS,
+        default="active",
+        db_index=True,
+    )
+
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["label"]
+        indexes = [
+            models.Index(fields=["status"]),
+            models.Index(fields=["vehicle_type"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.label} · {self.registration_number}"

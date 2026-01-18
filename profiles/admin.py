@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import StaffProfile, CustomerProfile, SalesRepProfile, SalesRole
+from .models import StaffProfile, CustomerProfile, SalesRepProfile, SalesRole, DriverProfile
 
 User = get_user_model()
 
@@ -382,3 +382,40 @@ class CustomerProfileAdmin(admin.ModelAdmin):
 
     user_last_login_display.short_description = "Last login"
     user_last_login_display.admin_order_field = "user__last_login"
+
+
+@admin.register(DriverProfile)
+class DriverProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "staff_profile",
+        "status",
+        "created_at",
+    )
+
+    list_filter = (
+        "status",
+    )
+
+    search_fields = (
+        "user__username",
+        "user__first_name",
+        "user__last_name",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+    )
+
+    fieldsets = (
+        ("Driver", {
+            "fields": ("user", "staff_profile", "status"),
+        }),
+        ("Notes", {
+            "fields": ("notes",),
+        }),
+        ("Timestamps", {
+            "fields": ("created_at", "updated_at"),
+        }),
+    )

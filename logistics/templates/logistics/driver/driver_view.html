@@ -1,0 +1,494 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Driver Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <style>
+    body { background:#f8f9fa; }
+
+    .logo-img {
+      max-height: 70px;
+    }
+
+    #map {
+      height: 420px;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .stop-marker {
+      background:#fff;
+      border:3px solid #adb5bd;
+      border-radius:50%;
+      width:34px;
+      height:34px;
+      line-height:28px;
+      text-align:center;
+      font-weight:700;
+      font-size:14px;
+      color:#495057;
+      box-shadow:0 2px 6px rgba(0,0,0,.25);
+    }
+
+    .stop-marker.current {
+      border-color:#0d6efd;
+      color:#0d6efd;
+      transform:scale(1.15);
+    }
+
+    .stop-marker.completed {
+      border-color:#198754;
+      background:#198754;
+      color:#fff;
+    }
+
+    @media (min-width: 992px) {
+      body { overflow-x: hidden; }
+      .sidebar-desktop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 220px;
+        height: 100vh;
+        overflow-y: auto;
+      }
+      main.content {
+        margin-left: 220px;
+        min-height: 100vh;
+      }
+    }
+
+    .sidebar-skin {
+      background-color: #0b5c39;
+      color: #fff;
+      padding: 1rem;
+    }
+
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: .25rem 0;
+    }
+
+    .sidebar-skin .nav-link:hover,
+    .sidebar-skin .nav-link.active {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+
+    main.content {
+      background: #f8f9fa;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===================== -->
+<!-- MOBILE TOP BAR -->
+<!-- ===================== -->
+<nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+  <div class="container-fluid">
+    <button class="navbar-toggler" type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#mobileMenu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <img src="{% static 'images/logo.png' %}" class="logo-img" alt="Logo">
+  </div>
+</nav>
+
+<!-- ===================== -->
+<!-- MOBILE OFFCANVAS -->
+<!-- ===================== -->
+<div class="offcanvas offcanvas-start d-lg-none" id="mobileMenu" tabindex="-1">
+  <div class="offcanvas-header sidebar-skin">
+    <h5 class="offcanvas-title">Menu</h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+  </div>
+
+  <div class="offcanvas-body sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" class="logo-img" alt="Logo">
+    </div>
+
+    <a href="{% url 'logistics:logistics-dashboard' %}" class="nav-link">Dashboard</a>
+
+    <a href="{% url 'logistics:warehouse-batches' %}" class="nav-link">
+      Warehouse
+    </a>
+
+
+    <a href="{% url 'logistics:deliveries' %}" class="nav-link">Deliveries</a>
+    <a href="{% url 'logistics:driver-dashboard' %}" class="nav-link">Driver View</a>
+    <a href="{% url 'logistics:monitor-view' %}" class="nav-link">Monitor View</a>
+    <a href="{% url 'sales:sales-tickets' %}" class="nav-link">Tasks</a>
+
+    <hr class="border-light">
+
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button class="btn btn-light w-100">Logout</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== -->
+<!-- DESKTOP SIDEBAR -->
+<!-- ===================== -->
+<aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+  <div class="text-center mb-3">
+    <img src="{% static 'images/logo.png' %}" class="logo-img" alt="Logo">
+  </div>
+
+  <a href="{% url 'logistics:logistics-dashboard' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'logistics-dashboard' %}active{% endif %}">
+    Dashboard
+  </a>
+
+  <a href="{% url 'logistics:warehouse-batches' %}"
+    class="nav-link {% if request.resolver_match.url_name == 'warehouse-batches' %}active{% endif %}">
+    Warehouse
+  </a>
+
+
+  <a href="{% url 'logistics:deliveries' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'deliveries' %}active{% endif %}">
+    Deliveries
+  </a>
+
+  <a href="{% url 'logistics:driver-dashboard' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'driver-dashboard' %}active{% endif %}">
+    Driver View
+  </a>
+
+  <a href="{% url 'logistics:monitor-view' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'monitor-view' %}active{% endif %}">
+    Monitor View
+  </a>
+
+  <a href="{% url 'sales:sales-tickets' %}" class="nav-link">Tasks</a>
+
+  <form method="post" action="{% url 'logout' %}" class="mt-3">
+    {% csrf_token %}
+    <button class="nav-link btn btn-link text-white p-0">Logout</button>
+  </form>
+</aside>
+
+<!-- ===================== -->
+<!-- MAIN CONTENT -->
+<!-- ===================== -->
+<main class="content">
+  <!-- 🔹 EVERYTHING BELOW REMAINS EXACTLY AS YOU HAD IT 🔹 -->
+
+
+  <div class="container-fluid py-4">
+
+    <!-- HEADER -->
+
+    <!-- HEADER -->
+
+    <!-- Title -->
+    <div class="row mb-3">
+      <div class="col-12 text-center">
+        <h2 class="mb-0">Driver View</h2>
+      </div>
+    </div>
+
+    <!-- Driver / Run / Vehicle -->
+    <div class="row gy-3 align-items-center mb-4">
+
+      <!-- Driver -->
+      <div class="col-12 col-md-4 text-center text-md-start">
+        <div class="text-muted small">Driver</div>
+        <strong>{{ request.user.get_full_name }}</strong>
+      </div>
+
+      <!-- Run -->
+      <div class="col-12 col-md-4 text-center">
+        <div class="text-muted small">Run</div>
+        <strong>{{ run.service_date }}</strong>
+        <div class="text-muted small">
+          {{ run.name }}
+        </div>
+      </div>
+
+      <!-- Vehicle -->
+      <div class="col-12 col-md-4 text-center text-md-end">
+        <div class="text-muted small">Vehicle</div>
+        {% if run.vehicle %}
+          <strong>{{ run.vehicle }}</strong>
+        {% else %}
+          <span class="text-muted fst-italic">Not assigned</span>
+        {% endif %}
+      </div>
+
+    </div>
+
+
+
+    <!-- MAP + CURRENT STOP -->
+    <div class="row g-4 mb-4">
+
+      <div class="col-lg-8">
+        <div id="map"></div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-body d-flex flex-column">
+
+            <div>
+              <h5>Current Trip</h5>
+              <strong>{{ current_stop.customer_name }}</strong>
+              <div class="text-muted small mt-1">
+                {{ current_stop.address_one_line }}
+              </div>
+
+              <hr>
+
+              <div class="mb-2">
+                <div class="text-muted small">Estimated Min</div>
+                <strong>{{ current_stop.drive_min|default:"—" }} min</strong>
+              </div>
+
+              <div class="mb-2">
+                <div class="text-muted small">Final Time</div>
+                <strong>
+                  {% if current_stop.started_at and current_stop.ended_at %}
+                    {{ current_stop.final_minutes }} min
+                  {% else %}
+                    —
+                  {% endif %}
+                </strong>
+              </div>
+
+              <div class="mb-2">
+                <div class="text-muted small">Arrival Time</div>
+                <strong>
+                  {% if current_stop.ended_at %}
+                    {{ current_stop.ended_at|date:"H:i" }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </strong>
+              </div>
+            </div>
+
+            <div class="mt-auto">
+
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <form method="post" action="{% url 'logistics:start-stop' current_stop.id %}">
+                    {% csrf_token %}
+                    <button class="btn btn-secondary w-100"
+                      {% if current_stop.started_at %}disabled{% endif %}>
+                      ▶ Start Trip
+                    </button>
+                  </form>
+                </div>
+
+                <div class="col-6">
+                  <form method="post" action="{% url 'logistics:end-stop' current_stop.id %}">
+                    {% csrf_token %}
+                    <button class="btn btn-outline-success w-100"
+                      {% if not current_stop.started_at or current_stop.ended_at %}disabled{% endif %}>
+                      🏁 End Trip
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+              <div class="mb-2">
+                <form method="post" action="{% url 'logistics:next-stop' current_stop.id %}">
+                  {% csrf_token %}
+                  <button
+                    type="submit"
+                    class="btn btn-outline-primary w-100"
+                    {% if not current_stop.ended_at %}disabled{% endif %}
+                  >
+                    ➡ Next Trip
+                  </button>
+                </form>
+
+              </div>
+
+              <div>
+                <a class="btn btn-outline-secondary w-100"
+                   target="_blank"
+                   href="https://www.google.com/maps/dir/?api=1&destination={{ current_stop.lat }},{{ current_stop.lng }}">
+                  🧭 Navigate
+                </a>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- UPCOMING STOPS -->
+    <div class="row mt-4">
+      <div class="col-12">
+        <h5 class="mb-3">Upcoming Stops</h5>
+
+        {% if upcoming_stops %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width:80px;">Stop</th>
+                <th>Customer</th>
+                <th>Address</th>
+                <th style="width:120px;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for stop in upcoming_stops %}
+              {% if stop.status != "delivered" %}
+              <tr>
+                <td class="fw-bold">{{ stop.sequence }}</td>
+                <td>{{ stop.customer_name }}</td>
+                <td class="text-muted small">{{ stop.address_one_line }}</td>
+                <td>
+                  {% if stop.id == current_stop.id %}
+                    <span class="badge bg-primary">Current</span>
+                  {% else %}
+                    <span class="badge bg-secondary">Pending</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+          <div class="alert alert-success mb-0">
+            🎉 All stops completed for this run.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+
+  const map = L.map("map");
+
+  L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    {
+      attribution: "&copy; OpenStreetMap & CARTO",
+      subdomains: "abcd",
+      maxZoom: 19
+    }
+  ).addTo(map);
+
+  /* ===============================
+     STOPS + OPTIONAL DEPOT
+     =============================== */
+
+  const points = [
+    {% if run.depot_lat and run.depot_lng %}
+    {
+      lat: {{ run.depot_lat }},
+      lng: {{ run.depot_lng }},
+      label: "Depot"
+    },
+    {% endif %}
+    {% for stop in stops %}
+    {% if stop.lat and stop.lng %}
+    {
+      lat: {{ stop.lat }},
+      lng: {{ stop.lng }},
+      seq: {{ stop.sequence }},
+      status: "{{ stop.status }}",
+      name: "{{ stop.customer_name|escapejs }}"
+    },
+    {% endif %}
+    {% endfor %}
+  ];
+
+  if (points.length === 0) return;
+
+  const bounds = [];
+
+  /* ===============================
+     STOP MARKERS
+     =============================== */
+
+  points.forEach(p => {
+    if (!p.seq) return; // skip depot marker here
+
+    let cls = "stop-marker";
+    if (p.status === "delivered") cls += " completed";
+    else if (p.status === "assigned" || p.status === "en_route") cls += " current";
+
+    const icon = L.divIcon({
+      className: cls,
+      html: p.seq,
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+
+    L.marker([p.lat, p.lng], { icon })
+      .addTo(map)
+      .bindPopup(`<strong>Stop ${p.seq}</strong><br>${p.name}`);
+
+    bounds.push([p.lat, p.lng]);
+  });
+
+  /* ===============================
+     ROUTE OVERVIEW (OSRM)
+     =============================== */
+
+  if (points.length >= 2) {
+    const coords = points.map(p => `${p.lng},${p.lat}`).join(";");
+
+    try {
+      const res = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
+      );
+      const data = await res.json();
+
+      if (data.routes && data.routes.length) {
+        L.geoJSON(data.routes[0].geometry, {
+          style: {
+            color: "#0d6efd",
+            weight: 5,
+            opacity: 0.6,
+            dashArray: "8,8"
+          }
+        }).addTo(map);
+      }
+    } catch (e) {
+      console.warn("Route fetch failed", e);
+    }
+  }
+
+  map.fitBounds(bounds, { padding: [40,40] });
+
+});
+</script>
+
+</body>
+</html>

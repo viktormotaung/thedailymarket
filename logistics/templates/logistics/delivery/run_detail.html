@@ -1,21 +1,54 @@
-{% load humanize %}
+{% load static humanize %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Delivery Run · {{ run }}</title>
+  <title>Logistics Dashboard - The Daily Market</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <style>
+    /* Desktop sidebar */
     @media (min-width: 992px) {
+      body { overflow-x: hidden; }
+      .sidebar-desktop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 220px;
+        height: 100vh;
+        overflow-y: auto;
+      }
       main.content {
         margin-left: 220px;
         min-height: 100vh;
       }
     }
+
+    .sidebar-skin {
+      background-color: #0b5c39;
+      color: #fff;
+      padding: 1rem;
+    }
+
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: .25rem 0;
+    }
+
+    .sidebar-skin .nav-link:hover,
+    .sidebar-skin .nav-link.active {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+
+    .logo-img {
+      max-height: 80px;
+    }
+
     main.content {
       background: #f8f9fa;
       padding: 20px;
@@ -23,6 +56,97 @@
   </style>
 </head>
 <body>
+
+<!-- ===================== -->
+<!-- MOBILE TOP BAR -->
+<!-- ===================== -->
+<nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+  <div class="container-fluid">
+    <button class="navbar-toggler" type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#mobileMenu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <img src="{% static 'images/logo.png' %}" style="height:40px;" alt="Logo">
+  </div>
+</nav>
+
+<!-- ===================== -->
+<!-- MOBILE OFFCANVAS -->
+<!-- ===================== -->
+<div class="offcanvas offcanvas-start d-lg-none" id="mobileMenu" tabindex="-1">
+  <div class="offcanvas-header sidebar-skin">
+    <h5 class="offcanvas-title">Menu</h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+  </div>
+
+  <div class="offcanvas-body sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" class="logo-img" alt="Logo">
+    </div>
+
+    <a href="{% url 'logistics:logistics-dashboard' %}" class="nav-link">Dashboard</a>
+
+    <a href="{% url 'logistics:warehouse-batches' %}" class="nav-link">
+      Warehouse
+    </a>
+
+
+    <a href="{% url 'logistics:deliveries' %}" class="nav-link">Deliveries</a>
+    <a href="{% url 'logistics:driver-dashboard' %}" class="nav-link">Driver View</a>
+    <a href="{% url 'logistics:monitor-view' %}" class="nav-link">Monitor View</a>
+    <a href="{% url 'sales:sales-tickets' %}" class="nav-link">Tasks</a>
+
+    <hr class="border-light">
+
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button class="btn btn-light w-100">Logout</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== -->
+<!-- DESKTOP SIDEBAR -->
+<!-- ===================== -->
+<aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+  <div class="text-center mb-3">
+    <img src="{% static 'images/logo.png' %}" class="logo-img" alt="Logo">
+  </div>
+
+  <a href="{% url 'logistics:logistics-dashboard' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'logistics-dashboard' %}active{% endif %}">
+    Dashboard
+  </a>
+
+  <a href="{% url 'logistics:warehouse-batches' %}"
+    class="nav-link {% if request.resolver_match.url_name == 'warehouse-batches' %}active{% endif %}">
+    Warehouse
+  </a>
+
+
+  <a href="{% url 'logistics:deliveries' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'deliveries' %}active{% endif %}">
+    Deliveries
+  </a>
+
+  <a href="{% url 'logistics:driver-dashboard' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'driver-dashboard' %}active{% endif %}">
+    Driver View
+  </a>
+
+  <a href="{% url 'logistics:monitor-view' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'monitor-view' %}active{% endif %}">
+    Monitor View
+  </a>
+
+  <a href="{% url 'sales:sales-tickets' %}" class="nav-link">Tasks</a>
+
+  <form method="post" action="{% url 'logout' %}" class="mt-3">
+    {% csrf_token %}
+    <button class="nav-link btn btn-link text-white p-0">Logout</button>
+  </form>
+</aside>
 
 <main class="content">
 
@@ -45,7 +169,9 @@
       {% elif run.status == "cancelled" %}
         <span class="badge bg-danger">Cancelled</span>
       {% else %}
-        <span class="badge bg-light text-dark">{{ run.get_status_display }}</span>
+        <span class="badge bg-light text-dark">
+          {{ run.get_status_display }}
+        </span>
       {% endif %}
     </div>
   </div>
@@ -59,59 +185,133 @@
       ← Back to Delivery Runs
     </a>
 
-    <div>
-      {% if run.status == "planned" %}
-        <a href="{% url 'logistics:delivery-run-plan' run.id %}"
-           class="btn btn-sm btn-outline-primary">
-          Plan Route
-        </a>
-      {% endif %}
-    </div>
+    {% if run.status in "draft planned" %}
+      <form method="post"
+            action="{% url 'logistics:delivery-run-auto-plan' run.id %}"
+            class="d-inline">
+        {% csrf_token %}
+
+        {% if not run.driver or not run.vehicle %}
+          <button class="btn btn-sm btn-secondary"
+                  disabled
+                  title="Assign both a driver and a vehicle to generate a route">
+            Generate Route Suggestion
+          </button>
+        {% else %}
+          <button class="btn btn-sm btn-primary">
+            Generate Route Suggestion
+          </button>
+        {% endif %}
+
+      </form>
+    {% endif %}
+
   </div>
+
+    {% if messages %}
+        <div class="mb-3">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
 
   <!-- ============================= -->
   <!-- RUN SUMMARY -->
   <!-- ============================= -->
-  <div class="card mb-4">
+  <div class="card mb-4 shadow-sm">
     <div class="card-body">
-      <div class="row g-3">
 
-        <div class="col-md-4">
-          <strong>Driver</strong><br>
-          {{ run.driver.get_username|default:run.driver_name|default:"Unassigned" }}
+      <div class="row g-4 align-items-end">
+
+        <!-- ===================== -->
+        <!-- ASSIGNMENTS -->
+        <!-- ===================== -->
+        <div class="col-lg-7">
+          <h6 class="text-uppercase text-muted mb-3">
+            Assignment
+          </h6>
+
+          <div class="row g-3">
+
+            <!-- Driver -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Driver</label>
+              {{ form.driver }}
+            </div>
+
+            <!-- Vehicle -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Vehicle</label>
+              {{ form.vehicle }}
+            </div>
+
+          </div>
         </div>
 
-        <div class="col-md-4">
-          <strong>Vehicle</strong><br>
-          {{ run.vehicle_label|default:"—" }}
-        </div>
+        <!-- ===================== -->
+        <!-- RUN STATS -->
+        <!-- ===================== -->
+        <div class="col-lg-5">
+          <h6 class="text-uppercase text-muted mb-3">
+            Run Summary
+          </h6>
 
-        <div class="col-md-4">
-          <strong>Stops</strong><br>
-          {{ run.stop_count }}
-        </div>
+          <div class="row text-center g-3">
 
-        <div class="col-md-4">
-          <strong>Total Distance</strong><br>
-          {{ run.total_distance_km|default:"—" }} km
-        </div>
+            <div class="col-4">
+              <div class="border rounded py-3 bg-light">
+                <div class="text-muted small">Stops</div>
+                <strong class="fs-5">{{ run.stop_count }}</strong>
+              </div>
+            </div>
 
-        <div class="col-md-4">
-          <strong>Total Drive Time</strong><br>
-          {{ run.total_drive_min|default:"—" }} min
-        </div>
+            <div class="col-4">
+              <div class="border rounded py-3 bg-light">
+                <div class="text-muted small">Distance</div>
+                <strong class="fs-6">
+                  {{ run.total_distance_km|default:"—" }} km
+                </strong>
+              </div>
+            </div>
 
-        <div class="col-md-4">
-          <strong>Depot</strong><br>
-          {{ run.depot_label|default:"—" }}
+            <div class="col-4">
+              <div class="border rounded py-3 bg-light">
+                <div class="text-muted small">Drive Time</div>
+                <strong class="fs-6">
+                  {{ run.total_drive_min|default:"—" }} min
+                </strong>
+              </div>
+            </div>
+
+          </div>
         </div>
 
       </div>
+
+      <!-- ===================== -->
+      <!-- SAVE ACTION -->
+      <!-- ===================== -->
+      <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+
+        <button
+          type="submit"
+          class="btn btn-success px-4 py-2"
+        >
+          Save
+        </button>
+
+      </div>
+
     </div>
   </div>
 
+
   <!-- ============================= -->
-  <!-- STOPS -->
+  <!-- DELIVERY STOPS -->
   <!-- ============================= -->
   <div class="card">
     <div class="card-header">
@@ -122,9 +322,10 @@
       <table class="table table-striped mb-0 align-middle">
         <thead class="table-light">
           <tr>
-            <th>#</th>
+            <th style="width: 60px;">#</th>
             <th>Customer</th>
             <th>Address</th>
+            <th>Estimated Min</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -132,9 +333,22 @@
 
           {% for stop in run.stops.all %}
             <tr>
-              <td>{{ stop.sequence|default:"—" }}</td>
-              <td>{{ stop.customer_name|default:"Order #"|add:stop.order_id }}</td>
-              <td>{{ stop.address_one_line|default:"—" }}</td>
+              <td>
+                {{ stop.sequence|default:"—" }}
+              </td>
+
+              <td>
+                {{ stop.customer_name|default:"Order #"|add:stop.order_id|stringformat:"s" }}
+              </td>
+
+              <td>
+                {{ stop.address_one_line|default:"—" }}
+              </td>
+
+              <td>
+                {{ stop.drive_min|default:"—" }}
+              </td>
+
               <td>
                 {% if stop.status == "delivered" %}
                   <span class="badge bg-success">Delivered</span>
@@ -143,13 +357,16 @@
                 {% elif stop.status == "failed" %}
                   <span class="badge bg-danger">Failed</span>
                 {% else %}
-                  <span class="badge bg-secondary">{{ stop.get_status_display }}</span>
+                  <span class="badge bg-secondary">
+                    {{ stop.get_status_display }}
+                  </span>
                 {% endif %}
               </td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="4" class="text-center text-muted py-4">
+              <td colspan="4"
+                  class="text-center text-muted py-4">
                 No stops assigned to this run.
               </td>
             </tr>

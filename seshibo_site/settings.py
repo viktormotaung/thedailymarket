@@ -250,3 +250,5 @@ LOGGING = {
         "level": "DEBUG" if DEBUG else "WARNING",
     },
 }
+
+GOOGLE_MAPS_API_KEY = "AIzaSyChVDl--ftGbLBj4zzmNf9GKcqEh_ZM9IU"

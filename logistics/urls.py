@@ -40,6 +40,36 @@ urlpatterns = [
         name="delivery-run-plan",
     ),
 
+    path(
+        "deliveries/run/<int:run_id>/auto-plan/",
+        views.delivery_run_auto_plan,
+        name="delivery-run-auto-plan",
+    ),
+
+
     # Driver
-    path("driver/", views.driver_dashboard, name="driver-dashboard"),
+    path("driver/", views.driver_view, name="driver-dashboard"),
+
+    path("driver/location/update/", views.update_driver_location, name="driver-location-update"),
+
+    path(
+        "stops/<int:stop_id>/start/",
+        views.start_stop,
+        name="start-stop"
+    ),
+    path(
+        "stops/<int:stop_id>/end/",
+        views.end_stop,
+        name="end-stop"
+    ), 
+
+    path(
+        "driver/next-stop/<int:stop_id>/",
+        views.next_stop,
+        name="next-stop"
+    ), 
+
+ 
+
+    path("monitor/", views.monitor_view, name="monitor-view"),
 ]

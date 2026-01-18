@@ -4,9 +4,22 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.timezone import now
 from datetime import timedelta
 from django.db.models import Sum, Count, Q
-from deliveries.models import PickingBatch, PickingItem, DeliveryRun
+from deliveries.models import PickingBatch, PickingItem, DeliveryRun, DriverLocation, DeliveryStop, Vehicle
 from suppliers.models import Supplier
-
+from django.contrib import messages
+from decimal import Decimal, InvalidOperation
+from django.db.models import F
+from django.db import models
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.shortcuts import get_object_or_404
+from django.utils.timezone import now
+import json
+from deliveries.forms import DeliveryRunAssignmentForm
 
 
 
@@ -171,6 +184,8 @@ def warehouse_batch_consolidation(request, batch_id):
     )
 
 
+
+
 @login_required
 def batch_supplier_consolidation(request, batch_id, supplier_id):
     """
@@ -178,8 +193,9 @@ def batch_supplier_consolidation(request, batch_id, supplier_id):
 
     Responsibilities:
     - Show ONLY items for this batch + supplier
-    - Allow picking (confirming quantities)
+    - Allow picking (confirming quantities & prices)
     - Prevent editing if batch is complete
+    - Auto-complete batch once all items are picked
     """
 
     batch = get_object_or_404(PickingBatch, id=batch_id)
@@ -192,17 +208,19 @@ def batch_supplier_consolidation(request, batch_id, supplier_id):
         .order_by("order_id", "id")
     )
 
-    # ----------------------------
-    # POST: Confirm picked quantity
-    # ----------------------------
+    # -------------------------------------------------
+    # POST: Confirm picked quantity + actual price
+    # -------------------------------------------------
     if request.method == "POST" and batch.status != "complete":
         item_id = request.POST.get("item_id")
-        picked_qty = request.POST.get("picked_qty")
+        picked_qty_raw = request.POST.get("picked_qty")
+        actual_price_raw = request.POST.get("actual_supplier_price")
 
         item = get_object_or_404(items, id=item_id)
 
+        # Parse picked qty
         try:
-            picked_qty = Decimal(picked_qty)
+            picked_qty = Decimal(picked_qty_raw)
         except Exception:
             return redirect(
                 "logistics:batch-supplier-consolidation",
@@ -218,18 +236,41 @@ def batch_supplier_consolidation(request, batch_id, supplier_id):
                 supplier_id=supplier.id,
             )
 
+        # Parse actual price (optional)
+        try:
+            actual_price = Decimal(actual_price_raw) if actual_price_raw else None
+        except Exception:
+            actual_price = None
+
         with transaction.atomic():
+            # Save item
             item.picked_qty = picked_qty
             item.is_picked = picked_qty > 0
+
+            if actual_price is not None:
+                item.actual_supplier_price = actual_price
+
             item.save(update_fields=[
                 "picked_qty",
                 "is_picked",
+                "actual_supplier_price",
                 "updated_at",
             ])
 
-            # Move batch to in_progress if still draft
+            # Draft → In Progress
             if batch.status == "draft":
                 batch.status = "in_progress"
+                batch.save(update_fields=["status", "updated_at"])
+
+            # ✅ Auto-complete batch if ALL items are picked
+            remaining = (
+                PickingItem.objects
+                .filter(batch=batch, is_picked=False)
+                .exists()
+            )
+
+            if not remaining:
+                batch.status = "complete"
                 batch.save(update_fields=["status", "updated_at"])
 
         return redirect(
@@ -238,9 +279,25 @@ def batch_supplier_consolidation(request, batch_id, supplier_id):
             supplier_id=supplier.id,
         )
 
-    # ----------------------------
+    # -------------------------------------------------
+    # DISPLAY DEFAULTS (DO NOT SAVE)
+    # -------------------------------------------------
+    for item in items:
+        # Picked qty display
+        item.display_picked_qty = (
+            item.picked_qty if item.is_picked else item.expected_qty
+        )
+
+        # Actual price display
+        item.display_actual_price = (
+            item.actual_supplier_price
+            if item.actual_supplier_price is not None
+            else item.expected_supplier_price
+        )
+
+    # -------------------------------------------------
     # Context
-    # ----------------------------
+    # -------------------------------------------------
     context = {
         "batch": batch,
         "supplier": supplier,
@@ -255,12 +312,6 @@ def batch_supplier_consolidation(request, batch_id, supplier_id):
         "logistics/warehouse/supplier_detail.html",
         context,
     )
-
-
-
-
-
-
 
 @login_required
 def warehouse_consolidation(request):
@@ -313,13 +364,35 @@ def deliveries(request):
 def delivery_run_detail(request, run_id):
     run = get_object_or_404(DeliveryRun, id=run_id)
 
+    # ✅ FIX: use status, not is_active
+    vehicles = Vehicle.objects.filter(status="active")
+
+    if request.method == "POST":
+        form = DeliveryRunAssignmentForm(
+            request.POST,
+            instance=run,
+            vehicles_qs=vehicles,
+        )
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Driver and vehicle updated successfully.")
+            return redirect("logistics:delivery-run-detail", run.id)
+    else:
+        form = DeliveryRunAssignmentForm(
+            instance=run,
+            vehicles_qs=vehicles,
+        )
+
     return render(
         request,
         "logistics/delivery/run_detail.html",
         {
             "run": run,
+            "form": form,
         }
     )
+
 
 @login_required
 def delivery_run_plan(request, run_id):
@@ -333,14 +406,228 @@ def delivery_run_plan(request, run_id):
         }
     )
 
+@login_required
+def delivery_run_auto_plan(request, run_id):
+    run = get_object_or_404(DeliveryRun, id=run_id)
+
+    if request.method == "POST":
+
+        # 🔑 ENSURE GEO EXISTS BEFORE ROUTING
+        for stop in run.stops.select_related("order__client"):
+            if not stop.has_geo:
+                stop.snapshot_from_order()
+                stop.save(update_fields=[
+                    "customer_name",
+                    "phone",
+                    "email",
+                    "address_line1",
+                    "address_line2",
+                    "suburb",
+                    "city",
+                    "province",
+                    "postal_code",
+                    "country",
+                    "lat",
+                    "lng",
+                    "updated_at",
+                ])
+
+        from deliveries.services import plan_run_sequence
+        success, message = plan_run_sequence(run)
+
+        if success:
+            messages.success(request, message)
+        else:
+            messages.error(request, message)
+
+    return redirect("logistics:delivery-run-detail", run_id=run.id)
+
+
 
 # ----------------------
 # Driver
 # ----------------------
+@login_required
+def driver_view(request):
+    """
+    Driver-facing dashboard.
+    Shows the assigned run, current stop, progress, and upcoming stops.
+    """
+
+    user = request.user
+
+    run = (
+        DeliveryRun.objects
+        .filter(
+            driver=user,
+            status__in=["planned", "en_route"]
+        )
+        .order_by("service_date", "id")
+        .first()
+    )
+
+    # --- No active run ---
+    if not run:
+        return render(
+            request,
+            "logistics/driver/driver_view.html",
+            {
+                "run": None,
+                "current_stop": None,
+                "upcoming_stops": [],
+                "stops": [],              # ✅ ADD THIS
+                "all_completed": False,
+            }
+        )
+
+    # --- Stops ---
+    stops = run.stops.all().order_by("sequence", "id")
+
+    undelivered = stops.exclude(status="delivered")
+    current_stop = undelivered.first()
+
+    context = {
+        "run": run,
+        "current_stop": current_stop,
+        "upcoming_stops": undelivered,
+        "stops": stops,               # ✅ THIS IS THE KEY LINE
+        "all_completed": not undelivered.exists(),
+        "total_stops": stops.count(),
+        "completed_stops": stops.filter(status="delivered").count(),
+    }
+
+    return render(
+        request,
+        "logistics/driver/driver_view.html",
+        context,
+    )
+
 
 @login_required
-def driver_dashboard(request):
+@require_POST
+def record_driver_location(request, run_id):
+    run = get_object_or_404(DeliveryRun, id=run_id, driver=request.user)
+
+    lat = request.POST.get("lat")
+    lng = request.POST.get("lng")
+
+    if not lat or not lng:
+        return JsonResponse({"ok": False}, status=400)
+
+    DriverLocation.objects.create(
+        run=run,
+        driver=request.user,
+        lat=lat,
+        lng=lng,
+    )
+
+    return JsonResponse({"ok": True})
+
+
+@login_required
+@require_POST
+def update_driver_location(request):
     """
-    Driver-facing route view (runs & stops)
+    Receives live GPS from driver browser and stores it.
     """
-    return render(request, "logistics/driver/dashboard.html")
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+        lat = float(payload.get("lat"))
+        lng = float(payload.get("lng"))
+        run_id = payload.get("run_id")
+    except Exception:
+        return JsonResponse({"error": "Invalid payload"}, status=400)
+
+    run = get_object_or_404(
+        DeliveryRun,
+        id=run_id,
+        driver=request.user,
+        status__in=["planned", "en_route", "paused"]
+    )
+
+    DriverLocation.objects.create(
+        run=run,
+        driver=request.user,
+        lat=lat,
+        lng=lng
+    )
+
+    return JsonResponse({"status": "ok"})
+
+
+@login_required
+@require_POST
+def start_stop(request, stop_id):
+    stop = get_object_or_404(
+        DeliveryStop.objects.select_related("run"),
+        id=stop_id
+    )
+
+    run = stop.run
+
+    # --- Safety checks ---
+    if stop.status != "assigned":
+        return JsonResponse(
+            {"error": "Stop not ready to start"},
+            status=400
+        )
+
+    # --- Start the stop ---
+    stop.status = "en_route"
+    stop.started_at = now()
+    stop.updated_at = now()
+    stop.save(update_fields=["status", "started_at", "updated_at"])
+
+    # --- Ensure run is marked as en_route ---
+    if run.status != "en_route":
+        run.status = "en_route"
+        run.updated_at = now()
+        run.save(update_fields=["status", "updated_at"])
+
+    return JsonResponse({"success": True})
+
+@login_required
+@require_POST
+def end_stop(request, stop_id):
+    stop = get_object_or_404(DeliveryStop, id=stop_id)
+
+    if stop.status != "en_route":
+        return JsonResponse({"error": "Stop not en route"}, status=400)
+
+    stop.status = "arrived"
+    stop.ended_at = now()
+
+    if stop.started_at:
+        stop.drive_min = int((stop.ended_at - stop.started_at).total_seconds() / 60)
+
+    stop.save(update_fields=[
+        "status",
+        "ended_at",
+        "drive_min",
+        "updated_at",
+    ])
+
+    return JsonResponse({"success": True})
+
+@login_required
+def next_stop(request, stop_id):
+    stop = get_object_or_404(DeliveryStop, id=stop_id)
+
+    # safety: only allow if ended
+    if not stop.ended_at:
+        return redirect("logistics:driver-dashboard")
+
+    return redirect("logistics:driver-dashboard")
+
+
+
+
+@login_required
+def monitor_view(request):
+    view_mode = request.GET.get("view", "table")  # table | map
+
+    context = {
+        "view": view_mode,
+        "runs": [],  # later: active runs
+    }
+    return render(request, "logistics/driver/monitor_view.html", context)

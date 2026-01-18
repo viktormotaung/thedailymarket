@@ -1,36 +1,77 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils.timezone import localtime
 
 from .models import (
+    Vehicle,
     PickingBatch,
     PickingItem,
     DeliveryRun,
     DeliveryStop,
     DeliveryStopItem,
+    DriverLocation,
+    RunEvent,
 )
 
-# =====================================================
-# WAREHOUSE — Picking
-# =====================================================
+# =====================================
+# VEHICLES (FLEET)
+# =====================================
+
+@admin.register(Vehicle)
+class VehicleAdmin(admin.ModelAdmin):
+    list_display = (
+        "label",
+        "registration_number",
+        "vehicle_type",
+        "status_badge",
+        "capacity_kg",
+        "updated_at",
+    )
+    list_filter = ("status", "vehicle_type")
+    search_fields = ("label", "registration_number")
+    ordering = ("label",)
+
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("Vehicle Info", {
+            "fields": (
+                "label",
+                "registration_number",
+                "vehicle_type",
+                "capacity_kg",
+                "status",
+            )
+        }),
+        ("Notes", {
+            "fields": ("notes",)
+        }),
+        ("System", {
+            "fields": ("created_at", "updated_at")
+        }),
+    )
+
+    def status_badge(self, obj):
+        colors = {
+            "active": "green",
+            "maintenance": "orange",
+            "inactive": "red",
+        }
+        return format_html(
+            '<b style="color:{};">{}</b>',
+            colors.get(obj.status, "gray"),
+            obj.get_status_display(),
+        )
+    status_badge.short_description = "Status"
+
+
+# =====================================
+# PICKING (WAREHOUSE)
+# =====================================
 
 class PickingItemInline(admin.TabularInline):
     model = PickingItem
     extra = 0
-    show_change_link = True
-
-    fields = (
-        "order",
-        "order_item",
-        "supplier",
-        "product_name",
-        "sku",
-        "uom",
-        "expected_qty",
-        "picked_qty",
-        "is_picked",
-        "notes",
-    )
-
     readonly_fields = (
         "order",
         "order_item",
@@ -39,11 +80,17 @@ class PickingItemInline(admin.TabularInline):
         "sku",
         "uom",
         "expected_qty",
+        "expected_supplier_price",
+        "created_at",
     )
-
-    autocomplete_fields = ("order_item",)
-
-    can_delete = False
+    fields = (
+        "order",
+        "product_name",
+        "expected_qty",
+        "picked_qty",
+        "is_picked",
+        "supplier",
+    )
 
 
 @admin.register(PickingBatch)
@@ -58,12 +105,9 @@ class PickingBatchAdmin(admin.ModelAdmin):
         "started_at",
         "completed_at",
     )
-
     list_filter = ("status", "service_date")
     search_fields = ("name",)
     date_hierarchy = "service_date"
-    ordering = ("-service_date", "-id")
-
     inlines = [PickingItemInline]
 
     readonly_fields = (
@@ -71,144 +115,141 @@ class PickingBatchAdmin(admin.ModelAdmin):
         "updated_at",
         "started_at",
         "completed_at",
+        "order_count",
+        "item_count",
     )
 
     actions = ("mark_in_progress", "mark_complete")
 
-    @admin.display(description="Wave")
-    def wave(self, obj):
-        return obj.wave
-
     def mark_in_progress(self, request, queryset):
-        updated = 0
-        for batch in queryset.exclude(status="complete"):
-            batch.mark_started(user=request.user)
-            updated += 1
-        self.message_user(request, f"{updated} batch(es) marked in progress.")
-    mark_in_progress.short_description = "Mark selected batches as In Progress"
+        for batch in queryset:
+            if batch.status == "draft":
+                batch.mark_started(user=request.user)
+    mark_in_progress.short_description = "▶ Mark selected batches In Progress"
 
     def mark_complete(self, request, queryset):
-        updated = 0
-        for batch in queryset.exclude(status="complete"):
-            batch.mark_complete(user=request.user)
-            updated += 1
-        self.message_user(
-            request,
-            f"{updated} batch(es) completed and handed off to delivery."
-        )
-    mark_complete.short_description = "Complete selected batches (handoff to delivery)"
+        for batch in queryset:
+            if batch.status != "complete":
+                batch.mark_complete(user=request.user)
+    mark_complete.short_description = "✅ Complete batches (handoff to delivery)"
 
 
-@admin.register(PickingItem)
-class PickingItemAdmin(admin.ModelAdmin):
-    list_display = (
-        "id",
-        "batch",
+# =====================================
+# DELIVERY RUN (FLEET)
+# =====================================
+
+class DeliveryStopInline(admin.TabularInline):
+    model = DeliveryStop
+    extra = 0
+    readonly_fields = (
         "order",
-        "product_name",
-        "supplier",
-        "expected_qty",
-        "picked_qty",
-        "expected_supplier_price",
-        "actual_supplier_price",
-        "is_picked",
+        "customer_name",
+        "status",
+        "sequence",
+        "started_at",
+        "ended_at",
+    )
+    fields = (
+        "sequence",
+        "customer_name",
+        "status",
+        "distance_km",
+        "drive_min",
     )
 
-    # 🔒 CRITICAL LINE — THIS SOLVES EVERYTHING
-    exclude = ("supplier",)
+
+@admin.register(DeliveryRun)
+class DeliveryRunAdmin(admin.ModelAdmin):
+    list_display = (
+        "service_date",
+        "name",
+        "driver",
+        "vehicle",
+        "status",
+        "stop_count",
+        "total_drive_min",
+        "total_distance_km",
+    )
+    list_filter = ("status", "service_date", "vehicle")
+    search_fields = ("name", "driver__username", "vehicle__label")
+    date_hierarchy = "service_date"
+    inlines = [DeliveryStopInline]
 
     readonly_fields = (
-        "batch",
-        "order",
-        "order_item",
-        "product_name",
-        "sku",
-        "uom",
-        "expected_qty",
-        "expected_supplier_price",
         "created_at",
         "updated_at",
+        "stop_count",
+        "total_distance_km",
+        "total_drive_min",
     )
+
+    actions = ("recalculate_aggregates",)
 
     fieldsets = (
-        ("Core", {
+        ("Run Details", {
             "fields": (
-                "batch",
-                "order",
-                "order_item",
-                "product_name",
-                "sku",
-                "uom",
+                "service_date",
+                "name",
+                "status",
+                "driver",
+                "vehicle",
+                "start_time",
             )
         }),
-        ("Quantities", {
+        ("Depot", {
             "fields": (
-                "expected_qty",
-                "picked_qty",
-                "is_picked",
+                "depot_label",
+                "depot_lat",
+                "depot_lng",
             )
         }),
-        ("Pricing", {
+        ("Aggregates", {
             "fields": (
-                "expected_supplier_price",
-                "actual_supplier_price",
+                "stop_count",
+                "total_drive_min",
+                "total_distance_km",
             )
         }),
-        ("Meta", {
-            "fields": (
-                "notes",
-                "created_at",
-                "updated_at",
-            )
+        ("Notes", {
+            "fields": ("notes",)
+        }),
+        ("System", {
+            "fields": ("created_at", "updated_at")
         }),
     )
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "vehicle":
+            kwargs["queryset"] = Vehicle.objects.filter(status="active")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def recalculate_aggregates(self, request, queryset):
+        for run in queryset:
+            run.recalc_aggregates(save=True)
+    recalculate_aggregates.short_description = "🔄 Recalculate run aggregates"
 
 
-
-# =====================================================
-# FLEET — Delivery Runs
-# =====================================================
+# =====================================
+# DELIVERY STOPS (OPERATIONS)
+# =====================================
 
 class DeliveryStopItemInline(admin.TabularInline):
     model = DeliveryStopItem
     extra = 0
-    can_delete = False
-
-    fields = (
-        "order_item",
-        "product_name",
-        "sku",
-        "uom",
-        "planned_qty",
-        "loaded_qty",
-        "delivered_qty",
-        "variance_display",
-        "shortage_reason",
-        "notes",
-    )
-
     readonly_fields = (
         "order_item",
         "product_name",
         "sku",
         "uom",
         "planned_qty",
-        "variance_display",
     )
-
-    autocomplete_fields = ("order_item",)
-
-    @admin.display(description="Variance")
-    def variance_display(self, obj):
-        if obj.variance == 0:
-            return "0"
-        color = "red" if obj.variance < 0 else "green"
-        return format_html(
-            '<strong style="color:{};">{}</strong>',
-            color,
-            obj.variance,
-        )
+    fields = (
+        "product_name",
+        "planned_qty",
+        "loaded_qty",
+        "delivered_qty",
+        "shortage_reason",
+    )
 
 
 @admin.register(DeliveryStop)
@@ -216,33 +257,21 @@ class DeliveryStopAdmin(admin.ModelAdmin):
     list_display = (
         "run",
         "sequence",
-        "order",
         "customer_name",
-        "city",
         "status",
-        "eta",
+        "drive_min",
+        "distance_km",
+        "arrival_time_display",
     )
-
-    list_filter = (
-        "status",
-        "run__service_date",
-        "run",
-    )
-
-    search_fields = (
-        "customer_name",
-        "order__id",
-        "city",
-        "suburb",
-    )
-
+    list_filter = ("status", "run__service_date")
+    search_fields = ("customer_name", "order__id")
     ordering = ("run", "sequence")
-
-    autocomplete_fields = ("run", "order")
+    inlines = [DeliveryStopItemInline]
 
     readonly_fields = (
-        "created_at",
-        "updated_at",
+        "run",
+        "order",
+        "sequence",
         "customer_name",
         "phone",
         "email",
@@ -253,45 +282,68 @@ class DeliveryStopAdmin(admin.ModelAdmin):
         "province",
         "postal_code",
         "country",
-    )
-
-    inlines = [DeliveryStopItemInline]
-
-
-@admin.register(DeliveryRun)
-class DeliveryRunAdmin(admin.ModelAdmin):
-    list_display = (
-        "service_date",
-        "name",
-        "status",
-        "driver_display",
-        "vehicle_label",
-        "stop_count",
-    )
-
-    list_filter = ("status", "service_date")
-    search_fields = ("name", "driver_name", "vehicle_label")
-    date_hierarchy = "service_date"
-    ordering = ("-service_date", "-id")
-
-    autocomplete_fields = ("driver",)
-
-    readonly_fields = (
-        "stop_count",
-        "total_distance_km",
-        "total_drive_min",
+        "lat",
+        "lng",
+        "distance_km",
+        "drive_min",
+        "started_at",
+        "ended_at",
         "created_at",
         "updated_at",
     )
 
-    actions = ("recalc_run_stats",)
+    fieldsets = (
+        ("Run Info", {
+            "fields": ("run", "order", "sequence", "status")
+        }),
+        ("Customer Snapshot", {
+            "fields": (
+                "customer_name",
+                "phone",
+                "email",
+                "address_line1",
+                "address_line2",
+                "suburb",
+                "city",
+                "province",
+                "postal_code",
+            )
+        }),
+        ("Routing", {
+            "fields": ("lat", "lng", "distance_km", "drive_min")
+        }),
+        ("Timing", {
+            "fields": ("started_at", "ended_at")
+        }),
+    )
 
-    @admin.display(description="Driver")
-    def driver_display(self, obj):
-        return obj.driver.get_username() if obj.driver_id else (obj.driver_name or "—")
+    def arrival_time_display(self, obj):
+        if obj.ended_at:
+            return localtime(obj.ended_at).strftime("%H:%M")
+        return "—"
+    arrival_time_display.short_description = "Arrival Time"
 
-    def recalc_run_stats(self, request, queryset):
-        for run in queryset:
-            run.recalc_aggregates(save=True)
-        self.message_user(request, "Run statistics recalculated.")
-    recalc_run_stats.short_description = "Recalculate run statistics"
+
+# =====================================
+# DRIVER TELEMETRY
+# =====================================
+
+@admin.register(DriverLocation)
+class DriverLocationAdmin(admin.ModelAdmin):
+    list_display = ("run", "driver", "lat", "lng", "recorded_at")
+    list_filter = ("run", "driver")
+    readonly_fields = ("recorded_at",)
+    ordering = ("-recorded_at",)
+
+
+# =====================================
+# RUN EVENTS (AUDIT / TIMELINE)
+# =====================================
+
+@admin.register(RunEvent)
+class RunEventAdmin(admin.ModelAdmin):
+    list_display = ("run", "stop", "event_type", "recorded_at")
+    list_filter = ("event_type", "run__service_date")
+    search_fields = ("run__name", "notes")
+    readonly_fields = ("recorded_at",)
+    ordering = ("-recorded_at",)

@@ -87,16 +87,14 @@
 
     <a href="{% url 'logistics:logistics-dashboard' %}" class="nav-link">Dashboard</a>
 
-    <a class="nav-link" data-bs-toggle="collapse" href="#warehouseMobile">
+    <a href="{% url 'logistics:warehouse-batches' %}" class="nav-link">
       Warehouse
     </a>
-    <div class="collapse ps-3" id="warehouseMobile">
-      <a href="{% url 'logistics:warehouse-batches' %}" class="nav-link">Batches</a>
-      <a href="{% url 'logistics:warehouse-consolidation' %}" class="nav-link">Consolidation</a>
-    </div>
+
 
     <a href="{% url 'logistics:deliveries' %}" class="nav-link">Deliveries</a>
     <a href="{% url 'logistics:driver-dashboard' %}" class="nav-link">Driver View</a>
+    <a href="{% url 'logistics:monitor-view' %}" class="nav-link">Monitor View</a>
     <a href="{% url 'sales:sales-tickets' %}" class="nav-link">Tasks</a>
 
     <hr class="border-light">
@@ -121,23 +119,11 @@
     Dashboard
   </a>
 
-  <a class="nav-link" data-bs-toggle="collapse" href="#warehouseDesktop">
+  <a href="{% url 'logistics:warehouse-batches' %}"
+    class="nav-link {% if request.resolver_match.url_name == 'warehouse-batches' %}active{% endif %}">
     Warehouse
   </a>
-  <div class="collapse ps-3
-    {% if request.resolver_match.url_name == 'warehouse-batches' or request.resolver_match.url_name == 'warehouse-consolidation' %}show{% endif %}"
-    id="warehouseDesktop">
 
-    <a href="{% url 'logistics:warehouse-batches' %}"
-       class="nav-link {% if request.resolver_match.url_name == 'warehouse-batches' %}active{% endif %}">
-      Batches
-    </a>
-
-    <a href="{% url 'logistics:warehouse-consolidation' %}"
-       class="nav-link {% if request.resolver_match.url_name == 'warehouse-consolidation' %}active{% endif %}">
-      Consolidation
-    </a>
-  </div>
 
   <a href="{% url 'logistics:deliveries' %}"
      class="nav-link {% if request.resolver_match.url_name == 'deliveries' %}active{% endif %}">
@@ -147,6 +133,11 @@
   <a href="{% url 'logistics:driver-dashboard' %}"
      class="nav-link {% if request.resolver_match.url_name == 'driver-dashboard' %}active{% endif %}">
     Driver View
+  </a>
+
+  <a href="{% url 'logistics:monitor-view' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'monitor-view' %}active{% endif %}">
+    Monitor View
   </a>
 
   <a href="{% url 'sales:sales-tickets' %}" class="nav-link">Tasks</a>
