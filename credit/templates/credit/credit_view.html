@@ -253,15 +253,18 @@
         {# Funder line #}
         <div class="mt-2 small">
           <span class="text-muted">Funder:</span>
-          {% if account.funder %}
-            <strong>{{ account.funder.name }}</strong>
+
+          {% if funder %}
+            <strong>{{ funder.name }}</strong>
             <span class="text-muted">•</span>
-            <span>{{ account.funder.weekly_rate_pct|floatformat:2 }}%/wk</span>
+            <span>{{ funder.weekly_rate_pct|floatformat:2 }}%/wk</span>
             <span class="text-muted">•</span>
-            <span>Bal R{{ account.funder.allocatable_balance|floatformat:2 }}</span>
+            <span>Bal R{{ allocatable_balance|floatformat:2 }}</span>
           {% else %}
             <span class="text-muted">None</span>
           {% endif %}
+        </div>
+
         </div>
       </div>
       <div class="d-flex flex-wrap gap-2">

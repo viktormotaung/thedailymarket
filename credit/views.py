@@ -467,8 +467,11 @@ def credit_client_view(request, client_id):
     # FUNDER — Allocatable Balance (NEW, SAFE ADDITION)
     # ------------------------------------------------------------------
     funder = account.funder
+    allocatable_balance = Decimal("0.00")
 
-    allocatable_balance = funder.allocatable_balance
+    if funder:
+        allocatable_balance = funder.allocatable_balance
+
 
     
 
@@ -500,6 +503,7 @@ def credit_client_view(request, client_id):
             "credit_entries": credit_entries,
 
             # Funder
+            "funder": funder,
             "allocatable_balance": allocatable_balance,
         },
     )
