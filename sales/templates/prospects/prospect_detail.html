@@ -188,22 +188,31 @@
             </div>
           {% endif %}
 
-          <!-- Edit prospect info -->
-          <a href="{% url 'sales:sales-prospect-edit' prospect.id %}"
-             class="btn btn-sm btn-outline-primary mt-2">
+          <!-- Edit prospect info (write action) -->
+          <a href="{% if can_write %}{% url 'sales:sales-prospect-edit' prospect.id %}{% else %}#{% endif %}"
+            class="btn btn-sm btn-outline-primary mt-2 {% if not can_write %}disabled{% endif %}"
+            {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
             Edit info
           </a>
 
-          <!-- Reopen button (header) -->
+          <!-- Reopen button -->
           {% if can_reopen %}
             <form method="post"
                   action="{% url 'sales:sales-prospect-reopen' prospect.id %}"
                   style="display:inline;">
               {% csrf_token %}
-              <button type="submit" class="btn btn-success btn-sm mt-2"
-                      onclick="return confirm('Reopen this prospect and restart the pipeline?');">
+
+              <button type="submit"
+                      class="btn btn-success btn-sm mt-2"
+                      {% if not can_write %}
+                        disabled
+                        title="View-only access"
+                      {% else %}
+                        onclick="return confirm('Reopen this prospect and restart the pipeline?');"
+                      {% endif %}>
                 Reopen prospect
               </button>
+
             </form>
           {% else %}
             <button class="btn btn-secondary btn-sm mt-2" disabled>

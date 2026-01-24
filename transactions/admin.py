@@ -22,10 +22,9 @@ class TransactionAdmin(admin.ModelAdmin):
         "reference",
     )
     list_filter = ("transaction_type", "created_at")
-    date_hierarchy = "created_at"
+    # date_hierarchy = "created_at"  ❌ removed
     ordering = ("-created_at",)
 
-    # Adjust these to match your Client/Invoice search fields
     search_fields = (
         "reference",
         "note",
@@ -51,7 +50,6 @@ class TransactionAdmin(admin.ModelAdmin):
             "fields": ("balance", "created_at"),
         }),
     )
-
 
 # ------------------------
 # Business Balance Admin

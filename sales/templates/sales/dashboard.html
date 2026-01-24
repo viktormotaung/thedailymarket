@@ -97,190 +97,241 @@
         <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
       </form>
     </div>
+
+    <hr class="border-light">
+
+    <a href="#"
+      class="nav-link"
+      data-bs-toggle="modal"
+      data-bs-target="#switchPlatformModal">
+      Switch Platform
+    </a>
   </aside>
 
   <!-- MAIN CONTENT -->
   <main class="content">
-    <!-- Header + Range -->
-    <div class="d-flex flex-column align-items-center text-center gap-2 mb-3">
-      <h2 class="m-0">Sales Dashboard</h2>
-      <div class="btn-group" role="group" aria-label="Range">
-        <a class="btn {% if range == 'today' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=today">Today</a>
-        <a class="btn {% if range == '7d' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=7d">Last 7 days</a>
-        <a class="btn {% if range == 'month' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=month">This month</a>
-      </div>
-    </div>
+    <div class="container-fluid">
 
-    <div class="row g-3">
-      <!-- Target vs Achieved -->
-      <div class="col-xl-6">
-        <div class="card h-100">
-          <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-            <span>Target vs Achieved</span>
-            <span class="badge text-bg-light">
-              Target: R{{ target_amount|default:0|floatformat:2|intcomma }}
-            </span>
+      <!-- ================= HEADER ================= -->
+      <div class="d-flex flex-column align-items-center text-center gap-2 mb-4">
+        <h2 class="m-0">Sales Dashboard</h2>
+        <div class="btn-group">
+          <a class="btn {% if range == 'today' %}btn-success{% else %}btn-outline-success{% endif %}"
+            href="?range=today">
+            Today
+          </a>
+          <a class="btn {% if range == '7d' %}btn-success{% else %}btn-outline-success{% endif %}"
+            href="?range=7d">
+            Last 7 days
+          </a>
+          <a class="btn {% if range == 'month' %}btn-success{% else %}btn-outline-success{% endif %}"
+            href="?range=month">
+            This month
+          </a>
+        </div>
+      </div>
+
+      <!-- ================= KPI STRIP (SALES) ================= -->
+      <div class="row g-3 mb-4">
+
+        <div class="col-md-3">
+          <div class="card p-3 text-center">
+            <div class="text-muted small">New Prospects</div>
+            <div class="fs-5 fw-semibold">
+              {{ prospects_in_range }}
+            </div>
           </div>
-          <div class="card-body">
-            <div class="mb-2 d-flex justify-content-between">
-              <span>Achieved ({{ range_label|default:"Selected period" }}):</span>
-              <strong>R{{ achieved_amount|default:0|floatformat:2|intcomma }}</strong>
+        </div>
+
+        <div class="col-md-3">
+          <div class="card p-3 text-center">
+            <div class="text-muted small">Active Pipeline</div>
+            <div class="fs-5 fw-semibold">
+              {{ prospects_total }}
             </div>
-            <div class="progress mb-2" style="height: 20px;">
-              <div
-                class="progress-bar bg-success"
-                role="progressbar"
-                style="width: {{ target_progress|default:0 }}%;"
-                aria-valuenow="{{ target_progress|default:0 }}"
-                aria-valuemin="0"
-                aria-valuemax="100">
-                {{ target_progress|default:0 }}%
-              </div>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <div class="card p-3 text-center">
+            <div class="text-muted small">Active Clients</div>
+            <div class="fs-5 fw-semibold">
+              {{ active_clients_count }}
             </div>
-            <div class="small text-muted">
-              Deals closed: <strong>{{ deals_closed_count|default:0 }}</strong>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <div class="card p-3 text-center">
+            <div class="text-muted small">Orders Closed</div>
+            <div class="fs-5 fw-semibold">
+              {{ recent_orders|length }}
             </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= SALES TREND ================= -->
+      <div class="card mb-4">
+        <div class="card-header bg-white fw-semibold">
+          Sales Trend · Orders per Day
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap">
+            <canvas id="salesChart"></canvas>
           </div>
         </div>
       </div>
 
-      <!-- Prospect Pipeline -->
-      <div class="col-xl-6">
-        <div class="card h-100">
-          <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-            <span>Prospect Pipeline</span>
-            <span class="badge text-bg-light">
-              Total: {{ prospects_total|default:0 }}
-            </span>
-          </div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-sm mb-0 align-middle">
-                <thead class="table-light">
-                  <tr>
-                    <th>Stage</th>
-                    <th style="width:30%">Count</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for row in pipeline_summary %}
-                    <tr>
-                      <td>{{ row.stage_label }}</td>
-                      <td>{{ row.count|intcomma }}</td>
-                    </tr>
-                  {% empty %}
-                    <tr>
-                      <td colspan="2" class="text-muted p-3">
-                        No prospects in your pipeline for this range.
-                      </td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+      <!-- ================= PIPELINE & CLIENTS ================= -->
+      <div class="row g-3 mb-4">
+
+        <!-- Prospect Pipeline -->
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-header bg-white fw-semibold d-flex justify-content-between">
+              <span>Prospect Pipeline</span>
+              <span class="badge bg-light text-dark">
+                {{ prospects_total }}
+              </span>
             </div>
 
-            {% if recent_prospects %}
-              <div class="border-top small p-2">
-                <div class="fw-semibold mb-1">Recent prospects</div>
-                <ul class="list-unstyled mb-0">
-                  {% for p in recent_prospects %}
-                    <li class="d-flex justify-content-between">
-                      <span>{{ p.name }}</span>
-                      <span class="text-muted">{{ p.stage_label }}</span>
+            <ul class="list-group list-group-flush small">
+              {% for row in pipeline_summary %}
+                <li class="list-group-item d-flex justify-content-between">
+                  <span>{{ row.stage_label }}</span>
+                  <span class="fw-semibold">{{ row.count }}</span>
+                </li>
+              {% empty %}
+                <li class="list-group-item text-muted">
+                  No prospects in pipeline.
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+
+        <!-- Active Clients -->
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-header bg-white fw-semibold">
+              Active Clients · Buying Pattern
+            </div>
+
+            <div class="card-body small">
+              <div class="mb-3">
+                <strong>Top Clients by Spend</strong>
+                <ul class="mb-0">
+                  {% for c in top_clients_by_value %}
+                    <li>
+                      {{ c.client__name }} —
+                      R{{ c.total_spent|floatformat:2|intcomma }}
                     </li>
+                  {% empty %}
+                    <li class="text-muted">No active buyers.</li>
                   {% endfor %}
                 </ul>
               </div>
-            {% endif %}
-          </div>
-        </div>
-      </div>
 
-      <!-- Recent Orders -->
-      <div class="col-xl-6">
-        <div class="card h-100">
-          <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-            <span>Recent Orders</span>
-            <span class="badge text-bg-light">{{ recent_orders|length }} shown</span>
-          </div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-sm table-hover align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th style="width:20%">Time</th>
-                    <th>Client</th>
-                    <th style="width:20%">Total</th>
-                    <th style="width:18%">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                {% for o in recent_orders %}
-                  <tr onclick="location.href='{% url 'sales-orders' %}?order={{ o.id }}'" style="cursor:pointer">
-                    <td>{{ o.created_at|date:"Y-m-d H:i" }}</td>
-                    <td>{{ o.client_name }}</td>
-                    <td>R{{ o.total|floatformat:2|intcomma }}</td>
-                    <td>
-                      <span class="badge text-bg-secondary">{{ o.status|title }}</span>
-                    </td>
-                  </tr>
-                {% empty %}
-                  <tr><td colspan="4" class="text-muted p-3">No orders in this range.</td></tr>
-                {% endfor %}
-                </tbody>
-              </table>
+              <div>
+                <strong>Most Frequent Buyers</strong>
+                <ul class="mb-0">
+                  {% for c in top_clients_by_frequency %}
+                    <li>
+                      {{ c.client__name }} —
+                      {{ c.order_count }} orders
+                    </li>
+                  {% empty %}
+                    <li class="text-muted">No repeat orders yet.</li>
+                  {% endfor %}
+                </ul>
+              </div>
             </div>
           </div>
         </div>
+
       </div>
 
-      <!-- Tasks / Follow-ups -->
-      <div class="col-xl-6">
-        <div class="card h-100">
-          <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-            <span>Tasks &amp; Follow-ups</span>
-            <span class="badge text-bg-light">{{ tasks|length }} shown</span>
-          </div>
-          <ul class="list-group list-group-flush small">
-            {% for t in tasks %}
-              <li class="list-group-item d-flex justify-content-between">
-                <div>
-                  <div class="fw-semibold">{{ t.title }}</div>
-                  {% if t.due_at %}
-                    <div class="text-muted">Due: {{ t.due_at|date:"Y-m-d H:i" }}</div>
-                  {% else %}
-                    <div class="text-muted">Created: {{ t.created_at|date:"Y-m-d H:i" }}</div>
-                  {% endif %}
-                </div>
-                <span class="badge text-bg-{{ t.is_done|yesno:'secondary,success' }}">
-                  {{ t.is_done|yesno:"Done,Open" }}
-                </span>
-              </li>
-            {% empty %}
-              <li class="list-group-item text-muted">No tasks or follow-ups in this range.</li>
-            {% endfor %}
-          </ul>
-          <div class="card-footer text-end">
-            <a href="{% url 'sales:sales-tickets' %}" class="small">View all tasks</a>
-          </div>
-        </div>
-      </div>
+      
 
-      <!-- Sales trend chart -->
-      <div class="col-12">
-        <div class="card">
-          <div class="card-header bg-white fw-semibold">
-            Sales Trend · Current Month (Orders per day)
-          </div>
-          <div class="card-body">
-            <div class="chart-wrap">
-              <canvas id="salesChart"></canvas>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </main>
+
+  <!-- SWITCH PLATFORM MODAL -->
+  <div class="modal fade"
+      id="switchPlatformModal"
+      tabindex="-1"
+      aria-labelledby="switchPlatformModalLabel"
+      aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+
+        <div class="modal-header justify-content-center position-relative">
+          <h5 class="modal-title w-100 text-center" id="switchPlatformModalLabel">
+            Switch Platform
+          </h5>
+          <button type="button"
+                  class="btn-close position-absolute"
+                  style="right:1rem; top:1rem;"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body text-center">
+          <p class="mb-3 text-muted">Choose a platform to continue:</p>
+
+          <div class="d-grid gap-2">
+
+            <!-- Main Staff Portal -->
+            <a
+              href="{% url 'staff-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_staff_portal %} disabled{% endif %}"
+              {% if not can_staff_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Main Staff Portal
+            </a>
+
+            <!-- Funder Portal -->
+            <a
+              href="{% url 'funder-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_lender_portal %} disabled{% endif %}"
+              {% if not can_lender_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Funder Portal
+            </a>
+
+            <!-- Sales Portal -->
+            <a
+              href="{% url 'sales:sales-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_sales_portal %} disabled{% endif %}"
+              {% if not can_sales_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Sales Portal
+            </a>
+
+            <!-- Logistics Portal -->
+            <a
+              href="{% url 'logistics:logistics-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_logistics_portal %} disabled{% endif %}"
+              {% if not can_logistics_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Logistics Portal
+            </a>
+
+          </div>
+        </div>
+
+        <div class="modal-footer justify-content-center border-0">
+          <small class="text-muted">
+            Platforms you don’t have access to are disabled.
+          </small>
+        </div>
+
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -317,3 +368,4 @@
   </script>
 </body>
 </html>
+

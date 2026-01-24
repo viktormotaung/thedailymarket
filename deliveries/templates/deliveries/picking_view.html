@@ -242,122 +242,152 @@
     </div>
   </aside>
 
-  {# ---------- MAIN ---------- #}
   <main class="content">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 action-bar">
-      <div>
-        <h2 class="m-0">{{ batch.name }}</h2>
-        <div class="text-muted">
-          {{ batch.service_date|date:"Y-m-d" }} · Wave {{ batch.wave }}
-          · <span class="badge {% if batch.status == 'complete' %}bg-success{% elif batch.status == 'in_progress' %}bg-primary{% elif batch.status == 'draft' %}bg-secondary{% else %}bg-danger{% endif %} badge-sm">
-            {{ batch.get_status_display }}
-          </span>
-          · {{ items|length }} item{{ items|length|pluralize }} / {{ batch.order_count|default:0 }} order{{ batch.order_count|default:0|pluralize }}
-        </div>
-      </div>
-      <div class="d-flex gap-2">
-        <a href="{% url 'warehouse' %}?view=warehouse" class="btn btn-outline-secondary">Back to Warehouse</a>
 
-        <form method="post" action="{% url 'picking-start' batch.id %}">
-          {% csrf_token %}
-          <button class="btn btn-primary" {% if batch.status != 'draft' %}disabled{% endif %}>Start</button>
-        </form>
-
-        <form method="post" action="{% url 'picking-complete' batch.id %}">
-          {% csrf_token %}
-          <button class="btn btn-success"
-                  {% if batch.status != 'draft' and batch.status != 'in_progress' %}disabled{% endif %}>
-            Complete
-          </button>
-        </form>
+    <!-- ============================= -->
+    <!-- HEADER -->
+    <!-- ============================= -->
+    <div class="mb-4">
+      <h2 class="mb-1">Batch: {{ batch.name }}</h2>
+      <div class="text-muted">
+        Service date: {{ batch.service_date|date:"Y-m-d" }} ·
+        Wave: {{ batch.wave }} ·
+        Status:
+        {% if batch.status == "draft" %}
+          <span class="badge bg-secondary">Draft</span>
+        {% elif batch.status == "in_progress" %}
+          <span class="badge bg-warning text-dark">In Progress</span>
+        {% elif batch.status == "complete" %}
+          <span class="badge bg-success">Complete</span>
+        {% endif %}
       </div>
     </div>
 
-    {% if messages %}
-      <div class="mt-2">
-        {% for message in messages %}
-          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-      </div>
-    {% endif %}
+    <!-- ============================= -->
+    <!-- ACTION BAR -->
+    <!-- ============================= -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
 
-    <div class="card mt-2">
-      <div class="card-header bg-white">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <strong>Picking Lines</strong>
-          <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="markAllPicked(true)">Mark all picked</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="markAllPicked(false)">Unmark all</button>
-          </div>
+      <a href="{% url 'warehouse' %}"
+        class="btn btn-outline-secondary btn-sm">
+        ← Back to Batches
+      </a>
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+
+          
+
+        <div class="d-flex gap-2">
+
+          <!-- CONSOLIDATION (write action) -->
+          <a href="{% if can_write and batch.status != 'complete' %}
+                      {% url 'warehouse-batch-consolidation' batch.id %}
+                    {% else %}
+                      #
+                    {% endif %}"
+            class="btn btn-sm
+                    {% if not can_write or batch.status == 'complete' %}
+                      btn-outline-secondary disabled
+                    {% else %}
+                      btn-outline-primary
+                    {% endif %}"
+            {% if not can_write or batch.status == 'complete' %}
+                aria-disabled="true"
+                title="{% if not can_write %}View-only access{% else %}Batch is complete{% endif %}"
+            {% endif %}>
+            Consolidation
+          </a>
+
+          <!-- REOPEN BATCH (write + destructive) -->
+          {% if batch.status == "complete" %}
+            <form method="post" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="reopen_batch">
+
+              <button type="submit"
+                      class="btn btn-outline-danger btn-sm"
+                      {% if not can_write %}
+                        disabled
+                        title="View-only access"
+                      {% else %}
+                        onclick="return confirm('Reopen this batch?');"
+                      {% endif %}>
+                Reopen Batch
+              </button>
+            </form>
+          {% endif %}
+
         </div>
       </div>
 
-      <form method="post" id="linesForm">
-        {% csrf_token %}
-        <div class="table-responsive">
-          <table class="table table-striped table-bordered align-middle mb-0">
-            <thead>
+
+    </div>
+
+    <!-- ============================= -->
+    <!-- PICKING ITEMS -->
+    <!-- ============================= -->
+    <div class="card">
+      <div class="card-body p-0">
+
+          <div class="table-responsive">
+          <table class="table table-striped mb-0">
+              <thead class="table-light">
               <tr>
-                <th style="width:10%">Order #</th>
-                <th style="width:34%">Product</th>
-                <th style="width:12%">Expected</th>
-                <th style="width:14%">Picked Qty</th>
-                <th style="width:10%">Picked?</th>
-                <th style="width:20%">Notes</th>
+                  <th>Order</th>
+                  <th>Product</th>
+                  <th>Supplier</th>
+                  <th>Expected</th>
+                  <th>Picked</th>
+                  <th>Status</th>
               </tr>
-            </thead>
-            <tbody>
-              {% for it in items %}
-                <tr>
+              </thead>
+              <tbody>
+
+              {% for item in items %}
+                  <tr class="{% if batch.status == 'complete' %}disabled-row{% endif %}">
+                  <td>#{{ item.order_id }}</td>
+
+                  <td>{{ item.product_name }}</td>
+
+                  <!-- ✅ READ-ONLY SUPPLIER -->
                   <td>
-                    <a href="{% url 'order-view' it.order_id %}" target="_blank">#{{ it.order_id }}</a>
+                      {% if item.supplier %}
+                      <span class="fw-medium">{{ item.supplier.name }}</span>
+                      {% else %}
+                      <span class="text-muted">—</span>
+                      {% endif %}
                   </td>
+
+                  <td>{{ item.expected_qty }}</td>
+
+                  <td>{{ item.picked_qty }}</td>
+
                   <td>
-                    {{ it.product_name }}
-                    {% if it.sku %}<div class="text-muted small">{{ it.sku }}</div>{% endif %}
-                    {% if it.uom %}<div class="badge bg-light text-dark border small mt-1">{{ it.uom }}</div>{% endif %}
+                      {% if item.is_picked %}
+                      <span class="badge bg-success">Picked</span>
+                      {% else %}
+                      <span class="badge bg-secondary">Pending</span>
+                      {% endif %}
                   </td>
-                  <td>{{ it.expected_qty|floatformat:2 }}</td>
-                  <td style="max-width:140px;">
-                    <input name="qty_{{ it.id }}" type="number" step="0.01" min="0"
-                           class="form-control form-control-sm"
-                           value="{{ it.picked_qty|default:it.expected_qty }}">
-                  </td>
-                  <td class="text-center">
-                    <input name="picked_{{ it.id }}" type="checkbox" {% if it.is_picked %}checked{% endif %}>
-                  </td>
-                  <td>
-                    <input name="note_{{ it.id }}" type="text" class="form-control form-control-sm"
-                           value="{{ it.notes }}">
-                  </td>
-                </tr>
+
+                  
+                  </tr>
               {% empty %}
-                <tr><td colspan="6" class="text-center text-muted">No lines in this batch.</td></tr>
+                  <tr>
+                  <td colspan="7" class="text-center text-muted py-4">
+                      No items in this batch.
+                  </td>
+                  </tr>
               {% endfor %}
-            </tbody>
+
+              </tbody>
           </table>
-        </div>
+          </div>
 
-        <div class="p-3 border-top d-flex justify-content-end gap-2">
-          <a href="{% url 'warehouse' %}?view=warehouse" class="btn btn-outline-secondary">Cancel</a>
-          <button class="btn btn-secondary">Save Lines</button>
-        </div>
-      </form>
-    </div>
+      </div>
+      </div>
 
-    <div class="alert alert-info mt-3">
-      Completing a batch hands it off to a Delivery Run for the mapped delivery date (Mon/Wed/Fri policy).
-    </div>
+
   </main>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    function markAllPicked(flag){
-      const form = document.getElementById('linesForm');
-      if(!form) return;
-      const checks = form.querySelectorAll('input[type="checkbox"][name^="picked_"]');
-      checks.forEach(c => { c.checked = !!flag; });
-    }
-  </script>
 </body>
 </html>

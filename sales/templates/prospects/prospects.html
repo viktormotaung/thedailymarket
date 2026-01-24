@@ -133,7 +133,9 @@
         <h2 class="mb-0">Prospects</h2>
 
         <div class="header-actions">
-          <a href="{% url 'sales:sales-prospect-create' %}" class="btn btn-success">
+          <a href="{% if can_write %}{% url 'sales:sales-prospect-create' %}{% else %}#{% endif %}"
+            class="btn btn-success {% if not can_write %}disabled{% endif %}"
+            {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
             Add Prospect
           </a>
         </div>

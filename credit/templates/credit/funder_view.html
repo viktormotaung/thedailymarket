@@ -1,0 +1,828 @@
+{% load humanize %}
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Funders · The Daily Market</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+
+  <style>
+    :root{
+      --sidebar-w: 220px;
+      --mobile-nav-h: 56px;
+      --brand-green: #0b5c39;
+      --content-bg: #f8f9fa;
+    }
+    /* Centered page container (used by Transactions) */
+    .page-container {
+    max-width: 1200px;   /* matches your Transactions page visually */
+    margin: 0 auto;
+    }
+
+    .content { background: var(--content-bg); padding:20px; }
+
+
+
+
+    html, body { height: 100%; }
+
+    /* Sidebar skin */
+    .sidebar-skin{
+      background-color: var(--brand-green);
+      color:#fff;
+      padding:1rem;
+    }
+
+    .sidebar-skin .nav-link{
+      color:#fff;
+      margin:.25rem 0;
+      display:block;
+    }
+
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover{
+      background: rgba(255,255,255,0.15);
+      border-radius:4px;
+      padding-left:8px;
+    }
+
+    .sidebar-skin .nav-link.ps-4{
+      font-size:.95rem;
+      opacity:.95;
+    }
+
+    .logo-img{
+      max-height:80px;
+      width:auto;
+    }
+
+    
+    /* Desktop */
+    @media (min-width: 992px){
+      html, body{ overflow:hidden; }
+
+      .sidebar-desktop{
+        position:fixed;
+        top:0;
+        left:0;
+        bottom:0;
+        width:var(--sidebar-w);
+        overflow-y:auto;
+        z-index:1020;
+      }
+
+      .content{
+        margin-left:var(--sidebar-w);
+        height:100vh;
+        overflow-y:auto;
+        -webkit-overflow-scrolling:touch;
+      }
+    }
+
+    /* Mobile */
+    @media (max-width: 991.98px){
+      html, body{ overflow:hidden; }
+
+      .navbar.d-lg-none{
+        position:fixed;
+        top:0;
+        left:0;
+        right:0;
+        z-index:1040;
+      }
+
+      .content{
+        margin-top:var(--mobile-nav-h);
+        height:calc(100vh - var(--mobile-nav-h));
+        overflow-y:auto;
+        -webkit-overflow-scrolling:touch;
+      }
+    }
+  </style>
+</head>
+
+<body>
+    {% with current=request.resolver_match.url_name %}
+
+    <!-- ================= MOBILE TOP BAR ================= -->
+    <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+        <button class="navbar-toggler" type="button"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#mobileMenu">
+        <span class="navbar-toggler-icon"></span>
+        </button>
+        <img src="{% static 'images/logo.png' %}" style="height:40px;">
+    </div>
+    </nav>
+
+    <!-- ================= MOBILE SIDEBAR ================= -->
+    <div class="offcanvas offcanvas-start d-lg-none sidebar-skin" id="mobileMenu">
+    <div class="offcanvas-header">
+        <h5>Staff Navigation</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+
+    <div class="offcanvas-body" id="mobileAccordion">
+
+        <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" class="logo-img">
+        </div>
+
+        <a href="{% url 'staff-dashboard' %}" class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="{% url 'staff-clients' %}" class="nav-link {% if current in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+
+        <!-- ================= SALES ================= -->
+        <div class="mb-2">
+            <a class="nav-link d-flex justify-content-between"
+            data-bs-toggle="collapse"
+            href="#salesMenuMobile"
+            aria-expanded="{% if current == 'staff-orders' or current == 'staff-invoices' %}true{% else %}false{% endif %}">
+            <span>Sales</span>
+            </a>
+
+            <div class="collapse {% if current == 'staff-orders' or current == 'staff-invoices' %}show{% endif %}"
+                id="salesMenuMobile"
+                data-bs-parent="#mobileAccordion">
+            <a href="{% url 'staff-orders' %}"
+                class="nav-link ps-4 {% if current == 'staff-orders' %}active{% endif %}">
+                Orders
+            </a>
+            <a href="{% url 'staff-invoices' %}"
+                class="nav-link ps-4 {% if current == 'staff-invoices' %}active{% endif %}">
+                Invoices
+            </a>
+            </div>
+        </div>
+
+        <div class="mb-2">
+        <a class="nav-link" data-bs-toggle="collapse" href="#financeMobile"
+            aria-expanded="{% if current in 'staff-transactions staff-credit funder-list' %}true{% endif %}">
+            Finance
+        </a>
+        <div class="collapse {% if current in 'staff-transactions staff-credit funder-list' %}show{% endif %}" id="financeMobile">
+            <a href="{% url 'staff-transactions' %}" class="nav-link ps-4">Transactions</a>
+            <a href="{% url 'staff-credit' %}" class="nav-link ps-4">Credit</a>
+            <a href="{% url 'funder-list' %}" class="nav-link ps-4 active">Funders</a>
+        </div>
+        </div>
+
+        
+
+        <!-- ================= LOGISTICS (FIXED) ================= -->
+        <div class="mb-2">
+            <a class="nav-link d-flex justify-content-between"
+            data-bs-toggle="collapse"
+            href="#logisticsMenuMobile"
+            aria-expanded="{% if current == 'warehouse' or current == 'delivery' or current == 'monitor' %}true{% else %}false{% endif %}">
+            <span>Logistics</span>
+            </a>
+
+            <div class="collapse {% if current == 'warehouse' or current == 'delivery' or current == 'monitor' %}show{% endif %}"
+                id="logisticsMenuMobile"
+                data-bs-parent="#mobileAccordion">
+            <a href="{% url 'warehouse' %}?view=warehouse"
+                class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">
+                Warehouse
+            </a>
+            <a href="{% url 'delivery' %}?view=runs"
+                class="nav-link ps-4 {% if current == 'delivery' %}active{% endif %}">
+                Deliveries
+            </a>
+            <a href="{% url 'monitor' %}?view=table"
+                class="nav-link ps-4 {% if current == 'monitor' %}active{% endif %}">
+                Monitor View
+            </a>
+            </div>
+        </div>
+
+        <!-- ================= SUPPLY CHAIN ================= -->
+        <div class="mb-2">
+            <a class="nav-link d-flex justify-content-between"
+            data-bs-toggle="collapse"
+            href="#supplyChainMenuMobile"
+            aria-expanded="{% if current == 'staff-suppliers' or current == 'staff-products' %}true{% else %}false{% endif %}">
+            <span>Supply Chain</span>
+            </a>
+
+            <div class="collapse {% if current == 'staff-suppliers' or current == 'staff-products' %}show{% endif %}"
+                id="supplyChainMenuMobile"
+                data-bs-parent="#mobileAccordion">
+            <a href="{% url 'staff-suppliers' %}"
+                class="nav-link ps-4 {% if current == 'staff-suppliers' %}active{% endif %}">
+                Suppliers
+            </a>
+            <a href="{% url 'staff-products' %}"
+                class="nav-link ps-4 {% if current == 'staff-products' %}active{% endif %}">
+                Products
+            </a>
+            </div>
+        </div>
+
+        <!-- ================= PROFILES ================= -->
+        <div class="mb-2">
+            <a class="nav-link d-flex justify-content-between"
+            data-bs-toggle="collapse"
+            href="#profilesMenuMobile"
+            aria-expanded="{% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}true{% else %}false{% endif %}">
+            <span>Profiles</span>
+            </a>
+
+            <div class="collapse {% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}show{% endif %}"
+                id="profilesMenuMobile"
+                data-bs-parent="#mobileAccordion">
+            <a href="{% url 'my_profile' %}"
+                class="nav-link ps-4 {% if current == 'my_profile' %}active{% endif %}">
+                My Profile
+            </a>
+            <a href="{% url 'staff_profile' %}"
+                class="nav-link ps-4 {% if current == 'staff_profile' %}active{% endif %}">
+                Staff
+            </a>
+            <a href="{% url 'customer_profile' %}"
+                class="nav-link ps-4 {% if current == 'customer_profile' %}active{% endif %}">
+                Customer
+            </a>
+            </div>
+        </div>
+
+        <!-- ================= SUPPORT ================= -->
+        <div class="mb-2">
+            <a class="nav-link d-flex justify-content-between"
+            data-bs-toggle="collapse"
+            href="#supportMenuMobile"
+            aria-expanded="{% if current == 'tasks' %}true{% else %}false{% endif %}">
+            <span>Support</span>
+            </a>
+
+            <div class="collapse {% if current == 'tasks' %}show{% endif %}"
+                id="supportMenuMobile"
+                data-bs-parent="#mobileAccordion">
+            <a href="{% url 'tasks' %}"
+                class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
+                Tasks
+            </a>
+            <a class="nav-link ps-4 text-muted disabled">Tickets</a>
+            </div>
+        </div>
+
+        <hr class="border-light">
+
+        <!-- ================= SIGN OUT ================= -->
+        <form action="{% url 'logout' %}" method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-light w-100">Sign out</button>
+        </form>
+    </div>
+    </div>
+
+
+    <!-- ================= DESKTOP SIDEBAR ================= -->
+    <aside class="sidebar-desktop d-none d-lg-block sidebar-skin"
+       id="desktopAccordion">
+
+    <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" class="logo-img">
+    </div>
+
+    <a href="{% url 'staff-dashboard' %}" class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'staff-clients' %}" class="nav-link">Clients</a>
+
+    <!-- ================= SALES ================= -->
+        <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+            data-bs-toggle="collapse"
+            href="#salesMenuDesktop"
+            aria-expanded="{% if current == 'staff-orders' or current == 'staff-invoices' %}true{% else %}false{% endif %}">
+            <span>Sales</span>
+        </a>
+
+        <div class="collapse {% if current == 'staff-orders' or current == 'staff-invoices' %}show{% endif %}"
+            id="salesMenuDesktop"
+            data-bs-parent="#desktopAccordion">
+            <a href="{% url 'staff-orders' %}"
+            class="nav-link ps-4 {% if current == 'staff-orders' %}active{% endif %}">
+            Orders
+            </a>
+            <a href="{% url 'staff-invoices' %}"
+            class="nav-link ps-4 {% if current == 'staff-invoices' %}active{% endif %}">
+            Invoices
+            </a>
+        </div>
+        </div>
+
+    <div class="mb-2">
+        <a class="nav-link" data-bs-toggle="collapse" href="#financeDesktop"
+        aria-expanded="{% if current in 'staff-transactions staff-credit funder-list' %}true{% endif %}">
+        Finance
+        </a>
+        <div class="collapse {% if current in 'staff-transactions staff-credit funder-list' %}show{% endif %}" id="financeDesktop">
+        <a href="{% url 'staff-transactions' %}" class="nav-link ps-4">Transactions</a>
+        <a href="{% url 'staff-credit' %}" class="nav-link ps-4">Credit</a>
+        <a href="{% url 'funder-list' %}" class="nav-link ps-4 active">Funders</a>
+        </div>
+    </div>
+
+    <!-- ================= LOGISTICS (FIXED) ================= -->
+        <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+            data-bs-toggle="collapse"
+            href="#logisticsMenuDesktop"
+            aria-expanded="{% if current == 'warehouse' or current == 'delivery' or current == 'monitor' %}true{% else %}false{% endif %}">
+            <span>Logistics</span>
+        </a>
+
+        <div class="collapse {% if current == 'warehouse' or current == 'delivery' or current == 'monitor' %}show{% endif %}"
+            id="logisticsMenuDesktop"
+            data-bs-parent="#desktopAccordion">
+            <a href="{% url 'warehouse' %}?view=warehouse"
+            class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">
+            Warehouse
+            </a>
+            <a href="{% url 'delivery' %}?view=runs"
+            class="nav-link ps-4 {% if current == 'delivery' %}active{% endif %}">
+            Deliveries
+            </a>
+            <a href="{% url 'monitor' %}?view=table"
+            class="nav-link ps-4 {% if current == 'monitor' %}active{% endif %}">
+            Monitor View
+            </a>
+        </div>
+        </div>
+
+        <!-- ================= SUPPLY CHAIN ================= -->
+        <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+            data-bs-toggle="collapse"
+            href="#supplyChainMenuDesktop"
+            aria-expanded="{% if current == 'staff-suppliers' or current == 'staff-products' %}true{% else %}false{% endif %}">
+            <span>Supply Chain</span>
+        </a>
+
+        <div class="collapse {% if current == 'staff-suppliers' or current == 'staff-products' %}show{% endif %}"
+            id="supplyChainMenuDesktop"
+            data-bs-parent="#desktopAccordion">
+            <a href="{% url 'staff-suppliers' %}"
+            class="nav-link ps-4 {% if current == 'staff-suppliers' %}active{% endif %}">
+            Suppliers
+            </a>
+            <a href="{% url 'staff-products' %}"
+            class="nav-link ps-4 {% if current == 'staff-products' %}active{% endif %}">
+            Products
+            </a>
+        </div>
+        </div>
+
+        <!-- ================= PROFILES ================= -->
+        <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+            data-bs-toggle="collapse"
+            href="#profilesMenuDesktop"
+            aria-expanded="{% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}true{% else %}false{% endif %}">
+            <span>Profiles</span>
+        </a>
+
+        <div class="collapse {% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}show{% endif %}"
+            id="profilesMenuDesktop"
+            data-bs-parent="#desktopAccordion">
+            <a href="{% url 'my_profile' %}"
+            class="nav-link ps-4 {% if current == 'my_profile' %}active{% endif %}">
+            My Profile
+            </a>
+            <a href="{% url 'staff_profile' %}"
+            class="nav-link ps-4 {% if current == 'staff_profile' %}active{% endif %}">
+            Staff
+            </a>
+            <a href="{% url 'customer_profile' %}"
+            class="nav-link ps-4 {% if current == 'customer_profile' %}active{% endif %}">
+            Customer
+            </a>
+        </div>
+        </div>
+
+        <!-- ================= SUPPORT ================= -->
+        <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+            data-bs-toggle="collapse"
+            href="#supportMenuDesktop"
+            aria-expanded="{% if current == 'tasks' %}true{% else %}false{% endif %}">
+            <span>Support</span>
+        </a>
+
+        <div class="collapse {% if current == 'tasks' %}show{% endif %}"
+            id="supportMenuDesktop"
+            data-bs-parent="#desktopAccordion">
+            <a href="{% url 'tasks' %}"
+            class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
+            Tasks
+            </a>
+            <a class="nav-link ps-4 text-muted disabled">Tickets</a>
+        </div>
+        </div>
+
+        <!-- ================= SIGN OUT ================= -->
+        <div class="mt-3">
+        <form action="{% url 'logout' %}" method="post">
+            {% csrf_token %}
+            <button type="submit"
+                    class="nav-link btn btn-link text-start w-100 p-0 text-white">
+            Sign out
+            </button>
+        </form>
+        </div>
+    </aside>
+
+    {% endwith %}
+
+    <main class="content py-4">
+        <div class="container">
+
+            <!-- HEADER -->
+            <div class="d-flex justify-content-between align-items-start mb-4">
+
+            <div>
+                <h2 class="fw-semibold mb-1">{{ funder.name }}</h2>
+                <div class="text-muted">
+                    Weekly rate: {{ funder.weekly_rate_pct }}% ·
+                    Duration: {{ duration_display }} active
+                </div>
+            </div>
+
+
+
+            <!-- Actions -->
+            <div class="d-flex gap-2">
+                <button
+                    type="button"
+                    class="btn btn-outline-primary btn-sm"
+                    disabled
+                    title="Edit funder details (coming soon)"
+                >
+                    <i class="bi bi-pencil"></i> Edit Funder
+                </button>
+
+                <button
+                    type="button"
+                    class="btn btn-outline-success btn-sm"
+                    disabled
+                    title="Top up or withdraw funds (coming soon)"
+                >
+                    <i class="bi bi-wallet2"></i> Update Funds
+                </button>
+
+                <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    disabled
+                    title="Email fund performance report (coming soon)"
+                >
+                    <i class="bi bi-envelope-paper"></i> Email Report
+                </button>
+            </div>
+
+
+            </div>
+
+            <!-- KPI ROW -->
+            <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card p-3">
+                <div class="text-muted">Balance</div>
+                <div class="fs-4 fw-semibold">
+                    R{{ funder.balance|floatformat:2|intcomma }}
+                </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card p-3">
+                <div class="text-muted">Allocated</div>
+                <div class="fs-4 fw-semibold">
+                    R{{ total_allocated|floatformat:2|intcomma }}
+                </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card p-3">
+                <div class="text-muted">Available</div>
+                <div class="fs-4 fw-semibold text-success">
+                    R{{ available|floatformat:2|intcomma }}
+                </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card p-3">
+                <div class="text-muted">Weekly Rate</div>
+                <div class="fs-4 fw-semibold">
+                    {{ funder.weekly_rate_pct }}%
+                </div>
+                </div>
+            </div>
+            </div>
+
+            <!-- OVERALL FUND PERFORMANCE -->
+            <div class="row g-3 mb-4">
+
+            <div class="col-md-3">
+                <div class="card p-3 h-100">
+                <div class="text-muted small">Overall Funded</div>
+                <div class="fs-4 fw-semibold">
+                    R{{ overall_funded|floatformat:2|intcomma }}
+                </div>
+                <div class="small text-muted">
+                    Total capital injected
+                </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card p-3 h-100">
+                <div class="text-muted small">Overall Allocation</div>
+                <div class="fs-4 fw-semibold">
+                    R{{ total_allocated|floatformat:2|intcomma }}
+                </div>
+                <div class="small text-muted">
+                    Capital deployed to clients
+                </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card p-3 h-100">
+                <div class="text-muted small">Overall Returns</div>
+                <div class="fs-4 fw-semibold text-success">
+                    R{{ overall_returns|floatformat:2|intcomma }}
+                </div>
+                <div class="small text-muted">
+                    Earned to date
+                </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card p-3 h-100 border-success">
+                <div class="text-muted small">Overall Return (%)</div>
+                <div class="fs-4 fw-semibold text-success">
+                    {{ overall_return_pct|floatformat:2 }}%
+                </div>
+                <div class="small text-muted">
+                    Return on total funded capital
+                </div>
+                </div>
+            </div>
+
+            </div>
+
+
+            <!-- TABS -->
+            <ul class="nav nav-tabs mb-4" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#allocations">
+                Allocations
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#movements">
+                Movements
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#members">
+                Members
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#weekly">
+                Weekly Performance
+                </button>
+            </li>
+            </ul>
+
+
+            <div class="tab-content">
+
+            <!-- ALLOCATIONS TAB -->
+            <div class="tab-pane fade show active" id="allocations">
+                <!-- ALLOCATIONS -->
+                <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">
+                    Client Allocations
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                        <th>Client</th>
+                        <th class="text-end">Amount (R)</th>
+                        <th class="text-end">Allocated At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in allocations %}
+                        <tr>
+                        <td>{{ a.client.name }}</td>
+                        <td class="text-end">
+                            R{{ a.amount|floatformat:2|intcomma }}
+                        </td>
+                        <td class="text-end text-muted small">
+                            {{ a.created_at|date:"Y-m-d" }}
+                        </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                        <td colspan="3" class="text-center text-muted py-3">
+                            No allocations yet.
+                        </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    </table>
+                </div>
+                </div>
+
+            </div>
+
+            <!-- MOVEMENTS TAB -->
+            <div class="tab-pane fade" id="movements">
+                <!-- MOVEMENTS -->
+                <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">
+                    Fund Movements
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th class="text-end">Amount (R)</th>
+                        <th>Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in movements %}
+                        <tr>
+                        <td class="small text-muted">
+                            {{ m.created_at|date:"Y-m-d H:i" }}
+                        </td>
+                        <td>
+                            <span class="badge
+                            {% if m.kind == 'topup' %}bg-success
+                            {% elif m.kind == 'payout' %}bg-danger
+                            {% else %}bg-secondary{% endif %}">
+                            {{ m.get_kind_display }}
+                            </span>
+                        </td>
+                        <td class="text-end fw-semibold">
+                            {% if m.kind == 'payout' %}-{% endif %}
+                            R{{ m.amount|floatformat:2|intcomma }}
+                        </td>
+                        <td class="text-muted small">
+                            {{ m.reference|default:"—" }}
+                        </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                        <td colspan="4" class="text-center text-muted py-3">
+                            No movements recorded.
+                        </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    </table>
+                </div>
+                </div>
+
+            </div>
+
+            <!-- MEMBERS TAB -->
+            <div class="tab-pane fade" id="members">
+                <!-- MEMBERS -->
+                <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">
+                    Funder Members
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th class="text-end">Added</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in members %}
+                        <tr>
+                        <td>{{ m.user.get_full_name|default:m.user.username }}</td>
+                        <td>
+                            <span class="badge bg-secondary">
+                            {{ m.get_role_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if m.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end text-muted small">
+                            {{ m.created_at|date:"Y-m-d" }}
+                        </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                        <td colspan="4" class="text-center text-muted py-3">
+                            No members assigned.
+                        </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    </table>
+                </div>
+                </div>
+
+            </div>
+
+            
+            <!-- WEEKLY PERFORMANCE -->
+            <div class="tab-pane fade" id="weekly">
+
+            <div class="card shadow-sm">
+                <div class="card-header fw-semibold">
+                Weekly Funder Performance
+                </div>
+
+                <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th>Week Start</th>
+                        <th class="text-end">Utilization (R)</th>
+                        <th class="text-end">Rate (%)</th>
+                        <th class="text-end">Weekly Return (R)</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+
+                    {% for w in week_summaries %}
+                    <tr>
+                        <td class="fw-semibold">
+                        {{ w.week_start }}
+                        </td>
+
+                        <td class="text-end">
+                        R{{ w.visible_utilization_total|floatformat:2|intcomma }}
+                        </td>
+
+                        <td class="text-end">
+                        {{ w.weekly_rate_pct_snapshot|floatformat:2 }}%
+                        </td>
+
+                        <td class="text-end fw-semibold text-success">
+                        R{{ w.weekly_return|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-3">
+                        No weekly summaries available.
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    </tbody>
+                </table>
+                </div>
+
+                <div class="card-footer small text-muted">
+                Weekly returns are calculated from capped client utilization.
+                </div>
+
+            </div>
+
+            </div>
+
+
+            </div>
+
+            </div>
+
+        </div>
+        </main>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

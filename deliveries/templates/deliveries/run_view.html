@@ -213,199 +213,254 @@
 
   {# ---------- MAIN ---------- #}
   <main class="content">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 action-bar">
-      <div>
-        <h2 class="m-0">{{ run.name|default:"Run" }}</h2>
-        <div class="text-muted">
-          {{ run.service_date|date:"Y-m-d" }}
-          · <span class="badge
-              {% if run.status == 'complete' %}bg-success
-              {% elif run.status == 'en_route' %}bg-primary
-              {% elif run.status == 'paused' %}bg-warning text-dark
-              {% elif run.status == 'planned' %}bg-info
-              {% elif run.status == 'draft' %}bg-secondary
-              {% else %}bg-danger{% endif %} badge-sm">
+
+    <!-- ============================= -->
+    <!-- HEADER -->
+    <!-- ============================= -->
+    <div class="mb-4">
+      <h2 class="mb-1">Delivery Run</h2>
+
+      <div class="text-muted">
+        {{ run.service_date }} ·
+        {{ run.name|default:"Unnamed Run" }} ·
+
+        {% if run.status == "planned" %}
+          <span class="badge bg-secondary">Planned</span>
+        {% elif run.status == "en_route" %}
+          <span class="badge bg-primary">En Route</span>
+        {% elif run.status == "complete" %}
+          <span class="badge bg-success">Complete</span>
+        {% elif run.status == "cancelled" %}
+          <span class="badge bg-danger">Cancelled</span>
+        {% else %}
+          <span class="badge bg-light text-dark">
             {{ run.get_status_display }}
           </span>
-          {% if run.driver_id or run.driver_name %}
-            · Driver: {{ run.driver.get_username|default_if_none:"" }}{{ run.driver_name }}
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ============================= -->
+    <!-- ACTION BAR -->
+    <!-- ============================= -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <a href="{% url 'runs-list' %}"
+        class="btn btn-outline-secondary btn-sm">
+        ← Back to Delivery Runs
+      </a>
+
+      {% if run.status in "draft planned" %}
+        <form method="post"
+              action="{% url 'delivery-run-auto-plan' run.id %}"
+              class="d-inline">
+          {% csrf_token %}
+
+          {% if not run.driver or not run.vehicle %}
+            <button class="btn btn-sm btn-secondary"
+                    disabled
+                    title="Assign both a driver and a vehicle to generate a route">
+              Generate Route Suggestion
+            </button>
+          {% else %}
+            <button class="btn btn-sm btn-primary">
+              Generate Route Suggestion
+            </button>
           {% endif %}
-          {% if run.vehicle_label %} · Vehicle: {{ run.vehicle_label }}{% endif %}
-          {% if run.has_depot_geo %} · Depot: {{ run.depot_label|default:"Depot" }}{% endif %}
-          {% if run.start_time %} · Start: {{ run.start_time|time:"H:i" }}{% endif %}
-        </div>
-      </div>
 
-      <div class="d-flex flex-wrap gap-2">
-        <a href="{% url 'delivery' %}?view=runs" class="btn btn-outline-secondary">Back to Runs</a>
-
-        <form method="post" action="{% url 'run-start' run.id %}">
-          {% csrf_token %}
-          <button class="btn btn-outline-primary"
-                  {% if run.status != 'planned' and run.status != 'paused' %}disabled{% endif %}>
-            Start
-          </button>
         </form>
+      {% endif %}
 
-        <form method="post" action="{% url 'run-pause' run.id %}">
-          {% csrf_token %}
-          <button class="btn btn-outline-warning" {% if run.status != 'en_route' %}disabled{% endif %}>Pause</button>
-        </form>
+    </div>
 
-        <form method="post" action="{% url 'run-complete' run.id %}">
-          {% csrf_token %}
-          <button class="btn btn-outline-success"
-                  {% if run.status != 'en_route' and run.status != 'planned' %}disabled{% endif %}>
-            Complete
-          </button>
-        </form>
+      {% if messages %}
+          <div class="mb-3">
+              {% for message in messages %}
+              <div class="alert alert-{{ message.tags }}">
+                  {{ message }}
+              </div>
+              {% endfor %}
+          </div>
+      {% endif %}
 
-        <form method="post" action="{% url 'run-recalc' run.id %}">
+
+    <!-- ============================= -->
+    <!-- RUN SUMMARY -->
+    <!-- ============================= -->
+    <div class="card mb-4 shadow-sm">
+      <div class="card-body">
+
+        <!-- ===================== -->
+        <!-- FORM START (IMPORTANT) -->
+        <!-- ===================== -->
+        <form method="post">
           {% csrf_token %}
-          <button class="btn btn-outline-secondary">Recalc</button>
+
+          <div class="row g-4 align-items-end">
+
+            <!-- ===================== -->
+            <!-- ASSIGNMENTS -->
+            <!-- ===================== -->
+            <div class="col-lg-7">
+              <h6 class="text-uppercase text-muted mb-3">
+                Assignment
+              </h6>
+
+              <div class="row g-3">
+
+                <!-- Driver -->
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">
+                    Driver
+                  </label>
+                  {{ form.driver }}
+                </div>
+
+                <!-- Vehicle -->
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">
+                    Vehicle
+                  </label>
+                  {{ form.vehicle }}
+                </div>
+
+              </div>
+            </div>
+
+            <!-- ===================== -->
+            <!-- RUN STATS -->
+            <!-- ===================== -->
+            <div class="col-lg-5">
+              <h6 class="text-uppercase text-muted mb-3">
+                Run Summary
+              </h6>
+
+              <div class="row text-center g-3">
+
+                <div class="col-4">
+                  <div class="border rounded py-3 bg-light">
+                    <div class="text-muted small">Stops</div>
+                    <strong class="fs-5">
+                      {{ run.stop_count }}
+                    </strong>
+                  </div>
+                </div>
+
+                <div class="col-4">
+                  <div class="border rounded py-3 bg-light">
+                    <div class="text-muted small">Distance</div>
+                    <strong class="fs-6">
+                      {{ run.total_distance_km|default:"—" }} km
+                    </strong>
+                  </div>
+                </div>
+
+                <div class="col-4">
+                  <div class="border rounded py-3 bg-light">
+                    <div class="text-muted small">Drive Time</div>
+                    <strong class="fs-6">
+                      {{ run.total_drive_min|default:"—" }} min
+                    </strong>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ===================== -->
+          <!-- SAVE ACTION -->
+          <!-- ===================== -->
+          <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+            <button
+              type="submit"
+              class="btn btn-success px-4 py-2"
+              {% if not can_write %}
+                disabled
+                title="View-only access"
+              {% endif %}
+            >
+              Save
+            </button>
+          </div>
+
         </form>
+        <!-- ===================== -->
+        <!-- FORM END -->
+        <!-- ===================== -->
+
       </div>
     </div>
 
-    {% if messages %}
-      <div class="mt-2">
-        {% for message in messages %}
-          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
+
+
+    <!-- ============================= -->
+    <!-- DELIVERY STOPS -->
+    <!-- ============================= -->
+    <div class="card">
+      <div class="card-header">
+        <strong>Delivery Stops</strong>
       </div>
-    {% endif %}
 
-    <div class="row g-3">
-      <div class="col-12 col-xl-8">
-        <div class="card">
-          <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <strong>Stops ({{ run.stop_count|default:0 }})</strong>
-            <span class="text-muted small">
-              Distance: {% if run.total_distance_km %}{{ run.total_distance_km|floatformat:2 }} km{% else %}—{% endif %}
-              · Drive: {% if run.total_drive_min %}{{ run.total_drive_min|intcomma }} min{% else %}—{% endif %}
-            </span>
-          </div>
+      <div class="table-responsive">
+        <table class="table table-striped mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 60px;">#</th>
+              <th>Customer</th>
+              <th>Address</th>
+              <th>Estimated Min</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
 
-          <div class="table-responsive">
-            <table class="table table-striped table-bordered align-middle mb-0">
-              <thead>
-                <tr>
-                  <th style="width:8%">#</th>
-                  <th style="width:16%">Order</th>
-                  <th style="width:20%">Customer</th>
-                  <th style="width:26%">Address</th>
-                  <th style="width:10%">Status</th>
-                  <th style="width:10%">ETA</th>
-                  <th style="width:10%">Leg</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for s in stops %}
-                  <tr>
-                    <td>{{ s.sequence|default:"—" }}</td>
-                    <td>
-                      <a href="{% url 'order-view' s.order_id %}" target="_blank">#{{ s.order_id }}</a>
-                    </td>
-                    <td>
-                      {{ s.customer_name|default:"—" }}
-                      {% if s.phone %}<div class="text-muted small">{{ s.phone }}</div>{% endif %}
-                      {% if s.email %}<div class="text-muted small">{{ s.email }}</div>{% endif %}
-                    </td>
-                    <td>
-                      {{ s.address_one_line|default:"—" }}
-                      {% if s.has_geo %}<div class="text-muted small">({{ s.lat }}, {{ s.lng }})</div>{% endif %}
-                    </td>
-                    <td>
-                      <span class="badge
-                        {% if s.status == 'delivered' %}bg-success
-                        {% elif s.status == 'en_route' %}bg-primary
-                        {% elif s.status == 'assigned' %}bg-info
-                        {% elif s.status == 'failed' %}bg-danger
-                        {% elif s.status == 'pending' %}bg-secondary
-                        {% else %}bg-warning text-dark{% endif %}">
-                        {{ s.get_status_display }}
-                      </span>
-                    </td>
-                    <td>
-                      {% if s.eta %}{{ s.eta|date:"Y-m-d H:i" }}{% else %}—{% endif %}
-                    </td>
-                    <td>
-                      {% if s.distance_km %}{{ s.distance_km|floatformat:2 }} km{% else %}—{% endif %}
-                      {% if s.drive_min %}<div class="text-muted small">{{ s.drive_min }} min</div>{% endif %}
-                    </td>
-                  </tr>
+            {% for stop in run.stops.all %}
+              <tr>
+                <td>
+                  {{ stop.sequence|default:"—" }}
+                </td>
 
-                  {# Optional: show items per stop #}
-                  {% if s.items.all %}
-                    <tr class="table-light">
-                      <td></td>
-                      <td colspan="6">
-                        <div class="small text-muted mb-1">Items</div>
-                        <div class="table-responsive">
-                          <table class="table table-sm table-bordered mb-0">
-                            <thead class="table-secondary">
-                              <tr>
-                                <th style="width:40%">Product</th>
-                                <th style="width:12%">Planned</th>
-                                <th style="width:12%">Loaded</th>
-                                <th style="width:12%">Delivered</th>
-                                <th>Notes</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {% for it in s.items.all %}
-                                <tr>
-                                  <td>
-                                    {{ it.product_name }}
-                                    {% if it.sku %}<div class="text-muted small">{{ it.sku }}</div>{% endif %}
-                                    {% if it.uom %}<div class="badge bg-light text-dark border small mt-1">{{ it.uom }}</div>{% endif %}
-                                  </td>
-                                  <td>{{ it.planned_qty|floatformat:2 }}</td>
-                                  <td>{{ it.loaded_qty|floatformat:2 }}</td>
-                                  <td>{{ it.delivered_qty|floatformat:2 }}</td>
-                                  <td class="small">
-                                    {% if it.shortage_reason %}<div><strong>Reason:</strong> {{ it.shortage_reason }}</div>{% endif %}
-                                    {% if it.notes %}<div>{{ it.notes }}</div>{% endif %}
-                                  </td>
-                                </tr>
-                              {% empty %}
-                                <tr><td colspan="5" class="text-center text-muted">No items.</td></tr>
-                              {% endfor %}
-                            </tbody>
-                          </table>
-                        </div>
-                      </td>
-                    </tr>
+                <td>
+                  {{ stop.customer_name|default:"Order #"|add:stop.order_id|stringformat:"s" }}
+                </td>
+
+                <td>
+                  {{ stop.address_one_line|default:"—" }}
+                </td>
+
+                <td>
+                  {{ stop.drive_min|default:"—" }}
+                </td>
+
+                <td>
+                  {% if stop.status == "delivered" %}
+                    <span class="badge bg-success">Delivered</span>
+                  {% elif stop.status == "en_route" %}
+                    <span class="badge bg-primary">En Route</span>
+                  {% elif stop.status == "failed" %}
+                    <span class="badge bg-danger">Failed</span>
+                  {% else %}
+                    <span class="badge bg-secondary">
+                      {{ stop.get_status_display }}
+                    </span>
                   {% endif %}
-                {% empty %}
-                  <tr><td colspan="7" class="text-center text-muted">No stops on this run.</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="4"
+                    class="text-center text-muted py-4">
+                  No stops assigned to this run.
+                </td>
+              </tr>
+            {% endfor %}
 
-      <div class="col-12 col-xl-4">
-        <div class="card">
-          <div class="card-header bg-white"><strong>Summary</strong></div>
-          <div class="card-body">
-            <div class="mb-2"><strong>Status:</strong> {{ run.get_status_display }}</div>
-            <div class="mb-2"><strong>Service Date:</strong> {{ run.service_date|date:"Y-m-d" }}</div>
-            {% if run.start_time %}<div class="mb-2"><strong>Start Time:</strong> {{ run.start_time|time:"H:i" }}</div>{% endif %}
-            {% if run.depot_label %}<div class="mb-2"><strong>Depot:</strong> {{ run.depot_label }}</div>{% endif %}
-            {% if run.has_depot_geo %}<div class="mb-2"><strong>Depot Coords:</strong> {{ run.depot_lat }}, {{ run.depot_lng }}</div>{% endif %}
-            {% if run.driver_id or run.driver_name %}<div class="mb-2"><strong>Driver:</strong> {{ run.driver.get_username|default_if_none:"" }}{{ run.driver_name }}</div>{% endif %}
-            {% if run.vehicle_label %}<div class="mb-2"><strong>Vehicle:</strong> {{ run.vehicle_label }}</div>{% endif %}
-            <hr/>
-            <div class="mb-2"><strong>Stops:</strong> {{ run.stop_count|default:0 }}</div>
-            <div class="mb-2"><strong>Total Distance:</strong> {% if run.total_distance_km %}{{ run.total_distance_km|floatformat:2 }} km{% else %}—{% endif %}</div>
-            <div class="mb-2"><strong>Total Drive:</strong> {% if run.total_drive_min %}{{ run.total_drive_min|intcomma }} min{% else %}—{% endif %}</div>
-            {% if run.notes %}<hr/><div class="mb-2"><strong>Notes:</strong><br/>{{ run.notes|linebreaksbr }}</div>{% endif %}
-          </div>
-        </div>
+          </tbody>
+        </table>
       </div>
     </div>
+
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

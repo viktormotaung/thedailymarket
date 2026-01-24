@@ -287,51 +287,109 @@
 
             <div class="mt-auto">
 
-              <div class="row g-2 mb-2">
-                <div class="col-6">
-                  <form method="post" action="{% url 'logistics:start-stop' current_stop.id %}">
-                    {% csrf_token %}
-                    <button class="btn btn-secondary w-100"
-                      {% if current_stop.started_at %}disabled{% endif %}>
+              <!-- START + COMPLETE -->
+              <div class="row g-2 mb-3">
+
+                <!-- START -->
+                <div class="col-12 col-md-6">
+                  {% if current_stop and current_stop.id %}
+                    <form method="post" action="{% url 'logistics:start-stop' current_stop.id %}">
+                      {% csrf_token %}
+
+                      <!-- GPS -->
+                      <input type="hidden" name="lat" class="gps-lat">
+                      <input type="hidden" name="lng" class="gps-lng">
+
+                      <button
+                        class="btn btn-secondary w-100 py-2 py-md-2 py-lg-1 fw-semibold"
+                        {% if current_stop.started_at %}disabled{% endif %}
+                      >
+                        ▶ Start Trip
+                      </button>
+                    </form>
+                  {% else %}
+                    <button class="btn btn-secondary w-100 py-2 py-md-2 py-lg-1" disabled>
                       ▶ Start Trip
                     </button>
-                  </form>
+                  {% endif %}
                 </div>
 
-                <div class="col-6">
-                  <form method="post" action="{% url 'logistics:end-stop' current_stop.id %}">
+
+                <!-- COMPLETE -->
+                <div class="col-12 col-md-6">
+                  {% if current_stop and current_stop.id %}
+                    <form
+                      method="post"
+                      action="{% url 'logistics:end-stop' current_stop.id %}"
+                      target="_blank"
+                      onsubmit="setTimeout(() => window.location.reload(), 300);"
+                    >
+                      {% csrf_token %}
+
+                      <!-- GPS -->
+                      <input type="hidden" name="lat" class="gps-lat">
+                      <input type="hidden" name="lng" class="gps-lng">
+
+                      <button
+                        class="btn btn-success w-100 py-2 py-md-2 py-lg-1 fw-semibold"
+                        {% if not current_stop.started_at or current_stop.ended_at %}disabled{% endif %}
+                      >
+                        ✔ Complete Stop
+                      </button>
+                    </form>
+                  {% else %}
+                    <button class="btn btn-success w-100 py-2 py-md-2 py-lg-1" disabled>
+                      ✔ Complete Stop
+                    </button>
+                  {% endif %}
+                </div>
+
+
+
+
+              </div>
+
+              <!-- NEXT TRIP -->
+              <div class="mb-2">
+                {% if current_stop and current_stop.id %}
+                  <form method="post" action="{% url 'logistics:next-stop' current_stop.id %}">
                     {% csrf_token %}
-                    <button class="btn btn-outline-success w-100"
-                      {% if not current_stop.started_at or current_stop.ended_at %}disabled{% endif %}>
-                      🏁 End Trip
+                    <button
+                      type="submit"
+                      class="btn btn-outline-primary w-100 py-2 py-md-2 py-lg-1"
+                      {% if not current_stop.ended_at %}disabled{% endif %}
+                    >
+                      ➡ Next Trip
                     </button>
                   </form>
-                </div>
-              </div>
-
-              <div class="mb-2">
-                <form method="post" action="{% url 'logistics:next-stop' current_stop.id %}">
-                  {% csrf_token %}
-                  <button
-                    type="submit"
-                    class="btn btn-outline-primary w-100"
-                    {% if not current_stop.ended_at %}disabled{% endif %}
-                  >
+                {% else %}
+                  <button class="btn btn-outline-primary w-100 py-2 py-md-2 py-lg-1" disabled>
                     ➡ Next Trip
                   </button>
-                </form>
-
+                {% endif %}
               </div>
 
+              <!-- NAVIGATE -->
               <div>
-                <a class="btn btn-outline-secondary w-100"
-                   target="_blank"
-                   href="https://www.google.com/maps/dir/?api=1&destination={{ current_stop.lat }},{{ current_stop.lng }}">
-                  🧭 Navigate
-                </a>
+                {% if current_stop and current_stop.lat and current_stop.lng %}
+                  <a
+                    class="btn btn-outline-secondary w-100 py-2 py-md-2 py-lg-1"
+                    target="_blank"
+                    href="https://www.google.com/maps/dir/?api=1&destination={{ current_stop.lat }},{{ current_stop.lng }}"
+                  >
+                    🧭 Navigate
+                  </a>
+                {% else %}
+                  <button class="btn btn-outline-secondary w-100 py-2 py-md-2 py-lg-1" disabled>
+                    🧭 Navigate
+                  </button>
+                {% endif %}
               </div>
 
             </div>
+
+
+
 
           </div>
         </div>
@@ -386,11 +444,93 @@
   </div>
 </main>
 
-<!-- Leaflet JS -->
+<!-- Leaflet JS (LOAD ONCE) -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-document.addEventListener("DOMContentLoaded", async () => {
+/* =====================================================
+   HELPERS
+===================================================== */
+function getCSRFToken() {
+  const el = document.querySelector("[name=csrfmiddlewaretoken]");
+  return el ? el.value : "";
+}
+
+/* =====================================================
+   GPS – SINGLE CAPTURE (FOR FORM SUBMITS)
+===================================================== */
+function captureInitialGPS() {
+  if (!navigator.geolocation) {
+    console.warn("Geolocation not supported");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      document.querySelectorAll(".gps-lat").forEach(i => i.value = lat);
+      document.querySelectorAll(".gps-lng").forEach(i => i.value = lng);
+    },
+    (err) => {
+      console.warn("GPS error:", err.message);
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 30000,
+      timeout: 10000
+    }
+  );
+}
+
+/* =====================================================
+   LOCATION TRACKING (EVERY 5 MIN)
+===================================================== */
+let trackingInterval = null;
+
+function sendLocationPing() {
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      fetch("{% url 'logistics:driver-location-ping' %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCSRFToken()
+        },
+        body: JSON.stringify({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        })
+      }).catch(() => {});
+    },
+    () => {},
+    { enableHighAccuracy: true }
+  );
+}
+
+function startTracking() {
+  if (trackingInterval) return;
+  sendLocationPing(); // immediate ping
+  trackingInterval = setInterval(sendLocationPing, 300000); // 5 min
+}
+
+function stopTracking() {
+  if (trackingInterval) {
+    clearInterval(trackingInterval);
+    trackingInterval = null;
+  }
+  sendLocationPing(); // final ping
+}
+
+/* =====================================================
+   MAP INITIALIZATION + ROUTE
+===================================================== */
+function initMap() {
+  const mapEl = document.getElementById("map");
+  if (!mapEl) return;
 
   const map = L.map("map");
 
@@ -403,17 +543,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   ).addTo(map);
 
-  /* ===============================
-     STOPS + OPTIONAL DEPOT
-     =============================== */
-
   const points = [
     {% if run.depot_lat and run.depot_lng %}
-    {
-      lat: {{ run.depot_lat }},
-      lng: {{ run.depot_lng }},
-      label: "Depot"
-    },
+    { lat: {{ run.depot_lat }}, lng: {{ run.depot_lng }}, label: "Depot" },
     {% endif %}
     {% for stop in stops %}
     {% if stop.lat and stop.lng %}
@@ -428,20 +560,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     {% endfor %}
   ];
 
-  if (points.length === 0) return;
+  if (!points.length) return;
 
   const bounds = [];
 
-  /* ===============================
-     STOP MARKERS
-     =============================== */
-
   points.forEach(p => {
-    if (!p.seq) return; // skip depot marker here
+    if (!p.seq) return;
 
     let cls = "stop-marker";
     if (p.status === "delivered") cls += " completed";
-    else if (p.status === "assigned" || p.status === "en_route") cls += " current";
+    else cls += " current";
 
     const icon = L.divIcon({
       className: cls,
@@ -457,38 +585,59 @@ document.addEventListener("DOMContentLoaded", async () => {
     bounds.push([p.lat, p.lng]);
   });
 
-  /* ===============================
-     ROUTE OVERVIEW (OSRM)
-     =============================== */
-
   if (points.length >= 2) {
     const coords = points.map(p => `${p.lng},${p.lat}`).join(";");
 
-    try {
-      const res = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
-      );
-      const data = await res.json();
-
-      if (data.routes && data.routes.length) {
-        L.geoJSON(data.routes[0].geometry, {
-          style: {
-            color: "#0d6efd",
-            weight: 5,
-            opacity: 0.6,
-            dashArray: "8,8"
-          }
-        }).addTo(map);
-      }
-    } catch (e) {
-      console.warn("Route fetch failed", e);
-    }
+    fetch(
+      `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
+    )
+      .then(r => r.json())
+      .then(data => {
+        if (data.routes?.length) {
+          L.geoJSON(data.routes[0].geometry, {
+            style: {
+              color: "#0d6efd",
+              weight: 5,
+              opacity: 0.6,
+              dashArray: "8,8"
+            }
+          }).addTo(map);
+        }
+      })
+      .catch(() => {});
   }
 
-  map.fitBounds(bounds, { padding: [40,40] });
+  map.fitBounds(bounds, { padding: [40, 40] });
+}
+
+/* =====================================================
+   EVENT WIRING
+===================================================== */
+document.addEventListener("DOMContentLoaded", () => {
+
+  captureInitialGPS();
+  initMap();
+
+  const startBtn = document.querySelector("form[action*='start-stop'] button");
+  const endBtn = document.querySelector("form[action*='end-stop'] button");
+
+  if (startBtn) {
+    startBtn.addEventListener("click", () => {
+      startTracking();
+    });
+  }
+
+  if (endBtn) {
+    endBtn.addEventListener("click", () => {
+      stopTracking();
+    });
+  }
 
 });
 </script>
+
+
+
 
 </body>
 </html>

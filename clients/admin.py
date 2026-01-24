@@ -66,7 +66,7 @@ class ClientAdmin(admin.ModelAdmin):
     )
     filter_horizontal = ("categories",)
     autocomplete_fields = ("account_manager",)
-    date_hierarchy = "created_at"
+    
     list_select_related = ("account_manager",)
     list_per_page = 50
     save_on_top = True
@@ -127,7 +127,6 @@ class ClientAdmin(admin.ModelAdmin):
         url = obj.google_maps_link()
         return format_html('<a href="{}" target="_blank" rel="noopener">Open in Google Maps</a>', url)
     maps_link.short_description = "Map"
-
 
 # ----------------------------
 # Prospect / ProspectUpdate

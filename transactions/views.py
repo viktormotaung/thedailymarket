@@ -22,8 +22,8 @@ from audit.utils import log_event
 from profiles.models import StaffProfile
 from django.http import JsonResponse
 from invoices.models import Invoice
-
-
+from django.utils.timezone import now, make_aware
+from datetime import datetime, timedelta, time, date
 
 DAY_OPTIONS = (7, 14, 30, 60)
 
@@ -49,37 +49,63 @@ def transaction_list(request):
     if days not in DAY_OPTIONS:
         days = 7
 
-    # Default range = last N days; allow explicit start/end to override
+    # --- base dates ---
     end_date = now().date()
     start_date = end_date - timedelta(days=days)
 
+    # --- optional explicit overrides ---
     if request.GET.get("start"):
-        start_date = request.GET.get("start")  # YYYY-MM-DD string is fine for __date filters
+        try:
+            start_date = date.fromisoformat(request.GET["start"])
+        except ValueError:
+            pass
+
     if request.GET.get("end"):
-        end_date = request.GET.get("end")
+        try:
+            end_date = date.fromisoformat(request.GET["end"])
+        except ValueError:
+            pass
 
-    qs = (Transaction.objects
-          .select_related("client", "invoice")
-          .filter(created_at__date__gte=start_date,
-                  created_at__date__lte=end_date))
+    # --- convert to timezone-aware datetimes (MySQL safe) ---
+    start_dt = make_aware(datetime.combine(start_date, time.min))
+    end_dt = make_aware(datetime.combine(end_date, time.max))
 
-    # (optional) apply other filters you already support
+    # --- base queryset ---
+    qs = (
+        Transaction.objects
+        .select_related("client", "invoice")
+        .filter(created_at__gte=start_dt, created_at__lte=end_dt)
+    )
+
+    # --- optional filters ---
     client_id = request.GET.get("client")
     if client_id and client_id.isdigit():
         qs = qs.filter(client_id=int(client_id))
+
     tx_type = request.GET.get("type")
     if tx_type:
         qs = qs.filter(transaction_type=tx_type)
 
     # --- KPIs: In / Out / Net ---
-    # Adjust these sets to match your project’s “money in” vs “money out” types.
     CREDIT_TYPES = ("payment", "credit_repayment", "credit_issue", "refund")
-    total_in = qs.aggregate(v=Coalesce(Sum("amount", filter=Q(transaction_type__in=CREDIT_TYPES)),
-                                       Decimal("0.00")))["v"]
-    total_out = qs.aggregate(v=Coalesce(Sum("amount", filter=~Q(transaction_type__in=CREDIT_TYPES)),
-                                        Decimal("0.00")))["v"]
-    net_total = (total_in or Decimal("0")) - (total_out or Decimal("0"))
 
+    total_in = qs.aggregate(
+        v=Coalesce(
+            Sum("amount", filter=Q(transaction_type__in=CREDIT_TYPES)),
+            Decimal("0.00")
+        )
+    )["v"]
+
+    total_out = qs.aggregate(
+        v=Coalesce(
+            Sum("amount", filter=~Q(transaction_type__in=CREDIT_TYPES)),
+            Decimal("0.00")
+        )
+    )["v"]
+
+    net_total = (total_in or Decimal("0.00")) - (total_out or Decimal("0.00"))
+
+    # --- context ---
     context = {
         "DAY_OPTIONS": DAY_OPTIONS,
         "days": days,
@@ -90,9 +116,10 @@ def transaction_list(request):
         "net_total": net_total,
         "transactions": qs.order_by("-created_at", "-id"),
         "clients": Client.objects.order_by("name").only("id", "name"),
-        "type_choices": Transaction.TRANSACTION_TYPES,  # if you expose them
-        "request": request,  # <-- needed for the hidden inputs loop
+        "type_choices": Transaction.TRANSACTION_TYPES,
+        "request": request,  # needed for filters / hidden inputs
     }
+
     return render(request, "transactions/transaction_list.html", context)
 
 @login_required

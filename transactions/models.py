@@ -203,8 +203,7 @@ class Transaction(models.Model):
             ce.transaction = None
             ce.save(update_fields=["transaction"])
 
-            # delete transaction WITHOUT reversing anything
-            self._delete_self_silently()
+            
 
     # ------------------------------------------------------------------
     # INTERNAL delete used only for credit repayments
@@ -343,3 +342,4 @@ class Transaction(models.Model):
         except Exception:
             # fail-open: do not block transactions on credit realization hiccups
             pass
+

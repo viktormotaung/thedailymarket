@@ -11,6 +11,8 @@ from .models import (
     DeliveryStopItem,
     DriverLocation,
     RunEvent,
+    InternalDeliveryRate,
+    ExternalDeliveryRate,
 )
 
 # =====================================
@@ -23,15 +25,29 @@ class VehicleAdmin(admin.ModelAdmin):
         "label",
         "registration_number",
         "vehicle_type",
+        "ownership_badge",
         "status_badge",
         "capacity_kg",
         "updated_at",
     )
-    list_filter = ("status", "vehicle_type")
-    search_fields = ("label", "registration_number")
+
+    list_filter = (
+        "status",
+        "vehicle_type",
+        "is_internal",
+    )
+
+    search_fields = (
+        "label",
+        "registration_number",
+    )
+
     ordering = ("label",)
 
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+    )
 
     fieldsets = (
         ("Vehicle Info", {
@@ -41,6 +57,13 @@ class VehicleAdmin(admin.ModelAdmin):
                 "vehicle_type",
                 "capacity_kg",
                 "status",
+            )
+        }),
+        ("Ownership", {
+            "fields": ("is_internal",),
+            "description": (
+                "Internal = company-owned vehicle. "
+                "Unchecked = partner / owner-driver vehicle."
             )
         }),
         ("Notes", {
@@ -63,6 +86,92 @@ class VehicleAdmin(admin.ModelAdmin):
             obj.get_status_display(),
         )
     status_badge.short_description = "Status"
+
+    def ownership_badge(self, obj):
+        if obj.is_internal:
+            return format_html(
+                '<span style="color:green; font-weight:600;">Internal</span>'
+            )
+        return format_html(
+            '<span style="color:#0d6efd; font-weight:600;">Partner</span>'
+        )
+    ownership_badge.short_description = "Ownership"
+
+
+# =====================================
+# DELIVERY RATES (COSTING)
+# =====================================
+
+@admin.register(InternalDeliveryRate)
+class InternalDeliveryRateAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "driver_per_km",
+        "assistant_per_km",
+        "total_per_km_display",
+        "is_active",
+        "updated_at",
+    )
+
+    list_filter = ("is_active",)
+    search_fields = ("name",)
+    ordering = ("name",)
+
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("Rate Info", {
+            "fields": (
+                "name",
+                "driver_per_km",
+                "assistant_per_km",
+                "is_active",
+            )
+        }),
+        ("System", {
+            "fields": ("created_at", "updated_at")
+        }),
+    )
+
+    def total_per_km_display(self, obj):
+        return f"{obj.total_per_km:.2f}"
+    total_per_km_display.short_description = "Total / km"
+
+
+@admin.register(ExternalDeliveryRate)
+class ExternalDeliveryRateAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "driver_per_km",
+        "assistant_per_km",
+        "total_per_km_display",
+        "is_active",
+        "updated_at",
+    )
+
+    list_filter = ("is_active",)
+    search_fields = ("name",)
+    ordering = ("name",)
+
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("Rate Info", {
+            "fields": (
+                "name",
+                "driver_per_km",
+                "assistant_per_km",
+                "is_active",
+            )
+        }),
+        ("System", {
+            "fields": ("created_at", "updated_at")
+        }),
+    )
+
+    def total_per_km_display(self, obj):
+        return f"{obj.total_per_km:.2f}"
+    total_per_km_display.short_description = "Total / km"
 
 
 # =====================================
@@ -135,7 +244,7 @@ class PickingBatchAdmin(admin.ModelAdmin):
 
 
 # =====================================
-# DELIVERY RUN (FLEET)
+# DELIVERY RUN (FLEET + COSTING)
 # =====================================
 
 class DeliveryStopInline(admin.TabularInline):
@@ -157,7 +266,6 @@ class DeliveryStopInline(admin.TabularInline):
         "drive_min",
     )
 
-
 @admin.register(DeliveryRun)
 class DeliveryRunAdmin(admin.ModelAdmin):
     list_display = (
@@ -167,11 +275,23 @@ class DeliveryRunAdmin(admin.ModelAdmin):
         "vehicle",
         "status",
         "stop_count",
-        "total_drive_min",
         "total_distance_km",
+        "overall_total_cost_display",
     )
-    list_filter = ("status", "service_date", "vehicle")
-    search_fields = ("name", "driver__username", "vehicle__label")
+
+    list_filter = (
+        "status",
+        "service_date",
+        "vehicle",
+    )
+
+    search_fields = (
+        "name",
+        "driver__username",
+        "vehicle__label",
+        "vehicle__registration_number",
+    )
+
     date_hierarchy = "service_date"
     inlines = [DeliveryStopInline]
 
@@ -181,9 +301,17 @@ class DeliveryRunAdmin(admin.ModelAdmin):
         "stop_count",
         "total_distance_km",
         "total_drive_min",
-    )
 
-    actions = ("recalculate_aggregates",)
+        # Rate snapshot (per km)
+        "driver_rate_per_km",
+        "assistant_rate_per_km",
+        "total_rate_per_km",
+
+        # Cost snapshot (totals)
+        "driver_total_cost",
+        "assistant_total_cost",
+        "overall_total_cost",
+    )
 
     fieldsets = (
         ("Run Details", {
@@ -203,6 +331,28 @@ class DeliveryRunAdmin(admin.ModelAdmin):
                 "depot_lng",
             )
         }),
+        ("Costing (Per KM Snapshot)", {
+            "fields": (
+                "driver_rate_per_km",
+                "assistant_rate_per_km",
+                "total_rate_per_km",
+            ),
+            "description": (
+                "Rates are automatically applied when a vehicle is assigned. "
+                "These are historical snapshots."
+            )
+        }),
+        ("Costing (Totals)", {
+            "fields": (
+                "driver_total_cost",
+                "assistant_total_cost",
+                "overall_total_cost",
+            ),
+            "description": (
+                "Calculated from rates × total distance. "
+                "Values are locked for audit accuracy."
+            )
+        }),
         ("Aggregates", {
             "fields": (
                 "stop_count",
@@ -218,19 +368,47 @@ class DeliveryRunAdmin(admin.ModelAdmin):
         }),
     )
 
+    actions = ("recalculate_aggregates",)
+
+    # =========================
+    # DISPLAY HELPERS
+    # =========================
+
+    def overall_total_cost_display(self, obj):
+        if obj.overall_total_cost is not None:
+            return format_html(
+                "<strong>R {:,.2f}</strong>",
+                obj.overall_total_cost
+            )
+        return "—"
+
+    overall_total_cost_display.short_description = "Total Cost"
+    overall_total_cost_display.admin_order_field = "overall_total_cost"
+
+    # =========================
+    # ACTIONS
+    # =========================
+
+    def recalculate_aggregates(self, request, queryset):
+        for run in queryset:
+            run.recalc_aggregates(save=False)
+            run.calculate_total_costs()
+            run.save()
+
+
+    recalculate_aggregates.short_description = "🔄 Recalculate aggregates & costs"
+
+    # =========================
+    # VEHICLE FILTERING
+    # =========================
+
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "vehicle":
             kwargs["queryset"] = Vehicle.objects.filter(status="active")
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
-    def recalculate_aggregates(self, request, queryset):
-        for run in queryset:
-            run.recalc_aggregates(save=True)
-    recalculate_aggregates.short_description = "🔄 Recalculate run aggregates"
-
-
 # =====================================
-# DELIVERY STOPS (OPERATIONS)
+# DELIVERY STOPS
 # =====================================
 
 class DeliveryStopItemInline(admin.TabularInline):
@@ -292,31 +470,6 @@ class DeliveryStopAdmin(admin.ModelAdmin):
         "updated_at",
     )
 
-    fieldsets = (
-        ("Run Info", {
-            "fields": ("run", "order", "sequence", "status")
-        }),
-        ("Customer Snapshot", {
-            "fields": (
-                "customer_name",
-                "phone",
-                "email",
-                "address_line1",
-                "address_line2",
-                "suburb",
-                "city",
-                "province",
-                "postal_code",
-            )
-        }),
-        ("Routing", {
-            "fields": ("lat", "lng", "distance_km", "drive_min")
-        }),
-        ("Timing", {
-            "fields": ("started_at", "ended_at")
-        }),
-    )
-
     def arrival_time_display(self, obj):
         if obj.ended_at:
             return localtime(obj.ended_at).strftime("%H:%M")
@@ -337,7 +490,7 @@ class DriverLocationAdmin(admin.ModelAdmin):
 
 
 # =====================================
-# RUN EVENTS (AUDIT / TIMELINE)
+# RUN EVENTS (AUDIT)
 # =====================================
 
 @admin.register(RunEvent)

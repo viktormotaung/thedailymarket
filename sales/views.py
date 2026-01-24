@@ -19,6 +19,10 @@ from django.forms import ModelForm, inlineformset_factory, widgets
 from django.db.models import (
     Sum, Count, F, Q, Value, DecimalField, IntegerField, ExpressionWrapper
 )
+import json
+from collections import OrderedDict
+from django.db.models import Count, Sum
+from collections import Counter
 from django.contrib.auth import get_user_model
 from django.db.models.functions import Coalesce
 from invoices.models import Invoice
@@ -33,75 +37,195 @@ from django.http import JsonResponse
 User = get_user_model()
 DAY_OPTIONS = [7, 14, 30, 60]
 
+
+
+
+
 @login_required
 def sales_dashboard(request):
-    """
-    Sales dashboard for reps.
-    For now this uses simple placeholder values so the template renders
-    without errors. You can replace these with real queries later.
-    """
-
-    # ----- Date range handling -----
-    range_param = (request.GET.get("range") or "today").lower()
+    user = request.user
     now = timezone.now()
-    today = timezone.localdate()
+
+    # -------------------------------------------------
+    # Range handling (single source of truth)
+    # -------------------------------------------------
+    range_param = request.GET.get("range", "today")
 
     if range_param == "7d":
         start_dt = now - timedelta(days=7)
-        range_label = "Last 7 days"
-        range_param = "7d"
     elif range_param == "month":
-        # from first day of current month at midnight
         start_dt = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        range_label = "This month"
-        range_param = "month"
-    else:
-        # default: today
-        start_dt = timezone.make_aware(
-            datetime.combine(today, datetime.min.time())
-        )
-        range_label = "Today"
+    else:  # today
+        start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
         range_param = "today"
 
     end_dt = now
 
-    # ----- Placeholder metrics (swap with real queries later) -----
-    target_amount = Decimal("0.00")
-    achieved_amount = Decimal("0.00")
-    target_progress = 0
-    deals_closed_count = 0
+    # -------------------------------------------------
+    # Prospects
+    # -------------------------------------------------
+    prospects_in_range = Prospect.objects.filter(
+        owner=user,
+        created_at__gte=start_dt,
+        created_at__lt=end_dt,
+    ).count()
 
-    pipeline_summary = []      # e.g. [{"stage_label": "New", "count": 5}, ...]
-    prospects_total = 0
-    recent_prospects = []      # e.g. [{"name": "ABC Restaurant", "stage_label": "Contacted"}, ...]
+    # Active pipeline = non-terminal prospects (NOT range-based)
+    prospects_total = Prospect.objects.filter(
+        owner=user,
+        status="active",  # adjust if you use stages instead
+    ).count()
 
-    recent_orders = []         # e.g. [{"id": 1, "created_at": ..., "client_name": "...", "total": ..., "status": "..."}]
-    tasks = []                 # e.g. task objects/structs with .title, .due_at/.created_at, .is_done
+    pipeline_summary = (
+        Prospect.objects
+        .filter(owner=user, status="active")
+        .values("stage")
+        .annotate(count=Count("id"))
+        .order_by("stage")
+    )
 
-    # Chart data – simple empty defaults for now
-    sales_labels = []          # e.g. ["1", "2", "3", ...]
-    sales_data = []            # e.g. [3, 5, 2, ...]
+    # Optional: stage label mapping (safe even if unused)
+    for row in pipeline_summary:
+        row["stage_label"] = row["stage"].replace("_", " ").title()
 
+    # -------------------------------------------------
+    # Orders (range-based, owned by sales rep via created_by)
+    # -------------------------------------------------
+    orders_qs = (
+        Order.objects
+        .annotate(
+            ts=Coalesce(
+                "submitted_at",
+                "approved_at",
+                "reviewed_at",
+                "updated_at",
+                "order_date",
+            )
+        )
+        .filter(
+            created_by=user,
+            ts__gte=start_dt,
+            ts__lt=end_dt,
+        )
+    )
+
+    recent_orders = (
+        orders_qs
+        .select_related("client")
+        .order_by("-ts")[:10]
+    )
+
+    # Active clients = distinct clients ordering in range
+    active_clients_count = (
+        orders_qs
+        .values("client_id")
+        .distinct()
+        .count()
+    )
+
+    # -------------------------------------------------
+    # Client buying patterns
+    # -------------------------------------------------
+    top_clients_by_value = (
+        orders_qs
+        .values("client__name")
+        .annotate(
+            total_spent=Coalesce(Sum("grand_total_inc"), Decimal("0.00"))
+        )
+        .order_by("-total_spent")[:5]
+    )
+
+    top_clients_by_frequency = (
+        orders_qs
+        .values("client__name")
+        .annotate(order_count=Count("id"))
+        .order_by("-order_count")[:5]
+    )
+
+    # -------------------------------------------------
+    # Tasks & follow-ups (range-based)
+    # -------------------------------------------------
+    tasks = (
+        Task.objects
+        .filter(
+            created_by=user,
+            created_at__gte=start_dt,
+            created_at__lt=end_dt,
+        )
+        .order_by("completed_at", "due_at")[:10]
+    )
+
+  
+
+    
+    # -------------------------------------------------
+    # Company-wide sales trend (Orders per Day)
+    # -------------------------------------------------
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # 1️⃣ Build empty day map for entire month
+    day_cursor = month_start.date()
+    end_day = now.date()
+
+    day_counts = OrderedDict()
+    while day_cursor <= end_day:
+        day_counts[day_cursor] = 0
+        day_cursor += timedelta(days=1)
+
+    # 2️⃣ Fetch orders and increment days
+    order_days = (
+        Order.objects
+        .annotate(
+            ts=Coalesce(
+                "submitted_at",
+                "approved_at",
+                "reviewed_at",
+                "updated_at",
+                "order_date",
+            )
+        )
+        .filter(
+            ts__gte=month_start,
+            ts__lt=now,
+        )
+        .values_list("ts", flat=True)
+    )
+
+    for ts in order_days:
+        day_counts[ts.date()] += 1
+
+    # 3️⃣ Prepare chart data
+    sales_labels = [d.strftime("%d %b") for d in day_counts.keys()]
+    sales_data = list(day_counts.values())
+
+    # -------------------------------------------------
+    # Context
+    # -------------------------------------------------
     context = {
         "range": range_param,
-        "range_label": range_label,
-        "target_amount": target_amount,
-        "achieved_amount": achieved_amount,
-        "target_progress": target_progress,
-        "deals_closed_count": deals_closed_count,
-        "pipeline_summary": pipeline_summary,
+
+        # KPIs
+        "prospects_in_range": prospects_in_range,
         "prospects_total": prospects_total,
-        "recent_prospects": recent_prospects,
+        "active_clients_count": active_clients_count,
+
+        # Pipeline
+        "pipeline_summary": pipeline_summary,
+
+        # Clients
+        "top_clients_by_value": top_clients_by_value,
+        "top_clients_by_frequency": top_clients_by_frequency,
+
+        # Orders & tasks
         "recent_orders": recent_orders,
         "tasks": tasks,
+
+        # Chart
         "sales_labels": sales_labels,
         "sales_data": sales_data,
-        "start_dt": start_dt,
-        "end_dt": end_dt,
     }
 
     return render(request, "sales/dashboard.html", context)
-
 
 
 @login_required

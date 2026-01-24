@@ -2,6 +2,10 @@
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
 
+# 👇 groups that should NEVER be auto-logged out
+EXEMPT_SESSION_GROUPS = {"Master", "Master logistics"}
+
+
 class LastSeenMiddleware:
     """
     Update last_seen_at on the user's StaffProfile or CustomerProfile
@@ -19,15 +23,15 @@ class LastSeenMiddleware:
 
         now = timezone.now()
 
-        # Prefer staff profile if present; otherwise customer profile.
-        # Use safe access to avoid RelatedObjectDoesNotExist blowing up.
         try:
             staff_profile = getattr(user, "staff_profile")
         except ObjectDoesNotExist:
             staff_profile = None
 
         if staff_profile:
-            staff_profile.__class__.objects.filter(pk=staff_profile.pk).update(last_seen_at=now)
+            staff_profile.__class__.objects.filter(
+                pk=staff_profile.pk
+            ).update(last_seen_at=now)
             return response
 
         try:
@@ -36,21 +40,41 @@ class LastSeenMiddleware:
             customer_profile = None
 
         if customer_profile:
-            customer_profile.__class__.objects.filter(pk=customer_profile.pk).update(last_seen_at=now)
+            customer_profile.__class__.objects.filter(
+                pk=customer_profile.pk
+            ).update(last_seen_at=now)
 
         return response
 
 
 class ShortSessionForPortalMiddleware:
     """
-    For portal routes (adjust prefix), use a 5-minute sliding session expiry.
-    Requires SESSION_COOKIE_AGE >= 300 and/or explicit set_expiry here.
+    Apply a short sliding session expiry to portal users
+    EXCEPT users in privileged groups (Master / Master logistics).
     """
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
         response = self.get_response(request)
-        if request.user.is_authenticated and request.path.startswith("/portal/"):
-            request.session.set_expiry(300)  # 5 minutes
+
+        user = getattr(request, "user", None)
+        if not (user and user.is_authenticated):
+            return response
+
+        # Only apply to portal routes
+        if not request.path.startswith("/portal/"):
+            return response
+
+        # 🔐 Skip timeout for exempt groups
+        user_groups = set(
+            user.groups.values_list("name", flat=True)
+        )
+
+        if user.is_superuser or user_groups.intersection(EXEMPT_SESSION_GROUPS):
+            return response  # unlimited / normal session
+
+        # ⏱ Apply sliding expiry (5 minutes)
+        request.session.set_expiry(300)
+
         return response

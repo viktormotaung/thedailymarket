@@ -542,10 +542,6 @@ def pod_upload_to(instance: "DeliveryStop", filename: str) -> str:
 
 
 class DeliveryRun(models.Model):
-    """
-    A single driver's run/route for a day.
-    """
-
     STATUS = [
         ("draft", "Draft"),
         ("planned", "Planned"),
@@ -556,11 +552,7 @@ class DeliveryRun(models.Model):
     ]
 
     service_date = models.DateField(db_index=True)
-    name = models.CharField(
-        max_length=140,
-        blank=True,
-        help_text="Optional label, e.g. '2025-09-27 AM'."
-    )
+    name = models.CharField(max_length=140, blank=True)
 
     status = models.CharField(
         max_length=20,
@@ -569,14 +561,12 @@ class DeliveryRun(models.Model):
         db_index=True,
     )
 
-    # ✅ DRIVER — system user ONLY
     driver = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="delivery_runs",
-        help_text="Assigned driver (must be a system user with a DriverProfile)."
     )
 
     vehicle = models.ForeignKey(
@@ -585,31 +575,76 @@ class DeliveryRun(models.Model):
         null=True,
         blank=True,
         related_name="delivery_runs",
-        help_text="Assigned vehicle for this run"
     )
 
-    # Depot / start point
+    # Depot
     depot_label = models.CharField(max_length=140, blank=True)
     depot_lat = models.FloatField(null=True, blank=True)
     depot_lng = models.FloatField(null=True, blank=True)
     start_time = models.TimeField(null=True, blank=True)
 
-    # Aggregates
+    # ============================
+    # RATE SNAPSHOTS (PER KM)
+    # ============================
+    driver_rate_per_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    assistant_rate_per_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    total_rate_per_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    # ============================
+    # AGGREGATES
+    # ============================
     total_distance_km = models.DecimalField(
         max_digits=8,
         decimal_places=2,
         null=True,
         blank=True,
     )
+
     total_drive_min = models.PositiveIntegerField(null=True, blank=True)
     stop_count = models.PositiveIntegerField(default=0)
 
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
+    # ============================
+    # COST SNAPSHOTS (TOTAL)
+    # ============================
+    driver_total_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
         null=True,
         blank=True,
-        related_name="delivery_runs_created",
+        help_text="Driver cost = driver_rate_per_km × total_distance_km",
+    )
+
+    assistant_total_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Assistant cost = assistant_rate_per_km × total_distance_km",
+    )
+
+    overall_total_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Total delivery cost (driver + assistant)",
     )
 
     notes = models.TextField(blank=True)
@@ -624,43 +659,189 @@ class DeliveryRun(models.Model):
             models.Index(fields=["driver"]),
         ]
 
-    def __str__(self) -> str:
-        who = self.driver.get_username() if self.driver_id else "Unassigned"
-        return f"{self.service_date} · {self.name or 'Run'} · {who} · {self.get_status_display()}"
+    # ============================
+    # RATE APPLICATION
+    # ============================
+    def apply_delivery_rates(self, save=True):
+        if not self.vehicle:
+            return
 
+        if self.vehicle.is_internal:
+            rate = InternalDeliveryRate.objects.filter(is_active=True).first()
+        else:
+            rate = ExternalDeliveryRate.objects.filter(is_active=True).first()
+
+        if not rate:
+            raise ValidationError("No active delivery rate found.")
+
+        self.driver_rate_per_km = rate.driver_per_km
+        self.assistant_rate_per_km = rate.assistant_per_km
+        self.total_rate_per_km = rate.driver_per_km + rate.assistant_per_km
+
+        if save:
+            self.save(update_fields=[
+                "driver_rate_per_km",
+                "assistant_rate_per_km",
+                "total_rate_per_km",
+                "updated_at",
+            ])
+
+    # ============================
+    # COST CALCULATION
+    # ============================
+    def calculate_total_costs(self):
+        """
+        Calculates total costs WITHOUT saving.
+        Safe to call from save() or admin actions.
+        """
+
+        if not self.total_distance_km:
+            self.driver_total_cost = None
+            self.assistant_total_cost = None
+            self.overall_total_cost = None
+            return
+
+        if self.driver_rate_per_km:
+            self.driver_total_cost = (
+                Decimal(self.driver_rate_per_km) * Decimal(self.total_distance_km)
+            )
+        else:
+            self.driver_total_cost = None
+
+        if self.assistant_rate_per_km:
+            self.assistant_total_cost = (
+                Decimal(self.assistant_rate_per_km) * Decimal(self.total_distance_km)
+            )
+        else:
+            self.assistant_total_cost = None
+
+        if self.driver_total_cost is not None and self.assistant_total_cost is not None:
+            self.overall_total_cost = (
+                self.driver_total_cost + self.assistant_total_cost
+            )
+        else:
+            self.overall_total_cost = None
+
+
+
+
+    # ============================
+    # SAVE HOOK
+    # ============================
+    def save(self, *args, **kwargs):
+        apply_rates = (
+            self.vehicle is not None and
+            self.total_rate_per_km is None
+        )
+
+        super().save(*args, **kwargs)
+
+        if apply_rates:
+            self.apply_delivery_rates(save=False)
+
+        self.calculate_total_costs()
+
+        super().save(update_fields=[
+            "driver_rate_per_km",
+            "assistant_rate_per_km",
+            "total_rate_per_km",
+            "driver_total_cost",
+            "assistant_total_cost",
+            "overall_total_cost",
+            "updated_at",
+        ])
+
+
+    def recalc_aggregates(self, save=False):
+        """
+        Recalculate aggregates derived from stops / deliveries.
+        Safe, idempotent, and domain-correct.
+        """
+
+        qs = getattr(self, "stops", None)
+        if qs is not None:
+            agg = qs.aggregate(
+                stop_count=Count("id"),
+                total_distance=Sum("distance_km"),
+                total_drive_min=Sum("drive_min"),  # ✅ FIXED
+            )
+
+            self.stop_count = agg["stop_count"] or 0
+            self.total_distance_km = agg["total_distance"] or Decimal("0.00")
+            self.total_drive_min = agg["total_drive_min"] or 0
+
+        # Costs depend on distance
+        self.calculate_total_costs()
+
+        if save:
+            self.save(update_fields=[
+                "stop_count",
+                "total_distance_km",
+                "total_drive_min",
+                "driver_total_cost",
+                "assistant_total_cost",
+                "overall_total_cost",
+                "updated_at",
+            ])
 
     @property
-    def has_depot_geo(self) -> bool:
+    def has_depot_geo(self):
+        """
+        Returns True if the run has valid depot coordinates.
+        Used by route planning / auto-sequencing.
+        """
         return self.depot_lat is not None and self.depot_lng is not None
 
-    def recalc_aggregates(self, save=True):
-        qs = self.stops.all()
-        self.stop_count = qs.count()
-        # Sum where available
-        dist = Decimal("0.00")
-        mins = 0
-        for s in qs:
-            if s.distance_km is not None:
-                dist += Decimal(str(s.distance_km))
-            if s.drive_min is not None:
-                mins += int(s.drive_min)
-        self.total_distance_km = dist
-        self.total_drive_min = mins
-        if save:
-            self.save(update_fields=["stop_count", "total_distance_km", "total_drive_min", "updated_at"])
 
-    # Optional helper to call your planner service from anywhere (lazy import)
-    def auto_plan(self):
-        from .services import plan_run_sequence
-        return plan_run_sequence(self)
-    
-    def clean(self):
-        super().clean()
-        if self.vehicle and self.vehicle.status != "active":
-            raise ValidationError({
-                "vehicle": "Only active vehicles can be assigned to a delivery run."
-            })
-    
+
+
+class InternalDeliveryRate(models.Model):
+    name = models.CharField(max_length=100)
+    driver_per_km = models.DecimalField(max_digits=8, decimal_places=2)
+    assistant_per_km = models.DecimalField(max_digits=8, decimal_places=2)
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["is_active"],
+                condition=models.Q(is_active=True),
+                name="only_one_active_internal_rate",
+            )
+        ]
+
+    @property
+    def total_per_km(self):
+        return self.driver_per_km + self.assistant_per_km
+
+
+class ExternalDeliveryRate(models.Model):
+    name = models.CharField(max_length=100)
+    driver_per_km = models.DecimalField(max_digits=8, decimal_places=2)
+    assistant_per_km = models.DecimalField(max_digits=8, decimal_places=2)
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["is_active"],
+                condition=models.Q(is_active=True),
+                name="only_one_active_external_rate",
+            )
+        ]
+
+    @property
+    def total_per_km(self):
+        return self.driver_per_km + self.assistant_per_km
+
 
 # -----------------------------
 # 3) STOPS & POD (Proof of Delivery)
@@ -977,6 +1158,12 @@ class Vehicle(models.Model):
 
     notes = models.TextField(blank=True)
 
+    is_internal = models.BooleanField(
+        default=True,
+        help_text="True if this vehicle is owned/operated internally by the company"
+    )
+
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -989,3 +1176,79 @@ class Vehicle(models.Model):
 
     def __str__(self) -> str:
         return f"{self.label} · {self.registration_number}"
+
+
+class InternalDeliveryRate(models.Model):
+    """
+    Per-km costing when using company-owned vehicles
+    """
+
+    name = models.CharField(
+        max_length=100,
+        help_text="e.g. 'Internal Bakkie Rate'"
+    )
+
+    driver_per_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        help_text="Driver cost per km"
+    )
+
+    assistant_per_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        help_text="Assistant cost per km"
+    )
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def total_per_km(self):
+        return self.driver_per_km + self.assistant_per_km
+
+class ExternalDeliveryRate(models.Model):
+    """
+    Per-km costing for owner-driver / partner vehicles
+    """
+
+    name = models.CharField(
+        max_length=100,
+        help_text="e.g. 'Partner Bakkie Rate'"
+    )
+
+    driver_per_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        help_text="Driver cost per km (partner)"
+    )
+
+    assistant_per_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        help_text="Assistant cost per km (partner)"
+    )
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def total_per_km(self):
+        return self.driver_per_km + self.assistant_per_km
+

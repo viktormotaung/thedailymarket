@@ -2,7 +2,7 @@
 from decimal import Decimal
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-
+from django.utils.timezone import now
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -28,7 +28,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import get_object_or_404, redirect, render
 
 from clients.models import Client
-from .models import CreditAccount, CreditLog, CreditEntry
+from .models import CreditAccount, CreditLog, CreditEntry, Funder, FunderAllocation, FunderMovement, FunderMember, FunderWeekSummary
 from .forms import CreditEditForm
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -765,3 +765,129 @@ def credit_record_repayment(request, client_id):
         f"Credit repayment of R{outstanding:.2f} recorded for {client}."
     )
     return redirect("credit-view", client_id=client.id)
+
+
+@login_required
+def funders_list(request):
+    """
+    List all funders with balances and allocation summaries.
+    """
+
+    funders = (
+        Funder.objects
+        .all()
+        .annotate(
+            total_allocated=Coalesce(
+                Sum("allocations__amount"),
+                Decimal("0.00"),
+            )
+        )
+        .order_by("name")
+    )
+
+    # Optional: add a PRESENTATION-ONLY attribute
+    # (do NOT overwrite the @property)
+    for funder in funders:
+        funder.allocatable = funder.balance - funder.total_allocated
+
+    context = {
+        "funders": funders,
+    }
+
+    return render(request, "credit/funders_list.html", context)
+
+@login_required
+def funder_view(request, funder_id):
+    funder = get_object_or_404(Funder, id=funder_id)
+
+    allocations = (
+        FunderAllocation.objects
+        .filter(funder=funder)
+        .select_related("client")
+        .order_by("client__name")
+    )
+
+    movements = (
+        FunderMovement.objects
+        .filter(funder=funder)
+        .order_by("-created_at")
+    )
+
+    members = (
+        FunderMember.active
+        .filter(funder=funder)
+        .select_related("user")
+        .order_by("role", "user__username")
+    )
+
+    week_summaries = (
+        FunderWeekSummary.objects
+        .filter(funder=funder)
+        .order_by("-week_start")
+    )
+
+    # ---------------------------
+    # CORE TOTALS
+    # ---------------------------
+    total_allocated = allocations.aggregate(
+        s=Coalesce(Sum("amount"), Decimal("0.00"))
+    )["s"]
+
+    available = funder.balance - total_allocated
+
+    # ---------------------------
+    # OVERALL FUND PERFORMANCE
+    # ---------------------------
+
+    # Total capital ever funded (TOPUPS only)
+    overall_funded = movements.filter(
+        kind=FunderMovement.TOPUP
+    ).aggregate(
+        s=Coalesce(Sum("amount"), Decimal("0.00"))
+    )["s"]
+
+    # Total returns earned (from weekly summaries)
+    overall_returns = week_summaries.aggregate(
+        s=Coalesce(Sum("weekly_return"), Decimal("0.00"))
+    )["s"]
+
+    # Return percentage (safe division)
+    if overall_funded > 0:
+        overall_return_pct = (overall_returns / overall_funded) * Decimal("100.00")
+    else:
+        overall_return_pct = Decimal("0.00")
+
+    # ---------------------------
+    # FUND DURATION (weeks + days)
+    # ---------------------------
+    delta_days = (now().date() - funder.created_at.date()).days
+    weeks = delta_days // 7
+    days = delta_days % 7
+
+    duration_display = f"{weeks} week{'s' if weeks != 1 else ''}"
+    if days:
+        duration_display += f", {days} day{'s' if days != 1 else ''}"
+
+    context = {
+        "funder": funder,
+
+        # Tabs data
+        "allocations": allocations,
+        "movements": movements[:20],
+        "members": members,
+        "week_summaries": week_summaries,
+
+        # Core KPIs
+        "total_allocated": total_allocated,
+        "available": available,
+
+        # Overall performance KPIs
+        "overall_funded": overall_funded,
+        "overall_returns": overall_returns,
+        "overall_return_pct": overall_return_pct,
+
+        # Duration
+        "duration_display": duration_display,
+    }
+
+    return render(request, "credit/funder_view.html", context)

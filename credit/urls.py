@@ -3,7 +3,7 @@ from .views import (
     credit_list,
     credit_edit,
     credit_client_view,
-    credit_record_repayment, credit_confirm_payment, credit_send_request,
+    credit_record_repayment, credit_confirm_payment, credit_send_request, funders_list, funder_view,
 )
 
 
@@ -16,6 +16,10 @@ urlpatterns = [
 
     path("credit/<int:client_id>/send-request/", credit_send_request, name="credit-send-request"),
     path("credit/<int:client_id>/confirm-payment/", credit_confirm_payment, name="credit-confirm-payment"),
+
+    path("funders/", funders_list, name="funder-list",),  
+
+    path("funders/<int:funder_id>/", funder_view, name="funder-view",),
 
 
 ]

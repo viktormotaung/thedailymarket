@@ -184,34 +184,43 @@
 
         <div class="d-flex gap-2">
 
-            <!-- CONSOLIDATION -->
-            <a href="{% if batch.status != 'complete' %}
-                        {% url 'logistics:warehouse-batch-consolidation' batch.id %}
+          <!-- CONSOLIDATION (write action) -->
+          <a href="{% if can_write and batch.status != 'complete' %}
+                      {% url 'logistics:warehouse-batch-consolidation' batch.id %}
                     {% else %}
-                        #
+                      #
                     {% endif %}"
             class="btn btn-sm
-                    {% if batch.status == 'complete' %}
-                        btn-outline-secondary disabled
+                    {% if not can_write or batch.status == 'complete' %}
+                      btn-outline-secondary disabled
                     {% else %}
-                        btn-outline-primary
+                      btn-outline-primary
                     {% endif %}"
-            {% if batch.status == 'complete' %}aria-disabled="true"{% endif %}>
+            {% if not can_write or batch.status == 'complete' %}
+              aria-disabled="true"
+              title="{% if not can_write %}View-only access{% else %}Batch is complete{% endif %}"
+            {% endif %}>
             Consolidation
-            </a>
+          </a>
 
-            <!-- REOPEN BATCH -->
-            {% if batch.status == "complete" %}
+          <!-- REOPEN BATCH (write + destructive) -->
+          {% if batch.status == "complete" %}
             <form method="post" class="d-inline">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="reopen_batch">
-                <button type="submit"
-                        class="btn btn-outline-danger btn-sm"
-                        onclick="return confirm('Reopen this batch?');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="reopen_batch">
+
+              <button type="submit"
+                      class="btn btn-outline-danger btn-sm"
+                      {% if not can_write %}
+                        disabled
+                        title="View-only access"
+                      {% else %}
+                        onclick="return confirm('Reopen this batch?');"
+                      {% endif %}>
                 Reopen Batch
-                </button>
+              </button>
             </form>
-            {% endif %}
+          {% endif %}
 
         </div>
     </div>

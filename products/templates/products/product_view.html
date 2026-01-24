@@ -190,8 +190,20 @@
         </div>
       </div>
       <div class="d-flex flex-wrap gap-2">
-        <a href="{% url 'staff-products' %}" class="btn btn-outline-secondary">Back to Products</a>
-        <a href="{% url 'product-edit' product.id %}" class="btn btn-primary">Edit Product</a>
+
+        <!-- Back (read-only) -->
+        <a href="{% url 'staff-products' %}"
+          class="btn btn-outline-secondary">
+          Back to Products
+        </a>
+
+        <!-- Edit Product (write) -->
+        <a href="{% if can_write %}{% url 'product-edit' product.id %}{% else %}#{% endif %}"
+          class="btn btn-primary {% if not can_write %}disabled{% endif %}"
+          {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
+          Edit Product
+        </a>
+
       </div>
     </div>
 
@@ -234,7 +246,14 @@
       <div class="card-header bg-white d-flex justify-content-between align-items-center">
         <strong>Supplier Pricing</strong>
         <div class="d-flex gap-2">
-          <a href="{% url 'product-pricing-create' product.id %}" class="btn btn-sm btn-success">Add Supplier Pricing</a>
+
+          <!-- Add Supplier Pricing (write) -->
+          <a href="{% if can_write %}{% url 'product-pricing-create' product.id %}{% else %}#{% endif %}"
+            class="btn btn-sm btn-success {% if not can_write %}disabled{% endif %}"
+            {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
+            Add Supplier Pricing
+          </a>
+
         </div>
       </div>
       <div class="card-body p-0">
@@ -279,7 +298,13 @@
                     <td>{{ row.retail_vat_percent|floatformat:2 }}%</td>
                     <td><strong>R{{ row.retail_price_inc|floatformat:2 }}</strong></td>
                     <td>{% if row.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</td>
-                    <td><a href="{% url 'product-pricing-edit' row.id %}" class="btn btn-sm btn-outline-secondary">Edit</a></td>
+                    <td>
+                      <a href="{% if can_write %}{% url 'product-pricing-edit' row.id %}{% else %}#{% endif %}"
+                        class="btn btn-sm btn-outline-secondary {% if not can_write %}disabled{% endif %}"
+                        {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
+                        Edit
+                      </a>
+                    </td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -288,7 +313,12 @@
         {% else %}
           <div class="p-3">
             <span class="text-muted">No supplier pricing captured yet.</span>
-            <a href="{% url 'product-pricing-create' product.id %}" class="btn btn-sm btn-link">Add one now</a>.
+
+            <a href="{% if can_write %}{% url 'product-pricing-create' product.id %}{% else %}#{% endif %}"
+              class="btn btn-sm btn-link {% if not can_write %}disabled{% endif %}"
+              {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
+              Add one now
+            </a>.
           </div>
         {% endif %}
       </div>
@@ -300,7 +330,11 @@
         <strong>Product Variants</strong>
         <div class="d-flex gap-2">
           {# adjust route name if yours differs #}
-          <a href="{% url 'variant-create' product.id %}" class="btn btn-sm btn-success">Add Variant</a>
+          <a href="{% if can_write %}{% url 'variant-create' product.id %}{% else %}#{% endif %}"
+            class="btn btn-sm btn-success {% if not can_write %}disabled{% endif %}"
+            {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
+            Add Variant
+          </a>
         </div>
       </div>
       <div class="card-body p-0">
@@ -342,7 +376,11 @@
                       {% endif %}
                     </td>
                     <td>
-                      <a href="{% url 'variant-edit' v.id %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                      <a href="{% if can_write %}{% url 'variant-edit' v.id %}{% else %}#{% endif %}"
+                        class="btn btn-sm btn-outline-secondary {% if not can_write %}disabled{% endif %}"
+                        {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
+                        Edit
+                      </a>
                     </td>
                   </tr>
                 {% endfor %}
@@ -352,7 +390,12 @@
         {% else %}
           <div class="p-3">
             <span class="text-muted">No variants yet.</span>
-            <a href="{% url 'variant-create' product.id %}" class="btn btn-sm btn-link">Add a variant</a>.
+
+            <a href="{% if can_write %}{% url 'variant-create' product.id %}{% else %}#{% endif %}"
+              class="btn btn-sm btn-link {% if not can_write %}disabled{% endif %}"
+              {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
+              Add a variant
+            </a>.
           </div>
         {% endif %}
       </div>

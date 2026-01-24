@@ -24,10 +24,12 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import strip_tags
-
+from clients.models import Client
 from profiles.models import StaffProfile, CustomerProfile
 from .forms import StaffProfileForm, UserBasicsForm, CustomerProfileEditForm
-
+from collections import Counter
+from credit.models import CreditAccount
+from transactions.models import Transaction
 from orders.models import Order, OrderItem
 from deliveries.models import DeliveryRun
 from tasks.models import Task  # adjust if your Task app name differs
@@ -49,135 +51,168 @@ def _day_start(dt):
 # ---------------------------
 # Dashboard
 # ---------------------------
+
 @login_required
 @staff_required
 def dashboard(request):
-    tznow = timezone.localtime()
+
+    # -------------------------------------------------
+    # Date range
+    # -------------------------------------------------
+    now = timezone.localtime()
     param = request.GET.get("range", "today")
 
+    def day_start(dt):
+        return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+
     if param == "7d":
-        start = _day_start(tznow - timedelta(days=6))  # inclusive
-        end = _day_start(tznow + timedelta(days=1))    # exclusive
+        start = day_start(now - timedelta(days=6))
+        end = day_start(now + timedelta(days=1))
         range_name = "7d"
     else:
-        start = _day_start(tznow)
-        end = _day_start(tznow + timedelta(days=1))
+        start = day_start(now)
+        end = day_start(now + timedelta(days=1))
         range_name = "today"
 
-    # Prefer submitted/approved/reviewed/updated; fall back to order_date (assumed aware)
-    orders_base = Order.objects.annotate(
-        ts=Coalesce(
+    # -------------------------------------------------
+    # Orders
+    # -------------------------------------------------
+    orders_qs = (
+        Order.objects
+        .annotate(ts=Coalesce(
             "submitted_at",
             "approved_at",
             "reviewed_at",
             "updated_at",
             "order_date",
-        )
-    )
-    in_range_q = Q(ts__gte=start, ts__lt=end)
-
-    # Orders
-    orders_qs = (
-        orders_base.filter(in_range_q)
+        ))
+        .filter(ts__gte=start, ts__lt=end)
         .select_related("client")
-        .order_by("-ts", "-updated_at")[:25]
+        .order_by("-ts")[:25]
     )
 
-    # Deliveries (service_date is a DateField)
-    start_d = start.date()
-    end_d_exclusive = end.date()
+    # -------------------------------------------------
+    # Deliveries
+    # -------------------------------------------------
     deliveries_qs = (
         DeliveryRun.objects
-        .filter(service_date__gte=start_d, service_date__lt=end_d_exclusive)
+        .filter(
+            service_date__gte=start.date(),
+            service_date__lt=end.date()
+        )
         .annotate(stops_count=Count("stops"))
         .order_by("-service_date", "-id")[:25]
     )
 
+    # -------------------------------------------------
     # Tasks
+    # -------------------------------------------------
     tasks_qs = (
         Task.objects
         .filter(created_at__gte=start, created_at__lt=end)
         .order_by("-created_at")[:25]
     )
 
-    # Top 4 products — keep arithmetic Decimal-only to avoid mixed-type errors
-    DEC12_4 = DecimalField(max_digits=12, decimal_places=4)
-    DEC14_2 = DecimalField(max_digits=14, decimal_places=2)
+    # -------------------------------------------------
+    # KPI SNAPSHOTS
+    # -------------------------------------------------
+    kpi_orders = orders_qs.count()
 
-    items_in_range = (
-        OrderItem.objects
-        .filter(order__in=orders_base.filter(in_range_q).values("id"))
-        .annotate(
-            pname=Coalesce(F("product_name"), F("product__name")),
-            vat_dec=Cast(F("vat_percent"), output_field=DEC12_4),
+    # ✅ Revenue = positive transactions
+    kpi_revenue = (
+        Transaction.objects
+        .filter(
+            created_at__gte=start,
+            created_at__lt=end,
+            amount__gt=0
         )
-        .annotate(
-            price_inc=ExpressionWrapper(
-                F("unit_price_excl") * (
-                    Value(Decimal("1.00"), output_field=DEC12_4) +
-                    (F("vat_dec") / Value(Decimal("100.00"), output_field=DEC12_4))
-                ),
-                output_field=DEC12_4,
-            ),
-            line_total=ExpressionWrapper(
-                F("unit_price_excl") * (
-                    Value(Decimal("1.00"), output_field=DEC12_4) +
-                    (F("vat_dec") / Value(Decimal("100.00"), output_field=DEC12_4))
-                ) * F("quantity")
-                - Coalesce(F("discount_excl"), Value(Decimal("0.00"), output_field=DEC14_2)),
-                output_field=DEC14_2,
-            ),
-        )
-        .values("pname")
-        .annotate(
-            qty=Coalesce(Sum("quantity", output_field=IntegerField()),
-                         Value(0, output_field=IntegerField())),
-            sales=Coalesce(Sum("line_total", output_field=DEC14_2),
-                           Value(Decimal("0.00"), output_field=DEC14_2)),
-        )
-        .order_by("-qty")[:4]
+        .aggregate(
+            s=Coalesce(Sum("amount"), Decimal("0.00"))
+        )["s"]
     )
 
-    # Sales trend (orders per day, current month)
-    month_start = _day_start(tznow.replace(day=1))
-    next_month = _day_start((month_start + timedelta(days=32)).replace(day=1))
-    by_day = (
-        orders_base.filter(ts__gte=month_start, ts__lt=next_month)
-        .annotate(day=TruncDay("ts", tz=timezone.get_current_timezone()))
-        .values("day")
-        .annotate(n=Count("id"))
-        .order_by("day")
+    kpi_deliveries = deliveries_qs.count()
+
+    kpi_credit_used = (
+        CreditAccount.objects
+        .aggregate(
+            s=Coalesce(Sum("credit_used"), Decimal("0.00"))
+        )["s"]
+    )
+
+    kpi_open_tasks = (
+        Task.objects
+        .filter(status__in=["OPEN", "IN_PROGRESS"])
+        .count()
+    )
+
+    kpi_new_clients = (
+        Client.objects
+        .filter(created_at__gte=start, created_at__lt=end)
+        .count()
+    )
+
+    # -------------------------------------------------
+    # Sales trend (orders per day)
+    # -------------------------------------------------
+    month_start = day_start(now.replace(day=1))
+    next_month = day_start((month_start + timedelta(days=32)).replace(day=1))
+
+    order_days = (
+        Order.objects
+        .annotate(ts=Coalesce(
+            "submitted_at",
+            "approved_at",
+            "reviewed_at",
+            "updated_at",
+            "order_date",
+        ))
+        .filter(ts__gte=month_start, ts__lt=next_month)
+        .values_list("ts", flat=True)
+    )
+
+    day_counts = Counter(
+        timezone.localtime(d).date()
+        for d in order_days if d
     )
 
     labels, data = [], []
-    day_map = {row["day"].date(): row["n"] for row in by_day}
     cursor = month_start
-    today_end = _day_start(tznow + timedelta(days=1))
+    today_end = day_start(now + timedelta(days=1))
+
     while cursor < today_end:
-        try:
-            label = cursor.strftime("%-d %b")  # POSIX
-        except ValueError:
-            label = cursor.strftime("%d %b")   # Windows fallback
-        labels.append(label)
-        data.append(int(day_map.get(cursor.date(), 0)))
+        labels.append(cursor.strftime("%d %b"))
+        data.append(int(day_counts.get(cursor.date(), 0)))
         cursor += timedelta(days=1)
 
+    # -------------------------------------------------
+    # Context
+    # -------------------------------------------------
     context = {
         "range": range_name,
+
+        # KPI cards
+        "kpi_orders": kpi_orders,
+        "kpi_revenue": kpi_revenue,
+        "kpi_deliveries": kpi_deliveries,
+        "kpi_credit_used": kpi_credit_used,
+        "kpi_open_tasks": kpi_open_tasks,
+        "kpi_new_clients": kpi_new_clients,
+
+        # Lists
         "orders": orders_qs,
         "deliveries": deliveries_qs,
         "tasks": tasks_qs,
-        "top_products": [
-            {"name": r["pname"], "qty": r["qty"], "sales": r["sales"]}
-            for r in items_in_range
-        ],
+
+        # Chart
         "sales_labels": json.dumps(labels),
         "sales_data": json.dumps(data),
     }
+
     return render(request, "staff_portal/dashboard.html", context)
 
-# ---------------------------
-# Profiles
+
+
 # ---------------------------
 @login_required
 @staff_required

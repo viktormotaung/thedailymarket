@@ -225,89 +225,109 @@
   <div class="card mb-4 shadow-sm">
     <div class="card-body">
 
-      <div class="row g-4 align-items-end">
+      <!-- ===================== -->
+      <!-- FORM START (IMPORTANT) -->
+      <!-- ===================== -->
+      <form method="post">
+        {% csrf_token %}
 
-        <!-- ===================== -->
-        <!-- ASSIGNMENTS -->
-        <!-- ===================== -->
-        <div class="col-lg-7">
-          <h6 class="text-uppercase text-muted mb-3">
-            Assignment
-          </h6>
+        <div class="row g-4 align-items-end">
 
-          <div class="row g-3">
+          <!-- ===================== -->
+          <!-- ASSIGNMENTS -->
+          <!-- ===================== -->
+          <div class="col-lg-7">
+            <h6 class="text-uppercase text-muted mb-3">
+              Assignment
+            </h6>
 
-            <!-- Driver -->
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Driver</label>
-              {{ form.driver }}
+            <div class="row g-3">
+
+              <!-- Driver -->
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">
+                  Driver
+                </label>
+                {{ form.driver }}
+              </div>
+
+              <!-- Vehicle -->
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">
+                  Vehicle
+                </label>
+                {{ form.vehicle }}
+              </div>
+
             </div>
-
-            <!-- Vehicle -->
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Vehicle</label>
-              {{ form.vehicle }}
-            </div>
-
           </div>
+
+          <!-- ===================== -->
+          <!-- RUN STATS -->
+          <!-- ===================== -->
+          <div class="col-lg-5">
+            <h6 class="text-uppercase text-muted mb-3">
+              Run Summary
+            </h6>
+
+            <div class="row text-center g-3">
+
+              <div class="col-4">
+                <div class="border rounded py-3 bg-light">
+                  <div class="text-muted small">Stops</div>
+                  <strong class="fs-5">
+                    {{ run.stop_count }}
+                  </strong>
+                </div>
+              </div>
+
+              <div class="col-4">
+                <div class="border rounded py-3 bg-light">
+                  <div class="text-muted small">Distance</div>
+                  <strong class="fs-6">
+                    {{ run.total_distance_km|default:"—" }} km
+                  </strong>
+                </div>
+              </div>
+
+              <div class="col-4">
+                <div class="border rounded py-3 bg-light">
+                  <div class="text-muted small">Drive Time</div>
+                  <strong class="fs-6">
+                    {{ run.total_drive_min|default:"—" }} min
+                  </strong>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
 
         <!-- ===================== -->
-        <!-- RUN STATS -->
+        <!-- SAVE ACTION -->
         <!-- ===================== -->
-        <div class="col-lg-5">
-          <h6 class="text-uppercase text-muted mb-3">
-            Run Summary
-          </h6>
-
-          <div class="row text-center g-3">
-
-            <div class="col-4">
-              <div class="border rounded py-3 bg-light">
-                <div class="text-muted small">Stops</div>
-                <strong class="fs-5">{{ run.stop_count }}</strong>
-              </div>
-            </div>
-
-            <div class="col-4">
-              <div class="border rounded py-3 bg-light">
-                <div class="text-muted small">Distance</div>
-                <strong class="fs-6">
-                  {{ run.total_distance_km|default:"—" }} km
-                </strong>
-              </div>
-            </div>
-
-            <div class="col-4">
-              <div class="border rounded py-3 bg-light">
-                <div class="text-muted small">Drive Time</div>
-                <strong class="fs-6">
-                  {{ run.total_drive_min|default:"—" }} min
-                </strong>
-              </div>
-            </div>
-
-          </div>
+        <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+          <button
+            type="submit"
+            class="btn btn-success px-4 py-2"
+            {% if not can_write %}
+              disabled
+              title="View-only access"
+            {% endif %}
+          >
+            Save
+          </button>
         </div>
 
-      </div>
-
+      </form>
       <!-- ===================== -->
-      <!-- SAVE ACTION -->
+      <!-- FORM END -->
       <!-- ===================== -->
-      <div class="d-flex justify-content-end mt-4 pt-3 border-top">
-
-        <button
-          type="submit"
-          class="btn btn-success px-4 py-2"
-        >
-          Save
-        </button>
-
-      </div>
 
     </div>
   </div>
+
 
 
   <!-- ============================= -->

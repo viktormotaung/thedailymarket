@@ -119,11 +119,19 @@
         </div>
       </div>
       <div class="d-flex gap-2">
-        <a href="{% url 'sales:sales-invoices' %}" class="btn btn-outline-secondary">Back to Invoices</a>
+
+        <a href="{% url 'sales:sales-invoices' %}"
+          class="btn btn-outline-secondary">
+          Back to Invoices
+        </a>
+
         {% if order and order.id %}
-          <a href="{% url 'sales:view-order' order.id %}" class="btn btn-outline-primary">View Order</a>
+          <a href="{% url 'sales:view-order' order.id %}"
+            class="btn btn-outline-primary">
+            View Order
+          </a>
         {% endif %}
-        
+
       </div>
     </div>
 
@@ -155,30 +163,75 @@
       <!-- Invoice totals -->
       <div class="col-md-4">
         <div class="card h-100">
-          <div class="card-header bg-white"><strong>Payment Summary</strong></div>
+          <div class="card-header bg-white">
+            <strong>Payment Summary</strong>
+          </div>
+
           <div class="card-body">
-            <div class="d-flex justify-content-between"><span>Order Total (Inc):</span><strong>R{{ invoice.order_total_inc|floatformat:2 }}</strong></div>
-            <div class="d-flex justify-content-between"><span>Deposit Required:</span><strong>R{{ invoice.deposit_required|floatformat:2 }}</strong></div>
-            <div class="d-flex justify-content-between"><span>Deposit Paid:</span><strong>R{{ invoice.deposit_paid|floatformat:2 }}</strong></div>
-            <div class="d-flex justify-content-between"><span>Deposit Outstanding:</span><strong>R{{ deposit_outstanding|floatformat:2 }}</strong></div>
+            <div class="d-flex justify-content-between">
+              <span>Order Total (Inc):</span>
+              <strong>R{{ invoice.order_total_inc|floatformat:2 }}</strong>
+            </div>
+
+            <div class="d-flex justify-content-between">
+              <span>Deposit Required:</span>
+              <strong>R{{ invoice.deposit_required|floatformat:2 }}</strong>
+            </div>
+
+            <div class="d-flex justify-content-between">
+              <span>Deposit Paid:</span>
+              <strong>R{{ invoice.deposit_paid|floatformat:2 }}</strong>
+            </div>
+
+            <div class="d-flex justify-content-between">
+              <span>Deposit Outstanding:</span>
+              <strong>R{{ deposit_outstanding|floatformat:2 }}</strong>
+            </div>
+
             <hr/>
-            <div class="d-flex justify-content-between"><span>Credit Used (if any):</span><strong>R{{ invoice.credit_used|floatformat:2 }}</strong></div>
+
+            <div class="d-flex justify-content-between">
+              <span>Credit Used (if any):</span>
+              <strong>R{{ invoice.credit_used|floatformat:2 }}</strong>
+            </div>
+
             <div class="mt-2">
               {% if is_overdue %}
                 <span class="badge badge-overdue">Overdue</span>
               {% else %}
-                <span class="badge badge-soft">Due {{ invoice.due_date|default:"—" }}</span>
+                <span class="badge badge-soft">
+                  Due {{ invoice.due_date|default:"—" }}
+                </span>
               {% endif %}
             </div>
 
-            <!-- ACTION BUTTONS (no actions yet) -->
+            <!-- ACTION BUTTONS -->
             <div class="d-flex flex-wrap gap-2 mt-3">
-              <button type="button" class="btn btn-primary">
-                <i class="bi bi-cash-coin me-1"></i> Pay Deposit
+
+              <button
+                type="button"
+                class="btn btn-primary {% if invoice.status == 'paid' %}disabled{% endif %}"
+                {% if invoice.status == 'paid' %}
+                  disabled
+                  title="Invoice already paid"
+                {% endif %}
+              >
+                <i class="bi bi-cash-coin me-1"></i>
+                Pay Deposit
               </button>
-              <button type="button" class="btn btn-outline-primary">
-                <i class="bi bi-credit-card me-1"></i> Pay Credit
+
+              <button
+                type="button"
+                class="btn btn-outline-primary {% if invoice.status == 'paid' %}disabled{% endif %}"
+                {% if invoice.status == 'paid' %}
+                  disabled
+                  title="Invoice already paid"
+                {% endif %}
+              >
+                <i class="bi bi-credit-card me-1"></i>
+                Pay Credit
               </button>
+
             </div>
           </div>
         </div>

@@ -262,6 +262,52 @@ class Client(models.Model):
     def __str__(self):
         return self.organization or self.name
 
+    def ensure_compliance(self):
+        """
+        Ensure ClientCompliance and base ClientComplianceDocument
+        rows exist for this client.
+        """
+        ClientCompliance = apps.get_model("clients", "ClientCompliance")
+        ClientComplianceDocument = apps.get_model("clients", "ClientComplianceDocument")
+
+        # 1) Ensure compliance row exists
+        compliance, _ = ClientCompliance.objects.get_or_create(
+            client=self,
+            defaults={
+                "company_reg_number": self.company_reg_number or "",
+                "vat_number": self.vat_number or "",
+            }
+        )
+
+        # 2) Ensure document placeholders exist
+        existing_docs = set(
+            compliance.documents.values_list("document_type", flat=True)
+        )
+
+        REQUIRED_DOC_TYPES = {
+            "CIPC",
+            "ID",
+            "PROOF_ADDRESS",
+            "BANK_LETTER",
+            "CONTRACT",
+        }
+
+        missing = REQUIRED_DOC_TYPES - existing_docs
+
+        ClientComplianceDocument.objects.bulk_create(
+            [
+                ClientComplianceDocument(
+                    compliance=compliance,
+                    document_type=doc_type,
+                )
+                for doc_type in missing
+            ],
+            ignore_conflicts=True,
+        )
+
+        return compliance
+
+
     # ---------- ensure a 1–1 CreditAccount exists (no signals) ----------
     def ensure_credit_account(self):
         """
@@ -302,23 +348,30 @@ class Client(models.Model):
         """
         - If credit_status is ACTIVE, force account_type to CREDIT.
         - On first save, generate client_number (inside a transaction).
-        - After any successful save, ensure a CreditAccount exists (and mirroring funder).
+        - After any successful save, ensure related objects exist.
         """
+
         # 1) Enforce account_type when credit goes ACTIVE
         if self.credit_status == "ACTIVE" and self.account_type != "CREDIT":
             self.account_type = "CREDIT"
 
-        # 2) First-time save? create client_number atomically
+        # 2) First-time save
         if not self.client_number:
             with transaction.atomic():
                 self.client_number = self.next_client_number()
                 super().save(*args, **kwargs)
-                self.ensure_credit_account()  # create on initial insert (also mirrors funder)
+
+                self.ensure_credit_account()
+                self.ensure_compliance()   # ✅ ADD THIS
+
                 return
 
         # 3) Normal update
         super().save(*args, **kwargs)
-        self.ensure_credit_account()  # re-create later if ever missing / mirror funder
+
+        self.ensure_credit_account()
+        self.ensure_compliance()   # ✅ ADD THIS
+
 
     @property
     def has_delivery_geo(self) -> bool:
@@ -352,6 +405,86 @@ class Client(models.Model):
         # fallback to address search
         from urllib.parse import quote_plus
         return f"https://www.google.com/maps/search/?api=1&query={quote_plus(self.delivery_address_as_line())}"
+
+
+class ClientCompliance(models.Model):
+    VETTING_STATUS = [
+        ("PENDING", "Pending"),
+        ("IN_REVIEW", "In Review"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+        ("EXPIRED", "Expired"),
+    ]
+
+    client = models.OneToOneField(
+        Client,
+        on_delete=models.CASCADE,
+        related_name="compliance",
+    )
+
+    # --- Registration & identity ---
+    company_reg_number = models.CharField(max_length=80, blank=True)
+    vat_number = models.CharField(max_length=80, blank=True)
+
+    # --- Vetting state ---
+    vetting_status = models.CharField(
+        max_length=20,
+        choices=VETTING_STATUS,
+        default="PENDING",
+        db_index=True,
+    )
+
+    vetted_at = models.DateTimeField(null=True, blank=True)
+    vetted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="vetted_clients",
+    )
+
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class ClientComplianceDocument(models.Model):
+    DOCUMENT_TYPES = [
+        ("CIPC", "CIPC Registration"),
+        ("ID", "Director ID"),
+        ("PROOF_ADDRESS", "Proof of Address"),
+        ("BANK_LETTER", "Bank Confirmation Letter"),
+        ("CONTRACT", "Signed Contract / Agreement"),
+        ("OTHER", "Other"),
+    ]
+
+
+    compliance = models.ForeignKey(
+        ClientCompliance,
+        on_delete=models.CASCADE,
+        related_name="documents",
+    )
+
+    document_type = models.CharField(
+        max_length=30,
+        choices=DOCUMENT_TYPES,
+    )
+
+    file = models.FileField(upload_to="compliance/client_docs/")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+
+    is_verified = models.BooleanField(default=False)
+
+    notes = models.CharField(max_length=255, blank=True)
+
 
 
 # --------- keep CreditAccount.funder mirrored from Client.funder ----------

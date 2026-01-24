@@ -16,8 +16,8 @@ import urllib.parse
 from django.core.mail import EmailMultiAlternatives
 from django.views.decorators.http import require_POST
 from django.template.loader import render_to_string
-
-
+from django.utils.timezone import now, make_aware
+from datetime import datetime, timedelta, time, date
 
 DAY_OPTIONS = [7, 14, 30, 60]
 
@@ -32,6 +32,7 @@ staff_required = user_passes_test(staff_check, login_url="/portal/client/login/"
 @login_required
 @staff_required
 def invoice_list(request):
+    # --- days param (validated) ---
     raw = request.GET.get("days", "7")
     try:
         days = int(raw)
@@ -40,16 +41,37 @@ def invoice_list(request):
     if days not in DAY_OPTIONS:
         days = 7
 
-    # Filters for template
+    # --- filters for template ---
     search = request.GET.get("q", "").strip()
     filter_status = request.GET.get("status", "").strip()
     date_from = request.GET.get("from", "")
     date_to = request.GET.get("to", "")
 
-    recent_start = now().date() - timedelta(days=days)
+    # --- base date range ---
+    end_date = now().date()
+    start_date = end_date - timedelta(days=days)
 
+    # optional overrides (YYYY-MM-DD)
+    if date_from:
+        try:
+            start_date = date.fromisoformat(date_from)
+        except ValueError:
+            pass
+
+    if date_to:
+        try:
+            end_date = date.fromisoformat(date_to)
+        except ValueError:
+            pass
+
+    # --- timezone-aware datetime range (MySQL safe) ---
+    start_dt = make_aware(datetime.combine(start_date, time.min))
+    end_dt = make_aware(datetime.combine(end_date, time.max))
+
+    # --- base queryset ---
     recent_qs = (
-        Invoice.objects.filter(created_at__date__gte=recent_start)
+        Invoice.objects
+        .filter(created_at__gte=start_dt, created_at__lte=end_dt)
         .annotate(
             balance=ExpressionWrapper(
                 F("amount_due") - F("deposit_paid"),
@@ -58,7 +80,9 @@ def invoice_list(request):
         )
     )
 
+    # --- KPIs ---
     recent_unpaid_qs = recent_qs.exclude(status="paid")
+
     recent_unpaid_total = recent_unpaid_qs.aggregate(
         total_unpaid=Coalesce(Sum("balance"), Decimal("0.00"))
     )["total_unpaid"]
@@ -67,22 +91,28 @@ def invoice_list(request):
         total_paid=Coalesce(Sum("deposit_paid"), Decimal("0.00"))
     )["total_paid"]
 
+    # --- context ---
     context = {
         "DAY_OPTIONS": DAY_OPTIONS,
         "days": days,
-        "recent_paid_start": recent_start,
-        "recent_unpaid_start": recent_start,
+        "recent_paid_start": start_date,
+        "recent_unpaid_start": start_date,
         "recent_unpaid_total": recent_unpaid_total,
         "recent_unpaid_count": recent_unpaid_qs.count(),
         "recent_paid_total": recent_paid_total,
         "recent_paid_count": recent_qs.filter(status="paid").count(),
-        "invoices": recent_qs.select_related("client", "order").order_by("-created_at"),
+        "invoices": (
+            recent_qs
+            .select_related("client", "order")
+            .order_by("-created_at")
+        ),
         "search": search,
         "filter_status": filter_status,
-        "date_from": date_from,
-        "date_to": date_to,
+        "date_from": start_date,
+        "date_to": end_date,
         "status_choices": Invoice.STATUS_CHOICES,
     }
+
     return render(request, "invoices/invoice_list.html", context)
 
 

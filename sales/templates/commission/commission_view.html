@@ -260,7 +260,7 @@
       spinner.classList.remove("d-none");
       btnText.textContent = "Sending...";
 
-      fetch("{% url 'email-commission-statement' %}", {
+      fetch("{% url 'sales:email-commission-statement' %}", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

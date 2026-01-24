@@ -233,10 +233,19 @@
         {% endif %}
       </h3>
       <div class="d-flex gap-2">
-        <a href="{% url 'staff_profile' %}" class="btn btn-outline-secondary btn-sm">← Back to Staff</a>
-        <a href="{% url 'staff_profile_edit' sp.pk %}" class="btn btn-primary btn-sm">Edit Profile</a>
 
+        <!-- Back (read-only) -->
+        <a href="{% url 'staff_profile' %}"
+          class="btn btn-outline-secondary btn-sm">
+          ← Back to Staff
+        </a>
 
+        <!-- Edit Profile (write) -->
+        <a href="{% if can_write %}{% url 'staff_profile_edit' sp.pk %}{% else %}#{% endif %}"
+          class="btn btn-primary btn-sm {% if not can_write %}disabled{% endif %}"
+          {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
+          Edit Profile
+        </a>
 
       </div>
     </div>

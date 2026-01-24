@@ -1,6 +1,9 @@
 # logistics/views.py
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import render, get_object_or_404, redirect, reverse
+from django.http import HttpResponseForbidden, JsonResponse
+from django.urls import reverse
+
 from django.utils.timezone import now
 from datetime import timedelta
 from django.db.models import Sum, Count, Q
@@ -19,13 +22,138 @@ from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404
 from django.utils.timezone import now
 import json
+from django.db.models.functions import Concat
+from django.db.models import OuterRef, Subquery, Exists, Value
 from deliveries.forms import DeliveryRunAssignmentForm
+from deliveries.models import RunEvent
+from orders.models import Order
+from django.db.models import OuterRef, Subquery, Exists
+from django.contrib.auth import get_user_model
+from datetime import timedelta
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Sum, Q
+from django.shortcuts import render
+from django.utils.timezone import now
+
+from deliveries.models import (
+    PickingBatch,
+    PickingItem,
+    DeliveryRun,
+    DeliveryStop,
+)
+
+User = get_user_model()
+
+
+
 
 
 
 @login_required
 def logistics_dashboard(request):
-    return render(request, "logistics/dashboard.html")
+    # -----------------------------
+    # 1) Range handling
+    # -----------------------------
+    range_key = request.GET.get("range", "today")
+    now_dt = now()
+
+    if range_key == "7d":
+        start_dt = now_dt - timedelta(days=7)
+    elif range_key == "month":
+        start_dt = now_dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:  # today
+        start_dt = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # -----------------------------
+    # 2) Warehouse metrics
+    # -----------------------------
+    batches = PickingBatch.objects.filter(
+        created_at__gte=start_dt
+    )
+
+    picking_items = PickingItem.objects.filter(
+        batch__created_at__gte=start_dt
+    )
+
+    warehouse_metrics = {
+        "batches_total": batches.count(),
+        "batches_in_progress": batches.filter(status="in_progress").count(),
+        "batches_complete": batches.filter(status="complete").count(),
+
+        "items_total": picking_items.count(),
+        "items_picked": picking_items.filter(is_picked=True).count(),
+        "items_pending": picking_items.filter(is_picked=False).count(),
+    }
+
+    # -----------------------------
+    # 3) Delivery / Fleet metrics
+    # -----------------------------
+    runs = DeliveryRun.objects.filter(
+        service_date__gte=start_dt.date()
+    )
+
+    stops = DeliveryStop.objects.filter(
+        run__service_date__gte=start_dt.date()
+    )
+
+    delivery_metrics = {
+        "runs_total": runs.count(),
+        "runs_active": runs.exclude(status__in=["complete", "cancelled"]).count(),
+        "runs_complete": runs.filter(status="complete").count(),
+
+        "stops_total": stops.count(),
+        "stops_delivered": stops.filter(status="delivered").count(),
+        "stops_failed": stops.filter(status="failed").count(),
+        "stops_pending": stops.exclude(status__in=["delivered", "failed"]).count(),
+    }
+
+    # -----------------------------
+    # 4) Distance & cost aggregates
+    # -----------------------------
+    cost_agg = runs.aggregate(
+        total_distance=Sum("total_distance_km"),
+        total_cost=Sum("overall_total_cost"),
+        total_stops=Sum("stop_count"),
+    )
+
+    total_stops = cost_agg["total_stops"] or 0
+    avg_cost_per_stop = (
+        (cost_agg["total_cost"] or 0) / total_stops
+        if total_stops else 0
+    )
+
+    cost_metrics = {
+        "total_distance": cost_agg["total_distance"] or 0,
+        "total_cost": cost_agg["total_cost"] or 0,
+        "avg_cost_per_stop": avg_cost_per_stop,
+    }
+
+    # -----------------------------
+    # 5) Recent operational lists
+    # -----------------------------
+    recent_batches = batches.select_related("created_by")[:5]
+    active_runs = runs.exclude(status__in=["complete", "cancelled"]).select_related("driver", "vehicle")[:5]
+
+    # -----------------------------
+    # 6) Render
+    # -----------------------------
+    return render(request, "logistics/dashboard.html", {
+        "range": range_key,
+
+        # Warehouse
+        "warehouse": warehouse_metrics,
+        "recent_batches": recent_batches,
+
+        # Fleet
+        "delivery": delivery_metrics,
+        "active_runs": active_runs,
+
+        # Cost
+        "costs": cost_metrics,
+    })
+
+
+
 
 
 @login_required
@@ -443,7 +571,6 @@ def delivery_run_auto_plan(request, run_id):
     return redirect("logistics:delivery-run-detail", run_id=run.id)
 
 
-
 # ----------------------
 # Driver
 # ----------------------
@@ -475,23 +602,29 @@ def driver_view(request):
                 "run": None,
                 "current_stop": None,
                 "upcoming_stops": [],
-                "stops": [],              # ✅ ADD THIS
+                "stops": [],
                 "all_completed": False,
+                "total_stops": 0,
+                "completed_stops": 0,
             }
         )
 
-    # --- Stops ---
+    # --- All stops ---
     stops = run.stops.all().order_by("sequence", "id")
 
-    undelivered = stops.exclude(status="delivered")
-    current_stop = undelivered.first()
+    # --- Actionable stops ONLY ---
+    actionable_stops = stops.filter(
+        status__in=["assigned", "en_route"]
+    )
+
+    current_stop = actionable_stops.first()
 
     context = {
         "run": run,
-        "current_stop": current_stop,
-        "upcoming_stops": undelivered,
-        "stops": stops,               # ✅ THIS IS THE KEY LINE
-        "all_completed": not undelivered.exists(),
+        "stops": stops,
+        "current_stop": current_stop,          # ✅ SAFE
+        "upcoming_stops": actionable_stops,    # ✅ SAFE
+        "all_completed": not actionable_stops.exists(),
         "total_stops": stops.count(),
         "completed_stops": stops.filter(status="delivered").count(),
     }
@@ -501,6 +634,7 @@ def driver_view(request):
         "logistics/driver/driver_view.html",
         context,
     )
+
 
 
 @login_required
@@ -559,46 +693,84 @@ def update_driver_location(request):
 @require_POST
 def start_stop(request, stop_id):
     stop = get_object_or_404(
-        DeliveryStop.objects.select_related("run"),
+        DeliveryStop.objects.select_related("run", "run__driver"),
         id=stop_id
     )
-
     run = stop.run
 
-    # --- Safety checks ---
-    if stop.status != "assigned":
-        return JsonResponse(
-            {"error": "Stop not ready to start"},
-            status=400
-        )
+    if run.driver_id != request.user.id:
+        return JsonResponse({"error": "You are not assigned to this run"}, status=403)
 
-    # --- Start the stop ---
+    if stop.status != "assigned":
+        return JsonResponse({"error": "Stop is not ready to start"}, status=400)
+
+    is_first_stop = run.status != "en_route"
+
     stop.status = "en_route"
     stop.started_at = now()
     stop.updated_at = now()
     stop.save(update_fields=["status", "started_at", "updated_at"])
 
-    # --- Ensure run is marked as en_route ---
-    if run.status != "en_route":
+    if is_first_stop:
         run.status = "en_route"
         run.updated_at = now()
         run.save(update_fields=["status", "updated_at"])
 
-    return JsonResponse({"success": True})
+        Order.objects.filter(
+            delivery_stops__run=run
+        ).distinct().update(
+            status="out_for_delivery",
+            updated_at=now()
+        )
+
+    lat = request.POST.get("lat")
+    lng = request.POST.get("lng")
+    try:
+        if lat and lng:
+            DriverLocation.objects.create(
+                run=run,
+                driver=request.user,
+                lat=float(lat),
+                lng=float(lng),
+            )
+    except (TypeError, ValueError):
+        pass
+
+    RunEvent.objects.create(
+        run=run,
+        stop=stop,
+        event_type="STOP_ARRIVED",
+        notes="Stop started by driver",
+    )
+
+    # ✅ THIS IS THE KEY LINE
+    return redirect(request.META.get("HTTP_REFERER", "/"))# =====================================================
+
+# END (COMPLETE) DELIVERY STOP
+# =====================================================
 
 @login_required
 @require_POST
 def end_stop(request, stop_id):
-    stop = get_object_or_404(DeliveryStop, id=stop_id)
+    stop = get_object_or_404(
+        DeliveryStop.objects.select_related("run"),
+        id=stop_id
+    )
+    run = stop.run
+
+    if run.driver_id != request.user.id:
+        return HttpResponseForbidden("Not assigned to this run")
 
     if stop.status != "en_route":
-        return JsonResponse({"error": "Stop not en route"}, status=400)
+        return HttpResponseForbidden("Stop not in progress")
 
-    stop.status = "arrived"
+    stop.status = "delivered"
     stop.ended_at = now()
 
     if stop.started_at:
-        stop.drive_min = int((stop.ended_at - stop.started_at).total_seconds() / 60)
+        stop.drive_min = int(
+            (stop.ended_at - stop.started_at).total_seconds() // 60
+        )
 
     stop.save(update_fields=[
         "status",
@@ -607,27 +779,274 @@ def end_stop(request, stop_id):
         "updated_at",
     ])
 
-    return JsonResponse({"success": True})
+    if not run.stops.filter(status__in=["assigned", "en_route"]).exists():
+        run.status = "complete"
+        run.save(update_fields=["status", "updated_at"])
+
+    return redirect("logistics:stop-completion", stop_id=stop.id)
+
+
+
+@login_required
+def stop_completion(request, stop_id):
+    stop = get_object_or_404(DeliveryStop, id=stop_id)
+    order = stop.order
+
+    # 🔐 Security
+    if stop.run.driver_id != request.user.id:
+        return HttpResponseForbidden("Not assigned")
+
+    if request.method == "POST":
+        outcome = request.POST.get("outcome")
+
+        # --- Save POD fields (always allowed) ---
+        stop.recipient_name = request.POST.get("recipient_name", "")
+        stop.recipient_id_no = request.POST.get("recipient_id_no", "")
+        stop.delivery_notes = request.POST.get("delivery_notes", "")
+        stop.updated_by = request.user
+        stop.updated_at = now()
+
+        if request.FILES.get("signature"):
+            stop.signature = request.FILES["signature"]
+            stop.signed_at = now()
+
+        stop.save()
+
+        # --- Update ORDER status based on outcome ---
+        if outcome == "complete":
+            order.status = "complete"
+
+        elif outcome == "returned":
+            order.status = "returned"
+
+        elif outcome == "cancelled":
+            order.status = "cancelled"
+
+        order.updated_at = now()
+        order.save(update_fields=["status", "updated_at"])
+
+    return render(
+        request,
+        "logistics/driver/stop_completion.html",
+        {"stop": stop}
+    )
+
+
+# =====================================================
+# NEXT STOP (UI FLOW)
+# =====================================================
 
 @login_required
 def next_stop(request, stop_id):
-    stop = get_object_or_404(DeliveryStop, id=stop_id)
+    stop = get_object_or_404(
+        DeliveryStop.objects.select_related("run", "run__driver"),
+        id=stop_id
+    )
 
-    # safety: only allow if ended
-    if not stop.ended_at:
+    # --- AUTH ---
+    if stop.run.driver_id != request.user.id:
+        return redirect("logistics:driver-dashboard")
+
+    # --- SAFETY ---
+    if stop.status != "delivered":
         return redirect("logistics:driver-dashboard")
 
     return redirect("logistics:driver-dashboard")
 
+@login_required
+@require_POST
+def driver_location_ping(request):
+    """
+    Receives periodic GPS pings from driver browser
+    """
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
 
+    lat = data.get("lat")
+    lng = data.get("lng")
+
+    if not lat or not lng:
+        return JsonResponse({"error": "Missing coordinates"}, status=400)
+
+    run = (
+        DeliveryRun.objects
+        .filter(
+            driver=request.user,
+            status__in=["planned", "en_route"]
+        )
+        .order_by("-updated_at")
+        .first()
+    )
+
+    if not run:
+        return JsonResponse({"error": "No active run"}, status=400)
+
+    DriverLocation.objects.create(
+        run=run,
+        driver=request.user,
+        lat=float(lat),
+        lng=float(lng),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "timestamp": now().isoformat()
+    })
 
 
 @login_required
 def monitor_view(request):
     view_mode = request.GET.get("view", "table")  # table | map
 
+    # Latest run per vehicle
+    latest_run_qs = (
+        DeliveryRun.objects
+        .filter(vehicle=OuterRef("pk"))
+        .order_by("-updated_at")
+    )
+
+    # Latest location per run
+    latest_location_qs = (
+        DriverLocation.objects
+        .filter(run=OuterRef("latest_run_id"))
+        .order_by("-recorded_at")
+    )
+
+    vehicles = (
+        Vehicle.objects
+        .annotate(
+            # Latest run id
+            latest_run_id=Subquery(
+                latest_run_qs.values("id")[:1]
+            ),
+
+            # Latest driver
+            last_driver_id=Subquery(
+                latest_run_qs.values("driver_id")[:1]
+            ),
+
+            last_driver_name=Subquery(
+                User.objects
+                .filter(id=OuterRef("last_driver_id"))
+                .annotate(
+                    full_name=Concat(
+                        "first_name",
+                        Value(" "),
+                        "last_name",
+                    )
+                )
+                .values("full_name")[:1]
+            ),
+
+            # Last operational update
+            last_update=Subquery(
+                latest_run_qs.values("updated_at")[:1]
+            ),
+
+            # Is vehicle currently active
+            is_active=Exists(
+                DeliveryRun.objects.filter(
+                    vehicle=OuterRef("pk"),
+                    status="en_route",
+                )
+            ),
+
+            # 📍 LAST KNOWN LOCATION
+            last_lat=Subquery(
+                latest_location_qs.values("lat")[:1]
+            ),
+            last_lng=Subquery(
+                latest_location_qs.values("lng")[:1]
+            ),
+        )
+        .order_by("-last_update", "label")
+    )
+
     context = {
         "view": view_mode,
-        "runs": [],  # later: active runs
+        "vehicles": vehicles,
     }
-    return render(request, "logistics/driver/monitor_view.html", context)
+
+    return render(
+        request,
+        "logistics/driver/monitor_view.html",
+        context,
+    )
+
+
+@login_required
+def vehicle_log(request, vehicle_id):
+    vehicle = get_object_or_404(Vehicle, id=vehicle_id)
+
+    runs = (
+        DeliveryRun.objects
+        .filter(vehicle=vehicle)
+        .select_related("driver")
+        .order_by("-service_date", "-updated_at")
+    )
+
+    context = {
+        "vehicle": vehicle,
+        "runs": runs,
+    }
+
+    return render(
+        request,
+        "logistics/driver/vehicle_log.html",
+        context,
+    )
+
+@login_required
+def vehicle_log_view(request, vehicle_id):
+    vehicle = get_object_or_404(Vehicle, id=vehicle_id)
+
+    runs = (
+        DeliveryRun.objects
+        .filter(vehicle=vehicle)
+        .select_related("driver")
+        .order_by("-service_date", "-created_at")
+    )
+
+    context = {
+        "vehicle": vehicle,
+        "runs": runs,
+    }
+
+    return render(
+        request,
+        "logistics/driver/vehicle_log.html",
+        context,
+    )
+
+@login_required
+def run_log_view(request, run_id):
+    run = get_object_or_404(
+        DeliveryRun.objects.select_related("vehicle", "driver"),
+        id=run_id
+    )
+
+    stops = (
+        DeliveryStop.objects
+        .filter(run=run)
+        .order_by("sequence")
+    )
+
+    locations = (
+        DriverLocation.objects
+        .filter(run=run)
+        .order_by("-recorded_at")
+    )
+
+    context = {
+        "run": run,
+        "stops": stops,
+        "locations": locations,
+    }
+
+    return render(
+        request,
+        "logistics/driver/run_log.html",
+        context,
+    )

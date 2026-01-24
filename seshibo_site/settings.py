@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'sales',
     "consumers",
     "logistics",
+    "core",
     "django_extensions",
 
     # third party
@@ -92,6 +93,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "seshibo_site.middleware.LastSeenMiddleware",
+    'seshibo_site.middleware.ShortSessionForPortalMiddleware',
 ]
 
 # Online window minutes (used by is_online)
@@ -109,6 +111,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                "core.context_processors.platform_access",
+                "core.context_processors.access_flags",
             ],
         },
     },
@@ -120,20 +124,19 @@ WSGI_APPLICATION = 'seshibo_site.wsgi.application'
 # DATABASE
 # ---------------------------
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv("MYSQL_DB", "dailymarket"),
-        'USER': os.getenv("MYSQL_USER", "victor"),
-        'PASSWORD': os.getenv("MYSQL_PASSWORD", "Enter19932021"),
-        'HOST': os.getenv("MYSQL_HOST", "dailymarket.cfiwucmesuhh.eu-north-1.rds.amazonaws.com"),
-        'PORT': os.getenv("MYSQL_PORT", "3306"),
-        # optional: enforce utf8mb4
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-            'use_unicode': True,
+    "default": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "daily_market",
+        "USER": "daily_market",
+        "PASSWORD": "Enter19931993",
+        "HOST": "daily-market.clcaumk8w62m.af-south-1.rds.amazonaws.com",
+        "PORT": "3306",
+        "OPTIONS": {
+            "charset": "utf8mb4",
         },
     }
 }
+
 
 # ---------------------------
 # AUTH PASSWORD VALIDATORS
@@ -178,7 +181,7 @@ CELERY_BEAT_SCHEDULE = {
 EMAIL_BACKEND = "postmarker.django.EmailBackend"
 
 POSTMARK = {
-    "TOKEN": os.getenv("POSTMARK_TOKEN"),
+    "TOKEN": os.getenv("POSTMARK_TOKEN", "cf107fec-de2b-4aea-ba4e-7fe4b3dcbfa3"), 
 }
 
 DEFAULT_FROM_EMAIL = "The Daily Market <accounts@thedailymarket.co.za>"

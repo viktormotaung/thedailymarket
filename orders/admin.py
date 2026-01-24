@@ -61,8 +61,10 @@ class OrderItemInline(admin.TabularInline):
 # ---------- order admin ----------
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    date_hierarchy = "submitted_at"
+    
+    # date_hierarchy removed – MySQL-safe
     inlines = [OrderItemInline]
+
 
     list_display = (
         "id",
@@ -124,7 +126,7 @@ class OrderAdmin(admin.ModelAdmin):
                 "grand_total_inc",
                 ("submitted_at", "reviewed_at", "approved_at", "updated_at"),
             )
-        }),
+        }), 
     )
 
     # currency displays

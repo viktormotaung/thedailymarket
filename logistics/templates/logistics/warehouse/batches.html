@@ -182,10 +182,16 @@
   <!-- PAGE TITLE + ACTION -->
   <!-- ============================= -->
   <div class="d-flex justify-content-between align-items-center mb-3">
-    
-    <a href="#" class="btn btn-success btn-sm">
+
+    <a href="{% if can_write %}#{% else %}#{% endif %}"
+      class="btn btn-success btn-sm {% if not can_write %}disabled{% endif %}"
+      {% if not can_write %}
+        aria-disabled="true"
+        title="View-only access"
+      {% endif %}>
       + New Batch
     </a>
+
   </div>
 
   <!-- ============================= -->

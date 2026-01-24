@@ -30,8 +30,9 @@ def r2(x: Decimal | None) -> Decimal:
 # ====================================================================
 class Order(models.Model):
     STATUS_CHOICES = [
-        ("pending", "Pending"),                 # just placed; waiting for staff review
-        ("approved", "Approved"),               # approved; invoice will be generated
+        ("pending", "Pending"),                 
+        ("approved", "Approved"),
+        ("awaiting_payment", "Awaiting Payment"),              
         ("at_warehouse", "At Warehouse"),
         ("ready_for_delivery", "Ready for Delivery"),
         ("out_for_delivery", "Out for Delivery"),
