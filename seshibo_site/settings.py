@@ -26,7 +26,12 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "fallback-secret-key-for-dev")
 DEBUG = "True"
 DJANGO_ENV = os.getenv("DJANGO_ENV", "development")  # "production" when live
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", ".onrender.com,localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = [
+    "thedailymarket.co.za",
+    "www.thedailymarket.co.za",
+    "localhost",
+    "127.0.0.1",
+]
 
 # ---------------------------
 # LOGIN URLS
