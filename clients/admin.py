@@ -2,18 +2,31 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Client, Prospect, ProspectUpdate
+from .models import (
+    Client,
+    ClientCompliance,
+    ClientComplianceDocument,
+    Prospect,
+    ProspectUpdate,
+)
 
+# ============================================================
+# CLIENT
+# ============================================================
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
+    # ---------------------------
+    # List view
+    # ---------------------------
     list_display = (
         "client_number",
-        "name",
-        "organization",
+        "display_name",
         "client_type",
-        "price_type",           # <-- show Retail / Wholesale
+        "price_type",
         "status",
+        "account_type",
+        "credit_status",
         "city",
         "delivery_city",
         "has_geo",
@@ -21,42 +34,47 @@ class ClientAdmin(admin.ModelAdmin):
         "last_order_at",
         "created_at",
     )
+
     list_filter = (
         "status",
         "client_type",
-        "price_type",           # <-- allow filtering by price type
+        "price_type",
+        "account_type",
+        "credit_status",
         "province",
-        "delivery_city",
         "delivery_province",
         "account_manager",
         ("categories", admin.RelatedOnlyFieldListFilter),
         ("created_at", admin.DateFieldListFilter),
         ("last_order_at", admin.DateFieldListFilter),
     )
+
     search_fields = (
         "client_number",
         "name",
         "organization",
+        "contact_person",
         "email",
         "phone",
         "whatsapp",
         "vat_number",
         "company_reg_number",
-        # address fields
         "address_line1",
-        "address_line2",
         "suburb",
         "city",
-        "province",
-        "postal_code",
         "delivery_address_line1",
-        "delivery_address_line2",
         "delivery_suburb",
         "delivery_city",
-        "delivery_province",
-        "delivery_postal_code",
     )
 
+    ordering = ("name",)
+    list_select_related = ("account_manager",)
+    list_per_page = 50
+    save_on_top = True
+
+    # ---------------------------
+    # Forms
+    # ---------------------------
     readonly_fields = (
         "client_number",
         "created_at",
@@ -64,31 +82,32 @@ class ClientAdmin(admin.ModelAdmin):
         "last_order_at",
         "maps_link",
     )
+
+    autocomplete_fields = ("account_manager", "funder")
     filter_horizontal = ("categories",)
-    autocomplete_fields = ("account_manager",)
-    
-    list_select_related = ("account_manager",)
-    list_per_page = 50
-    save_on_top = True
 
     fieldsets = (
         ("Account", {
             "fields": (
                 ("client_number", "status"),
-                ("client_type", "price_type"),      # <-- expose price type in Account section
-                ("account_manager",),
+                ("client_type", "client_size_tier"),
+                ("price_type",),
                 ("account_type", "credit_status"),
+                ("account_manager", "funder"),
             )
         }),
         ("Identity", {
             "fields": (
-                "name", "organization", "contact_person",
+                "name",
+                "organization",
+                "contact_person",
                 ("email", "phone", "whatsapp"),
             )
         }),
-        ("Billing / Main Address", {
+        ("Billing Address", {
             "fields": (
-                "address_line1", "address_line2",
+                "address_line1",
+                "address_line2",
                 ("suburb", "city"),
                 ("province", "postal_code"),
                 "country",
@@ -96,7 +115,8 @@ class ClientAdmin(admin.ModelAdmin):
         }),
         ("Delivery Address", {
             "fields": (
-                "delivery_address_line1", "delivery_address_line2",
+                "delivery_address_line1",
+                "delivery_address_line2",
                 ("delivery_suburb", "delivery_city"),
                 ("delivery_province", "delivery_postal_code"),
                 "delivery_country",
@@ -104,7 +124,7 @@ class ClientAdmin(admin.ModelAdmin):
                 "maps_link",
             )
         }),
-        ("Compliance (optional)", {
+        ("Compliance", {
             "fields": ("vat_number", "company_reg_number"),
             "classes": ("collapse",),
         }),
@@ -112,47 +132,107 @@ class ClientAdmin(admin.ModelAdmin):
             "fields": ("categories", "estimated_weekly_spend"),
         }),
         ("Notes & Meta", {
-            "fields": ("notes", ("last_order_at", "created_at", "updated_at")),
+            "fields": ("notes", "last_order_at", "created_at", "updated_at"),
+            "classes": ("collapse",),
         }),
     )
 
-    # --- Helpers shown in admin ---
+    # ---------------------------
+    # Helpers
+    # ---------------------------
+    @admin.display(description="Name / Org")
+    def display_name(self, obj: Client):
+        return obj.organization or obj.name
 
-    def has_geo(self, obj: Client) -> bool:
+    @admin.display(boolean=True, description="Geo?")
+    def has_geo(self, obj: Client):
         return obj.has_delivery_geo
-    has_geo.boolean = True
-    has_geo.short_description = "Geo?"
 
+    @admin.display(description="Map")
     def maps_link(self, obj: Client):
         url = obj.google_maps_link()
-        return format_html('<a href="{}" target="_blank" rel="noopener">Open in Google Maps</a>', url)
-    maps_link.short_description = "Map"
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener">Open map</a>',
+            url
+        )
 
-# ----------------------------
-# Prospect / ProspectUpdate
-# ----------------------------
 
-class ProspectUpdateInline(admin.TabularInline):
-    """
-    Inline timeline for a prospect:
-    shows calls, WhatsApps, visits, samples, etc.
-    """
-    model = ProspectUpdate
+# ============================================================
+# CLIENT COMPLIANCE
+# ============================================================
+
+class ClientComplianceDocumentInline(admin.TabularInline):
+    model = ClientComplianceDocument
     extra = 0
     fields = (
-        "action_at",
-        "action_type",
-        "outcome",
-        "visit_date",
-        "visit_contact_name",
-        "user",
-        "old_stage",
-        "new_stage",
+        "document_type",
+        "file",
+        "is_verified",
+        "uploaded_by",
+        "uploaded_at",
         "notes",
     )
+    readonly_fields = ("uploaded_at",)
+    autocomplete_fields = ("uploaded_by",)
+    show_change_link = True
+
+
+@admin.register(ClientCompliance)
+class ClientComplianceAdmin(admin.ModelAdmin):
+    list_display = (
+        "client",
+        "vetting_status",
+        "vetted_by",
+        "vetted_at",
+        "created_at",
+    )
+    list_filter = (
+        "vetting_status",
+        "vetted_by",
+        ("created_at", admin.DateFieldListFilter),
+    )
+    search_fields = (
+        "client__name",
+        "client__organization",
+        "vat_number",
+        "company_reg_number",
+        "notes",
+    )
+    autocomplete_fields = ("client", "vetted_by")
+    readonly_fields = ("created_at", "updated_at")
+    inlines = [ClientComplianceDocumentInline]
+
+    fieldsets = (
+        ("Client", {
+            "fields": ("client",),
+        }),
+        ("Registration", {
+            "fields": ("company_reg_number", "vat_number"),
+        }),
+        ("Vetting", {
+            "fields": (
+                "vetting_status",
+                ("vetted_by", "vetted_at"),
+                "notes",
+            )
+        }),
+        ("Meta", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",),
+        }),
+    )
+
+
+# ============================================================
+# PROSPECTS
+# ============================================================
+
+class ProspectUpdateInline(admin.TabularInline):
+    model = ProspectUpdate
+    extra = 0
+    ordering = ("-action_at",)
     autocomplete_fields = ("user",)
     readonly_fields = ("created_at",)
-    ordering = ("-action_at", "-created_at")
     show_change_link = True
 
 
@@ -164,20 +244,16 @@ class ProspectAdmin(admin.ModelAdmin):
         "stage",
         "status",
         "owner",
-        "created_by",
         "city",
         "province",
         "estimated_weekly_spend",
         "last_contact_at",
-        "next_follow_up_at",
         "created_at",
     )
     list_filter = (
         "stage",
         "status",
         "owner",
-        "created_by",
-        "city",
         "province",
         ("created_at", admin.DateFieldListFilter),
         ("last_contact_at", admin.DateFieldListFilter),
@@ -189,7 +265,6 @@ class ProspectAdmin(admin.ModelAdmin):
         "email",
         "phone",
         "whatsapp",
-        "suburb",
         "city",
         "lead_source",
         "notes",
@@ -218,25 +293,28 @@ class ProspectAdmin(admin.ModelAdmin):
             )
         }),
         ("Location", {
-            "fields": (
-                ("suburb", "city", "province"),
-            )
+            "fields": (("suburb", "city", "province"),),
         }),
-        ("Potential Client Profile", {
+        ("Potential Value", {
             "fields": (
                 ("potential_client_type", "potential_size_tier"),
                 "estimated_weekly_spend",
                 "lead_source",
             )
         }),
-        ("Conversion Link", {
+        ("Conversion", {
             "fields": ("client",),
         }),
         ("Notes & Meta", {
-            "fields": ("notes", ("created_at", "updated_at")),
+            "fields": ("notes", "created_at", "updated_at"),
+            "classes": ("collapse",),
         }),
     )
 
+
+# ============================================================
+# PROSPECT UPDATE
+# ============================================================
 
 @admin.register(ProspectUpdate)
 class ProspectUpdateAdmin(admin.ModelAdmin):
@@ -249,7 +327,6 @@ class ProspectUpdateAdmin(admin.ModelAdmin):
         "old_stage",
         "new_stage",
         "visit_date",
-        "visit_contact_name",
         "has_photo",
         "short_notes",
     )
@@ -271,17 +348,14 @@ class ProspectUpdateAdmin(admin.ModelAdmin):
         "negotiation_competitor_info",
         "visit_contact_name",
         "user__username",
-        "user__first_name",
-        "user__last_name",
     )
     autocomplete_fields = ("prospect", "user")
     date_hierarchy = "action_at"
-    list_per_page = 50
     ordering = ("-action_at", "-created_at")
     readonly_fields = ("created_at",)
 
     fieldsets = (
-        ("Core interaction", {
+        ("Interaction", {
             "fields": (
                 "prospect",
                 "user",
@@ -293,7 +367,7 @@ class ProspectUpdateAdmin(admin.ModelAdmin):
                 "created_at",
             )
         }),
-        ("Site visit details", {
+        ("Site Visit", {
             "fields": (
                 "visit_date",
                 ("visit_time_arrived", "visit_time_left"),
@@ -302,7 +376,7 @@ class ProspectUpdateAdmin(admin.ModelAdmin):
             ),
             "classes": ("collapse",),
         }),
-        ("Negotiation details", {
+        ("Negotiation", {
             "fields": (
                 "negotiation_products",
                 "negotiation_menu_opportunities",
@@ -312,13 +386,12 @@ class ProspectUpdateAdmin(admin.ModelAdmin):
         }),
     )
 
+    @admin.display(boolean=True, description="Photo?")
+    def has_photo(self, obj):
+        return bool(obj.visit_photo)
+
+    @admin.display(description="Notes")
     def short_notes(self, obj):
         if not obj.notes:
             return ""
-        return (obj.notes[:50] + "…") if len(obj.notes) > 50 else obj.notes
-    short_notes.short_description = "Notes"
-
-    def has_photo(self, obj):
-        return bool(obj.visit_photo)
-    has_photo.boolean = True
-    has_photo.short_description = "Photo?"
+        return obj.notes[:50] + ("…" if len(obj.notes) > 50 else "")

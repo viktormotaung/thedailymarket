@@ -670,6 +670,7 @@
                 <div class="tab-pane fade" id="bp-address" role="tabpanel">
                   <div class="card border-0 shadow-sm p-4 mb-4">
 
+                    <!-- ================= BUSINESS ADDRESS ================= -->
                     <h6 class="fw-semibold mb-4">Business Address</h6>
 
                     <div class="row g-3 mb-4">
@@ -706,7 +707,20 @@
 
                     <hr class="my-4">
 
+                    <!-- ================= DELIVERY ADDRESS ================= -->
                     <h6 class="fw-semibold mb-3">Delivery Address</h6>
+
+                    <!-- Same as business checkbox -->
+                    <div class="form-check mb-3">
+                      <input class="form-check-input"
+                            type="checkbox"
+                            id="sameAsBusinessAddress">
+                      <label class="form-check-label fw-semibold"
+                            for="sameAsBusinessAddress">
+                        Delivery address is the same as business address
+                      </label>
+                    </div>
+
                     <p class="text-muted small mb-4">
                       If different from your business address, please provide your delivery address below.
                       A representative will confirm the exact delivery location during site verification.
@@ -750,6 +764,8 @@
 
                   </div>
                 </div>
+
+
 
 
                 <!-- ===== Compliance ===== -->
@@ -906,6 +922,48 @@
     });
   </script>
   {% endif %}
+
+  <!-- ================= SAME AS BUSINESS JS ================= -->
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const checkbox = document.getElementById("sameAsBusinessAddress");
+
+    const mapFields = [
+      ["address_line1", "delivery_address_line1"],
+      ["address_line2", "delivery_address_line2"],
+      ["suburb", "delivery_suburb"],
+      ["city", "delivery_city"],
+      ["province", "delivery_province"],
+      ["postal_code", "delivery_postal_code"],
+    ];
+
+    function setDeliveryDisabled(disabled) {
+      mapFields.forEach(([_, dest]) => {
+        const field = document.getElementById(`id_${dest}`);
+        if (field) field.disabled = disabled;
+      });
+    }
+
+    function copyBusinessToDelivery() {
+      mapFields.forEach(([src, dest]) => {
+        const srcEl = document.getElementById(`id_${src}`);
+        const destEl = document.getElementById(`id_${dest}`);
+        if (srcEl && destEl) {
+          destEl.value = srcEl.value;
+        }
+      });
+    }
+
+    checkbox.addEventListener("change", function () {
+      if (this.checked) {
+        copyBusinessToDelivery();
+        setDeliveryDisabled(true);
+      } else {
+        setDeliveryDisabled(false);
+      }
+    });
+  });
+  </script>
 
 
   

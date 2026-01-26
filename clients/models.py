@@ -187,7 +187,12 @@ class Client(models.Model):
     delivery_address_line2 = models.CharField(max_length=255, blank=True)
     delivery_suburb = models.CharField(max_length=120, blank=True)
     delivery_city = models.CharField(max_length=120, blank=True)
-    delivery_province = models.CharField(max_length=120, blank=True)  # or reuse choices if you prefer
+    delivery_province = models.CharField(
+        max_length=10,
+        choices=PROVINCES,
+        blank=True
+    )
+
     delivery_postal_code = models.CharField(max_length=20, blank=True)
     delivery_country = models.CharField(max_length=120, blank=True, default="South Africa")
 
@@ -449,6 +454,8 @@ class ClientCompliance(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+
+    
 class ClientComplianceDocument(models.Model):
     DOCUMENT_TYPES = [
         ("CIPC", "CIPC Registration"),
@@ -458,7 +465,12 @@ class ClientComplianceDocument(models.Model):
         ("CONTRACT", "Signed Contract / Agreement"),
         ("OTHER", "Other"),
     ]
-
+    
+    DOCUMENT_STATUS = [
+        ("PENDING", "Pending"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+    ]
 
     compliance = models.ForeignKey(
         ClientCompliance,
@@ -466,14 +478,25 @@ class ClientComplianceDocument(models.Model):
         related_name="documents",
     )
 
-    document_type = models.CharField(
-        max_length=30,
-        choices=DOCUMENT_TYPES,
+    document_type = models.CharField(max_length=30, choices=DOCUMENT_TYPES)
+    file = models.FileField(upload_to="compliance/client_docs/", blank=True)
+    
+    status = models.CharField(
+        max_length=20,
+        choices=DOCUMENT_STATUS,
+        default="PENDING",
     )
 
-    file = models.FileField(upload_to="compliance/client_docs/")
-    uploaded_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_documents",
+    )
 
+    uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -481,9 +504,8 @@ class ClientComplianceDocument(models.Model):
         on_delete=models.SET_NULL,
     )
 
-    is_verified = models.BooleanField(default=False)
-
     notes = models.CharField(max_length=255, blank=True)
+
 
 
 
@@ -906,3 +928,4 @@ class ProspectUpdate(models.Model):
     def __str__(self) -> str:
         label = dict(self.ACTION_CHOICES).get(self.action_type, self.action_type)
         return f"{self.prospect.name} · {label} @ {self.action_at:%Y-%m-%d %H:%M}"
+

@@ -1,0 +1,488 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Client · {{ client.name }} - Seshibo Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+
+  <style>
+    :root{
+      --sidebar-w: 220px;
+      --mobile-nav-h: 56px;
+      --brand-green: #0b5c39;
+      --content-bg: #f8f9fa;
+    }
+    html, body { height: 100%; }
+
+    /* Sidebar skin */
+    .sidebar-skin { background-color: var(--brand-green); color: #fff; padding: 1rem; }
+    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover { background: rgba(255,255,255,0.15); border-radius: 4px; padding-left: 8px; }
+    .logo-img { max-height: 80px; width: auto; }
+
+    /* Nested links + remove caret/arrow on collapses */
+    .sidebar-skin .nav-link.ps-4 { font-size:.95rem; opacity:.95; }
+    .nav-link[data-bs-toggle="collapse"]::after { content: none !important; }
+
+    /* Content */
+    .content { background: var(--content-bg); padding:20px; }
+    .card { box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .meta { font-size:12px; color:#6c757d; }
+    .badge-cat { background:#e9f7f0; color:#0b5c39; border:1px solid #cfe9df; }
+
+    /* Definition list grid */
+    @media (min-width:768px){
+      .dl-grid { display:grid; grid-template-columns:200px 1fr; row-gap:.25rem; }
+      .dl-grid dt { grid-column:1; }
+      .dl-grid dd { grid-column:2; }
+    }
+
+    /* Desktop: fixed sidebar, content scrolls */
+    @media (min-width: 992px) {
+      body { display:block; overflow:hidden; }
+      .sidebar-desktop {
+        position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w);
+        overflow-y:auto; z-index:1020;
+      }
+      .content { margin-left:var(--sidebar-w); height:100vh; overflow:auto; -webkit-overflow-scrolling:touch; }
+    }
+
+    /* Mobile: fixed top bar, content scrolls under */
+    @media (max-width: 991.98px) {
+      html, body { height:100%; overflow:hidden; }
+      .navbar.d-lg-none { position:fixed; top:0; left:0; right:0; z-index:1040; }
+      .content { margin-top:var(--mobile-nav-h); height:calc(100vh - var(--mobile-nav-h)); overflow:auto; -webkit-overflow-scrolling:touch; }
+    }
+  </style>
+</head>
+<body>
+
+  {# ---------- MOBILE/TABLET TOP BAR (visible < lg) ---------- #}
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  {# ---------- MOBILE OFFCANVAS MENU (same links as sidebar) ---------- #}
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header sidebar-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body sidebar-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+      <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-orders order-view order-edit order-create' %}active{% endif %}">Orders</a>
+      <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+      <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+      {# ---- Deliveries dropdown (MOBILE) ---- #}
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#deliveriesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+             aria-controls="deliveriesMenuMobile">
+            <span>Deliveries</span>
+          </a>
+          <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuMobile">
+            <a href="{% url 'warehouse' %}?view=warehouse"
+               class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+              Warehouse
+            </a>
+            <a href="{% url 'delivery' %}?view=runs"
+               class="nav-link ps-4
+                 {% if current_name == 'delivery' %}
+                   {% if request.GET.view %}
+                     {% if request.GET.view == 'runs' %}active{% endif %}
+                   {% else %}
+                     active
+                   {% endif %}
+                 {% endif %}">
+              Delivery Runs
+            </a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+      <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+      {# ---- Profiles dropdown (MOBILE) ---- #}
+      <div class="mb-2">
+        {% with current_name=request.resolver_match.url_name %}
+          <a class="nav-link d-flex align-items-center justify-content-between"
+             data-bs-toggle="collapse"
+             href="#profilesMenuMobile"
+             role="button"
+             aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+             aria-controls="profilesMenuMobile">
+            <span>Profiles</span>
+          </a>
+          <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuMobile">
+            <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+            <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+            <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+          </div>
+        {% endwith %}
+      </div>
+
+      <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+      <hr class="border-light">
+      <form action="{% url 'logout' %}" method="post" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light w-100">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  {# ---------- DESKTOP SIDEBAR (visible ≥ lg) ---------- #}
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+
+    <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
+    <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-orders order-view order-edit order-create' %}active{% endif %}">Orders</a>
+    <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
+    <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
+    <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+
+    {# ---- Deliveries dropdown (DESKTOP) ---- #}
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#deliveriesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
+           aria-controls="deliveriesMenuDesktop">
+          <span>Deliveries</span>
+        </a>
+        <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuDesktop">
+          <a href="{% url 'warehouse' %}?view=warehouse"
+             class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
+            Warehouse
+          </a>
+          <a href="{% url 'delivery' %}?view=runs"
+             class="nav-link ps-4
+               {% if current_name == 'delivery' %}
+                 {% if request.GET.view %}
+                   {% if request.GET.view == 'runs' %}active{% endif %}
+                 {% else %}
+                   active
+                 {% endif %}
+               {% endif %}">
+            Delivery Runs
+          </a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
+    <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
+
+    {# ---- Profiles dropdown (DESKTOP) ---- #}
+    <div class="mb-2">
+      {% with current_name=request.resolver_match.url_name %}
+        <a class="nav-link d-flex align-items-center justify-content-between"
+           data-bs-toggle="collapse"
+           href="#profilesMenuDesktop"
+           role="button"
+           aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
+           aria-controls="profilesMenuDesktop">
+          <span>Profiles</span>
+        </a>
+        <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuDesktop">
+          <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
+          <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
+          <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
+        </div>
+      {% endwith %}
+    </div>
+
+    <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+
+    {# No extra margin to avoid large gap #}
+    <div>
+      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+        {% csrf_token %}
+        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+    <main class="content py-4">
+        <div class="container">
+
+            <!-- ================= HEADER ================= -->
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+            <div>
+                <h2 class="mb-1">Edit Compliance</h2>
+                <div class="text-muted">
+                {{ client.client_number }} · {{ client.organization|default:client.name }}
+                </div>
+            </div>
+
+            <a href="{% url 'client-view' client.pk %}" class="btn btn-outline-secondary">
+                Back to Client
+            </a>
+            </div>
+
+            {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
+
+            <div class="row g-4">
+
+            <!-- ================= COMPLIANCE DETAILS ================= -->
+            <div class="col-lg-6">
+                <div class="card shadow-sm h-100">
+
+                <div class="card-header fw-semibold">
+                    Compliance Details
+                </div>
+
+                <div class="card-body">
+
+                    <!-- READ-ONLY METADATA -->
+                    <div class="mb-3 small text-muted">
+                    <div><strong>Created:</strong> {{ compliance.created_at|date:"Y-m-d H:i" }}</div>
+                    <div><strong>Last Updated:</strong> {{ compliance.updated_at|date:"Y-m-d H:i" }}</div>
+                    <div>
+                        <strong>Vetted By:</strong>
+                        {{ compliance.vetted_by.get_full_name|default:"—" }}
+                    </div>
+                    <div>
+                        <strong>Vetted At:</strong>
+                        {{ compliance.vetted_at|date:"Y-m-d H:i"|default:"—" }}
+                    </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- EDITABLE COMPLIANCE FORM -->
+                    <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        {{ form.vetting_status.label_tag }}
+                        {{ form.vetting_status }}
+                        {{ form.vetting_status.errors }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.notes.label_tag }}
+                        {{ form.notes }}
+                        {{ form.notes.errors }}
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <button
+                        type="submit"
+                        name="save_compliance"
+                        class="btn btn-primary">
+                        Save Compliance
+                        </button>
+                    </div>
+                    </form>
+
+                </div>
+                </div>
+            </div>
+
+            <!-- ================= COMPLIANCE DOCUMENTS (UPLOAD) ================= -->
+            <div class="col-lg-6">
+                <div class="card shadow-sm h-100">
+
+                <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                    <span>Compliance Documents</span>
+                    <span class="badge bg-info">{{ documents.count }} uploaded</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Uploaded</th>
+                        <th class="text-end">File</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        {% for doc in documents %}
+                        <tr>
+                        <td>{{ doc.get_document_type_display }}</td>
+
+                        <td>
+                            {% if doc.status == "APPROVED" %}
+                            <span class="badge bg-success">Approved</span>
+                            {% elif doc.status == "REJECTED" %}
+                            <span class="badge bg-danger">Rejected</span>
+                            {% else %}
+                            <span class="badge bg-warning">Pending</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="small text-muted">
+                            {{ doc.uploaded_at|date:"Y-m-d"|default:"—" }}
+                        </td>
+
+                        <td class="text-end">
+                            {% if doc.file %}
+                            <a href="{{ doc.file.url }}"
+                                target="_blank"
+                                class="btn btn-sm btn-outline-secondary">
+                                View
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">No file</span>
+                            {% endif %}
+                        </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                        <td colspan="4" class="text-center text-muted py-3">
+                            No compliance documents uploaded.
+                        </td>
+                        </tr>
+                        {% endfor %}
+
+                    </tbody>
+                    </table>
+                </div>
+
+                </div>
+            </div>
+
+            </div>
+
+            <!-- ================= DOCUMENT STATUS REVIEW ================= -->
+            <div class="row mt-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+
+                <div class="card-header fw-semibold">
+                    Document Status Review
+                </div>
+
+                <div class="card-body">
+
+                    <p class="text-muted small mb-3">
+                    Review each document individually. This does <strong>not</strong> affect file uploads.
+                    </p>
+
+                    <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Document</th>
+                            <th>Current Status</th>
+                            <th>Reviewer Notes</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+
+                        {% for doc in documents %}
+                        <tr>
+                            <td class="fw-semibold">
+                            {{ doc.get_document_type_display }}
+                            </td>
+
+                            <td>
+                            {% if doc.status == "APPROVED" %}
+                                <span class="badge bg-success">Approved</span>
+                            {% elif doc.status == "REJECTED" %}
+                                <span class="badge bg-danger">Rejected</span>
+                            {% else %}
+                                <span class="badge bg-warning">Pending</span>
+                            {% endif %}
+                            </td>
+
+                            <td colspan="2">
+                            <form method="post" class="row g-2 align-items-center">
+                                {% csrf_token %}
+
+                                <input type="hidden" name="document_id" value="{{ doc.id }}">
+
+                                <div class="col-md-4">
+                                <select name="status" class="form-select form-select-sm">
+                                    <option value="PENDING" {% if doc.status == "PENDING" %}selected{% endif %}>
+                                    Pending
+                                    </option>
+                                    <option value="APPROVED" {% if doc.status == "APPROVED" %}selected{% endif %}>
+                                    Approved
+                                    </option>
+                                    <option value="REJECTED" {% if doc.status == "REJECTED" %}selected{% endif %}>
+                                    Rejected
+                                    </option>
+                                </select>
+                                </div>
+
+                                <div class="col-md-5">
+                                <input type="text"
+                                        name="notes"
+                                        value="{{ doc.notes }}"
+                                        class="form-control form-control-sm"
+                                        placeholder="Reviewer notes (optional)">
+                                </div>
+
+                                <div class="col-md-3 text-end">
+                                <button type="submit"
+                                        name="save_document_status"
+                                        class="btn btn-sm btn-outline-primary">
+                                    Save Status
+                                </button>
+                                </div>
+                            </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">
+                            No documents available for review.
+                            </td>
+                        </tr>
+                        {% endfor %}
+
+                        </tbody>
+                    </table>
+                    </div>
+
+                </div>
+                </div>
+            </div>
+            </div>
+
+        </div>
+        </main>
+
+
+
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

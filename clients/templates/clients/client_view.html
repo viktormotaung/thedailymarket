@@ -348,20 +348,16 @@
               <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                 <span>Client Overview</span>
 
-                <!-- Edit button (disabled for now) -->
-                <button
-                  type="button"
+                <a href="{% url 'client-edit' client.pk %}"
                   class="btn btn-outline-primary btn-sm"
-                  disabled
-                  title="Edit client details (coming soon)"
-                >
+                  title="Edit client details">
                   <i class="bi bi-pencil"></i> Edit
-                </button>
+                </a>
               </div>
 
               <div class="card-body">
 
-                <!-- BASIC INFO -->
+                <!-- ================= BASIC INFO ================= -->
                 <div class="row g-4 mb-4">
                   <div class="col-md-6">
                     <div class="text-muted small mb-1">Primary Contact</div>
@@ -385,31 +381,65 @@
 
                 <hr>
 
-                <!-- ADDRESS & LOCATION -->
-                <div class="row g-4 mb-4">
+                <!-- ================= DELIVERY ADDRESS ================= -->
+                <div class="row g-4 mb-3">
                   <div class="col-md-8">
                     <div class="text-muted small mb-1">Delivery Address</div>
-                    <div>
+                    <div class="fw-semibold">
                       {{ client.delivery_address_as_line|default:"—" }}
                     </div>
                   </div>
 
                   <div class="col-md-4">
-                    <div class="text-muted small mb-1">Location</div>
+                    <div class="text-muted small mb-1">Delivery Area</div>
                     <div>
-                      {{ client.city|default:"—" }}, {{ client.province|default:"—" }}
+                      {{ client.delivery_city|default:client.city|default:"—" }},
+                      {{ client.delivery_province|default:client.province|default:"—" }}
                     </div>
+                  </div>
+                </div>
+
+                <!-- ================= DELIVERY GEO ================= -->
+                <div class="row g-4 mb-4">
+                  <div class="col-md-4">
+                    <div class="text-muted small">Latitude</div>
+                    <div class="fw-semibold">
+                      {% if client.delivery_lat %}
+                        {{ client.delivery_lat }}
+                      {% else %}
+                        —
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Longitude</div>
+                    <div class="fw-semibold">
+                      {% if client.delivery_lng %}
+                        {{ client.delivery_lng }}
+                      {% else %}
+                        —
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Map</div>
                     {% if client.has_delivery_geo %}
-                      <a href="{{ client.google_maps_link }}" target="_blank" class="small">
-                        View on map
+                      <a href="{{ client.google_maps_link }}"
+                        target="_blank"
+                        class="fw-semibold">
+                        View on Google Maps
                       </a>
+                    {% else %}
+                      <span class="text-muted">Not set</span>
                     {% endif %}
                   </div>
                 </div>
 
                 <hr>
 
-                <!-- SEGMENTATION -->
+                <!-- ================= SEGMENTATION ================= -->
                 <div class="row g-4 mb-4">
                   <div class="col-md-3">
                     <div class="text-muted small">Client Type</div>
@@ -442,7 +472,7 @@
 
                 <hr>
 
-                <!-- BUSINESS & COMPLIANCE SNAPSHOT -->
+                <!-- ================= BUSINESS & COMPLIANCE ================= -->
                 <div class="row g-4 mb-4">
                   <div class="col-md-4">
                     <div class="text-muted small">Company Registration</div>
@@ -478,7 +508,7 @@
 
                 <hr>
 
-                <!-- COMMERCIAL CONTEXT -->
+                <!-- ================= COMMERCIAL CONTEXT ================= -->
                 <div class="row g-4 mb-4">
                   <div class="col-md-4">
                     <div class="text-muted small">Estimated Weekly Spend</div>
@@ -506,20 +536,23 @@
                   </div>
                 </div>
 
-                <!-- NOTES -->
+                <!-- ================= NOTES ================= -->
                 {% if client.notes %}
-                <hr>
-                <div>
-                  <div class="text-muted small mb-1">Internal Notes</div>
-                  <div class="small">
-                    {{ client.notes|linebreaks }}
+                  <hr>
+                  <div>
+                    <div class="text-muted small mb-1">Internal Notes</div>
+                    <div class="small">
+                      {{ client.notes|linebreaks }}
+                    </div>
                   </div>
-                </div>
                 {% endif %}
 
               </div>
             </div>
           </div>
+
+
+
 
 
 
@@ -643,15 +676,12 @@
                   </span>
                 </div>
 
-                <!-- Edit button (disabled for now) -->
-                <button
-                  type="button"
+                <a href="{% url 'client-compliance-edit' client.pk %}"
                   class="btn btn-outline-primary btn-sm"
-                  disabled
-                  title="Edit compliance (coming soon)"
-                >
+                  title="Edit compliance">
                   <i class="bi bi-pencil"></i> Edit
-                </button>
+                </a>
+
               </div>
 
               <!-- TABLE -->

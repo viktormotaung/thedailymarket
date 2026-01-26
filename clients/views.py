@@ -15,13 +15,15 @@ from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from clients.models import Client
+from clients.models import Client, ClientCompliance, ClientComplianceDocument
 from tasks.models import Task
 from credit.models import CreditAccount
 from django.contrib.contenttypes.models import ContentType
 from decimal import Decimal
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
+from .forms import ClientEditForm, ClientComplianceForm, ClientComplianceDocumentForm, ClientComplianceDocumentStatusForm
+
 User = get_user_model()
 
 
@@ -161,7 +163,6 @@ class ClientForm(forms.ModelForm):
             self.fields["price_type"].initial = "Retail"
 
 
-
 @login_required
 @staff_required
 def client_create(request):
@@ -191,7 +192,7 @@ def client_edit(request, pk):
     original_status = client.status  # capture status before changes
 
     if request.method == "POST":
-        form = ClientForm(request.POST, instance=client)
+        form = ClientEditForm(request.POST, instance=client)
 
         if form.is_valid():
             with transaction.atomic():
@@ -226,12 +227,127 @@ def client_edit(request, pk):
 
         messages.error(request, "Please fix the errors below.")
     else:
-        form = ClientForm(instance=client)
+        form = ClientEditForm(instance=client)
 
     return render(
         request,
         "clients/client_edit.html",
         {"form": form, "client": client},
+    )
+
+
+@login_required
+@staff_required
+def client_compliance_edit(request, pk):
+    # -----------------------------
+    # Load client + compliance
+    # -----------------------------
+    client = get_object_or_404(Client, pk=pk)
+
+    compliance, _ = ClientCompliance.objects.get_or_create(
+        client=client
+    )
+
+    documents = (
+        compliance.documents
+        .all()
+        .order_by("document_type")
+    )
+
+    # Default form (overall compliance)
+    compliance_form = ClientComplianceForm(instance=compliance)
+
+    # -----------------------------
+    # POST handling
+    # -----------------------------
+    if request.method == "POST":
+
+        # =====================================================
+        # 1️⃣ SAVE OVERALL COMPLIANCE STATUS
+        # =====================================================
+        if "save_compliance" in request.POST:
+            compliance_form = ClientComplianceForm(
+                request.POST,
+                instance=compliance
+            )
+
+            if compliance_form.is_valid():
+                compliance = compliance_form.save(commit=False)
+
+                # Audit only when decision is made
+                if compliance.vetting_status in ("APPROVED", "REJECTED"):
+                    compliance.vetted_by = request.user
+                    compliance.vetted_at = timezone.now()
+
+                compliance.save()
+
+                messages.success(
+                    request,
+                    "Compliance vetting status updated successfully."
+                )
+                return redirect(
+                    "client-compliance-edit",
+                    pk=client.pk
+                )
+
+            messages.error(
+                request,
+                "Please correct the compliance form errors."
+            )
+
+        # =====================================================
+        # 2️⃣ SAVE INDIVIDUAL DOCUMENT STATUS
+        # =====================================================
+        elif "save_document_status" in request.POST:
+            document_id = request.POST.get("document_id")
+
+            document = get_object_or_404(
+                ClientComplianceDocument,
+                pk=document_id,
+                compliance=compliance,
+            )
+
+            document_status_form = ClientComplianceDocumentStatusForm(
+                request.POST,
+                instance=document
+            )
+
+            if document_status_form.is_valid():
+                doc = document_status_form.save(commit=False)
+
+                # Audit trail
+                doc.reviewed_by = request.user
+                doc.reviewed_at = timezone.now()
+                doc.save()
+
+                messages.success(
+                    request,
+                    f"{doc.get_document_type_display()} reviewed successfully."
+                )
+                return redirect(
+                    "client-compliance-edit",
+                    pk=client.pk
+                )
+
+            messages.error(
+                request,
+                "Please correct the document status errors."
+            )
+
+    # -----------------------------
+    # Render page
+    # -----------------------------
+    return render(
+        request,
+        "clients/client_compliance_edit.html",
+        {
+            "client": client,
+            "compliance": compliance,
+            "form": compliance_form,
+            "documents": documents,
+            # used to instantiate per-row forms in template
+            "document_status_form_class": ClientComplianceDocumentStatusForm,
+        },
     )
 
 
@@ -374,14 +490,21 @@ def client_view(request, pk):
     compliance_completion_pct = Decimal("0.00")
 
     if compliance:
-        compliance_documents = compliance.documents.all().order_by("document_type")
+        compliance_documents = (
+            compliance.documents
+            .all()
+            .order_by("document_type")
+        )
 
         total_docs = compliance_documents.count()
-        verified_docs = compliance_documents.filter(is_verified=True).count()
+
+        approved_docs = compliance_documents.filter(
+            status="APPROVED"
+        ).count()
 
         if total_docs > 0:
             compliance_completion_pct = (
-                Decimal(verified_docs) / Decimal(total_docs)
+                Decimal(approved_docs) / Decimal(total_docs)
             ) * Decimal("100.00")
 
     # ---------------------------
@@ -395,10 +518,12 @@ def client_view(request, pk):
         )["s"]
     )
 
-    days_active = (timezone.now().date() - client.created_at.date()).days
+    days_active = (
+        timezone.now().date() - client.created_at.date()
+    ).days
 
     # ---------------------------
-    # Spend Rank (FIXED)
+    # Spend Rank
     # ---------------------------
     ranked_clients = (
         Client.objects
@@ -415,7 +540,11 @@ def client_view(request, pk):
     ranked_ids = list(ranked_clients)
     total_clients = len(ranked_ids)
 
-    spend_rank = ranked_ids.index(client.id) + 1 if client.id in ranked_ids else None
+    spend_rank = (
+        ranked_ids.index(client.id) + 1
+        if client.id in ranked_ids
+        else None
+    )
 
     # ---------------------------
     # Context
