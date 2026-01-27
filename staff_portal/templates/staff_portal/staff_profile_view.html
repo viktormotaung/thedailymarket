@@ -247,6 +247,13 @@
           Edit Profile
         </a>
 
+        <!-- Send Email (write) -->
+        <a href="{% if can_write %}{% url 'staff_profile_email' sp.pk %}{% else %}#{% endif %}"
+          class="btn btn-outline-success btn-sm {% if not can_write %}disabled{% endif %}"
+          {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
+          Send Email
+        </a>
+
       </div>
     </div>
 

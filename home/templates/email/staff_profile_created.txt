@@ -1,0 +1,28 @@
+The Daily Market
+Your staff profile has been created
+
+Hi {{ user.first_name|default:user.username }},
+
+We’re pleased to let you know that your staff profile has been successfully
+created on The Daily Market.
+
+Your role: {{ role }}
+
+This role determines the level of access you have within our internal systems
+and staff portal.
+
+You can log in using the following username:
+
+{{ user.username }}
+
+To complete your setup, please create your password using the link below:
+
+{{ set_password_url }}
+
+If you need help or believe this email was sent in error, please contact us at:
+
+{{ support_email|default:'support@thedailymarket.co.za' }}
+
+— The Daily Market Team
+
+If you did not expect this message, you can safely ignore it.

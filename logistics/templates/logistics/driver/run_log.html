@@ -103,7 +103,6 @@
     <a href="{% url 'logistics:deliveries' %}" class="nav-link {% if current == 'deliveries' %}active{% endif %}">Deliveries</a>
     <a href="{% url 'logistics:driver-dashboard' %}" class="nav-link {% if current == 'driver-dashboard' %}active{% endif %}">Driver View</a>
     <a href="{% url 'logistics:monitor-view' %}" class="nav-link {% if current == 'monitor-view' %}active{% endif %}">Monitor View</a>
-    <a href="{% url 'sales:sales-tickets' %}" class="nav-link">Tasks</a>
 
     <hr class="border-light">
 
@@ -128,7 +127,6 @@
   <a href="{% url 'logistics:deliveries' %}" class="nav-link {% if current == 'deliveries' %}active{% endif %}">Deliveries</a>
   <a href="{% url 'logistics:driver-dashboard' %}" class="nav-link {% if current == 'driver-dashboard' %}active{% endif %}">Driver View</a>
   <a href="{% url 'logistics:monitor-view' %}" class="nav-link {% if current == 'monitor-view' %}active{% endif %}">Monitor View</a>
-  <a href="{% url 'sales:sales-tickets' %}" class="nav-link">Tasks</a>
 
   <form method="post" action="{% url 'logout' %}" class="mt-3">
     {% csrf_token %}

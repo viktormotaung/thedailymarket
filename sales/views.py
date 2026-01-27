@@ -372,36 +372,45 @@ def prospect_create(request):
     """
     Create a new prospect.
 
-    - Sets owner and created_by to the current user (if not specified).
-    - Logs an initial "Prospect created" update in the timeline.
+    - Sets owner and created_by to the current user
+    - Logs an initial ProspectUpdate entry
     """
     if request.method == "POST":
         form = ProspectForm(request.POST)
         if form.is_valid():
             prospect = form.save(commit=False)
 
-            # Set ownership / creator if not explicitly set elsewhere
-            if not prospect.owner:
-                prospect.owner = request.user
-            if not prospect.created_by:
-                prospect.created_by = request.user
+            # Ownership
+            prospect.owner = prospect.owner or request.user
+            prospect.created_by = prospect.created_by or request.user
 
             prospect.save()
+            form.save_m2m()  # IMPORTANT for categories
 
-            # Optional but very useful: log creation as first timeline entry
-            prospect.log_update(
+            # ✅ Log creation in timeline
+            ProspectUpdate.objects.create(
+                prospect=prospect,
                 user=request.user,
                 action_type="OTHER",
                 outcome="OTHER",
                 notes="Prospect created.",
-                touch_last_contact=False,  # don't set last_contact_at on creation
+                action_at=timezone.now(),
+                old_stage=prospect.stage,
             )
 
             return redirect("sales:sales-prospects")
     else:
-        form = ProspectForm(initial={"stage": "NEW", "status": "ACTIVE"})
+        form = ProspectForm(initial={
+            "stage": "NEW",
+            "status": "ACTIVE",
+        })
 
-    return render(request, "prospects/prospect_form.html", {"form": form})
+    return render(
+        request,
+        "prospects/prospect_form.html",
+        {"form": form}
+    )
+
 
 
 @login_required

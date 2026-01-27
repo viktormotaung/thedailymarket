@@ -20,6 +20,7 @@ urlpatterns = [
     path("portal/staff/lender/", include("lender.urls")),
     path("portal/staff/sales/", include("sales.urls")),
     path("portal/staff/logistics/", include("logistics.urls")),
+    
 ]
 
 if settings.DEBUG:

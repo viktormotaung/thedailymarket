@@ -33,6 +33,9 @@ from transactions.models import Transaction
 from orders.models import Order, OrderItem
 from deliveries.models import DeliveryRun
 from tasks.models import Task  # adjust if your Task app name differs
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
 
 # ---------------------------
 # Auth helpers
@@ -485,3 +488,78 @@ def customer_profile_edit(request, pk: int):
 
     ctx = {"cp": cp, "form": form, "user_obj": cp.user}
     return render(request, "staff_portal/customer_profile_edit.html", ctx)
+
+
+
+
+def send_staff_profile_created_email(user, staff_profile, request):
+    subject = "Seshibo Daily Market – Your staff profile is ready"
+
+    # Determine role
+    if user.groups.filter(name="View Only").exists():
+        role = "View Only"
+    else:
+        role = "Undefined"
+
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+
+    # ✅ POINT TO HOME APP PASSWORD SET VIEW
+    set_password_url = request.build_absolute_uri(
+        reverse(
+            "staff-password-set",
+            kwargs={"uidb64": uid, "token": token},
+        )
+    )
+
+    ctx = {
+        "user": user,
+        "staff_profile": staff_profile,
+        "role": role,
+        "set_password_url": set_password_url,
+        "support_email": getattr(
+            settings, "SUPPORT_EMAIL", "support@seshibodailymarket.co.za"
+        ),
+    }
+
+    text_body = render_to_string(
+        "email/staff_profile_created.txt", ctx
+    )
+    html_body = render_to_string(
+        "email/staff_profile_created.html", ctx
+    )
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+        headers={"Reply-To": ctx["support_email"]},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+
+
+@login_required
+@staff_required
+def staff_profile_email(request, pk):
+    sp = get_object_or_404(StaffProfile, pk=pk)
+
+    # Safety check
+    if not sp.user.email:
+        messages.error(request, "This staff member does not have an email address.")
+        return redirect("staff_profile")
+
+    send_staff_profile_created_email(
+        user=sp.user,
+        staff_profile=sp,
+        request=request,
+    )
+
+    messages.success(
+        request,
+        f"Staff profile email sent to {sp.user.get_full_name() or sp.user.username}."
+    )
+
+    return redirect("staff_profile")

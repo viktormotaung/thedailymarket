@@ -17,6 +17,8 @@ urlpatterns = [
     path("logout/", views.logout_view, name="logout"),
     path("portal/consumer/login/", views.consumer_login, name="consumer-login"),
 
+    path("reset/<uidb64>/<token>/", views.staff_password_set, name="staff-password-set",), 
+
     # Dashboards
     path("portal/client/", views.client_dashboard, name="client-dashboard"),
 

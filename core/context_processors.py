@@ -1,8 +1,15 @@
 import logging
 from credit.models import FunderMember
 from profiles.models import SalesRepProfile
+from profiles.models import DriverProfile
+logger = logging.getLogger(__name__)
+
+import logging
+
+
 
 logger = logging.getLogger(__name__)
+
 
 def platform_access(request):
     if not request.user.is_authenticated:
@@ -11,7 +18,7 @@ def platform_access(request):
     user = request.user
 
     # -----------------------
-    # Staff logic
+    # STAFF LOGIC
     # -----------------------
     is_staff_user = user.is_staff
     staff_profile = getattr(user, "staff_profile", None)
@@ -27,7 +34,7 @@ def platform_access(request):
     )
 
     # -----------------------
-    # Sales logic
+    # SALES LOGIC
     # -----------------------
     has_active_sales_rep = SalesRepProfile.objects.filter(
         user=user,
@@ -45,7 +52,7 @@ def platform_access(request):
     )
 
     # -----------------------
-    # Lender logic
+    # LENDER LOGIC
     # -----------------------
     can_lender_portal = FunderMember.objects.filter(
         user=user,
@@ -53,19 +60,24 @@ def platform_access(request):
     ).exists()
 
     # -----------------------
-    # Logistics (example – adjust if needed)
+    # LOGISTICS LOGIC (DriverProfile ✅)
     # -----------------------
-    can_logistics_portal = bool(
-        staff_profile is not None
-        and getattr(staff_profile, "can_access_logistics", False)
-        and staff_status == "ACTIVE"
-    )
+    has_active_driver = DriverProfile.objects.filter(
+        user=user,
+        status="ACTIVE"   # adjust if your DriverProfile uses lowercase
+    ).exists()
+
+    can_logistics_portal = bool(has_active_driver)
 
     # -----------------------
-    # DEBUG (temporary)
+    # DEBUG LOGGING (IMPORTANT)
     # -----------------------
     logger.warning("=== PLATFORM ACCESS (context processor) ===")
     logger.warning(f"user: {user}")
+    logger.warning(f"is_staff_user: {is_staff_user}")
+    logger.warning(f"staff_status: {staff_status}")
+    logger.warning(f"has_active_sales_rep: {has_active_sales_rep}")
+    logger.warning(f"has_active_driver: {has_active_driver}")
     logger.warning(f"can_staff_portal: {can_staff_portal}")
     logger.warning(f"can_sales_portal: {can_sales_portal}")
     logger.warning(f"can_lender_portal: {can_lender_portal}")
@@ -77,6 +89,7 @@ def platform_access(request):
         "can_lender_portal": can_lender_portal,
         "can_logistics_portal": can_logistics_portal,
     }
+
 
 
 # core/context_processors.py

@@ -95,7 +95,7 @@
     <a href="{% url 'logistics:deliveries' %}" class="nav-link">Deliveries</a>
     <a href="{% url 'logistics:driver-dashboard' %}" class="nav-link">Driver View</a>
     <a href="{% url 'logistics:monitor-view' %}" class="nav-link">Monitor View</a>
-    <a href="{% url 'sales:sales-tickets' %}" class="nav-link">Tasks</a>
+    
 
     <hr class="border-light">
 
@@ -140,7 +140,7 @@
     Monitor View
   </a>
 
-  <a href="{% url 'sales:sales-tickets' %}" class="nav-link">Tasks</a>
+  
 
   <form method="post" action="{% url 'logout' %}" class="mt-3">
     {% csrf_token %}

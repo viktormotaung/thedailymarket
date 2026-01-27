@@ -178,15 +178,27 @@ class Client(models.Model):
     address_line1 = models.CharField(max_length=200, blank=True)
     address_line2 = models.CharField(max_length=200, blank=True)
     suburb = models.CharField(max_length=120, blank=True)
-    city = models.CharField(max_length=120, blank=True)
-    province = models.CharField(max_length=10, choices=PROVINCES, blank=True)
+    city = models.CharField(
+        max_length=120,
+        choices=GAUTENG_CITY_CHOICES,
+        blank=True,
+    )
+    province = models.CharField(
+        max_length=10,
+        choices=PROVINCES,
+        blank=True,
+    )
     postal_code = models.CharField(max_length=20, blank=True)
     country = models.CharField(max_length=120, default="South Africa")
 
     delivery_address_line1 = models.CharField(max_length=255, blank=True)
     delivery_address_line2 = models.CharField(max_length=255, blank=True)
     delivery_suburb = models.CharField(max_length=120, blank=True)
-    delivery_city = models.CharField(max_length=120, blank=True)
+    delivery_city = models.CharField(
+        max_length=120,
+        choices=GAUTENG_CITY_CHOICES,
+        blank=True,
+    )
     delivery_province = models.CharField(
         max_length=10,
         choices=PROVINCES,
@@ -533,10 +545,13 @@ def sync_creditaccount_funder(sender, instance: Client, created, **kwargs):
 class Prospect(models.Model):
     """
     A potential client that the sales team is working on.
-    High-level info: who they are, where they are in the pipeline,
-    estimated value, follow-ups, and (optionally) the Client they become.
+    Designed to align closely with Client so conversion
+    requires minimal or no re-entry of data.
     """
 
+    # -------------------------------------------------
+    # Pipeline / lifecycle
+    # -------------------------------------------------
     STAGE_CHOICES = [
         ("NEW", "New"),
         ("CONTACTED", "Contacted"),
@@ -551,7 +566,24 @@ class Prospect(models.Model):
         ("ARCHIVED", "Archived"),
     ]
 
-    # ---- Ownership / responsibility ----
+    stage = models.CharField(
+        max_length=20,
+        choices=STAGE_CHOICES,
+        default="NEW",
+        db_index=True,
+        help_text="Where this prospect is in the sales pipeline.",
+    )
+
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="ACTIVE",
+        db_index=True,
+    )
+
+    # -------------------------------------------------
+    # Ownership / responsibility
+    # -------------------------------------------------
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -570,11 +602,14 @@ class Prospect(models.Model):
         help_text="Who originally created this prospect.",
     )
 
-    # ---- Identity / contact ----
+    # -------------------------------------------------
+    # Identity / contact (mirrors Client)
+    # -------------------------------------------------
     name = models.CharField(
         max_length=160,
         help_text="Primary name (business or person).",
     )
+
     organization = models.CharField(
         max_length=200,
         blank=True,
@@ -586,7 +621,9 @@ class Prospect(models.Model):
     phone = models.CharField(max_length=50, blank=True)
     whatsapp = models.CharField(max_length=50, blank=True)
 
-    # ---- Potential segmentation (aligned with Client) ----
+    # -------------------------------------------------
+    # Segmentation (directly maps to Client)
+    # -------------------------------------------------
     CLIENT_TYPES = Client.CLIENT_TYPES
     CLIENT_SIZE_TIERS = Client.CLIENT_SIZE_TIERS
     PROVINCES = Client.PROVINCES
@@ -595,61 +632,87 @@ class Prospect(models.Model):
         max_length=20,
         choices=CLIENT_TYPES,
         blank=True,
-        help_text="What type of client you expect this to be (e.g. Restaurant, Caterer).",
+        help_text="Expected client type (e.g. Restaurant, Caterer).",
     )
+
     potential_size_tier = models.CharField(
         max_length=1,
         choices=CLIENT_SIZE_TIERS,
         blank=True,
-        help_text="Expected size tier: A = large, B = medium, C = small.",
+        help_text="Expected size tier: A (large), B (medium), C (small).",
     )
 
-    # ---- Light location info ----
+    # -------------------------------------------------
+    # Address (light but conversion-ready)
+    # -------------------------------------------------
+    address_line1 = models.CharField(max_length=200, blank=True)
+    address_line2 = models.CharField(max_length=200, blank=True)
     suburb = models.CharField(max_length=120, blank=True)
-    city = models.CharField(max_length=120, blank=True)
-    province = models.CharField(max_length=10, choices=PROVINCES, blank=True)
-
-    # ---- Pipeline & value ----
-    stage = models.CharField(
-        max_length=20,
-        choices=STAGE_CHOICES,
-        default="NEW",
-        db_index=True,
-        help_text="Where this prospect is in the sales pipeline.",
+    city = models.CharField(
+        max_length=120,
+        choices=GAUTENG_CITY_CHOICES,
+        blank=True,
     )
-    status = models.CharField(
+    province = models.CharField(
         max_length=10,
-        choices=STATUS_CHOICES,
-        default="ACTIVE",
-        db_index=True,
+        choices=PROVINCES,
+        blank=True,
+    )
+    postal_code = models.CharField(max_length=20, blank=True)
+    country = models.CharField(max_length=120, default="South Africa")
+
+    # -------------------------------------------------
+    # Early compliance (optional, speeds up conversion)
+    # -------------------------------------------------
+    vat_number = models.CharField(max_length=80, blank=True)
+    company_reg_number = models.CharField(max_length=80, blank=True)
+
+    # -------------------------------------------------
+    # Product interest (mirrors Client.categories)
+    # -------------------------------------------------
+    categories = models.ManyToManyField(
+        Category,
+        blank=True,
+        related_name="prospects",
+        help_text="What this prospect is likely to buy.",
     )
 
+    # -------------------------------------------------
+    # Value & forecasting
+    # -------------------------------------------------
     estimated_weekly_spend = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="Estimated weekly spend if they become a client (Rands).",
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Estimated weekly spend if converted (Rands).",
     )
 
+    # -------------------------------------------------
+    # Sales activity tracking
+    # -------------------------------------------------
     last_contact_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="Last time we engaged this prospect (call, visit, WhatsApp, etc.).",
+        help_text="Last engagement with this prospect.",
     )
+
     next_follow_up_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="Planned next follow-up time.",
+        help_text="Planned next follow-up.",
     )
 
     lead_source = models.CharField(
         max_length=120,
         blank=True,
-        help_text="Where this lead came from (e.g. Facebook, referral, walk-in).",
+        help_text="Where this lead came from (referral, walk-in, Facebook, etc.).",
     )
 
-    # ---- Conversion link ----
+    # -------------------------------------------------
+    # Conversion link
+    # -------------------------------------------------
     client = models.ForeignKey(
         Client,
         null=True,
@@ -659,12 +722,17 @@ class Prospect(models.Model):
         help_text="Client created from this prospect (if converted).",
     )
 
-    # ---- Misc ----
+    # -------------------------------------------------
+    # Notes & meta
+    # -------------------------------------------------
     notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # -------------------------------------------------
+    # Meta
+    # -------------------------------------------------
     class Meta:
         ordering = ["-created_at"]
         indexes = [
@@ -675,67 +743,33 @@ class Prospect(models.Model):
             models.Index(fields=["created_by", "created_at"]),
         ]
 
+    # -------------------------------------------------
+    # Helpers
+    # -------------------------------------------------
     def __str__(self) -> str:
-        return self.name
-
-    # ---------- Existing helpers ----------
-
-    @property
-    def samples_count(self) -> int:
-        """
-        How many sample / site-visit related updates exist.
-        Useful for prospects table / stats.
-        """
-        return self.updates.filter(action_type="SAMPLE").count()
-
-    @property
-    def last_update(self):
-        """Return the most recent update, if any."""
-        return self.updates.order_by("-created_at").first()
-
-    # ---------- SLA / time-based helpers ----------
+        return self.organization or self.name
 
     @property
     def age_days(self) -> int:
-        """
-        How many days since this prospect was created.
-        Used for SLA / pipeline health.
-        """
         if not self.created_at:
             return 0
         today = timezone.localdate()
-        created_date = self.created_at.date()
-        return (today - created_date).days
+        return (today - self.created_at.date()).days
 
     @property
     def is_closed(self) -> bool:
-        """A simple flag for won/lost (stops the SLA clock)."""
-        return self.stage in ["WON", "LOST"]
+        return self.stage in {"WON", "LOST"}
 
     @property
     def is_overdue(self) -> bool:
-        """
-        Overdue if:
-        - not closed (not WON/LOST), AND
-        - more than 7 days since created
-        """
         if self.is_closed:
             return False
         return self.age_days > 7
 
     @property
     def sla_status(self) -> str:
-        """
-        Human-friendly SLA label:
-        - 'Closed' (WON/LOST)
-        - 'Fresh' (0–2 days)
-        - 'On track' (3–7 days)
-        - 'Overdue' (8–14 days)
-        - 'Very overdue' (>14 days)
-        """
         if self.is_closed:
             return "Closed"
-
         days = self.age_days
         if days <= 2:
             return "Fresh"
@@ -743,67 +777,8 @@ class Prospect(models.Model):
             return "On track"
         elif days <= 14:
             return "Overdue"
-        else:
-            return "Very overdue"
+        return "Very overdue"
 
-    # ---------- Helper: unified logger for all actions ----------
-
-    def log_update(
-        self,
-        *,
-        user=None,
-        action_type: str,
-        outcome: str = "",
-        notes: str = "",
-        action_at=None,
-        new_stage: str | None = None,
-        touch_last_contact: bool = True,
-    ):
-        """
-        Convenience helper to record any interaction on this prospect.
-
-        - Creates a ProspectUpdate with:
-          - old_stage = current self.stage
-          - new_stage = new_stage (or keeps same stage if not provided)
-        - Optionally moves the prospect to new_stage
-        - Optionally updates last_contact_at
-        """
-        from django.apps import apps
-
-        if action_at is None:
-            action_at = timezone.now()
-
-        old_stage = self.stage
-        stage_to_set = new_stage or old_stage
-
-        ProspectUpdate = apps.get_model("clients", "ProspectUpdate")
-
-        update = ProspectUpdate.objects.create(
-            prospect=self,
-            user=user,
-            action_type=action_type,
-            outcome=outcome or "",
-            action_at=action_at,
-            old_stage=old_stage or "",
-            new_stage=stage_to_set or "",
-            notes=notes or "",
-        )
-
-        # Update prospect stage / last contact if required
-        fields_to_update = []
-        if new_stage and new_stage != old_stage:
-            self.stage = new_stage
-            fields_to_update.append("stage")
-
-        if touch_last_contact:
-            self.last_contact_at = action_at
-            fields_to_update.append("last_contact_at")
-
-        if fields_to_update:
-            fields_to_update.append("updated_at")
-            self.save(update_fields=fields_to_update)
-
-        return update
 
 
 

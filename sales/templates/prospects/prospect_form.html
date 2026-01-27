@@ -138,154 +138,191 @@
 
   <!-- CONTENT WRAPPER (scrollable) -->
   <main class="content">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h2 class="mb-0">Add Prospect</h2>
-          <small class="text-muted">Capture high-level info for a new restaurant, caterer, or client lead.</small>
-        </div>
-        <a href="{% url 'sales:sales-prospects' %}" class="btn btn-outline-secondary btn-sm">&larr; Back to Prospects</a>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h2 class="mb-0">Add Prospect</h2>
+        <small class="text-muted">
+          Capture high-level info for a new restaurant, caterer, or client lead.
+        </small>
       </div>
+      <a href="{% url 'sales:sales-prospects' %}"
+        class="btn btn-outline-secondary btn-sm">
+        &larr; Back to Prospects
+      </a>
+    </div>
 
-      <div class="card shadow-sm mb-4">
-        <div class="card-body">
-          <form method="post" novalidate>
-            {% csrf_token %}
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
 
-            <!-- Identity -->
-            <div class="mb-2 form-section-title">Identity</div>
-            <div class="row g-3 mb-3">
-              <div class="col-md-6">
-                <label for="{{ form.name.id_for_label }}" class="form-label">Name</label>
-                {{ form.name }}
-                {% for err in form.name.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.organization.id_for_label }}" class="form-label">Organization (Trading name)</label>
-                {{ form.organization }}
-                {% for err in form.organization.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
+          <!-- ================= Identity ================= -->
+          <div class="mb-2 form-section-title">Identity</div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Name</label>
+              {{ form.name }}
+              {% for err in form.name.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
             </div>
-
-            <!-- Contact -->
-            <div class="mb-2 form-section-title">Contact Details</div>
-            <div class="row g-3 mb-3">
-              <div class="col-md-4">
-                <label for="{{ form.contact_name.id_for_label }}" class="form-label">Contact person</label>
-                {{ form.contact_name }}
-                {% for err in form.contact_name.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
-              <div class="col-md-4">
-                <label for="{{ form.phone.id_for_label }}" class="form-label">Phone</label>
-                {{ form.phone }}
-                {% for err in form.phone.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
-              <div class="col-md-4">
-                <label for="{{ form.whatsapp.id_for_label }}" class="form-label">WhatsApp</label>
-                {{ form.whatsapp }}
-                {% for err in form.whatsapp.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
+            <div class="col-md-6">
+              <label class="form-label">Organization (Trading name)</label>
+              {{ form.organization }}
+              {% for err in form.organization.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
             </div>
+          </div>
 
-            <div class="row g-3 mb-3">
-              <div class="col-md-6">
-                <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
-                {{ form.email }}
-                {% for err in form.email.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.lead_source.id_for_label }}" class="form-label">Lead source</label>
-                {{ form.lead_source }}
-                {% for err in form.lead_source.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
+          <!-- ================= Contact ================= -->
+          <div class="mb-2 form-section-title">Contact Details</div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label">Contact person</label>
+              {{ form.contact_name }}
             </div>
+            <div class="col-md-4">
+              <label class="form-label">Phone</label>
+              {{ form.phone }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">WhatsApp</label>
+              {{ form.whatsapp }}
+            </div>
+          </div>
 
-            <!-- Location -->
-            <div class="mb-2 form-section-title">Location</div>
-            <div class="row g-3 mb-3">
-              <div class="col-md-4">
-                <label for="{{ form.suburb.id_for_label }}" class="form-label">Suburb</label>
-                {{ form.suburb }}
-                {% for err in form.suburb.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
-              <div class="col-md-4">
-                <label for="{{ form.city.id_for_label }}" class="form-label">City</label>
-                {{ form.city }}
-                {% for err in form.city.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
-              <div class="col-md-4">
-                <label for="{{ form.province.id_for_label }}" class="form-label">Province</label>
-                {{ form.province }}
-                {% for err in form.province.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              {{ form.email }}
             </div>
+            <div class="col-md-6">
+              <label class="form-label">Lead source</label>
+              {{ form.lead_source }}
+            </div>
+          </div>
 
-            <!-- Segment & size -->
-            <div class="mb-2 form-section-title">Segment & Size</div>
-            <div class="row g-3 mb-3">
-              <div class="col-md-6">
-                <label for="{{ form.potential_client_type.id_for_label }}" class="form-label">Expected client type</label>
-                {{ form.potential_client_type }}
-                {% for err in form.potential_client_type.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.potential_size_tier.id_for_label }}" class="form-label">Expected size tier</label>
-                {{ form.potential_size_tier }}
-                {% for err in form.potential_size_tier.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
+          <!-- ================= Address ================= -->
+          <div class="mb-2 form-section-title">Address</div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Address line 1</label>
+              {{ form.address_line1 }}
             </div>
+            <div class="col-md-6">
+              <label class="form-label">Address line 2</label>
+              {{ form.address_line2 }}
+            </div>
+          </div>
 
-            <!-- Pipeline & value -->
-            <div class="mb-2 form-section-title">Pipeline & Value</div>
-            <div class="row g-3 mb-3">
-              <div class="col-md-4">
-                <label for="{{ form.stage.id_for_label }}" class="form-label">Stage</label>
-                {{ form.stage }}
-                {% for err in form.stage.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
-              <div class="col-md-4">
-                <label for="{{ form.status.id_for_label }}" class="form-label">Status</label>
-                {{ form.status }}
-                {% for err in form.status.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
-              <div class="col-md-4">
-                <label for="{{ form.estimated_weekly_spend.id_for_label }}" class="form-label">Estimated weekly spend (R)</label>
-                {{ form.estimated_weekly_spend }}
-                {% for err in form.estimated_weekly_spend.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label">Suburb</label>
+              {{ form.suburb }}
             </div>
+            <div class="col-md-4">
+              <label class="form-label">City</label>
+              {{ form.city }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Province</label>
+              {{ form.province }}
+            </div>
+          </div>
 
-            <!-- Dates -->
-            <div class="mb-2 form-section-title">Follow-up</div>
-            <div class="row g-3 mb-3">
-              <div class="col-md-6">
-                <label for="{{ form.last_contact_at.id_for_label }}" class="form-label">Last contact (optional)</label>
-                {{ form.last_contact_at }}
-                {% for err in form.last_contact_at.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.next_follow_up_at.id_for_label }}" class="form-label">Next follow-up (optional)</label>
-                {{ form.next_follow_up_at }}
-                {% for err in form.next_follow_up_at.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-              </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label">Postal code</label>
+              {{ form.postal_code }}
             </div>
+            <div class="col-md-8">
+              <label class="form-label">Country</label>
+              {{ form.country }}
+            </div>
+          </div>
 
-            <!-- Notes -->
-            <div class="mb-2 form-section-title">Notes</div>
-            <div class="mb-3">
-              {{ form.notes }}
-              {% for err in form.notes.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+          <!-- ================= Segmentation ================= -->
+          <div class="mb-2 form-section-title">Segment & Size</div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Expected client type</label>
+              {{ form.potential_client_type }}
             </div>
+            <div class="col-md-6">
+              <label class="form-label">Expected size tier</label>
+              {{ form.potential_size_tier }}
+            </div>
+          </div>
 
-            <!-- Actions -->
-            <div class="d-flex justify-content-between mt-4">
-              <a href="{% url 'sales:sales-prospects' %}" class="btn btn-outline-secondary">Cancel</a>
-              <button type="submit" class="btn btn-success">Save Prospect</button>
+          <!-- ================= Product Interest ================= -->
+          <div class="mb-2 form-section-title">Product Interest</div>
+          <div class="mb-3">
+            <label class="form-label">Categories</label>
+            {{ form.categories }}
+          </div>
+
+          <!-- ================= Early Compliance ================= -->
+          <div class="mb-2 form-section-title">Business Details (Optional)</div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Company registration number</label>
+              {{ form.company_reg_number }}
             </div>
-          </form>
-        </div>
+            <div class="col-md-6">
+              <label class="form-label">VAT number</label>
+              {{ form.vat_number }}
+            </div>
+          </div>
+
+          <!-- ================= Pipeline & Value ================= -->
+          <div class="mb-2 form-section-title">Pipeline & Value</div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label">Stage</label>
+              {{ form.stage }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Status</label>
+              {{ form.status }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Estimated weekly spend (R)</label>
+              {{ form.estimated_weekly_spend }}
+            </div>
+          </div>
+
+          <!-- ================= Follow-up ================= -->
+          <div class="mb-2 form-section-title">Follow-up</div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Last contact</label>
+              {{ form.last_contact_at }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Next follow-up</label>
+              {{ form.next_follow_up_at }}
+            </div>
+          </div>
+
+          <!-- ================= Notes ================= -->
+          <div class="mb-2 form-section-title">Notes</div>
+          <div class="mb-3">
+            {{ form.notes }}
+          </div>
+
+          <!-- ================= Actions ================= -->
+          <div class="d-flex justify-content-between mt-4">
+            <a href="{% url 'sales:sales-prospects' %}"
+              class="btn btn-outline-secondary">
+              Cancel
+            </a>
+            <button type="submit" class="btn btn-success">
+              Save Prospect
+            </button>
+          </div>
+
+        </form>
       </div>
-
+    </div>
   </main>
+
  
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

@@ -89,7 +89,7 @@ from django.utils import timezone
 from django.db.models import Q
 from django.conf import settings
 from django.middleware.csrf import get_token
-from profiles.models import CustomerProfile, StaffProfile, SalesRepProfile  
+from profiles.models import CustomerProfile, StaffProfile, SalesRepProfile, DriverProfile  
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.contrib.auth.decorators import login_required
@@ -112,6 +112,13 @@ from credit.models import FunderMember
 from clients.models import Client
 from django.db.models import OuterRef, Subquery, Value, DateTimeField
 import random
+from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth.forms import SetPasswordForm
+from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.shortcuts import render, redirect
+from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_str
 from django.db.models import (
     Sum, Q, DecimalField, IntegerField, OuterRef, Subquery, F, Value
 )
@@ -553,6 +560,9 @@ def logout_view(request):
     logout(request)
     return redirect('home')
 
+
+
+
 @require_http_methods(["GET", "POST"])
 def staff_login(request):
     """
@@ -560,24 +570,32 @@ def staff_login(request):
       - Staff portal
       - Lender portal
       - Sales portal
+      - Logistics portal
 
     After successful login, always show a modal:
       "Your profile has access to the following portal/s, please choose one"
-    with 3 buttons: Main, Lender, Sales.
     Buttons are enabled/disabled based on access.
     """
+
+    # -------------------------------------------------
+    # GET
+    # -------------------------------------------------
     if request.method == "GET":
         return render(request, "home/staff_login.html", {
             "prefill_username": request.GET.get("username", "").strip(),
         })
 
+    # -------------------------------------------------
     # POST
+    # -------------------------------------------------
     username = (request.POST.get("username") or "").strip()
     password = request.POST.get("password") or ""
 
     ctx = {"prefill_username": username}
 
+    # -------------------------------------------------
     # 1) User existence (case-insensitive)
+    # -------------------------------------------------
     user = User.objects.filter(username__iexact=username).first()
     if not user:
         ctx.update({
@@ -587,7 +605,9 @@ def staff_login(request):
         })
         return render(request, "home/staff_login.html", ctx)
 
+    # -------------------------------------------------
     # 2) Credentials
+    # -------------------------------------------------
     authed = authenticate(request, username=user.username, password=password)
     if not authed:
         ctx.update({
@@ -597,31 +617,53 @@ def staff_login(request):
         })
         return render(request, "home/staff_login.html", ctx)
 
-    # 3) Figure out roles
+    # -------------------------------------------------
+    # 3) Detect roles / profiles
+    # -------------------------------------------------
+
+    # --- Lender ---
     has_active_funder_membership = FunderMember.objects.filter(
-        user=authed, is_active=True
+        user=authed,
+        is_active=True
     ).exists()
 
+    # --- Staff ---
     is_staff_user = authed.is_staff
 
-    # ✅ New: check active SalesRepProfile
+    # --- Sales ---
     has_active_sales_rep = SalesRepProfile.objects.filter(
-        user=authed, status="active"
+        user=authed,
+        status="active"
     ).exists()
 
-    # If neither staff nor funder nor sales rep → deny
-    if not is_staff_user and not has_active_funder_membership and not has_active_sales_rep:
+    # --- Logistics (NEW) ---
+    has_active_driver = DriverProfile.objects.filter(
+        user=authed,
+        status="ACTIVE"
+    ).exists()
+
+    # -------------------------------------------------
+    # 4) Hard deny if user has ZERO portal access
+    # -------------------------------------------------
+    if not any([
+        is_staff_user,
+        has_active_funder_membership,
+        has_active_sales_rep,
+        has_active_driver,
+    ]):
         ctx.update({
             "show_modal": True,
             "modal_title": "Not authorized",
             "modal_message": (
-                "Your account isn’t enabled for staff, lender, or sales access. "
+                "Your account isn’t enabled for staff, lender, sales, or logistics access. "
                 "Please contact support@seshibodailymarket.co.za."
             ),
         })
         return render(request, "home/staff_login.html", ctx)
 
-    # 4) StaffProfile gating ONLY for staff portal access
+    # -------------------------------------------------
+    # 5) StaffProfile gating (ONLY for staff portal)
+    # -------------------------------------------------
     staff_profile = None
     staff_status = None
 
@@ -631,11 +673,14 @@ def staff_login(request):
             ctx.update({
                 "show_modal": True,
                 "modal_title": "Profile not linked",
-                "modal_message": "Your account does not have a staff profile linked. Please contact support@seshibodailymarket.co.za.",
+                "modal_message": (
+                    "Your account does not have a staff profile linked. "
+                    "Please contact support@seshibodailymarket.co.za."
+                ),
             })
             return render(request, "home/staff_login.html", ctx)
 
-        staff_status = (getattr(staff_profile, "status", "") or "").upper()  # 'PENDING'/'ACTIVE'/'INACTIVE'
+        staff_status = (getattr(staff_profile, "status", "") or "").upper()
         if staff_status != "ACTIVE":
             if staff_status == "PENDING":
                 ctx.update({
@@ -651,61 +696,115 @@ def staff_login(request):
                 })
             return render(request, "home/staff_login.html", ctx)
 
-    # 5) All good → sign in
+    # -------------------------------------------------
+    # 6) All good → log the user in
+    # -------------------------------------------------
     login(request, authed)
 
-    # 6) Lender membership bookkeeping (keep your existing behaviour minus the auto-redirect)
-    memberships = []
+    # -------------------------------------------------
+    # 7) Lender session bookkeeping
+    # -------------------------------------------------
     if has_active_funder_membership:
         memberships = list(
-            FunderMember.objects.select_related("funder")
+            FunderMember.objects
+            .select_related("funder")
             .filter(user=authed, is_active=True)
             .order_by("funder__name")
         )
         request.session["lender_funders"] = [m.funder_id for m in memberships]
 
         if len(memberships) == 1:
-            # remember selection
             request.session["current_funder_id"] = memberships[0].funder_id
         else:
-            # multiple funders: let lender dashboard present a picker
             request.session.pop("current_funder_id", None)
     else:
         request.session.pop("lender_funders", None)
         request.session.pop("current_funder_id", None)
 
-    # 7) Determine portal access flags
+    # -------------------------------------------------
+    # 8) Portal access flags
+    # -------------------------------------------------
 
-    # Main (staff) portal: must be staff with ACTIVE StaffProfile
+    # Staff (Main)
     can_staff_portal = bool(
         is_staff_user
         and staff_profile is not None
-        and (staff_status or "").upper() == "ACTIVE"
+        and staff_status == "ACTIVE"
     )
 
-    # Sales portal:
-    #  - either active SalesRepProfile
-    #  - or staff with ACTIVE StaffProfile and can_access_sales=True
+    # Sales
     sales_flag_from_staff = bool(
         staff_profile is not None
         and getattr(staff_profile, "can_access_sales", False)
-        and (staff_status or "").upper() == "ACTIVE"
+        and staff_status == "ACTIVE"
     )
     can_sales_portal = bool(has_active_sales_rep or sales_flag_from_staff)
 
-    # Lender portal: has any active lender membership
+    # Lender
     can_lender_portal = bool(has_active_funder_membership)
 
-    # 8) Show portal selection modal instead of redirecting
+    # Logistics (NEW)
+    can_logistics_portal = bool(has_active_driver)
+
+    # -------------------------------------------------
+    # 9) Show portal picker modal
+    # -------------------------------------------------
     ctx = {
         "prefill_username": authed.username,
         "show_portal_modal": True,
         "can_staff_portal": can_staff_portal,
-        "can_lender_portal": can_lender_portal,
         "can_sales_portal": can_sales_portal,
+        "can_lender_portal": can_lender_portal,
+        "can_logistics_portal": can_logistics_portal,
     }
 
     return render(request, "home/staff_login.html", ctx)
+
+
+User = get_user_model()
+
+
+def staff_password_set(request, uidb64, token):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        if request.method == "POST":
+            form = SetPasswordForm(user, request.POST)
+            if form.is_valid():
+                form.save()
+
+                messages.success(
+                    request,
+                    "Your password has been set successfully. Please log in."
+                )
+
+                # 🔁 Redirect to STAFF LOGIN (not auto-login)
+                return redirect("staff-login")
+        else:
+            form = SetPasswordForm(user)
+
+        return render(
+            request,
+            "home/staff_password_set.html",
+            {
+                "form": form,
+                "validlink": True,
+            },
+        )
+
+    # ❌ Invalid / expired link
+    return render(
+        request,
+        "home/staff_password_set.html",
+        {
+            "validlink": False,
+        },
+    )
+
 
 
 @require_http_methods(["GET", "POST"])

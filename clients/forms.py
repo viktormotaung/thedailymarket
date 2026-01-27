@@ -56,12 +56,11 @@ def _add_bs_classes(field: forms.Field, *, is_check: bool = False) -> None:
 # --------------------------------
 class ClientForm(forms.ModelForm):
     """
-    Full Business Client form aligned to Client model.
-    Designed for back-office + profile onboarding flows.
+    Main create / edit form for Clients.
     """
 
     # ----------------------------
-    # ADDRESS DROPDOWNS (CRITICAL)
+    # ADDRESS DROPDOWNS (FORM-OWNED)
     # ----------------------------
     city = forms.ChoiceField(
         choices=GAUTENG_CITY_CHOICES,
@@ -77,9 +76,13 @@ class ClientForm(forms.ModelForm):
         label="Delivery City",
     )
 
-    # ----------------------------
-    # META
-    # ----------------------------
+    delivery_province = forms.ChoiceField(
+        choices=Client.PROVINCES,
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Delivery Province",
+    )
+
     class Meta:
         model = Client
         fields = [
@@ -109,17 +112,13 @@ class ClientForm(forms.ModelForm):
             "delivery_address_line2",
             "delivery_suburb",
             "delivery_city",
-            "delivery_province",
+            # ❌ delivery_province REMOVED
             "delivery_postal_code",
             "delivery_country",
 
-            # Delivery geo (hidden)
-            "delivery_lat",
-            "delivery_lng",
-
             # Compliance
-            "vat_number",
             "company_reg_number",
+            "vat_number",
 
             # Commercial
             "price_type",
@@ -138,97 +137,17 @@ class ClientForm(forms.ModelForm):
         ]
 
         widgets = {
-        # Text
-        "name": forms.TextInput(attrs=_bs()),
-        "organization": forms.TextInput(attrs=_bs()),
-        "contact_person": forms.TextInput(attrs=_bs()),
-        "email": forms.EmailInput(attrs=_bs()),
-        "phone": forms.TextInput(attrs=_bs()),
-        "whatsapp": forms.TextInput(attrs=_bs()),
-
-        "address_line1": forms.TextInput(attrs=_bs()),
-        "address_line2": forms.TextInput(attrs=_bs()),
-        "suburb": forms.TextInput(attrs=_bs()),
-        "postal_code": forms.TextInput(attrs=_bs()),
-        "country": forms.TextInput(attrs=_bs()),
-
-        "delivery_address_line1": forms.TextInput(attrs=_bs()),
-        "delivery_address_line2": forms.TextInput(attrs=_bs()),
-        "delivery_suburb": forms.TextInput(attrs=_bs()),
-        "delivery_postal_code": forms.TextInput(attrs=_bs()),
-        "delivery_country": forms.TextInput(attrs=_bs()),
-
-        # Selects
-        "province": forms.Select(attrs=_bs("form-select")),
-        "delivery_province": forms.Select(attrs=_bs("form-select")),
-        "client_type": forms.Select(attrs=_bs("form-select")),
-        "client_size_tier": forms.Select(attrs=_bs("form-select")),
-        "price_type": forms.Select(attrs=_bs("form-select")),
-        "status": forms.Select(attrs=_bs("form-select")),
-        "account_type": forms.Select(attrs=_bs("form-select")),
-        "credit_status": forms.Select(attrs=_bs("form-select")),
-
-        # Numbers
-        "estimated_weekly_spend": forms.NumberInput(
-            attrs={**_bs(), "step": "0.01", "min": "0"}
-        ),
-
-
-
-            # Notes
-            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-
-            # Categories
-            "categories": forms.SelectMultiple(
-                attrs={"class": "form-select", "size": 6}
-            ),
+            
+            "city": forms.Select(attrs={"class": "form-select"}),
+            "province": forms.Select(attrs={"class": "form-select"}),
+            "client_type": forms.Select(attrs={"class": "form-select"}),
+            "client_size_tier": forms.Select(attrs={"class": "form-select"}),
+            "price_type": forms.Select(attrs={"class": "form-select"}),
+            "status": forms.Select(attrs={"class": "form-select"}),
+            "account_type": forms.Select(attrs={"class": "form-select"}),
+            "credit_status": forms.Select(attrs={"class": "form-select"}),
         }
 
-    # ----------------------------
-    # INIT
-    # ----------------------------
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Active categories only
-        self.fields["categories"].queryset = (
-            Category.objects.filter(is_active=True).order_by("name")
-        )
-
-        # Defaults
-        self.fields["country"].initial = "South Africa"
-        self.fields["delivery_country"].initial = "South Africa"
-
-        # Placeholders
-        self.fields["email"].widget.attrs.setdefault("placeholder", "name@example.com")
-        self.fields["phone"].widget.attrs.setdefault("placeholder", "+27 82 123 4567")
-        self.fields["whatsapp"].widget.attrs.setdefault("placeholder", "+27 82 123 4567")
-
-    # ----------------------------
-    # VALIDATION
-    # ----------------------------
-    def clean(self):
-        cleaned = super().clean()
-
-        # Require at least name or organization
-        if not cleaned.get("name") and not cleaned.get("organization"):
-            raise ValidationError(
-                "Please provide at least a Name or an Organization."
-            )
-
-        # Credit logic safety
-        if cleaned.get("credit_status") == "ACTIVE":
-            cleaned["account_type"] = "CREDIT"
-
-        # Spend sanity
-        spend = cleaned.get("estimated_weekly_spend")
-        if spend is not None and spend < Decimal("0"):
-            self.add_error(
-                "estimated_weekly_spend",
-                "Estimated weekly spend cannot be negative."
-            )
-
-        return cleaned
 
 
 # -------------------------------------------------
@@ -313,158 +232,200 @@ class ProspectForm(forms.ModelForm):
     """
     Main create / edit form for Prospects.
 
-    - Owner & created_by are set in the view (from request.user), so excluded.
-    - Client link is managed when you convert a prospect to a client, so also excluded.
+    - owner & created_by are set in the view
+    - client link is handled on conversion
+    - City uses explicit dropdown choices (same pattern as ClientForm)
     """
 
+    # ----------------------------
+    # ADDRESS DROPDOWNS (MATCH CLIENT FORM)
+    # ----------------------------
+    city = forms.ChoiceField(
+        choices=GAUTENG_CITY_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="City",
+    )
+
+    # ----------------------------
+    # META
+    # ----------------------------
     class Meta:
         model = Prospect
         fields = [
+            # ---- Identity / contact ----
             "name",
             "organization",
             "contact_name",
             "email",
             "phone",
             "whatsapp",
+
+            # ---- Segmentation ----
             "potential_client_type",
             "potential_size_tier",
+
+            # ---- Address (conversion-ready) ----
+            "address_line1",
+            "address_line2",
             "suburb",
             "city",
             "province",
+            "postal_code",
+            "country",
+
+            # ---- Early compliance ----
+            "company_reg_number",
+            "vat_number",
+
+            # ---- Product interest ----
+            "categories",
+
+            # ---- Pipeline & value ----
             "stage",
             "status",
             "estimated_weekly_spend",
+
+            # ---- Sales activity ----
             "last_contact_at",
             "next_follow_up_at",
             "lead_source",
+
+            # ---- Notes ----
             "notes",
         ]
 
         widgets = {
-            "name": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": "e.g. Nando's Krugersdorp",
-                }
+            # Identity
+            "name": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "e.g. Nando's Krugersdorp",
+            }),
+            "organization": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Trading name (if different)",
+            }),
+            "contact_name": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Contact person name",
+            }),
+            "email": forms.EmailInput(attrs={
+                "class": "form-control",
+                "placeholder": "name@example.com",
+            }),
+            "phone": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "+27 82 123 4567",
+            }),
+            "whatsapp": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "+27 82 123 4567",
+            }),
+
+            # Segmentation
+            "potential_client_type": forms.Select(attrs={"class": "form-select"}),
+            "potential_size_tier": forms.Select(attrs={"class": "form-select"}),
+
+            # Address
+            "address_line1": forms.TextInput(attrs={"class": "form-control"}),
+            "address_line2": forms.TextInput(attrs={"class": "form-control"}),
+            "suburb": forms.TextInput(attrs={"class": "form-control"}),
+            "province": forms.Select(attrs={"class": "form-select"}),
+            "postal_code": forms.TextInput(attrs={"class": "form-control"}),
+            "country": forms.TextInput(attrs={"class": "form-control"}),
+
+            # Compliance
+            "company_reg_number": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Company registration number",
+            }),
+            "vat_number": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "VAT number (if registered)",
+            }),
+
+            # Categories
+            "categories": forms.SelectMultiple(
+                attrs={"class": "form-select", "size": 6}
             ),
-            "organization": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": "Trading name (if different)",
-                }
-            ),
-            "contact_name": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": "Contact person name",
-                }
-            ),
-            "email": forms.EmailInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": "Email address",
-                }
-            ),
-            "phone": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": "Primary phone number",
-                }
-            ),
-            "whatsapp": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": "WhatsApp number (if different)",
-                }
-            ),
-            "potential_client_type": forms.Select(
-                attrs={
-                    "class": "form-select",
-                }
-            ),
-            "potential_size_tier": forms.Select(
-                attrs={
-                    "class": "form-select",
-                }
-            ),
-            "suburb": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                }
-            ),
-            "city": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                }
-            ),
-            "province": forms.Select(
-                attrs={
-                    "class": "form-select",
-                }
-            ),
-            "stage": forms.Select(
-                attrs={
-                    "class": "form-select",
-                }
-            ),
-            "status": forms.Select(
-                attrs={
-                    "class": "form-select",
-                }
-            ),
-            "estimated_weekly_spend": forms.NumberInput(
-                attrs={
-                    "class": "form-control",
-                    "step": "0.01",
-                    "min": "0",
-                    "placeholder": "e.g. 2500.00",
-                }
-            ),
+
+            # Pipeline & value
+            "stage": forms.Select(attrs={"class": "form-select"}),
+            "status": forms.Select(attrs={"class": "form-select"}),
+            "estimated_weekly_spend": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01",
+                "min": "0",
+                "placeholder": "e.g. 2500.00",
+            }),
+
+            # Activity
             "last_contact_at": forms.DateTimeInput(
                 attrs={"class": "form-control", "type": "datetime-local"}
             ),
             "next_follow_up_at": forms.DateTimeInput(
                 attrs={"class": "form-control", "type": "datetime-local"}
             ),
-            "lead_source": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": "e.g. Facebook, referral, walk-in",
-                }
-            ),
-            "notes": forms.Textarea(
-                attrs={
-                    "class": "form-control",
-                    "rows": 3,
-                    "placeholder": "Extra notes about this prospect...",
-                }
-            ),
+            "lead_source": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "e.g. Facebook, referral, walk-in",
+            }),
+
+            # Notes
+            "notes": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 3,
+                "placeholder": "Extra notes about this prospect...",
+            }),
         }
 
-    def clean(self):
-        """
-        Light validation:
-        - Require at least one direct contact channel (phone / WhatsApp / email).
-        """
-        cleaned = super().clean()
-        email = cleaned.get("email")
-        phone = cleaned.get("phone")
-        whatsapp = cleaned.get("whatsapp")
+    # ----------------------------
+    # INIT
+    # ----------------------------
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        if not email and not phone and not whatsapp:
-            raise forms.ValidationError(
-                "Please provide at least one contact method (phone, WhatsApp or email)."
+        # Active categories only
+        self.fields["categories"].queryset = (
+            Category.objects.filter(is_active=True).order_by("name")
+        )
+
+        # Defaults
+        self.fields["country"].initial = "South Africa"
+
+    # ----------------------------
+    # VALIDATION
+    # ----------------------------
+    def clean(self):
+        cleaned = super().clean()
+
+        # Require at least ONE contact method
+        if not any([
+            cleaned.get("email"),
+            cleaned.get("phone"),
+            cleaned.get("whatsapp"),
+        ]):
+            raise ValidationError(
+                "Please provide at least one contact method (phone, WhatsApp, or email)."
+            )
+
+        # Spend sanity
+        spend = cleaned.get("estimated_weekly_spend")
+        if spend is not None and spend < Decimal("0"):
+            self.add_error(
+                "estimated_weekly_spend",
+                "Estimated weekly spend cannot be negative."
             )
 
         return cleaned
 
 
+
 class ProspectUpdateForm(forms.ModelForm):
     """
-    Form for logging an activity against a Prospect:
+    Log an activity against a Prospect:
     - call, WhatsApp, visit, sample, etc.
-    - outcome (no answer, interested, etc.)
-    - optional stage transition (e.g. CONTACTED → NEGOTIATION).
+    - optional stage transition
     """
 
     class Meta:
@@ -476,6 +437,7 @@ class ProspectUpdateForm(forms.ModelForm):
             "new_stage",
             "notes",
         ]
+
         widgets = {
             "action_type": forms.Select(attrs={"class": "form-select"}),
             "outcome": forms.Select(attrs={"class": "form-select"}),
@@ -483,63 +445,50 @@ class ProspectUpdateForm(forms.ModelForm):
                 attrs={"class": "form-control", "type": "datetime-local"}
             ),
             "new_stage": forms.Select(attrs={"class": "form-select"}),
-            "notes": forms.Textarea(
-                attrs={
-                    "class": "form-control",
-                    "rows": 3,
-                    "placeholder": "e.g. Called at 10:30, rang out. Left WhatsApp message.",
-                }
-            ),
+            "notes": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 3,
+                "placeholder": "e.g. Called at 10:30, rang out. Left WhatsApp message.",
+            }),
         }
 
     def __init__(self, *args, **kwargs):
-        # allow view to pass current prospect stage for UX (optional)
         self.current_stage = kwargs.pop("current_stage", None)
         super().__init__(*args, **kwargs)
 
-        # Default action_at (for the datetime-local input)
+        # Default action time = now (for UX)
         if not self.initial.get("action_at"):
             self.initial["action_at"] = timezone.now().strftime("%Y-%m-%dT%H:%M")
 
-        # new_stage is optional – user can log activity without moving the pipeline
+        # new_stage is optional
         self.fields["new_stage"].required = False
 
     def save(self, commit=True):
         """
-        On save:
-        - Set old_stage to the prospect's current stage (if available).
-        - If new_stage is set and different from prospect.stage:
-          * populate old_stage/new_stage on the update
-          * update the Prospect.stage
-        - Always set Prospect.last_contact_at = action_at
+        - Capture old_stage
+        - Apply stage transition if selected
+        - Always sync last_contact_at
         """
         update = super().save(commit=False)
+        prospect = update.prospect
 
-        prospect = getattr(update, "prospect", None)
-        if prospect:
-            current_stage = prospect.stage
+        current_stage = prospect.stage
 
-            # If user selected a new_stage, record transition
-            if update.new_stage:
-                if update.new_stage != current_stage:
-                    update.old_stage = current_stage
-                    prospect.stage = update.new_stage
-            else:
-                # No new_stage given; keep old_stage = current stage for history if not already set
-                if not update.old_stage:
-                    update.old_stage = current_stage
+        if update.new_stage and update.new_stage != current_stage:
+            update.old_stage = current_stage
+            prospect.stage = update.new_stage
+        else:
+            update.old_stage = current_stage
 
-            # Sync last_contact_at with this interaction
-            prospect.last_contact_at = update.action_at or timezone.now()
-
-            if commit:
-                prospect.save(update_fields=["stage", "last_contact_at", "updated_at"])
+        prospect.last_contact_at = update.action_at or timezone.now()
 
         if commit:
+            prospect.save(update_fields=["stage", "last_contact_at", "updated_at"])
             update.save()
 
         return update
-    
+
+
 class ClientMinimalForm(forms.ModelForm):
     class Meta:
         model = Client
@@ -872,6 +821,7 @@ class ClientEditForm(forms.ModelForm):
 
         return cleaned
     
+
 
 class ClientComplianceForm(forms.ModelForm):
     """

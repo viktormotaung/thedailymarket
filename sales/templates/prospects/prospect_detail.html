@@ -196,29 +196,26 @@
           </a>
 
           <!-- Reopen button -->
-          {% if can_reopen %}
-            <form method="post"
-                  action="{% url 'sales:sales-prospect-reopen' prospect.id %}"
-                  style="display:inline;">
-              {% csrf_token %}
+          <form method="post"
+                action="{% if can_reopen and can_write %}{% url 'sales:sales-prospect-reopen' prospect.id %}{% else %}#{% endif %}"
+                style="display:inline;">
 
-              <button type="submit"
-                      class="btn btn-success btn-sm mt-2"
-                      {% if not can_write %}
-                        disabled
-                        title="View-only access"
-                      {% else %}
-                        onclick="return confirm('Reopen this prospect and restart the pipeline?');"
-                      {% endif %}>
-                Reopen prospect
-              </button>
+            {% csrf_token %}
 
-            </form>
-          {% else %}
-            <button class="btn btn-secondary btn-sm mt-2" disabled>
+            <button type="submit"
+                    class="btn btn-success btn-sm mt-2 {% if not can_reopen or not can_write %}disabled{% endif %}"
+                    {% if not can_reopen or not can_write %}
+                      disabled
+                      aria-disabled="true"
+                      title="You do not have permission to reopen this prospect"
+                    {% else %}
+                      onclick="return confirm('Reopen this prospect and restart the pipeline?');"
+                    {% endif %}>
               Reopen prospect
             </button>
-          {% endif %}
+
+          </form>
+
 
         </div>
       </div>
@@ -580,28 +577,54 @@
                   <p class="meta mb-2">
                     Use these buttons when you have a clear outcome for the contact stage.
                   </p>
-                  <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.id %}">
+
+                  <form method="post"
+                        action="{% if can_use_contact_stage_buttons and can_write %}
+                                  {% url 'sales:sales-prospect-stage-action' prospect.id %}
+                                {% else %}
+                                  #
+                                {% endif %}">
                     {% csrf_token %}
-                    <button name="stage_action" value="CONTACT_PASS" class="btn btn-success me-2 mb-2"
-                            {% if not can_use_contact_stage_buttons %}disabled{% endif %}>
+
+                    <!-- PASSED -->
+                    <button type="submit"
+                            name="stage_action"
+                            value="CONTACT_PASS"
+                            class="btn btn-success me-2 mb-2
+                                  {% if not can_use_contact_stage_buttons or not can_write %}disabled{% endif %}"
+                            {% if not can_use_contact_stage_buttons or not can_write %}
+                              disabled
+                              aria-disabled="true"
+                              title="You do not have permission to perform this action"
+                            {% endif %}>
                       Passed contact stage
                     </button>
-                    <button name="stage_action" value="CONTACT_LOST" class="btn btn-outline-danger mb-2"
-                            {% if not can_use_contact_stage_buttons %}
+
+                    <!-- LOST -->
+                    <button type="submit"
+                            name="stage_action"
+                            value="CONTACT_LOST"
+                            class="btn btn-outline-danger mb-2
+                                  {% if not can_use_contact_stage_buttons or not can_write %}disabled{% endif %}"
+                            {% if not can_use_contact_stage_buttons or not can_write %}
                               disabled
+                              aria-disabled="true"
+                              title="You do not have permission to perform this action"
                             {% else %}
                               onclick="return confirm('Mark this prospect as lost at contact stage?');"
                             {% endif %}>
                       Mark lost at contact stage
                     </button>
                   </form>
+
                   {% if not can_use_contact_stage_buttons %}
                     <p class="text-muted small mb-0">
-                      Buttons inactive. Only active when this prospect is still in New/Contact stage and not closed.
+                      Buttons inactive. Only available while the prospect is in the New or Contacted stage and not closed.
                     </p>
                   {% endif %}
                 </div>
               </div>
+
             </div>
 
             <!-- Log new contact -->
@@ -642,7 +665,16 @@
                       <textarea name="notes" class="form-control" rows="3"
                                 placeholder="e.g. Called at 10:30, no answer. Left WhatsApp."></textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Save contact update</button>
+                    <button type="submit"
+                            class="btn btn-primary w-100 {% if not can_write %}disabled{% endif %}"
+                            {% if not can_write %}
+                              disabled
+                              aria-disabled="true"
+                              title="View-only access"
+                            {% endif %}>
+                      Save contact update
+                    </button>
+
                   </form>
                 </div>
               </div>
@@ -705,35 +737,59 @@
                 </div>
               </div>
 
-              <!-- Stage buttons -->
+              <!-- Site Visit stage buttons -->
               <div class="card mb-3">
                 <div class="card-body">
                   <h6 class="fw-semibold mb-2">Site visit stage outcome</h6>
                   <p class="meta mb-2">
                     Use these buttons once you know if the site visit stage has passed or if the lead is dead.
                   </p>
-                  <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.id %}">
+
+                  <form method="post"
+                        action="{% url 'sales:sales-prospect-stage-action' prospect.id %}">
                     {% csrf_token %}
-                    <button name="stage_action" value="SITE_VISIT_PASS" class="btn btn-success me-2 mb-2"
-                            {% if not can_use_site_visit_stage_buttons %}disabled{% endif %}>
+
+                    <!-- PASS SITE VISIT -->
+                    <button name="stage_action"
+                            value="SITE_VISIT_PASS"
+                            class="btn btn-success me-2 mb-2
+                                  {% if not can_use_site_visit_stage_buttons or not can_write %}disabled{% endif %}"
+                            {% if not can_use_site_visit_stage_buttons or not can_write %}
+                              disabled
+                              aria-disabled="true"
+                              title="{% if not can_write %}View-only access{% else %}Action not available at this stage{% endif %}"
+                            {% endif %}>
                       Passed site visit stage
                     </button>
-                    <button name="stage_action" value="SITE_VISIT_LOST" class="btn btn-outline-danger mb-2"
-                            {% if not can_use_site_visit_stage_buttons %}
+
+                    <!-- LOSE AFTER SITE VISIT -->
+                    <button name="stage_action"
+                            value="SITE_VISIT_LOST"
+                            class="btn btn-outline-danger mb-2
+                                  {% if not can_use_site_visit_stage_buttons or not can_write %}disabled{% endif %}"
+                            {% if not can_use_site_visit_stage_buttons or not can_write %}
                               disabled
+                              aria-disabled="true"
+                              title="{% if not can_write %}View-only access{% else %}Action not available at this stage{% endif %}"
                             {% else %}
                               onclick="return confirm('Mark this prospect as lost after site visit?');"
                             {% endif %}>
                       Mark lost after site visit
                     </button>
                   </form>
+
                   {% if not can_use_site_visit_stage_buttons %}
                     <p class="text-muted small mb-0">
-                      Buttons inactive. Only active when this prospect is at site visit stage and not closed.
+                      Buttons inactive. Only available when this prospect is at the site visit stage and not closed.
+                    </p>
+                  {% elif not can_write %}
+                    <p class="text-muted small mb-0">
+                      View-only access. You cannot perform stage actions.
                     </p>
                   {% endif %}
                 </div>
               </div>
+
             </div>
 
             <!-- Log new site visit -->
@@ -773,7 +829,16 @@
                       <input type="file" name="visit_photo" class="form-control" accept="image/*">
                     </div>
                     <button type="submit" class="btn btn-primary w-100">Save site visit</button>
-                  </form>
+                  </form><button type="submit"
+                          class="btn btn-primary w-100 {% if not can_write %}disabled{% endif %}"
+                          {% if not can_write %}
+                            disabled
+                            aria-disabled="true"
+                            title="View-only access"
+                          {% endif %}>
+                    Save site visit
+                  </button>
+
                 </div>
               </div>
             </div>
@@ -855,37 +920,65 @@
                   <p class="meta mb-2">
                     Use these buttons once you know if this prospect is moving forward, won, or lost.
                   </p>
+
                   <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.id %}">
                     {% csrf_token %}
-                    <button name="stage_action" value="NEGOTIATION_PASS" class="btn btn-success me-2 mb-2"
-                            {% if not can_use_negotiation_stage_buttons %}disabled{% endif %}>
+
+                    <!-- Move to negotiation -->
+                    <button name="stage_action"
+                            value="NEGOTIATION_PASS"
+                            class="btn btn-success me-2 mb-2 {% if not can_write or not can_use_negotiation_stage_buttons %}disabled{% endif %}"
+                            {% if not can_write or not can_use_negotiation_stage_buttons %}
+                              disabled
+                              aria-disabled="true"
+                              title="{% if not can_write %}View-only access{% else %}Stage action not available{% endif %}"
+                            {% endif %}>
                       Move to negotiation
                     </button>
-                    <button name="stage_action" value="NEGOTIATION_WON" class="btn btn-outline-success me-2 mb-2"
-                            {% if not can_use_negotiation_stage_buttons %}
+
+                    <!-- Mark as won -->
+                    <button name="stage_action"
+                            value="NEGOTIATION_WON"
+                            class="btn btn-outline-success me-2 mb-2 {% if not can_write or not can_use_negotiation_stage_buttons %}disabled{% endif %}"
+                            {% if not can_write or not can_use_negotiation_stage_buttons %}
                               disabled
+                              aria-disabled="true"
+                              title="{% if not can_write %}View-only access{% else %}Stage action not available{% endif %}"
                             {% else %}
                               onclick="return confirm('Mark this prospect as won?');"
                             {% endif %}>
                       Mark as won
                     </button>
-                    <button name="stage_action" value="NEGOTIATION_LOST" class="btn btn-outline-danger mb-2"
-                            {% if not can_use_negotiation_stage_buttons %}
+
+                    <!-- Mark as lost -->
+                    <button name="stage_action"
+                            value="NEGOTIATION_LOST"
+                            class="btn btn-outline-danger mb-2 {% if not can_write or not can_use_negotiation_stage_buttons %}disabled{% endif %}"
+                            {% if not can_write or not can_use_negotiation_stage_buttons %}
                               disabled
+                              aria-disabled="true"
+                              title="{% if not can_write %}View-only access{% else %}Stage action not available{% endif %}"
                             {% else %}
                               onclick="return confirm('Mark this prospect as lost at negotiation?');"
                             {% endif %}>
                       Mark as lost
                     </button>
                   </form>
+
                   {% if not can_use_negotiation_stage_buttons %}
                     <p class="text-muted small mb-0">
                       Buttons inactive. Only active when this prospect is at negotiation stage and not closed.
                     </p>
                   {% endif %}
+
+                  {% if not can_write %}
+                    <p class="text-muted small mb-0">
+                      View-only access. You cannot change the prospect stage.
+                    </p>
+                  {% endif %}
                 </div>
               </div>
-            </div>
+
 
             <!-- Log negotiation -->
             <div class="col-lg-5">
@@ -928,7 +1021,16 @@
                       <textarea name="notes" class="form-control" rows="3"
                                 placeholder="Objections, decision maker notes, delivery days they prefer, etc."></textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Save negotiation update</button>
+                    <button type="submit"
+                            class="btn btn-primary w-100 {% if not can_write %}disabled{% endif %}"
+                            {% if not can_write %}
+                              disabled
+                              aria-disabled="true"
+                              title="View-only access"
+                            {% endif %}>
+                      Save negotiation update
+                    </button>
+
                   </form>
                 </div>
               </div>
