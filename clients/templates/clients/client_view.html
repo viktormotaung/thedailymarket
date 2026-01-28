@@ -348,36 +348,86 @@
               <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                 <span>Client Overview</span>
 
-                <a href="{% url 'client-edit' client.pk %}"
-                  class="btn btn-outline-primary btn-sm"
-                  title="Edit client details">
+                <a href="{% if can_write %}{% url 'client-edit' client.pk %}{% else %}#{% endif %}"
+                  class="btn btn-outline-primary btn-sm {% if not can_write %}disabled{% endif %}"
+                  title="{% if not can_write %}View-only access{% else %}Edit client details{% endif %}"
+                  {% if not can_write %}aria-disabled="true"{% endif %}>
                   <i class="bi bi-pencil"></i> Edit
                 </a>
               </div>
 
               <div class="card-body">
 
-                <!-- ================= BASIC INFO ================= -->
+                <!-- ================= CLIENT IDENTITY ================= -->
                 <div class="row g-4 mb-4">
-                  <div class="col-md-6">
-                    <div class="text-muted small mb-1">Primary Contact</div>
+                  <div class="col-md-3">
+                    <div class="text-muted small">Client Number</div>
+                    <div class="fw-semibold">{{ client.client_number }}</div>
+                  </div>
+
+                  <div class="col-md-3">
+                    <div class="text-muted small">Status</div>
+                    <span class="badge
+                      {% if client.status == 'ACTIVE' %}bg-success
+                      {% elif client.status == 'INACTIVE' %}bg-danger
+                      {% else %}bg-warning{% endif %}">
+                      {{ client.get_status_display }}
+                    </span>
+                  </div>
+
+                  <div class="col-md-3">
+                    <div class="text-muted small">Client Name</div>
                     <div class="fw-semibold">
-                      {{ client.contact_person|default:"—" }}
-                    </div>
-                    <div class="small text-muted">
-                      {{ client.phone|default:"" }}
-                      {% if client.email %} · {{ client.email }}{% endif %}
-                      {% if client.whatsapp %} · WhatsApp: {{ client.whatsapp }}{% endif %}
+                      {{ client.organization|default:client.name }}
                     </div>
                   </div>
 
+                  <div class="col-md-3">
+                    <div class="text-muted small">Country</div>
+                    <div class="fw-semibold">{{ client.country }}</div>
+                  </div>
+                </div>
+
+                <hr>
+                <!-- ================= CONTACT & COMMUNICATION ================= -->
+                <div class="row g-4 mb-4">
+                  <div class="col-md-4">
+                    <div class="text-muted small">Primary Contact</div>
+                    <div class="fw-semibold">{{ client.contact_person|default:"—" }}</div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Phone</div>
+                    <div class="fw-semibold">
+                      {{ client.phone|default:"—" }}
+                      {% if client.whatsapp %}
+                        <span class="text-muted small">(WhatsApp: {{ client.whatsapp }})</span>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Email</div>
+                    <div class="fw-semibold">
+                      {% if client.email %}
+                        <a href="mailto:{{ client.email }}">{{ client.email }}</a>
+                      {% else %}
+                        —
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row g-4 mb-4">
                   <div class="col-md-6">
-                    <div class="text-muted small mb-1">Account Manager</div>
+                    <div class="text-muted small">Account Manager</div>
                     <div class="fw-semibold">
                       {{ client.account_manager.get_full_name|default:"Unassigned" }}
                     </div>
                   </div>
                 </div>
+
+                <hr>
 
                 <hr>
 
@@ -532,6 +582,28 @@
                     <div class="text-muted small">Client Since</div>
                     <div class="fw-semibold">
                       {{ client.created_at|date:"Y-m-d" }}
+                    </div>
+                  </div>
+                </div>
+
+                <hr>
+
+                <!-- ================= SYSTEM INFO ================= -->
+                <div class="row g-4">
+                  <div class="col-md-4">
+                    <div class="text-muted small">Created At</div>
+                    <div class="fw-semibold">{{ client.created_at|date:"Y-m-d H:i" }}</div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Last Updated</div>
+                    <div class="fw-semibold">{{ client.updated_at|date:"Y-m-d H:i" }}</div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Last Order</div>
+                    <div class="fw-semibold">
+                      {{ client.last_order_at|date:"Y-m-d"|default:"—" }}
                     </div>
                   </div>
                 </div>

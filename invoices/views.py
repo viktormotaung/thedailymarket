@@ -446,7 +446,7 @@ def invoice_download(request, pk):
 
     # Header
     p.setFont("Helvetica-Bold", 16)
-    p.drawString(20 * mm, y, "Seshibo Daily Market")
+    p.drawString(20 * mm, y, "The Daily Market")
     y -= 8 * mm
 
     p.setFont("Helvetica", 10)
