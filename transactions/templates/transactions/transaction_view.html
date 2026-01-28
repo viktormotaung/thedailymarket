@@ -54,10 +54,15 @@
 </head>
 <body>
 
-  {# ---------- MOBILE/TABLET TOP BAR (visible < lg) ---------- #}
+  {% load static %}
+
+  <!-- ================= MOBILE / TABLET TOP BAR ================= -->
   <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
     <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#mobileMenu"
+              aria-controls="mobileMenu">
         <span class="navbar-toggler-icon"></span>
       </button>
       <a class="navbar-brand ms-2" href="#">
@@ -66,162 +71,419 @@
     </div>
   </nav>
 
-  {# ---------- MOBILE OFFCANVAS MENU (same links as sidebar) ---------- #}
-  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
-    <div class="offcanvas-header sidebar-skin">
-      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  <!-- ================= MOBILE OFFCANVAS MENU ================= -->
+  <div class="offcanvas offcanvas-start d-lg-none sidebar-skin"
+      tabindex="-1"
+      id="mobileMenu">
+
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title">Staff Navigation</h5>
+      <button type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="offcanvas"></button>
     </div>
-    <div class="offcanvas-body sidebar-skin">
+
+    <!-- ACCORDION CONTAINER -->
+    <div class="offcanvas-body" id="mobileAccordion">
+
       <div class="text-center mb-3">
-        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+        <img src="{% static 'images/logo.png' %}" class="logo-img">
       </div>
 
-      <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
-      <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
-      <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-orders order-view order-edit order-create' %}active{% endif %}">Orders</a>
-      <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
-      <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-transactions' %}active{% endif %}">Transactions</a>
-      <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+      <h6 class="text-uppercase fw-semibold mb-2">
+        <a href="#"
+          class="text-decoration-none text-reset">
+          Main Staff Platform
+        </a>
+      </h6>
 
-      {# ---- Deliveries dropdown (MOBILE) ---- #}
+    <hr class="border-light">
+
+      {% with current=request.resolver_match.url_name %}
+
+      <!-- ================= DASHBOARD ================= -->
+      <a href="{% url 'staff-dashboard' %}"
+        class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">
+        Dashboard
+      </a>
+
+      <!-- ================= CLIENTS ================= -->
+      <a href="{% url 'staff-clients' %}"
+        class="nav-link {% if current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' %}active{% endif %}">
+        Clients
+      </a>
+
+      <!-- ================= SALES ================= -->
       <div class="mb-2">
-        {% with current_name=request.resolver_match.url_name %}
-          <a class="nav-link d-flex align-items-center justify-content-between"
-             data-bs-toggle="collapse"
-             href="#deliveriesMenuMobile"
-             role="button"
-             aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
-             aria-controls="deliveriesMenuMobile">
-            <span>Deliveries</span>
+        <a class="nav-link d-flex justify-content-between"
+          data-bs-toggle="collapse"
+          href="#salesMenuMobile"
+          aria-expanded="{% if current == 'staff-orders' or current == 'staff-invoices' %}true{% else %}false{% endif %}">
+          <span>Sales</span>
+        </a>
+
+        <div class="collapse {% if current == 'staff-orders' or current == 'staff-invoices' %}show{% endif %}"
+            id="salesMenuMobile"
+            data-bs-parent="#mobileAccordion">
+          <a href="{% url 'staff-orders' %}"
+            class="nav-link ps-4 {% if current == 'staff-orders' %}active{% endif %}">
+            Orders
           </a>
-          <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuMobile">
-            <a href="{% url 'warehouse' %}?view=warehouse"
-               class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
-              Warehouse
-            </a>
-            <a href="{% url 'delivery' %}?view=runs"
-               class="nav-link ps-4
-                 {% if current_name == 'delivery' %}
-                   {% if request.GET.view %}
-                     {% if request.GET.view == 'runs' %}active{% endif %}
-                   {% else %}
-                     active
-                   {% endif %}
-                 {% endif %}">
-              Delivery Runs
-            </a>
-          </div>
-        {% endwith %}
+          <a href="{% url 'staff-invoices' %}"
+            class="nav-link ps-4 {% if current == 'staff-invoices' %}active{% endif %}">
+            Invoices
+          </a>
+        </div>
       </div>
 
-      <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
-      <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
-
-      {# ---- Profiles dropdown (MOBILE) ---- #}
+      <!-- ================= FINANCE ================= -->
       <div class="mb-2">
-        {% with current_name=request.resolver_match.url_name %}
-          <a class="nav-link d-flex align-items-center justify-content-between"
-             data-bs-toggle="collapse"
-             href="#profilesMenuMobile"
-             role="button"
-             aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
-             aria-controls="profilesMenuMobile">
-            <span>Profiles</span>
+        <a class="nav-link d-flex justify-content-between"
+          data-bs-toggle="collapse"
+          href="#financeMenuMobile"
+          aria-expanded="{% if current == 'staff-transactions' or current == 'staff-credit' %}true{% else %}false{% endif %}">
+          <span>Finance</span>
+        </a>
+
+        <div class="collapse {% if current == 'staff-transactions' or current == 'staff-credit' %}show{% endif %}"
+            id="financeMenuMobile"
+            data-bs-parent="#mobileAccordion">
+          <a href="{% url 'staff-transactions' %}"
+            class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
+            Transactions
           </a>
-          <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuMobile">
-            <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
-            <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
-            <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
-          </div>
-        {% endwith %}
+          <a href="{% url 'staff-credit' %}"
+            class="nav-link ps-4 {% if current == 'staff-credit' %}active{% endif %}">
+            Credit
+          </a>
+          <a href="{% url 'funder-list' %}"
+            class="nav-link ps-4 {% if current == 'funder-list' %}active{% endif %}">
+            Funder
+          </a>
+        </div>
       </div>
 
-      <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+      <!-- ================= LOGISTICS (FIXED) ================= -->
+      <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+          data-bs-toggle="collapse"
+          href="#logisticsMenuMobile"
+          aria-expanded="{% if current == 'warehouse' or current == 'delivery' or current == 'monitor' %}true{% else %}false{% endif %}">
+          <span>Logistics</span>
+        </a>
+
+        <div class="collapse {% if current == 'warehouse' or current == 'delivery' or current == 'monitor' %}show{% endif %}"
+            id="logisticsMenuMobile"
+            data-bs-parent="#mobileAccordion">
+          <a href="{% url 'warehouse' %}?view=warehouse"
+            class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">
+            Warehouse
+          </a>
+          <a href="{% url 'delivery' %}?view=runs"
+            class="nav-link ps-4 {% if current == 'delivery' %}active{% endif %}">
+            Deliveries
+          </a>
+          <a href="{% url 'monitor' %}?view=table"
+            class="nav-link ps-4 {% if current == 'monitor' %}active{% endif %}">
+            Monitor View
+          </a>
+        </div>
+      </div>
+
+      <!-- ================= SUPPLY CHAIN ================= -->
+      <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+          data-bs-toggle="collapse"
+          href="#supplyChainMenuMobile"
+          aria-expanded="{% if current == 'staff-suppliers' or current == 'staff-products' %}true{% else %}false{% endif %}">
+          <span>Supply Chain</span>
+        </a>
+
+        <div class="collapse {% if current == 'staff-suppliers' or current == 'staff-products' %}show{% endif %}"
+            id="supplyChainMenuMobile"
+            data-bs-parent="#mobileAccordion">
+          <a href="{% url 'staff-suppliers' %}"
+            class="nav-link ps-4 {% if current == 'staff-suppliers' %}active{% endif %}">
+            Suppliers
+          </a>
+          <a href="{% url 'staff-products' %}"
+            class="nav-link ps-4 {% if current == 'staff-products' %}active{% endif %}">
+            Products
+          </a>
+        </div>
+      </div>
+
+      <!-- ================= PROFILES ================= -->
+      <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+          data-bs-toggle="collapse"
+          href="#profilesMenuMobile"
+          aria-expanded="{% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}true{% else %}false{% endif %}">
+          <span>Profiles</span>
+        </a>
+
+        <div class="collapse {% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}show{% endif %}"
+            id="profilesMenuMobile"
+            data-bs-parent="#mobileAccordion">
+          <a href="{% url 'my_profile' %}"
+            class="nav-link ps-4 {% if current == 'my_profile' %}active{% endif %}">
+            My Profile
+          </a>
+          <a href="{% url 'staff_profile' %}"
+            class="nav-link ps-4 {% if current == 'staff_profile' %}active{% endif %}">
+            Staff
+          </a>
+          <a href="{% url 'customer_profile' %}"
+            class="nav-link ps-4 {% if current == 'customer_profile' %}active{% endif %}">
+            Customer
+          </a>
+        </div>
+      </div>
+
+      <!-- ================= SUPPORT ================= -->
+      <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+          data-bs-toggle="collapse"
+          href="#supportMenuMobile"
+          aria-expanded="{% if current == 'tasks' %}true{% else %}false{% endif %}">
+          <span>Support</span>
+        </a>
+
+        <div class="collapse {% if current == 'tasks' %}show{% endif %}"
+            id="supportMenuMobile"
+            data-bs-parent="#mobileAccordion">
+          <a href="{% url 'tasks' %}"
+            class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
+            Tasks
+          </a>
+          <a class="nav-link ps-4 text-muted disabled">Tickets</a>
+        </div>
+      </div>
 
       <hr class="border-light">
-      <form action="{% url 'logout' %}" method="post" class="m-0">
+
+      <!-- ================= SIGN OUT ================= -->
+      <form action="{% url 'logout' %}" method="post">
         {% csrf_token %}
         <button type="submit" class="btn btn-light w-100">Sign out</button>
       </form>
+
+      <hr class="border-light">
+
+      <a href="#"
+        class="nav-link"
+        data-bs-toggle="modal"
+        data-bs-target="#switchPlatformModal">
+        Switch Platform
+      </a>
+
+      {% endwith %}
+
     </div>
   </div>
 
-  {# ---------- DESKTOP SIDEBAR (visible ≥ lg) ---------- #}
-  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+  {% load static %}
+
+  <!-- ================= DESKTOP SIDEBAR ================= -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin"
+        id="desktopAccordion">
+
     <div class="text-center mb-3">
       <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
     </div>
 
-    <a href="{% url 'staff-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
-    <a href="{% url 'staff-clients' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
-    <a href="{% url 'staff-orders' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-orders order-view order-edit order-create' %}active{% endif %}">Orders</a>
-    <a href="{% url 'staff-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-invoices' %}active{% endif %}">Invoices</a>
-    <a href="{% url 'staff-transactions' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-transactions transaction-view transaction-edit transaction-create' %}active{% endif %}">Transactions</a>
-    <a href="{% url 'staff-credit' %}" class="nav-link {% if request.resolver_match.url_name == 'staff-credit' %}active{% endif %}">Credit</a>
+    <h6 class="text-uppercase fw-semibold mb-2">
+      <a href="#"
+        class="text-decoration-none text-reset">
+        Main Staff Platform
+      </a>
+    </h6>
 
-    {# ---- Deliveries dropdown (DESKTOP) ---- #}
+    <hr class="border-light">
+
+    {% with current=request.resolver_match.url_name %}
+
+    <!-- ================= DASHBOARD ================= -->
+    <a href="{% url 'staff-dashboard' %}"
+      class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">
+      Dashboard
+    </a>
+
+    <!-- ================= CLIENTS ================= -->
+    <a href="{% url 'staff-clients' %}"
+      class="nav-link {% if current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' %}active{% endif %}">
+      Clients
+    </a>
+
+    <!-- ================= SALES ================= -->
     <div class="mb-2">
-      {% with current_name=request.resolver_match.url_name %}
-        <a class="nav-link d-flex align-items-center justify-content-between"
-           data-bs-toggle="collapse"
-           href="#deliveriesMenuDesktop"
-           role="button"
-           aria-expanded="{% if current_name == 'warehouse' or current_name == 'delivery' %}true{% else %}false{% endif %}"
-           aria-controls="deliveriesMenuDesktop">
-          <span>Deliveries</span>
+      <a class="nav-link d-flex justify-content-between"
+        data-bs-toggle="collapse"
+        href="#salesMenuDesktop"
+        aria-expanded="{% if current == 'staff-orders' or current == 'staff-invoices' %}true{% else %}false{% endif %}">
+        <span>Sales</span>
+      </a>
+
+      <div class="collapse {% if current == 'staff-orders' or current == 'staff-invoices' %}show{% endif %}"
+          id="salesMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+        <a href="{% url 'staff-orders' %}"
+          class="nav-link ps-4 {% if current == 'staff-orders' %}active{% endif %}">
+          Orders
         </a>
-        <div class="collapse {% if current_name == 'warehouse' or current_name == 'delivery' %}show{% endif %}" id="deliveriesMenuDesktop">
-          <a href="{% url 'warehouse' %}?view=warehouse"
-             class="nav-link ps-4 {% if current_name == 'warehouse' and request.GET.view|default:'' == 'warehouse' %}active{% endif %}">
-            Warehouse
-          </a>
-          <a href="{% url 'delivery' %}?view=runs"
-             class="nav-link ps-4
-               {% if current_name == 'delivery' %}
-                 {% if request.GET.view %}
-                   {% if request.GET.view == 'runs' %}active{% endif %}
-                 {% else %}
-                   active
-                 {% endif %}
-               {% endif %}">
-            Delivery Runs
-          </a>
-        </div>
-      {% endwith %}
+        <a href="{% url 'staff-invoices' %}"
+          class="nav-link ps-4 {% if current == 'staff-invoices' %}active{% endif %}">
+          Invoices
+        </a>
+      </div>
     </div>
 
-    <a href="{% url 'staff-suppliers' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-suppliers supplier-view supplier-edit supplier-create' %}active{% endif %}">Suppliers</a>
-    <a href="{% url 'staff-products' %}" class="nav-link {% if request.resolver_match.url_name in 'staff-products products-edit products-create' %}active{% endif %}">Products</a>
-
-    {# ---- Profiles dropdown (DESKTOP) ---- #}
+    <!-- ================= FINANCE ================= -->
     <div class="mb-2">
-      {% with current_name=request.resolver_match.url_name %}
-        <a class="nav-link d-flex align-items-center justify-content-between"
-           data-bs-toggle="collapse"
-           href="#profilesMenuDesktop"
-           role="button"
-           aria-expanded="{% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}true{% else %}false{% endif %}"
-           aria-controls="profilesMenuDesktop">
-          <span>Profiles</span>
+      <a class="nav-link d-flex justify-content-between"
+        data-bs-toggle="collapse"
+        href="#financeMenuDesktop"
+        aria-expanded="{% if current == 'staff-transactions' or current == 'staff-credit' %}true{% else %}false{% endif %}">
+        <span>Finance</span>
+      </a>
+
+      <div class="collapse {% if current == 'staff-transactions' or current == 'staff-credit' %}show{% endif %}"
+          id="financeMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+        <a href="{% url 'staff-transactions' %}"
+          class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
+          Transactions
         </a>
-        <div class="collapse {% if current_name == 'my_profile' or current_name == 'staff_profile' or current_name == 'customer_profile' %}show{% endif %}" id="profilesMenuDesktop">
-          <a href="{% url 'my_profile' %}" class="nav-link ps-4 {% if current_name == 'my_profile' %}active{% endif %}">My Profile</a>
-          <a href="{% url 'staff_profile' %}" class="nav-link ps-4 {% if current_name == 'staff_profile' %}active{% endif %}">Staff</a>
-          <a href="{% url 'customer_profile' %}" class="nav-link ps-4 {% if current_name == 'customer_profile' %}active{% endif %}">Customers</a>
-        </div>
-      {% endwith %}
+        <a href="{% url 'staff-credit' %}"
+          class="nav-link ps-4 {% if current == 'staff-credit' %}active{% endif %}">
+          Credit
+        </a>
+        <a href="{% url 'funder-list' %}"
+            class="nav-link ps-4 {% if current == 'funder-list' %}active{% endif %}">
+            Funder
+          </a>
+      </div>
     </div>
 
-    <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+    <!-- ================= LOGISTICS (FIXED) ================= -->
+    <div class="mb-2">
+      <a class="nav-link d-flex justify-content-between"
+        data-bs-toggle="collapse"
+        href="#logisticsMenuDesktop"
+        aria-expanded="{% if current == 'warehouse' or current == 'delivery' or current == 'monitor' %}true{% else %}false{% endif %}">
+        <span>Logistics</span>
+      </a>
 
-    {# No extra margin to avoid large gap #}
-    <div>
-      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+      <div class="collapse {% if current == 'warehouse' or current == 'delivery' or current == 'monitor' %}show{% endif %}"
+          id="logisticsMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+        <a href="{% url 'warehouse' %}?view=warehouse"
+          class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">
+          Warehouse
+        </a>
+        <a href="{% url 'delivery' %}?view=runs"
+          class="nav-link ps-4 {% if current == 'delivery' %}active{% endif %}">
+          Deliveries
+        </a>
+        <a href="{% url 'monitor' %}?view=table"
+          class="nav-link ps-4 {% if current == 'monitor' %}active{% endif %}">
+          Monitor View
+        </a>
+      </div>
+    </div>
+
+    <!-- ================= SUPPLY CHAIN ================= -->
+    <div class="mb-2">
+      <a class="nav-link d-flex justify-content-between"
+        data-bs-toggle="collapse"
+        href="#supplyChainMenuDesktop"
+        aria-expanded="{% if current == 'staff-suppliers' or current == 'staff-products' %}true{% else %}false{% endif %}">
+        <span>Supply Chain</span>
+      </a>
+
+      <div class="collapse {% if current == 'staff-suppliers' or current == 'staff-products' %}show{% endif %}"
+          id="supplyChainMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+        <a href="{% url 'staff-suppliers' %}"
+          class="nav-link ps-4 {% if current == 'staff-suppliers' %}active{% endif %}">
+          Suppliers
+        </a>
+        <a href="{% url 'staff-products' %}"
+          class="nav-link ps-4 {% if current == 'staff-products' %}active{% endif %}">
+          Products
+        </a>
+      </div>
+    </div>
+
+    <!-- ================= PROFILES ================= -->
+    <div class="mb-2">
+      <a class="nav-link d-flex justify-content-between"
+        data-bs-toggle="collapse"
+        href="#profilesMenuDesktop"
+        aria-expanded="{% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}true{% else %}false{% endif %}">
+        <span>Profiles</span>
+      </a>
+
+      <div class="collapse {% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}show{% endif %}"
+          id="profilesMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+        <a href="{% url 'my_profile' %}"
+          class="nav-link ps-4 {% if current == 'my_profile' %}active{% endif %}">
+          My Profile
+        </a>
+        <a href="{% url 'staff_profile' %}"
+          class="nav-link ps-4 {% if current == 'staff_profile' %}active{% endif %}">
+          Staff
+        </a>
+        <a href="{% url 'customer_profile' %}"
+          class="nav-link ps-4 {% if current == 'customer_profile' %}active{% endif %}">
+          Customer
+        </a>
+      </div>
+    </div>
+
+    <!-- ================= SUPPORT ================= -->
+    <div class="mb-2">
+      <a class="nav-link d-flex justify-content-between"
+        data-bs-toggle="collapse"
+        href="#supportMenuDesktop"
+        aria-expanded="{% if current == 'tasks' %}true{% else %}false{% endif %}">
+        <span>Support</span>
+      </a>
+
+      <div class="collapse {% if current == 'tasks' %}show{% endif %}"
+          id="supportMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+        <a href="{% url 'tasks' %}"
+          class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
+          Tasks
+        </a>
+        <a class="nav-link ps-4 text-muted disabled">Tickets</a>
+      </div>
+    </div>
+
+    <!-- ================= SIGN OUT ================= -->
+    <div class="mt-3">
+      <form action="{% url 'logout' %}" method="post">
         {% csrf_token %}
-        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+        <button type="submit"
+                class="nav-link btn btn-link text-start w-100 p-0 text-white">
+          Sign out
+        </button>
       </form>
     </div>
+
+    <hr class="border-light">
+
+    <a href="#"
+      class="nav-link"
+      data-bs-toggle="modal"
+      data-bs-target="#switchPlatformModal">
+      Switch Platform
+    </a>
+
+    {% endwith %}
+
   </aside>
 
   <!-- MAIN -->

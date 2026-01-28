@@ -493,7 +493,7 @@ def customer_profile_edit(request, pk: int):
 
 
 def send_staff_profile_created_email(user, staff_profile, request):
-    subject = "Seshibo Daily Market – Your staff profile is ready"
+    subject = "The Daily Market – Your staff profile is ready"
 
     # Determine role
     if user.groups.filter(name="View Only").exists():

@@ -48,8 +48,11 @@
         <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
       </a>
     </div>
+    
+
   </nav>
 
+  
   <!-- ================= MOBILE OFFCANVAS MENU ================= -->
   <div class="offcanvas offcanvas-start d-lg-none sidebar-skin"
       tabindex="-1"
@@ -68,6 +71,15 @@
       <div class="text-center mb-3">
         <img src="{% static 'images/logo.png' %}" class="logo-img">
       </div>
+
+      <h6 class="text-uppercase fw-semibold mb-2">
+        <a href="#"
+          class="text-decoration-none text-reset">
+          Main Staff Platform
+        </a>
+      </h6>
+
+      <hr class="border-light">
 
       {% with current=request.resolver_match.url_name %}
 
@@ -261,6 +273,15 @@
     <div class="text-center mb-3">
       <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
     </div>
+
+    <h6 class="text-uppercase fw-semibold mb-2">
+      <a href="#"
+        class="text-decoration-none text-reset">
+        Main Staff Platform
+      </a>
+    </h6>
+
+    <hr class="border-light">
 
     {% with current=request.resolver_match.url_name %}
 

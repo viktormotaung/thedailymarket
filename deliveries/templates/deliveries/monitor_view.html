@@ -86,6 +86,15 @@
         <img src="{% static 'images/logo.png' %}" class="logo-img">
         </div>
 
+        <h6 class="text-uppercase fw-semibold mb-2">
+          <a href="#"
+            class="text-decoration-none text-reset">
+            Main Staff Platform
+          </a>
+        </h6>
+
+        <hr class="border-light">
+
         <a href="{% url 'staff-dashboard' %}" class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
         <a href="{% url 'staff-clients' %}" class="nav-link {% if current in 'staff-clients client-view client-edit client-create' %}active{% endif %}">Clients</a>
 
@@ -250,6 +259,15 @@
     <div class="text-center mb-3">
         <img src="{% static 'images/logo.png' %}" class="logo-img">
     </div>
+
+    <h6 class="text-uppercase fw-semibold mb-2">
+      <a href="#"
+        class="text-decoration-none text-reset">
+        Main Staff Platform
+      </a>
+    </h6>
+
+    <hr class="border-light">
 
     <a href="{% url 'staff-dashboard' %}" class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">Dashboard</a>
     <a href="{% url 'staff-clients' %}" class="nav-link">Clients</a>

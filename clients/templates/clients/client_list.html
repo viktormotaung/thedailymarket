@@ -68,6 +68,15 @@
         <img src="{% static 'images/logo.png' %}" class="logo-img">
       </div>
 
+      <h6 class="text-uppercase fw-semibold mb-2">
+        <a href="#"
+          class="text-decoration-none text-reset">
+          Main Staff Platform
+        </a>
+      </h6>
+
+    <hr class="border-light">
+
       {% with current=request.resolver_match.url_name %}
 
       <!-- ================= DASHBOARD ================= -->
@@ -258,6 +267,15 @@
       <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
     </div>
 
+    <h6 class="text-uppercase fw-semibold mb-2">
+      <a href="#"
+        class="text-decoration-none text-reset">
+        Main Staff Platform
+      </a>
+    </h6>
+
+    <hr class="border-light">
+
     {% with current=request.resolver_match.url_name %}
 
     <!-- ================= DASHBOARD ================= -->
@@ -441,7 +459,7 @@
 
     {% endwith %}
 
-</aside>
+  </aside>
 
   {# ---------- MAIN CONTENT ---------- #}
   <main class="content">
