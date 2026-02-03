@@ -86,7 +86,7 @@
     .hero-overlay {
       position: absolute;
       inset: 0;
-      background: rgba(0,0,0,.45);
+      background: rgba(0,0,0,.10);
       z-index: 1;
     }
 
@@ -379,61 +379,36 @@
       <!-- Slides -->
       <div class="carousel-inner h-100">
 
-        <!-- Slide 1 -->
+        <!-- Slide 1: Trade Assist -->
         <div class="carousel-item active h-100">
-          <div class="hero-slide h-100"
-              style="background-image:url('{% static 'images/hero.png' %}');">
+          <div class="hero-slide h-100 hero-clickable"
+              role="link"
+              tabindex="0"
+              data-href="{% url 'trade_assist' %}"
+              style="background-image:url('{% static 'images/1.png' %}');">
             <div class="hero-overlay"></div>
-            <div class="container h-100 d-flex flex-column justify-content-center text-center text-white">
-              <h1 class="display-5 fw-bold">Quality You Can Trust</h1>
-              <p class="lead mt-3">
-                Supplying homes, restaurants, and retailers with reliable daily essentials.
-              </p>
-              <div class="mt-3">
-                <a href="{% url 'wholesale_assist' %}" class="btn btn-light btn-lg fw-semibold">
-                  Trade Assist
-                </a>
-              </div>
-              
-            </div>
           </div>
         </div>
 
-        <!-- Slide 2 -->
+        <!-- Slide 2: Free Delivery -->
         <div class="carousel-item h-100">
-          <div class="hero-slide h-100"
-              style="background-image:url('{% static 'images/hero.png' %}');">
+          <div class="hero-slide h-100 hero-clickable"
+              role="link"
+              tabindex="0"
+              data-href="{% url 'products' %}"
+              style="background-image:url('{% static 'images/2.png' %}');">
             <div class="hero-overlay"></div>
-            <div class="container h-100 d-flex flex-column justify-content-center text-center text-white">
-              <h1 class="display-5 fw-bold">Built for Trade</h1>
-              <p class="lead mt-3">
-                Flexible supply solutions for growing businesses.
-              </p>
-              <div class="mt-3">
-                <a href="{% url 'wholesale_assist' %}" class="btn btn-light btn-lg fw-semibold">
-                  Trade Assist
-                </a>
-              </div>
-            </div>
           </div>
         </div>
 
-        <!-- Slide 3 -->
+        <!-- Slide 3: Monthly Promotions -->
         <div class="carousel-item h-100">
-          <div class="hero-slide h-100"
-              style="background-image:url('{% static 'images/hero.png' %}');">
+          <div class="hero-slide h-100 hero-clickable"
+              role="link"
+              tabindex="0"
+              data-href="{% url 'products' %}"
+              style="background-image:url('{% static 'images/3.png' %}');">
             <div class="hero-overlay"></div>
-            <div class="container h-100 d-flex flex-column justify-content-center text-center text-white">
-              <h1 class="display-5 fw-bold">Stock Now. Pay Later.</h1>
-              <p class="lead mt-3">
-                Payment flexibility designed to protect your cash flow.
-              </p>
-              <div class="mt-3">
-                <a href="{% url 'wholesale_assist' %}" class="btn btn-light btn-lg fw-semibold">
-                  Trade Assist
-                </a>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -451,6 +426,8 @@
       </button>
     </div>
   </section>
+
+
 
 
 
@@ -507,56 +484,15 @@
   </section>
 
   <!-- ========== Brands / Partners ========== -->
+  
+
   <section id="brands" class="py-5 bg-light text-center">
     <div class="container position-relative">
       <div class="d-flex flex-column align-items-center justify-content-center mb-3">
-        <h2 class="fw-bold mb-0 text-center">Brands We Work With</h2>
+        <h2 class="fw-bold mb-0 text-center">Partners</h2>
       </div>
-
-      {% if suppliers %}
-        <!-- desktop arrows above the track -->
-        <div class="d-none d-md-flex gap-2 justify-content-end mb-2">
-          <button type="button" class="btn btn-outline-secondary btn-sm brand-fab prev" aria-label="Scroll left">
-            <i class="bi bi-chevron-left"></i>
-          </button>
-          <button type="button" class="btn btn-outline-secondary btn-sm brand-fab next" aria-label="Scroll right">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </div>
-
-        <div class="position-relative">
-          <!-- mobile floating arrows -->
-          <button type="button" class="btn btn-light brand-fab prev d-md-none" aria-label="Scroll left">
-            <i class="bi bi-chevron-left"></i>
-          </button>
-          <button type="button" class="btn btn-light brand-fab next d-md-none" aria-label="Scroll right">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-
-          <div class="brand-track" id="brandTrack" tabindex="0" aria-label="Brand logos">
-            {% for supplier in suppliers %}
-              <div class="brand-card">
-                {% if supplier.logo %}
-                  {% thumbnail supplier.logo "250x100" crop="scale" as im %}
-                  <img class="brand-logo" src="{{ im.url }}" width="{{ im.width }}" height="{{ im.height }}" alt="{{ supplier.name }}">
-                {% else %}
-                  <img class="brand-logo" src="{% static 'images/brand-placeholder.png' %}" alt="{{ supplier.name }}">
-                {% endif %}
-              </div>
-            {% endfor %}
-          </div>
-        </div>
-      {% else %}
-        <div class="text-muted">No brands to show yet.</div>
-      {% endif %}
     </div>
   </section>
-
-  <section id="brands" class="py-5 bg-light text-center">
-    <div class="container position-relative">
-      <div class="d-flex flex-column align-items-center justify-content-center mb-3">
-        <h2 class="fw-bold mb-0 text-center">Financing Partners</h2>
-      </div>
 
 
   <!-- ========== Footer ========== -->
@@ -569,10 +505,26 @@
             <li><a class="text-decoration-none" href="/wholesale/">Wholesale Trade</a></li>
             <li><a class="text-decoration-none" href="/retail/">Retail Express</a></li>
             <li><a class="text-decoration-none" href="/grill/">Grill Experience</a></li>
-            
-            
           </ul>
+
+          <br>
+
+          <h6 class="text-uppercase fw-bold mb-3">Access</h6>
+          <ul class="list-unstyled mb-0">
+            <li>
+              <a class="text-decoration-none" href="{% url 'client-login' %}">
+                Client Access
+              </a>
+            </li>
+            <li>
+              <a class="text-decoration-none" href="{% url 'staff-login' %}">
+                Staff Access
+              </a>
+            </li>
+          </ul>
+
         </div>
+
         <div class="col-12 col-md-4">
           <h6 class="text-uppercase fw-bold mb-3">Contact Us</h6>
           <div class="small">
@@ -787,6 +739,27 @@
       modal.show();
     });
   </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('.hero-clickable').forEach(function (slide) {
+        slide.addEventListener('click', function (e) {
+          // Prevent clicks on carousel controls from triggering navigation
+          if (e.target.closest('.carousel-control-prev, .carousel-control-next')) {
+            return;
+          }
+          window.location.href = this.dataset.href;
+        });
+
+        // Keyboard accessibility
+        slide.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') {
+            window.location.href = this.dataset.href;
+          }
+        });
+      });
+    });
+  </script>
+
 
 
 

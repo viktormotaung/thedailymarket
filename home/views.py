@@ -1348,6 +1348,9 @@ def _user_can_access_order(user, order: Order) -> bool:
 def about(request):
     return render(request, "home/about.html")
 
+def trade_assist(request):
+    return render(request, "home/trade_assist.html")
+
 def grill(request):
     return render(request, "home/grill.html")
 

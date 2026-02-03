@@ -8,6 +8,7 @@ urlpatterns = [
 
     # Static pages
     path("about/", views.about, name="about"),
+    path("trade_assist/", views.trade_assist, name="trade_assist"),
 
     # Auth
     path("portal/staff/login/", views.staff_login, name="staff-login"),
