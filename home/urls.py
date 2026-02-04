@@ -60,5 +60,12 @@ urlpatterns = [
     path("api/pwreset/complete", views.pwreset_complete, name="api_pwreset_complete"),
 
     path("payfast/start/", views.payfast_start, name="payfast_start"),
+
+    # urls.py
+    path("terms-and-conditions/", views.terms, name="terms"),
+    path("privacy-policy/", views.privacy, name="privacy"),
+    path("refund-policy/", views.refund, name="refund"),
+    path("shipping-policy/", views.shipping, name="shipping"),
+
 ]
 

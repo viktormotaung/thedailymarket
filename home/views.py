@@ -2830,3 +2830,17 @@ def pwreset_complete(request: HttpRequest) -> JsonResponse:
         "message": "Password updated successfully. Redirecting to sign in…",
         "redirect": redirect_url
     })
+
+
+# views.py
+def terms(request):
+    return render(request, "legal/terms.html")
+
+def privacy(request):
+    return render(request, "legal/privacy.html")
+
+def refund(request):
+    return render(request, "legal/refund.html")
+
+def shipping(request):
+    return render(request, "legal/shipping.html")
