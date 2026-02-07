@@ -15,50 +15,82 @@
 
     /* ---------- Base ---------- */
     html, body { height:100%; }
-    body { min-height:100vh; display:flex; flex-direction:column; background:#f7faf8; }
+    body {
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+      background:#f7faf8;
+    }
     .site-main { flex:1; }
 
     /* ---------- Navbar (desktop) ---------- */
     .navbar { background: var(--brand); }
     .navbar-brand img { height:85px; max-height:100px; width:auto; }
+
     .navbar .navbar-nav { align-items:center; gap:.25rem; }
-    .navbar .nav-link, .navbar .navbar-brand, .navbar .dropdown-toggle { color:#fff !important; }
+    .navbar .nav-link,
+    .navbar .navbar-brand,
+    .navbar .dropdown-toggle { color:#fff !important; }
+
     .navbar .nav-link {
-      display:inline-flex; align-items:center;
-      padding:.6rem 1rem; line-height:1; font-weight:500; border-radius:.375rem;
+      display:inline-flex;
+      align-items:center;
+      padding:.6rem 1rem;
+      line-height:1;
+      font-weight:500;
+      border-radius:.375rem;
     }
+
     .navbar .nav-link:hover,
-    .navbar .nav-link:focus-visible { background:rgba(255,255,255,.10); color:#fff !important; }
+    .navbar .nav-link:focus-visible {
+      background:rgba(255,255,255,.10);
+      color:#fff !important;
+    }
+
     .navbar .nav-link.active { background:rgba(255,255,255,.18); }
     .navbar .dropdown-divider { border-color:rgba(255,255,255,.2); }
 
-    /* Dropdown look & active state to match the top pill */
-    .navbar .dropdown-menu.brand{
+    /* Dropdown look & active state */
+    .navbar .dropdown-menu.brand {
       background:#0b5c39;
       border:1px solid #094c30;
       box-shadow:0 8px 24px rgba(0,0,0,.25);
-
       --bs-dropdown-link-active-bg: rgba(255,255,255,.18);
       --bs-dropdown-link-active-color: #fff;
     }
-    .navbar .dropdown-item{ color:#fff; border-radius:.375rem; }
+
+    .navbar .dropdown-item {
+      color:#fff;
+      border-radius:.375rem;
+    }
+
     .navbar .dropdown-item:hover,
     .navbar .dropdown-item:focus,
     .navbar .dropdown-item.active,
-    .navbar .dropdown-item:active{
+    .navbar .dropdown-item:active {
       background: rgba(255,255,255,.18) !important;
       color:#fff !important;
     }
-    .navbar .dropdown-item:focus{
+
+    .navbar .dropdown-item:focus {
       box-shadow: 0 0 0 .2rem rgba(255,255,255,.12);
       outline: 0;
     }
 
     /* ---------- Mobile top bar + offcanvas ---------- */
-    .offcanvas-header.brand-skin { background:#0b5c39; color:#fff; }
-    .offcanvas-body.brand-skin { background:#0b5c39; color:#fff; }
-    .offcanvas-body .nav-link { color:#fff; padding:.55rem 0; }
+    .offcanvas-header.brand-skin,
+    .offcanvas-body.brand-skin {
+      background:#0b5c39;
+      color:#fff;
+    }
+
+    .offcanvas-body .nav-link {
+      color:#fff;
+      padding:.55rem 0;
+    }
+
     .offcanvas-body .nav-link:hover { color:#d4f3e3; }
+
     .offcanvas-body.brand-skin .nav-link.active,
     .offcanvas-body.brand-skin .nav-link:focus,
     .offcanvas-body.brand-skin .nav-link:hover,
@@ -70,18 +102,37 @@
       padding-left: .5rem;
       color:#fff;
     }
+
     .offcanvas-body.brand-skin .text-uppercase.small.opacity-75 {
       color: rgba(255,255,255,.75) !important;
     }
 
-    /* ---------- Hero carousel ---------- */
+    /* ---------- Desktop Hero (Canva 8000x2000 standard) ---------- */
+
     .hero {
       position: relative;
-      height: 70vh;
-      min-height: 420px;
-      max-height: 900px;
+      height: auto;
       overflow: hidden;
     }
+
+    /* Let carousel size itself from slide content */
+    .hero .carousel,
+    .hero .carousel-inner,
+    .hero .carousel-item {
+      height: auto;
+    }
+
+    /* Image defines the height */
+    .hero-slide {
+      width: 100%;
+      aspect-ratio: 4 / 1;          /* 8000 x 2000 */
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      position: relative;
+    }
+
+
 
     .hero-overlay {
       position: absolute;
@@ -90,24 +141,15 @@
       z-index: 1;
     }
 
-    /* Each slide becomes a full background */
-    .hero-slide {
-      position: relative;
-      height: 100%;
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-    }
+    
 
-    /* Content always above overlay */
+
     .hero-slide .container {
       position: relative;
       z-index: 2;
     }
 
-    /* ---------- Hero controls polish ---------- */
-
-    /* Arrow buttons */
+    /* ---------- Hero controls ---------- */
     .carousel-control-prev,
     .carousel-control-next {
       width: 6%;
@@ -127,75 +169,167 @@
       height: 2.25rem;
     }
 
-    /* Indicator animation sync */
+    /* ========================================================= */
+    /* ========== MOBILE HERO (block fits image) ================ */
+    /* ========================================================= */
+
+    /* ========== MOBILE HERO ========== */
+
+    .hero-mobile {
+      background: #000;
+      overflow: hidden;
+    }
+
+    /* Let carousel manage slides normally */
+    .hero-mobile .carousel-inner {
+      width: 100%;
+    }
+
+    /* Each slide stays controlled by Bootstrap */
+    .hero-mobile .carousel-item {
+      position: relative;
+    }
+
+    /* This element defines the height */
+    .mobile-hero-slide {
+      display: block;
+      width: 100%;
+
+      /* Image defines height */
+      aspect-ratio: 3 / 4;
+
+      background-size: cover;
+      background-position: center top;
+      background-repeat: no-repeat;
+    }
+
+
+    /* ---------- Indicator animation ---------- */
     .carousel-indicators [data-bs-target] {
       position: relative;
       overflow: hidden;
     }
 
     .carousel-indicators [data-bs-target]::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: #ffffff;
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform 7s linear;
+      content:"";
+      position:absolute;
+      inset:0;
+      background:#fff;
+      transform:scaleX(0);
+      transform-origin:left;
+      transition:transform 7s linear;
     }
 
     .carousel-indicators .active::after {
-      transform: scaleX(1);
+      transform:scaleX(1);
     }
-
-
-
-
 
     /* ---------- Circles ---------- */
     .circle {
-      width:200px; height:200px; border-radius:50%;
-      background:#0a5c39; color:#fff; display:flex; align-items:center; justify-content:center;
+      width:200px;
+      height:200px;
+      border-radius:50%;
+      background:#0a5c39;
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
       transition:transform .25s ease, background-color .25s ease, box-shadow .25s ease;
       box-shadow:0 8px 20px rgba(0,0,0,.08);
     }
-    .circle:hover { background:#05512e; transform:scale(1.04); }
+
+    .circle:hover {
+      background:#05512e;
+      transform:scale(1.04);
+    }
 
     /* ---------- Brands slider ---------- */
-    .brand-track{
-      display:flex; gap:1rem; overflow:auto; padding-bottom:.5rem;
-      scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
+    .brand-track {
+      display:flex;
+      gap:1rem;
+      overflow:auto;
+      padding-bottom:.5rem;
+      scroll-snap-type:x mandatory;
+      -webkit-overflow-scrolling:touch;
     }
-    .brand-card{
-      scroll-snap-align:start; flex:0 0 auto; width:170px; height:110px;
-      display:flex; align-items:center; justify-content:center;
-      background:#fff; border-radius:.75rem; box-shadow:0 6px 18px rgba(0,0,0,.06);
+
+    .brand-card {
+      scroll-snap-align:start;
+      flex:0 0 auto;
+      width:170px;
+      height:110px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#fff;
+      border-radius:.75rem;
+      box-shadow:0 6px 18px rgba(0,0,0,.06);
       border:1px solid rgba(0,0,0,.06);
     }
-    .brand-logo{
-      max-width:100%; max-height:70px; width:auto; height:auto; opacity:.95; filter:grayscale(15%);
+
+    .brand-logo {
+      max-width:100%;
+      max-height:70px;
+      opacity:.95;
+      filter:grayscale(15%);
       transition:transform .2s ease, opacity .2s ease, filter .2s ease;
     }
-    .brand-card:hover .brand-logo{ transform:scale(1.05); opacity:1; filter:none; }
-    .brand-fab{ position:absolute; top:50%; transform:translateY(-50%); border-radius:999px; box-shadow:0 10px 28px rgba(0,0,0,.12); z-index:2; }
-    .brand-fab.prev{ left:-.25rem; } .brand-fab.next{ right:-.25rem; }
+
+    .brand-card:hover .brand-logo {
+      transform:scale(1.05);
+      opacity:1;
+      filter:none;
+    }
 
     /* ---------- Buttons & tables ---------- */
-    .btn-brand{ background:var(--brand); border-color:var(--brand); color:#fff; }
-    .btn-brand:hover{ background:var(--brand-dark); border-color:var(--brand-dark); color:#fff; }
-    .table > :not(caption) > * > * { vertical-align: middle; }
+    .btn-brand {
+      background:var(--brand);
+      border-color:var(--brand);
+      color:#fff;
+    }
+
+    .btn-brand:hover {
+      background:var(--brand-dark);
+      border-color:var(--brand-dark);
+      color:#fff;
+    }
+
+    .table > :not(caption) > * > * {
+      vertical-align: middle;
+    }
 
     /* ---------- Footer ---------- */
-    footer { background:#0b5c39; color:#fff; }
+    footer {
+      background:#0b5c39;
+      color:#fff;
+    }
+
     footer a { color:#fff; }
-    footer a:hover { color:#d4f3e3; text-decoration:underline; }
+    footer a:hover {
+      color:#d4f3e3;
+      text-decoration:underline;
+    }
 
     /* ---------- Responsive tweaks ---------- */
-    @media (max-width: 991.98px){
-      .navbar-brand img { height:56px; max-height:64px; }
-      .hero { height:45vh !important; min-height:320px; }
-      .circle { width:130px; height:130px; font-size:.95rem; }
+    @media (max-width: 991.98px) {
+      .navbar-brand img {
+        height:56px;
+        max-height:64px;
+      }
+
+      .hero {
+        height:50vh !important;
+        min-height:330px;
+      }
+
+      .circle {
+        width:130px;
+        height:130px;
+        font-size:.95rem;
+      }
     }
   </style>
+
 </head>
 
 <body class="bg-light">
@@ -360,239 +494,286 @@
       </div>
     </div>
   </nav>
+
+  <main class="site-main">
   
-  <!-- ========== HERO ========== -->
-  <section class="hero site-main">
-    <div id="homeHeroCarousel"
-        class="carousel slide h-100"
-        data-bs-ride="carousel"
-        data-bs-interval="7000"
-        data-bs-pause="hover">
+    <!-- ========== HERO ========== -->
+    <section class="hero d-none d-lg-block">
 
-      <!-- Indicators -->
-      <div class="carousel-indicators">
-        <button type="button" data-bs-target="#homeHeroCarousel" data-bs-slide-to="0" class="active"></button>
-        <button type="button" data-bs-target="#homeHeroCarousel" data-bs-slide-to="1"></button>
-        <button type="button" data-bs-target="#homeHeroCarousel" data-bs-slide-to="2"></button>
-      </div>
+      <div id="homeHeroCarousel"
+          class="carousel slide h-100"
+          data-bs-ride="carousel"
+          data-bs-interval="7000"
+          data-bs-pause="hover">
 
-      <!-- Slides -->
-      <div class="carousel-inner h-100">
+        <!-- Indicators -->
+        <div class="carousel-indicators">
+          <button type="button" data-bs-target="#homeHeroCarousel" data-bs-slide-to="0" class="active"></button>
+          <button type="button" data-bs-target="#homeHeroCarousel" data-bs-slide-to="1"></button>
+          <button type="button" data-bs-target="#homeHeroCarousel" data-bs-slide-to="2"></button>
+        </div>
 
-        <!-- Slide 1: Trade Assist -->
-        <div class="carousel-item active h-100">
-          <div class="hero-slide h-100 hero-clickable"
-              role="link"
-              tabindex="0"
-              data-href="{% url 'trade_assist' %}"
-              style="background-image:url('{% static 'images/1.png' %}');">
-            <div class="hero-overlay"></div>
+        <!-- Slides -->
+        <div class="carousel-inner h-100">
+
+          <!-- Slide 1: Trade Assist -->
+          <div class="carousel-item active h-100">
+            <div class="hero-slide h-100 hero-clickable"
+                role="link"
+                tabindex="0"
+                data-href="{% url 'trade_assist' %}"
+                style="background-image:url('{% static 'images/1.png' %}');">
+              <div class="hero-overlay"></div>
+            </div>
           </div>
-        </div>
 
-        <!-- Slide 2: Free Delivery -->
-        <div class="carousel-item h-100">
-          <div class="hero-slide h-100 hero-clickable"
-              role="link"
-              tabindex="0"
-              data-href="{% url 'products' %}"
-              style="background-image:url('{% static 'images/2.png' %}');">
-            <div class="hero-overlay"></div>
+          <!-- Slide 2: Free Delivery -->
+          <div class="carousel-item h-100">
+            <div class="hero-slide h-100 hero-clickable"
+                role="link"
+                tabindex="0"
+                data-href="{% url 'products' %}"
+                style="background-image:url('{% static 'images/2.png' %}');">
+              <div class="hero-overlay"></div>
+            </div>
           </div>
-        </div>
 
-        <!-- Slide 3: Monthly Promotions -->
-        <div class="carousel-item h-100">
-          <div class="hero-slide h-100 hero-clickable"
-              role="link"
-              tabindex="0"
-              data-href="{% url 'products' %}"
-              style="background-image:url('{% static 'images/3.png' %}');">
-            <div class="hero-overlay"></div>
+          <!-- Slide 3: Monthly Promotions -->
+          <div class="carousel-item h-100">
+            <div class="hero-slide h-100 hero-clickable"
+                role="link"
+                tabindex="0"
+                data-href="{% url 'products' %}"
+                style="background-image:url('{% static 'images/3.png' %}');">
+              <div class="hero-overlay"></div>
+            </div>
           </div>
+
         </div>
 
+        <!-- Controls -->
+        <button class="carousel-control-prev" type="button"
+                data-bs-target="#homeHeroCarousel" data-bs-slide="prev">
+          <span class="carousel-control-prev-icon"></span>
+        </button>
+
+        <button class="carousel-control-next" type="button"
+                data-bs-target="#homeHeroCarousel" data-bs-slide="next">
+          <span class="carousel-control-next-icon"></span>
+        </button>
       </div>
+    </section>
 
-      <!-- Controls -->
-      <button class="carousel-control-prev" type="button"
-              data-bs-target="#homeHeroCarousel" data-bs-slide="prev">
-        <span class="carousel-control-prev-icon"></span>
-      </button>
+    <!-- ========== MOBILE HERO (< lg) ========== -->
+    <section class="hero-mobile d-lg-none site-main">
 
-      <button class="carousel-control-next" type="button"
-              data-bs-target="#homeHeroCarousel" data-bs-slide="next">
-        <span class="carousel-control-next-icon"></span>
-      </button>
-    </div>
-  </section>
+      <div id="mobileHeroCarousel"
+          class="carousel slide"
+          data-bs-ride="carousel"
+          data-bs-interval="6000">
 
-
-
-
-
-
-
-
-
-
-  <!-- ========== Feature tiles ========== -->
-  <section class="py-5 bg-light text-center">
-    <div class="container">
-      <h2 class="fw-bold mb-5">What We Do</h2>
-      <div class="row justify-content-center g-4">
-        <div class="col-6 col-md-4">
-          <a href="/wholesale/" class="text-decoration-none text-dark">
-            <div class="circle mx-auto"><span class="fw-bold">Wholesale<br>Trade</span></div>
-          </a>
+        <div class="carousel-indicators">
+          <button type="button" data-bs-target="#mobileHeroCarousel" data-bs-slide-to="0" class="active"></button>
+          <button type="button" data-bs-target="#mobileHeroCarousel" data-bs-slide-to="1"></button>
+          <button type="button" data-bs-target="#mobileHeroCarousel" data-bs-slide-to="2"></button>
         </div>
-        <div class="col-6 col-md-4">
-          <a href="/retail/" class="text-decoration-none text-dark">
-            <div class="circle mx-auto"><span class="fw-bold">Retail<br>Express</span></div>
-          </a>
+
+        <div class="carousel-inner">
+
+          <!-- Slide 1 -->
+          <div class="carousel-item active">
+            <a href="{% url 'trade_assist' %}" class="mobile-hero-slide"
+              style="background-image:url('{% static 'images/mobile/1.png' %}')">
+            </a>
+          </div>
+
+          <!-- Slide 2 -->
+          <div class="carousel-item">
+            <a href="{% url 'products' %}" class="mobile-hero-slide"
+              style="background-image:url('{% static 'images/mobile/2.png' %}')">
+            </a>
+          </div>
+
+          <!-- Slide 3 -->
+          <div class="carousel-item">
+            <a href="{% url 'products' %}" class="mobile-hero-slide"
+              style="background-image:url('{% static 'images/mobile/3.png' %}')">
+            </a>
+          </div>
+
         </div>
-        <div class="col-6 col-md-4">
-          <a href="/grill/" class="text-decoration-none text-dark">
-            <div class="circle mx-auto"><span class="fw-bold">Grill<br>Experience</span></div>
-          </a>
+      </div>
+    </section>
+
+
+
+
+
+
+
+
+
+
+
+    <!-- ========== Feature tiles ========== -->
+    <section class="py-5 bg-light text-center">
+      <div class="container">
+        <h2 class="fw-bold mb-5">What We Do</h2>
+        <div class="row justify-content-center g-4">
+          <div class="col-6 col-md-4">
+            <a href="/wholesale/" class="text-decoration-none text-dark">
+              <div class="circle mx-auto"><span class="fw-bold">Wholesale<br>Trade</span></div>
+            </a>
+          </div>
+          <div class="col-6 col-md-4">
+            <a href="/retail/" class="text-decoration-none text-dark">
+              <div class="circle mx-auto"><span class="fw-bold">Retail<br>Express</span></div>
+            </a>
+          </div>
+          <div class="col-6 col-md-4">
+            <a href="/grill/" class="text-decoration-none text-dark">
+              <div class="circle mx-auto"><span class="fw-bold">Grill<br>Experience</span></div>
+            </a>
+          </div>
+          
         </div>
-        
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- ========== About / Video ========== -->
-  <section class="py-5 bg-white">
-    <div class="container">
-      <div class="text-center mb-4">
-        <h2 class="fw-bold">Fueling Kitchens. Feeding Communities.</h2>
-        <p class="text-muted mb-0">
-          More than a market — The is your daily hub for poultry, produce, essentials, and wholesale trade, built on trust and community.
-        </p>
+    <!-- ========== About / Video ========== -->
+    <section class="py-5 bg-white">
+      <div class="container">
+        <div class="text-center mb-4">
+          <h2 class="fw-bold">Fueling Kitchens. Feeding Communities.</h2>
+          <p class="text-muted mb-0">
+            More than a market — The is your daily hub for poultry, produce, essentials, and wholesale trade, built on trust and community.
+          </p>
+        </div>
+
+        <div class="ratio ratio-16x9 shadow rounded overflow-hidden">
+          <iframe
+            src="https://www.youtube-nocookie.com/embed/VIDEO_ID_HERE"
+            title="The Daily Market"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allowfullscreen></iframe>
+        </div>
       </div>
+    </section>
 
-      <div class="ratio ratio-16x9 shadow rounded overflow-hidden">
-        <iframe
-          src="https://www.youtube-nocookie.com/embed/VIDEO_ID_HERE"
-          title="The Daily Market"
-          loading="lazy"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          referrerpolicy="strict-origin-when-cross-origin"
-          allowfullscreen></iframe>
+    <!-- ========== Brands / Partners ========== -->
+    
+
+    {% load static %}
+
+    <section id="brands" class="py-5 bg-light text-center">
+      <div class="container position-relative">
+        <div class="d-flex flex-column align-items-center justify-content-center mb-3">
+          <h2 class="fw-bold mb-3 text-center">Partners</h2>
+
+          <img 
+            src="{% static 'images/trade_assist.png' %}" 
+            alt="Partners"
+            class="img-fluid"
+            style="max-height: 120px;"
+          >
+        </div>
       </div>
-    </div>
-  </section>
-
-  <!-- ========== Brands / Partners ========== -->
-  
-
-  {% load static %}
-
-  <section id="brands" class="py-5 bg-light text-center">
-    <div class="container position-relative">
-      <div class="d-flex flex-column align-items-center justify-content-center mb-3">
-        <h2 class="fw-bold mb-3 text-center">Partners</h2>
-
-        <img 
-          src="{% static 'images/trade_assist.png' %}" 
-          alt="Partners"
-          class="img-fluid"
-          style="max-height: 120px;"
-        >
-      </div>
-    </div>
-  </section>
+    </section>
 
 
 
-  <!-- ========== Footer ========== -->
-  <footer class="text-white bg-dark">
-    <div class="container py-5">
-      <div class="row text-center gy-4">
+    <!-- ========== Footer ========== -->
+    <footer class="text-white bg-dark">
+      <div class="container py-5">
+        <div class="row text-center gy-4">
 
-        <!-- Services & Access -->
-        <div class="col-12 col-md-3">
-          <h6 class="text-uppercase fw-bold mb-3">Our Services</h6>
-          <ul class="list-unstyled mb-3">
-            <li><a class="text-decoration-none text-white-50" href="/wholesale/">Wholesale Trade</a></li>
-            <li><a class="text-decoration-none text-white-50" href="/retail/">Retail Express</a></li>
-            <li><a class="text-decoration-none text-white-50" href="/grill/">Grill Experience</a></li>
-          </ul>
+          <!-- Services & Access -->
+          <div class="col-12 col-md-3">
+            <h6 class="text-uppercase fw-bold mb-3">Our Services</h6>
+            <ul class="list-unstyled mb-3">
+              <li><a class="text-decoration-none text-white-50" href="/wholesale/">Wholesale Trade</a></li>
+              <li><a class="text-decoration-none text-white-50" href="/retail/">Retail Express</a></li>
+              <li><a class="text-decoration-none text-white-50" href="/grill/">Grill Experience</a></li>
+            </ul>
 
-          <h6 class="text-uppercase fw-bold mb-3">Access</h6>
-          <ul class="list-unstyled mb-0">
-            <li>
-              <a class="text-decoration-none text-white-50" href="{% url 'client-login' %}">
-                Client Access
+            <h6 class="text-uppercase fw-bold mb-3">Access</h6>
+            <ul class="list-unstyled mb-0">
+              <li>
+                <a class="text-decoration-none text-white-50" href="{% url 'client-login' %}">
+                  Client Access
+                </a>
+              </li>
+              <li>
+                <a class="text-decoration-none text-white-50" href="{% url 'staff-login' %}">
+                  Staff Access
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Legal / Compliance -->
+          <div class="col-12 col-md-3">
+            <h6 class="text-uppercase fw-bold mb-3">Legal</h6>
+            <ul class="list-unstyled mb-0 small">
+              <li><a class="text-decoration-none text-white-50" href="/terms-and-conditions/">Terms &amp; Conditions</a></li>
+              <li><a class="text-decoration-none text-white-50" href="/privacy-policy/">Privacy Policy</a></li>
+              <li><a class="text-decoration-none text-white-50" href="/refund-policy/">Refund Policy</a></li>
+              <li><a class="text-decoration-none text-white-50" href="/shipping-policy/">Shipping Policy</a></li>
+            </ul>
+          </div>
+
+          <!-- Contact -->
+          <div class="col-12 col-md-3">
+            <h6 class="text-uppercase fw-bold mb-3">Contact Us</h6>
+            <div class="small text-white-50">
+              <div>+27 (0)10 000 0000</div>
+              <div>
+                <a class="text-decoration-none text-white-50" href="mailto:info@thedailymarket.co.za">
+                  info@thedailymarket.co.za
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trading Hours & Social -->
+          <div class="col-12 col-md-3">
+            <h6 class="text-uppercase fw-bold mb-3">Trading Hours</h6>
+            <div class="small text-white-50 mb-3">
+              <div>Mon–Fri: 7:30am–4:00pm</div>
+              <div>Sat: 7:30am–1:00pm</div>
+              <div>Sun: Closed</div>
+            </div>
+
+            <h6 class="text-uppercase fw-bold mb-2">Follow Us</h6>
+            <div class="d-flex justify-content-center gap-3 fs-4">
+              <a href="https://facebook.com/" class="text-white" aria-label="Facebook">
+                <i class="bi bi-facebook"></i>
               </a>
-            </li>
-            <li>
-              <a class="text-decoration-none text-white-50" href="{% url 'staff-login' %}">
-                Staff Access
+              <a href="https://instagram.com/" class="text-white" aria-label="Instagram">
+                <i class="bi bi-instagram"></i>
               </a>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Legal / Compliance -->
-        <div class="col-12 col-md-3">
-          <h6 class="text-uppercase fw-bold mb-3">Legal</h6>
-          <ul class="list-unstyled mb-0 small">
-            <li><a class="text-decoration-none text-white-50" href="/terms-and-conditions/">Terms &amp; Conditions</a></li>
-            <li><a class="text-decoration-none text-white-50" href="/privacy-policy/">Privacy Policy</a></li>
-            <li><a class="text-decoration-none text-white-50" href="/refund-policy/">Refund Policy</a></li>
-            <li><a class="text-decoration-none text-white-50" href="/shipping-policy/">Shipping Policy</a></li>
-          </ul>
-        </div>
-
-        <!-- Contact -->
-        <div class="col-12 col-md-3">
-          <h6 class="text-uppercase fw-bold mb-3">Contact Us</h6>
-          <div class="small text-white-50">
-            <div>+27 (0)10 000 0000</div>
-            <div>
-              <a class="text-decoration-none text-white-50" href="mailto:info@thedailymarket.co.za">
-                info@thedailymarket.co.za
+              <a href="https://youtube.com/" class="text-white" aria-label="YouTube">
+                <i class="bi bi-youtube"></i>
               </a>
             </div>
           </div>
+
         </div>
 
-        <!-- Trading Hours & Social -->
-        <div class="col-12 col-md-3">
-          <h6 class="text-uppercase fw-bold mb-3">Trading Hours</h6>
-          <div class="small text-white-50 mb-3">
-            <div>Mon–Fri: 7:30am–4:00pm</div>
-            <div>Sat: 7:30am–1:00pm</div>
-            <div>Sun: Closed</div>
-          </div>
+        <hr class="my-4 border-light">
 
-          <h6 class="text-uppercase fw-bold mb-2">Follow Us</h6>
-          <div class="d-flex justify-content-center gap-3 fs-4">
-            <a href="https://facebook.com/" class="text-white" aria-label="Facebook">
-              <i class="bi bi-facebook"></i>
-            </a>
-            <a href="https://instagram.com/" class="text-white" aria-label="Instagram">
-              <i class="bi bi-instagram"></i>
-            </a>
-            <a href="https://youtube.com/" class="text-white" aria-label="YouTube">
-              <i class="bi bi-youtube"></i>
-            </a>
-          </div>
+        <div class="text-center small text-white-50">
+          © {% now "Y" %} The Daily Market • Quality You Can Trust
         </div>
-
+        <div class="text-center small text-white-50 mt-1 opacity-75">
+          The Daily Market operates in accordance with South African consumer and data protection laws.
+        </div>
       </div>
+    </footer>
 
-      <hr class="my-4 border-light">
-
-      <div class="text-center small text-white-50">
-        © {% now "Y" %} The Daily Market • Quality You Can Trust
-      </div>
-      <div class="text-center small text-white-50 mt-1 opacity-75">
-        The Daily Market operates in accordance with South African consumer and data protection laws.
-      </div>
-    </div>
-  </footer>
+  </main>
 
   <!-- ========== Sign-in required modal ========== -->
   <div class="modal fade" id="authRequiredModal" tabindex="-1" aria-hidden="true">

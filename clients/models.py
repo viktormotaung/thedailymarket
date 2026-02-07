@@ -581,6 +581,13 @@ class Prospect(models.Model):
         db_index=True,
     )
 
+    ENTITY_TYPES = [
+        ("COMPANY", "Registered Company"),
+        ("SOLE_TRADER", "Sole Trader / Individual"),
+    ]
+
+
+
     # -------------------------------------------------
     # Ownership / responsibility
     # -------------------------------------------------
@@ -614,6 +621,13 @@ class Prospect(models.Model):
         max_length=200,
         blank=True,
         help_text="Trading name if different.",
+    )
+
+    entity_type = models.CharField(
+        max_length=20,
+        choices=ENTITY_TYPES,
+        default="COMPANY",
+        help_text="Whether this prospect is a registered company or a sole trader.",
     )
 
     contact_name = models.CharField(max_length=120, blank=True)
@@ -778,6 +792,8 @@ class Prospect(models.Model):
         elif days <= 14:
             return "Overdue"
         return "Very overdue"
+    
+    
 
 
 
