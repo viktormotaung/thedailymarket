@@ -1088,7 +1088,7 @@ class ClientForm(forms.ModelForm):
             "address_line1", "address_line2", "suburb", "city", "province",
             "postal_code", "country",
             # Compliance
-            "vat_number", "company_reg_number",
+            "vat_number", "registration_identifier",
             # Categorisation & Account
             "categories", "status", "account_type", "credit_status",
             # Spend & Notes
@@ -1109,7 +1109,7 @@ class ClientForm(forms.ModelForm):
             "postal_code": forms.TextInput(attrs={"class": "form-control"}),
             "country": forms.TextInput(attrs={"class": "form-control"}),
             "vat_number": forms.TextInput(attrs={"class": "form-control"}),
-            "company_reg_number": forms.TextInput(attrs={"class": "form-control"}),
+            "registration_identifier": forms.TextInput(attrs={"class": "form-control"}),
             "estimated_weekly_spend": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 5}),
             # selects

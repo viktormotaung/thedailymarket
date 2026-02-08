@@ -98,28 +98,59 @@ def client_list(request):
         "statuses": statuses,
     })
 
-
 class ClientForm(forms.ModelForm):
     class Meta:
         model = Client
         fields = [
             # Identity & Ownership
-            "name", "organization", "client_type", "account_manager",
-            "price_type",  # <-- added
+            "entity_type",                 # ✅ ADDED
+            "name",
+            "organization",
+            "client_type",
+            "account_manager",
+            "price_type",
+
             # Contact
-            "contact_person", "email", "phone", "whatsapp",
+            "contact_person",
+            "email",
+            "phone",
+            "whatsapp",
+
             # Address
-            "address_line1", "address_line2", "suburb", "city", "province",
-            "postal_code", "country",
+            "address_line1",
+            "address_line2",
+            "suburb",
+            "city",
+            "province",
+            "postal_code",
+            "country",
+
+            # ✅ Delivery Address (ADD THESE)
+            "delivery_address_line1",
+            "delivery_address_line2",
+            "delivery_suburb",
+            "delivery_city",
+            "delivery_province",
+            "delivery_postal_code",
+            "delivery_country",
+
             # Compliance
-            "vat_number", "company_reg_number",
+            "registration_identifier",
+            "vat_number",
+
             # Categorisation & Account
-            "categories", "status", "account_type", "credit_status",
+            "categories",
+            "status",
+            "account_type",
+            "credit_status",
+
             # Spend & Notes
-            "estimated_weekly_spend", "notes",
+            "estimated_weekly_spend",
+            "notes",
         ]
+
         widgets = {
-            # text inputs
+            # Text inputs
             "name": forms.TextInput(attrs={"class": "form-control"}),
             "organization": forms.TextInput(attrs={"class": "form-control"}),
             "contact_person": forms.TextInput(attrs={"class": "form-control"}),
@@ -132,33 +163,70 @@ class ClientForm(forms.ModelForm):
             "city": forms.TextInput(attrs={"class": "form-control"}),
             "postal_code": forms.TextInput(attrs={"class": "form-control"}),
             "country": forms.TextInput(attrs={"class": "form-control"}),
+
+            "delivery_address_line1": forms.TextInput(attrs={"class": "form-control"}),
+            "delivery_address_line2": forms.TextInput(attrs={"class": "form-control"}),
+            "delivery_suburb": forms.TextInput(attrs={"class": "form-control"}),
+            "delivery_city": forms.TextInput(attrs={"class": "form-control"}),
+            "delivery_province": forms.Select(attrs={"class": "form-select"}),
+            "delivery_postal_code": forms.TextInput(attrs={"class": "form-control"}),
+            "delivery_country": forms.TextInput(attrs={"class": "form-control"}),
+
+            # Compliance
+            "registration_identifier": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Company registration number or SA ID number",
+            }),
             "vat_number": forms.TextInput(attrs={"class": "form-control"}),
-            "company_reg_number": forms.TextInput(attrs={"class": "form-control"}),
-            "estimated_weekly_spend": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
+
+            # Numbers
+            "estimated_weekly_spend": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.01", "min": "0"}
+            ),
+
+            # Notes
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 5}),
-            # selects
+
+            # Selects
+            "entity_type": forms.Select(attrs={"class": "form-select"}),   # ✅ ADDED
             "client_type": forms.Select(attrs={"class": "form-select"}),
             "account_manager": forms.Select(attrs={"class": "form-select"}),
             "province": forms.Select(attrs={"class": "form-select"}),
             "status": forms.Select(attrs={"class": "form-select"}),
             "account_type": forms.Select(attrs={"class": "form-select"}),
             "credit_status": forms.Select(attrs={"class": "form-select"}),
-            "price_type": forms.Select(attrs={"class": "form-select"}),  # <-- added
-            # many-to-many
-            "categories": forms.SelectMultiple(attrs={"class": "form-select", "size": "6"}),
+            "price_type": forms.Select(attrs={"class": "form-select"}),
+
+            # Many-to-many
+            "categories": forms.SelectMultiple(
+                attrs={"class": "form-select", "size": "6"}
+            ),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Only active categories in a nice order
-        self.fields["categories"].queryset = Category.objects.filter(is_active=True).order_by("name")
+
+        # Only active categories
+        self.fields["categories"].queryset = (
+            Category.objects.filter(is_active=True).order_by("name")
+        )
+
+        # Human-friendly labels
+        self.fields["entity_type"].label = "Business Type"
+        self.fields["registration_identifier"].label = "Registration / ID Number"
 
         # Placeholders
-        self.fields["email"].widget.attrs.setdefault("placeholder", "name@example.com")
-        self.fields["phone"].widget.attrs.setdefault("placeholder", "e.g. 072 123 4567")
-        self.fields["whatsapp"].widget.attrs.setdefault("placeholder", "e.g. 072 123 4567")
+        self.fields["email"].widget.attrs.setdefault(
+            "placeholder", "name@example.com"
+        )
+        self.fields["phone"].widget.attrs.setdefault(
+            "placeholder", "e.g. 072 123 4567"
+        )
+        self.fields["whatsapp"].widget.attrs.setdefault(
+            "placeholder", "e.g. 072 123 4567"
+        )
 
-        # Optional: default to Retail if none chosen yet
+        # Default price type
         if not self.instance.pk and not self.initial.get("price_type"):
             self.fields["price_type"].initial = "Retail"
 

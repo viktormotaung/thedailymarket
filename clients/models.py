@@ -141,6 +141,24 @@ class Client(models.Model):
         default="RESTAURANT"
     )
 
+    ENTITY_TYPES = [
+        ("COMPANY", "Registered Company"),
+        ("SOLE_TRADER", "Sole Trader / Individual"),
+    ]
+
+    entity_type = models.CharField(
+        max_length=20,
+        choices=ENTITY_TYPES,
+        default="COMPANY",
+    )
+
+    registration_identifier = models.CharField(
+        max_length=80,
+        blank=True,
+        help_text="Company registration number or SA ID number.",
+    )
+
+
     # A/B/C classification inside the chosen client_type
     client_size_tier = models.CharField(
         max_length=1,
@@ -226,7 +244,7 @@ class Client(models.Model):
 
     # ---- Compliance (for businesses) ----
     vat_number = models.CharField(max_length=80, blank=True)
-    company_reg_number = models.CharField(max_length=80, blank=True)
+    
 
     # ---- Categorisation ----
     categories = models.ManyToManyField(
@@ -291,7 +309,7 @@ class Client(models.Model):
         compliance, _ = ClientCompliance.objects.get_or_create(
             client=self,
             defaults={
-                "company_reg_number": self.company_reg_number or "",
+                "registration_identifier": self.registration_identifier or "",
                 "vat_number": self.vat_number or "",
             }
         )
@@ -440,7 +458,10 @@ class ClientCompliance(models.Model):
     )
 
     # --- Registration & identity ---
-    company_reg_number = models.CharField(max_length=80, blank=True)
+    registration_identifier = models.CharField(
+        max_length=80,
+        blank=True,
+    )
     vat_number = models.CharField(max_length=80, blank=True)
 
     # --- Vetting state ---
@@ -679,7 +700,11 @@ class Prospect(models.Model):
     # Early compliance (optional, speeds up conversion)
     # -------------------------------------------------
     vat_number = models.CharField(max_length=80, blank=True)
-    company_reg_number = models.CharField(max_length=80, blank=True)
+    
+    registration_identifier = models.CharField(
+        max_length=80,
+        blank=True,
+    )
 
     # -------------------------------------------------
     # Product interest (mirrors Client.categories)

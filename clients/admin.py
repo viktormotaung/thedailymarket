@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
+
 from .models import (
     Client,
     ClientCompliance,
@@ -58,7 +59,7 @@ class ClientAdmin(admin.ModelAdmin):
         "phone",
         "whatsapp",
         "vat_number",
-        "company_reg_number",
+        "registration_identifier",
         "address_line1",
         "suburb",
         "city",
@@ -125,7 +126,7 @@ class ClientAdmin(admin.ModelAdmin):
             )
         }),
         ("Compliance", {
-            "fields": ("vat_number", "company_reg_number"),
+            "fields": ("vat_number", "registration_identifier"),
             "classes": ("collapse",),
         }),
         ("Categories & Spend", {
@@ -195,7 +196,7 @@ class ClientComplianceAdmin(admin.ModelAdmin):
         "client__name",
         "client__organization",
         "vat_number",
-        "company_reg_number",
+        "registration_identifier",
         "notes",
     )
     autocomplete_fields = ("client", "vetted_by")
@@ -207,7 +208,7 @@ class ClientComplianceAdmin(admin.ModelAdmin):
             "fields": ("client",),
         }),
         ("Registration", {
-            "fields": ("company_reg_number", "vat_number"),
+            "fields": ("registration_identifier", "vat_number"),
         }),
         ("Vetting", {
             "fields": (

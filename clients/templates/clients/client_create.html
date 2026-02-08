@@ -268,8 +268,13 @@
         <!-- ========================= -->
         <div class="col-lg-6 form-section">
           <div class="card">
+            
             <div class="card-header"><strong>Identity</strong></div>
             <div class="card-body">
+              <div class="mb-3">
+                <label class="form-label">Business Type</label>
+                {{ form.entity_type }}
+              </div>
               <div class="mb-3">
                 <label class="form-label">Name</label>
                 {{ form.name }}
@@ -465,20 +470,45 @@
           <div class="card">
             <div class="card-header"><strong>Delivery Address</strong></div>
             <div class="card-body">
-              <div class="mb-2">{{ form.delivery_address_line1 }}</div>
-              <div class="mb-2">{{ form.delivery_address_line2 }}</div>
+
+              <div class="mb-3">
+                <label class="form-label">Address line 1</label>
+                {{ form.delivery_address_line1 }}
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Address line 2</label>
+                {{ form.delivery_address_line2 }}
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label">Suburb</label>
+                  {{ form.delivery_suburb }}
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">City</label>
+                  {{ form.delivery_city }}
+                </div>
+              </div>
 
               <div class="row g-3">
-                <div class="col-md-6">{{ form.delivery_suburb }}</div>
-                <div class="col-md-6">{{ form.delivery_city }}</div>
+                <div class="col-md-4">
+                  <label class="form-label">Province</label>
+                  {{ form.delivery_province }}
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Postal Code</label>
+                  {{ form.delivery_postal_code }}
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Country</label>
+                  {{ form.delivery_country }}
+                </div>
               </div>
 
-              <div class="row g-3 mt-1">
-                <div class="col-md-4">{{ form.delivery_province }}</div>
-                <div class="col-md-4">{{ form.delivery_postal_code }}</div>
-                <div class="col-md-4">{{ form.delivery_country }}</div>
-              </div>
             </div>
+
           </div>
         </div>
 

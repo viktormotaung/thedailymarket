@@ -87,6 +87,7 @@ class ClientForm(forms.ModelForm):
         model = Client
         fields = [
             # Identity
+            "entity_type",
             "name",
             "organization",
             "client_type",
@@ -117,7 +118,7 @@ class ClientForm(forms.ModelForm):
             "delivery_country",
 
             # Compliance
-            "company_reg_number",
+            "registration_identifier",
             "vat_number",
 
             # Commercial
@@ -135,9 +136,9 @@ class ClientForm(forms.ModelForm):
             # Notes
             "notes",
         ]
-
+        
         widgets = {
-            
+            "entity_type": forms.Select(attrs=_bs("form-select")),
             "city": forms.Select(attrs={"class": "form-select"}),
             "province": forms.Select(attrs={"class": "form-select"}),
             "client_type": forms.Select(attrs={"class": "form-select"}),
@@ -164,6 +165,7 @@ class ClientQuickCreateForm(forms.ModelForm):
     class Meta:
         model = Client
         fields = [
+            "entity_type",
             "name",
             "organization",
             "client_type",
@@ -180,6 +182,7 @@ class ClientQuickCreateForm(forms.ModelForm):
             "notes",
         ]
         widgets = {
+            "entity_type": forms.Select(attrs=_bs("form-select")),
             "name": forms.TextInput(attrs={"class": "form-control"}),
             "client_type": forms.Select(attrs={"class": "form-select"}),
             "notes": forms.Textarea(attrs={"rows": 2}),
@@ -246,7 +249,7 @@ class ProspectForm(forms.ModelForm):
         widget=forms.Select(attrs={"class": "form-select"}),
         label="City",
     )
-
+    
     # ----------------------------
     # META
     # ----------------------------
@@ -254,6 +257,7 @@ class ProspectForm(forms.ModelForm):
         model = Prospect
         fields = [
             # ---- Identity / contact ----
+            "entity_type",
             "name",
             "organization",
             "contact_name",
@@ -275,7 +279,7 @@ class ProspectForm(forms.ModelForm):
             "country",
 
             # ---- Early compliance ----
-            "company_reg_number",
+            "registration_identifier",
             "vat_number",
 
             # ---- Product interest ----
@@ -297,6 +301,7 @@ class ProspectForm(forms.ModelForm):
 
         widgets = {
             # Identity
+            "entity_type": forms.Select(attrs=_bs("form-select")),
             "name": forms.TextInput(attrs={
                 "class": "form-control",
                 "placeholder": "e.g. Nando's Krugersdorp",
@@ -335,9 +340,9 @@ class ProspectForm(forms.ModelForm):
             "country": forms.TextInput(attrs={"class": "form-control"}),
 
             # Compliance
-            "company_reg_number": forms.TextInput(attrs={
+            "registration_identifier": forms.TextInput(attrs={
                 "class": "form-control",
-                "placeholder": "Company registration number",
+                "placeholder": "registration_identifier",
             }),
             "vat_number": forms.TextInput(attrs={
                 "class": "form-control",
@@ -385,39 +390,36 @@ class ProspectForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Active categories only
+        self.fields["registration_identifier"].label = "Registration / ID Number"
+        self.fields["registration_identifier"].help_text = (
+            "Company registration number or South African ID number."
+        )
+
         self.fields["categories"].queryset = (
             Category.objects.filter(is_active=True).order_by("name")
         )
 
-        # Defaults
         self.fields["country"].initial = "South Africa"
 
-    # ----------------------------
-    # VALIDATION
-    # ----------------------------
     def clean(self):
         cleaned = super().clean()
 
-        # Require at least ONE contact method
         if not any([
             cleaned.get("email"),
             cleaned.get("phone"),
             cleaned.get("whatsapp"),
         ]):
             raise ValidationError(
-                "Please provide at least one contact method (phone, WhatsApp, or email)."
+                "Provide at least one contact method (email, phone, or WhatsApp)."
             )
 
-        # Spend sanity
         spend = cleaned.get("estimated_weekly_spend")
         if spend is not None and spend < Decimal("0"):
-            self.add_error(
-                "estimated_weekly_spend",
-                "Estimated weekly spend cannot be negative."
-            )
+            self.add_error("estimated_weekly_spend", "Spend cannot be negative.")
 
         return cleaned
+
+    
 
 
 
@@ -493,15 +495,17 @@ class ClientMinimalForm(forms.ModelForm):
     class Meta:
         model = Client
         fields = [
+            "entity_type",
             "name",
             "organization",
-            "company_reg_number",
+            "registration_identifier",
             "client_type",
         ]
         widgets = {
+            "entity_type": forms.Select(attrs=_bs("form-select")),
             "name": forms.TextInput(attrs={"class": "form-control"}),
             "organization": forms.TextInput(attrs={"class": "form-control"}),
-            "company_reg_number": forms.TextInput(attrs={"class": "form-control"}),  # 🔑
+            "registration_identifier": forms.TextInput(attrs={"class": "form-control"}),  # 🔑
             "client_type": forms.Select(attrs={"class": "form-select"}),
         }
 
@@ -532,6 +536,7 @@ class ClientBusinessForm(forms.ModelForm):
         model = Client
         fields = [
             # --- Identity & Contact ---
+            "entity_type",
             "name",
             "organization",
             "contact_person",
@@ -561,13 +566,14 @@ class ClientBusinessForm(forms.ModelForm):
 
             # --- Compliance / Commercial ---
             "vat_number",
-            "company_reg_number",
+            "registration_identifier",
             "price_type",
             "estimated_weekly_spend",
         ]
 
         widgets = {
             # Text inputs
+            "entity_type": forms.Select(attrs=_bs("form-select")),
             "name": forms.TextInput(attrs=_bs()),
             "organization": forms.TextInput(attrs=_bs()),
             "contact_person": forms.TextInput(attrs=_bs()),
@@ -670,6 +676,7 @@ class ClientEditForm(forms.ModelForm):
         model = Client
         fields = [
             # Identity
+            "entity_type",
             "name",
             "organization",
             "client_type",
@@ -705,7 +712,7 @@ class ClientEditForm(forms.ModelForm):
 
             # Compliance
             "vat_number",
-            "company_reg_number",
+            "registration_identifier",
 
             # Commercial
             "price_type",
@@ -725,6 +732,7 @@ class ClientEditForm(forms.ModelForm):
 
         widgets = {
             # Text
+            "entity_type": forms.Select(attrs=_bs("form-select")),
             "name": forms.TextInput(attrs=_bs()),
             "organization": forms.TextInput(attrs=_bs()),
             "contact_person": forms.TextInput(attrs=_bs()),
