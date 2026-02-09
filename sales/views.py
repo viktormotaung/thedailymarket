@@ -33,6 +33,10 @@ from django.http import Http404
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.http import JsonResponse
+from credit.models import CreditAccount
+from clients.forms import ClientEditForm
+from django.contrib.contenttypes.models import ContentType
+from django.db import transaction
 
 User = get_user_model()
 DAY_OPTIONS = [7, 14, 30, 60]
@@ -1034,11 +1038,19 @@ def clients(request):
     })
     
 def view_client(request, pk):
+    # ---------------------------
+    # Core client
+    # ---------------------------
     client = get_object_or_404(
-        Client.objects.select_related("account_manager").prefetch_related("categories"),
+        Client.objects
+        .select_related("account_manager", "funder")
+        .prefetch_related("categories"),
         pk=pk
     )
-    # Last 10 orders for this client; include fields we display
+
+    # ---------------------------
+    # Orders (tab)
+    # ---------------------------
     orders = (
         Order.objects
         .filter(client=client)
@@ -1046,34 +1058,265 @@ def view_client(request, pk):
         .order_by("-order_date")[:10]
     )
 
+    # ---------------------------
+    # Credit (tab)
+    # ---------------------------
+    credit_account = None
+    credit_utilization_pct = None
+    credit_utilization_status = None
+
+    if client.account_type == "CREDIT":
+        credit_account = CreditAccount.objects.filter(client=client).first()
+
+        if credit_account and credit_account.credit_limit > 0:
+            credit_utilization_pct = (
+                credit_account.credit_used / credit_account.credit_limit
+            ) * Decimal("100.00")
+
+            if credit_utilization_pct < 50:
+                credit_utilization_status = "Healthy"
+            elif credit_utilization_pct < 80:
+                credit_utilization_status = "Watch"
+            elif credit_utilization_pct <= 100:
+                credit_utilization_status = "High Risk"
+            else:
+                credit_utilization_status = "Over Limit"
+
+    # ---------------------------
+    # Compliance (tab)
+    # ---------------------------
+    compliance = getattr(client, "compliance", None)
+
+    compliance_documents = []
+    compliance_completion_pct = Decimal("0.00")
+
+    if compliance:
+        compliance_documents = (
+            compliance.documents
+            .all()
+            .order_by("document_type")
+        )
+
+        total_docs = compliance_documents.count()
+
+        approved_docs = compliance_documents.filter(
+            status="APPROVED"
+        ).count()
+
+        if total_docs > 0:
+            compliance_completion_pct = (
+                Decimal(approved_docs) / Decimal(total_docs)
+            ) * Decimal("100.00")
+
+    # ---------------------------
+    # Overview KPIs
+    # ---------------------------
+    total_spend = (
+        Order.objects
+        .filter(client=client)
+        .aggregate(
+            s=Coalesce(Sum("grand_total_inc"), Decimal("0.00"))
+        )["s"]
+    )
+
+    days_active = (
+        timezone.now().date() - client.created_at.date()
+    ).days
+
+    # ---------------------------
+    # Spend Rank
+    # ---------------------------
+    ranked_clients = (
+        Client.objects
+        .annotate(
+            total_spend=Coalesce(
+                Sum("orders__grand_total_inc"),
+                Decimal("0.00")
+            )
+        )
+        .order_by("-total_spend", "id")
+        .values_list("id", flat=True)
+    )
+
+    ranked_ids = list(ranked_clients)
+    total_clients = len(ranked_ids)
+
+    spend_rank = (
+        ranked_ids.index(client.id) + 1
+        if client.id in ranked_ids
+        else None
+    )
+
+    # ---------------------------
+    # Context
+    # ---------------------------
+    context = {
+        "client": client,
+
+        # Overview KPIs
+        "days_active": days_active,
+        "total_spend": total_spend,
+        "spend_rank": spend_rank,
+        "total_clients": total_clients,
+
+        # Orders
+        "orders": orders,
+
+        # Credit
+        "credit_account": credit_account,
+        "credit_utilization_pct": credit_utilization_pct,
+        "credit_utilization_status": credit_utilization_status,
+
+        # Compliance
+        "compliance": compliance,
+        "compliance_documents": compliance_documents,
+        "compliance_completion_pct": compliance_completion_pct,
+
+        # UI feedback
+        "success_message": request.GET.get("ok", ""),
+        "error_message": request.GET.get("err", ""),
+    }
+
     return render(
         request,
         "clients/client_detail.html",
-        {
-            "client": client,
-            "orders": orders,  # NEW
-            "success_message": request.GET.get("ok", ""),
-            "error_message": request.GET.get("err", ""),
-        },
+        context
     )
 
 def edit_client(request, pk):
+    # Fetch client with related objects efficiently
     client = get_object_or_404(
-        Client.objects.select_related("account_manager").prefetch_related("categories"),
+        Client.objects.select_related("account_manager")
+                      .prefetch_related("categories"),
         pk=pk
     )
 
+    original_status = client.status  # capture status before changes
+
     if request.method == "POST":
-        form = ClientForm(request.POST, instance=client)
+        form = ClientEditForm(request.POST, instance=client)
+
         if form.is_valid():
-            client = form.save()
+            with transaction.atomic():
+                updated_client = form.save()
+
+                # 1️⃣ Close the latest task associated with this client
+                content_type = ContentType.objects.get_for_model(updated_client)
+                latest_task = Task.objects.filter(
+                    content_type=content_type,
+                    object_id=updated_client.id
+                ).order_by("-created_at").first()
+
+                if latest_task:
+                    latest_task.status = Task.Status.CLOSED
+                    latest_task.completed_at = timezone.now()
+                    latest_task.save(update_fields=["status", "completed_at", "updated_at"])
+
+                # 2️⃣ Send client status change email
+                customer_profile = updated_client.customer_profiles.select_related("user").first()
+                user = getattr(customer_profile, "user", None)
+
+                if user and user.email and original_status != updated_client.status:
+                    if original_status == "PENDING" and updated_client.status == "ACTIVE":
+                        send_email_pending_to_active(updated_client, user)
+                    elif original_status == "ACTIVE" and updated_client.status == "INACTIVE":
+                        send_email_active_to_inactive(updated_client, user)
+                    elif original_status == "INACTIVE" and updated_client.status == "ACTIVE":
+                        send_email_inactive_to_active(updated_client, user)
+
             messages.success(request, "Client updated successfully.")
-            return redirect("client-view", pk=client.pk)
+            return redirect("client-view", pk=updated_client.pk)
+
         messages.error(request, "Please fix the errors below.")
     else:
-        form = ClientForm(instance=client)
+        form = ClientEditForm(instance=client)
 
     return render(request, "clients/edit_client.html", {"form": form, "client": client})
+
+
+def send_email_pending_to_active(client, user):
+    subject = "The Daily Market – Your account is now active"
+
+    ctx = {
+        "user": user,
+        "client": client,
+        "login_url": reverse("client-login"),
+        "support_email": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"),
+    }
+
+    text_body = render_to_string(
+        "email/client_pending_to_active.txt", ctx
+    )
+    html_body = render_to_string(
+        "email/client_pending_to_active.html", ctx
+    )
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+        headers={"Reply-To": ctx["support_email"]},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+
+def send_email_active_to_inactive(client, user):
+    subject = "The Daily Market – Your account is now inactive"
+
+    ctx = {
+        "user": user,
+        "client": client,
+        "login_url": reverse("client-login"),
+        "support_email": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"),
+    }
+
+    text_body = render_to_string(
+        "email/client_active_to_inactive.txt", ctx
+    )
+    html_body = render_to_string(
+        "email/client_active_to_inactive.html", ctx
+    )
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+        headers={"Reply-To": ctx["support_email"]},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+def send_email_inactive_to_active(client, user):
+    subject = "The Daily Market – Your account is now active"
+
+    ctx = {
+        "user": user,
+        "client": client,
+        "login_url": reverse("client-login"),
+        "support_email": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"),
+    }
+
+    text_body = render_to_string(
+        "email/client_inactive_to_active.txt", ctx
+    )
+    html_body = render_to_string(
+        "email/client_inactive_to_active.html", ctx
+    )
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+        headers={"Reply-To": ctx["support_email"]},
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+
 
 class ClientForm(forms.ModelForm):
     class Meta:

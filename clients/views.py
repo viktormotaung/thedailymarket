@@ -16,6 +16,8 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from clients.models import Client, ClientCompliance, ClientComplianceDocument
+from clients.models import GAUTENG_CITY_CHOICES
+
 from tasks.models import Task
 from credit.models import CreditAccount
 from django.contrib.contenttypes.models import ContentType
@@ -23,7 +25,16 @@ from decimal import Decimal
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from .forms import ClientEditForm, ClientComplianceForm, ClientComplianceDocumentForm, ClientComplianceDocumentStatusForm
-
+def _bs(extra_class=None):
+    """
+    Bootstrap helper for form widgets.
+    Usage:
+      _bs() -> {"class": "form-control"}
+      _bs("form-select") -> {"class": "form-select"}
+    """
+    return {
+        "class": extra_class or "form-control"
+    }
 User = get_user_model()
 
 
@@ -99,6 +110,20 @@ def client_list(request):
     })
 
 class ClientForm(forms.ModelForm):
+
+    city = forms.ChoiceField(
+        choices=[("", "Select a city")] + GAUTENG_CITY_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="City",
+    )
+
+    delivery_city = forms.ChoiceField(
+        choices=[("", "Select a city")] + GAUTENG_CITY_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Delivery City",
+    )
     class Meta:
         model = Client
         fields = [
@@ -134,6 +159,10 @@ class ClientForm(forms.ModelForm):
             "delivery_postal_code",
             "delivery_country",
 
+            # Delivery geo
+            "delivery_lat",
+            "delivery_lng",
+
             # Compliance
             "registration_identifier",
             "vat_number",
@@ -160,17 +189,25 @@ class ClientForm(forms.ModelForm):
             "address_line1": forms.TextInput(attrs={"class": "form-control"}),
             "address_line2": forms.TextInput(attrs={"class": "form-control"}),
             "suburb": forms.TextInput(attrs={"class": "form-control"}),
-            "city": forms.TextInput(attrs={"class": "form-control"}),
+            
             "postal_code": forms.TextInput(attrs={"class": "form-control"}),
             "country": forms.TextInput(attrs={"class": "form-control"}),
 
             "delivery_address_line1": forms.TextInput(attrs={"class": "form-control"}),
             "delivery_address_line2": forms.TextInput(attrs={"class": "form-control"}),
             "delivery_suburb": forms.TextInput(attrs={"class": "form-control"}),
-            "delivery_city": forms.TextInput(attrs={"class": "form-control"}),
+            
             "delivery_province": forms.Select(attrs={"class": "form-select"}),
             "delivery_postal_code": forms.TextInput(attrs={"class": "form-control"}),
             "delivery_country": forms.TextInput(attrs={"class": "form-control"}),
+
+            # Geo (hidden but editable by JS/maps later)
+            "delivery_lat": forms.NumberInput(
+                attrs={**_bs(), "step": "0.000001"}
+            ),
+            "delivery_lng": forms.NumberInput(
+                attrs={**_bs(), "step": "0.000001"}
+            ),
 
             # Compliance
             "registration_identifier": forms.TextInput(attrs={

@@ -5,80 +5,134 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Add Prospect - Seshibo Daily Market</title>
+  <title>Add Prospect - The Daily Market</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <style>
-    /* Desktop layout (lg and up): fixed sidebar + scrollable content */
+    /* -------------------------------------------------
+      ROOT & BASE
+    ------------------------------------------------- */
+    :root {
+      --sidebar-width: 220px;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    /* -------------------------------------------------
+      CONTENT
+    ------------------------------------------------- */
+    .content {
+      padding: 24px;
+      margin: 0;
+      max-width: none; /* ✅ full width, no white gap */
+    }
+
+    /* -------------------------------------------------
+      DESKTOP LAYOUT (lg and up)
+    ------------------------------------------------- */
     @media (min-width: 992px) {
-      :root { --sidebar-width: 220px; }
-      body {
-        margin: 0;
-        padding: 0;
-        min-height: 100vh;
-        display: block;
-      }
-      /* fixed non-scrollable sidebar */
+
+      /* Fixed, non-scrollable sidebar */
       .sidebar-desktop {
         position: fixed;
         top: 0;
         left: 0;
         width: var(--sidebar-width);
-        height: 100vh;            /* fill viewport height */
-        overflow: hidden;         /* prevent sidebar from scrolling */
+        height: 100vh;
+        overflow: hidden;
         z-index: 1040;
       }
-      /* main content sits to the right and scrolls */
+
+      /* Main scrollable area */
       .content-wrap {
         margin-left: var(--sidebar-width);
         min-height: 100vh;
       }
+    }
+
+    /* -------------------------------------------------
+      MOBILE / TABLET
+    ------------------------------------------------- */
+    @media (max-width: 991.98px) {
+      .sidebar-desktop {
+        display: none;
+      }
+
+      .content-wrap {
+        margin-left: 0;
+      }
+
       .content {
-        padding: 24px;
-        max-width: 1100px;
-        margin: 0 auto;
+        padding: 16px;
       }
     }
 
-    /* Mobile: sidebar becomes offcanvas (handled by Bootstrap) */
-    @media (max-width: 991.98px) {
-      .sidebar-desktop { display: none; }
-      .content-wrap { margin: 0; }
-      .content { padding: 16px; }
+    /* -------------------------------------------------
+      SIDEBAR VISUALS
+    ------------------------------------------------- */
+    .sidebar-skin {
+      background-color: #0b5c39;
+      color: #fff;
+      padding: 1rem;
     }
 
-    /* Shared visuals */
-    .sidebar-skin { background-color: #0b5c39; color: #fff; padding: 1rem; }
-    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; text-decoration: none; }
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: 0.25rem 0;
+      display: block;
+      text-decoration: none;
+    }
+
     .sidebar-skin .nav-link.active,
     .sidebar-skin .nav-link:hover {
-      background: rgba(255,255,255,0.12);
+      background: rgba(255, 255, 255, 0.12);
       border-radius: 6px;
       padding-left: 8px;
     }
-    
-    .logo-img { max-height: 80px; width: auto; }
-    .form-section-title {
-      font-size: .85rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .04em;
-      color: #6c757d;
-      margin-bottom: .5rem;
+
+    /* -------------------------------------------------
+      SHARED UI
+    ------------------------------------------------- */
+    .logo-img {
+      max-height: 80px;
+      width: auto;
     }
 
-    /* Make sure inputs take full width inside the content area */
-    .form-control, .form-select, textarea { width: 100%; }
+    .form-section-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6c757d;
+      margin-bottom: 0.5rem;
+    }
 
-    /* Card tweaks */
-    .card { border: 0; border-radius: 8px; }
-    .card.shadow-sm { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    /* Inputs always fill container */
+    .form-control,
+    .form-select,
+    textarea {
+      width: 100%;
+    }
+
+    /* Cards */
+    .card {
+      border: 0;
+      border-radius: 8px;
+    }
+
+    .card.shadow-sm {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
   </style>
+
 </head>
 <body>
-
-    <!-- MOBILE/TABLET TOP BAR -->
-    <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+  <!-- MOBILE/TABLET TOP BAR -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
       <div class="container-fluid">
         <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
@@ -87,10 +141,10 @@
           <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
         </a>
       </div>
-    </nav>
+  </nav>
   
-    <!-- MOBILE OFFCANVAS MENU -->
-    <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+  <!-- MOBILE OFFCANVAS MENU -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
       <div class="offcanvas-header sidebar-skin">
         <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Menu</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
@@ -113,10 +167,10 @@
           <button type="submit" class="btn btn-light w-100">Sign out</button>
         </form>
       </div>
-    </div>
+  </div>
   
-    <!-- DESKTOP SIDEBAR -->
-    <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
       <div class="text-center mb-3">
         <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
       </div>
@@ -134,194 +188,284 @@
           <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
         </form>
       </div>
-    </aside>
+  </aside>
 
-  <!-- CONTENT WRAPPER (scrollable) -->
-  <main class="content">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <div>
-        <h2 class="mb-0">Add Prospect</h2>
-        <small class="text-muted">
-          Capture high-level info for a new restaurant, caterer, or client lead.
-        </small>
+    
+  <div class="content-wrap">
+    <main class="content">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <div>
+          <h2 class="m-0">Add Prospect</h2>
+          <div class="text-muted">Capture a new sales lead</div>
+        </div>
+        <a href="{% url 'sales:sales-prospects' %}" class="btn btn-outline-secondary">
+          Back to Prospects
+        </a>
       </div>
-      <a href="{% url 'sales:sales-prospects' %}"
-        class="btn btn-outline-secondary btn-sm">
-        &larr; Back to Prospects
-      </a>
-    </div>
 
-    <div class="card shadow-sm mb-4">
-      <div class="card-body">
-        <form method="post" novalidate>
-          {% csrf_token %}
+      <!-- Messages -->
+      {% if messages %}
+        <div class="mb-3">
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
 
-          <!-- ================= Identity ================= -->
-          <div class="mb-2 form-section-title">Identity</div>
-          <div class="row g-3 mb-3">
-            <div class="col-md-6">
-              <label class="form-label">Name</label>
-              {{ form.name }}
-              {% for err in form.name.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Organization (Trading name)</label>
-              {{ form.organization }}
-              {% for err in form.organization.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        <div class="row g-3">
+
+          <!-- ========================= -->
+          <!-- Identity & Ownership -->
+          <!-- ========================= -->
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header"><strong>Identity & Ownership</strong></div>
+              <div class="card-body">
+
+                <div class="mb-3">
+                  <label class="form-label">Entity Type</label>
+                  {{ form.entity_type }}
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Name</label>
+                  {{ form.name }}
+                  {% for err in form.name.errors %}
+                    <div class="text-danger small">{{ err }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Trading As</label>
+                  {{ form.organization }}
+                </div>
+
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Expected Client Type</label>
+                    {{ form.potential_client_type }}
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Expected Size Tier</label>
+                    {{ form.potential_size_tier }}
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
 
-          <!-- ================= Contact ================= -->
-          <div class="mb-2 form-section-title">Contact Details</div>
-          <div class="row g-3 mb-3">
-            <div class="col-md-4">
-              <label class="form-label">Contact person</label>
-              {{ form.contact_name }}
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Phone</label>
-              {{ form.phone }}
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">WhatsApp</label>
-              {{ form.whatsapp }}
+          <!-- ========================= -->
+          <!-- Contact -->
+          <!-- ========================= -->
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header"><strong>Contact</strong></div>
+              <div class="card-body">
+
+                <div class="mb-3">
+                  <label class="form-label">Contact Person</label>
+                  {{ form.contact_name }}
+                </div>
+
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Phone</label>
+                    {{ form.phone }}
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">WhatsApp</label>
+                    {{ form.whatsapp }}
+                  </div>
+                </div>
+
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Email</label>
+                    {{ form.email }}
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Lead Source</label>
+                    {{ form.lead_source }}
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
 
-          <div class="row g-3 mb-3">
-            <div class="col-md-6">
-              <label class="form-label">Email</label>
-              {{ form.email }}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Lead source</label>
-              {{ form.lead_source }}
+          <!-- ========================= -->
+          <!-- Address -->
+          <!-- ========================= -->
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header"><strong>Address</strong></div>
+              <div class="card-body">
+
+                <div class="mb-3">
+                  <label class="form-label">Address Line 1</label>
+                  {{ form.address_line1 }}
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Address Line 2</label>
+                  {{ form.address_line2 }}
+                </div>
+
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Suburb</label>
+                    {{ form.suburb }}
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">City</label>
+                    {{ form.city }}
+                  </div>
+                </div>
+
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label">Province</label>
+                    {{ form.province }}
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Postal Code</label>
+                    {{ form.postal_code }}
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Country</label>
+                    {{ form.country }}
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
 
-          <!-- ================= Address ================= -->
-          <div class="mb-2 form-section-title">Address</div>
-          <div class="row g-3 mb-3">
-            <div class="col-md-6">
-              <label class="form-label">Address line 1</label>
-              {{ form.address_line1 }}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Address line 2</label>
-              {{ form.address_line2 }}
+          <!-- ========================= -->
+          <!-- Business Details -->
+          <!-- ========================= -->
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header"><strong>Business Details (Optional)</strong></div>
+              <div class="card-body">
+
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Registration / ID Number</label>
+                    {{ form.registration_identifier }}
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">VAT Number</label>
+                    {{ form.vat_number }}
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
 
-          <div class="row g-3 mb-3">
-            <div class="col-md-4">
-              <label class="form-label">Suburb</label>
-              {{ form.suburb }}
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">City</label>
-              {{ form.city }}
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Province</label>
-              {{ form.province }}
+          <!-- ========================= -->
+          <!-- Product Interest -->
+          <!-- ========================= -->
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header"><strong>Product Interest</strong></div>
+              <div class="card-body">
+                {{ form.categories }}
+              </div>
             </div>
           </div>
 
-          <div class="row g-3 mb-3">
-            <div class="col-md-4">
-              <label class="form-label">Postal code</label>
-              {{ form.postal_code }}
-            </div>
-            <div class="col-md-8">
-              <label class="form-label">Country</label>
-              {{ form.country }}
+          <!-- ========================= -->
+          <!-- Pipeline -->
+          <!-- ========================= -->
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header"><strong>Pipeline & Value</strong></div>
+              <div class="card-body">
+
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label">Stage</label>
+                    {{ form.stage }}
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    {{ form.status }}
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Weekly Spend (R)</label>
+                    {{ form.estimated_weekly_spend }}
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
 
-          <!-- ================= Segmentation ================= -->
-          <div class="mb-2 form-section-title">Segment & Size</div>
-          <div class="row g-3 mb-3">
-            <div class="col-md-6">
-              <label class="form-label">Expected client type</label>
-              {{ form.potential_client_type }}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Expected size tier</label>
-              {{ form.potential_size_tier }}
+          <!-- ========================= -->
+          <!-- Follow-up -->
+          <!-- ========================= -->
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header"><strong>Follow-up</strong></div>
+              <div class="card-body">
+
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Last Contact</label>
+                    {{ form.last_contact_at }}
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Next Follow-up</label>
+                    {{ form.next_follow_up_at }}
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
 
-          <!-- ================= Product Interest ================= -->
-          <div class="mb-2 form-section-title">Product Interest</div>
-          <div class="mb-3">
-            <label class="form-label">Categories</label>
-            {{ form.categories }}
-          </div>
-
-          <!-- ================= Early Compliance ================= -->
-          <div class="mb-2 form-section-title">Business Details (Optional)</div>
-          <div class="row g-3 mb-3">
-            <div class="col-md-6">
-              <label class="form-label">Company registration number</label>
-              {{ form.company_reg_number }}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">VAT number</label>
-              {{ form.vat_number }}
+          <!-- ========================= -->
+          <!-- Notes -->
+          <!-- ========================= -->
+          <div class="col-lg-12">
+            <div class="card shadow-sm">
+              <div class="card-header"><strong>Notes</strong></div>
+              <div class="card-body">
+                {{ form.notes }}
+              </div>
             </div>
           </div>
 
-          <!-- ================= Pipeline & Value ================= -->
-          <div class="mb-2 form-section-title">Pipeline & Value</div>
-          <div class="row g-3 mb-3">
-            <div class="col-md-4">
-              <label class="form-label">Stage</label>
-              {{ form.stage }}
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Status</label>
-              {{ form.status }}
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Estimated weekly spend (R)</label>
-              {{ form.estimated_weekly_spend }}
-            </div>
-          </div>
+        </div>
 
-          <!-- ================= Follow-up ================= -->
-          <div class="mb-2 form-section-title">Follow-up</div>
-          <div class="row g-3 mb-3">
-            <div class="col-md-6">
-              <label class="form-label">Last contact</label>
-              {{ form.last_contact_at }}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Next follow-up</label>
-              {{ form.next_follow_up_at }}
-            </div>
-          </div>
+        <!-- Actions -->
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <a href="{% url 'sales:sales-prospects' %}" class="btn btn-outline-secondary">
+            Cancel
+          </a>
+          <button type="submit" class="btn btn-success">
+            Save Prospect
+          </button>
+        </div>
 
-          <!-- ================= Notes ================= -->
-          <div class="mb-2 form-section-title">Notes</div>
-          <div class="mb-3">
-            {{ form.notes }}
-          </div>
+      </form>
+    </main>
+  </div>
 
-          <!-- ================= Actions ================= -->
-          <div class="d-flex justify-content-between mt-4">
-            <a href="{% url 'sales:sales-prospects' %}"
-              class="btn btn-outline-secondary">
-              Cancel
-            </a>
-            <button type="submit" class="btn btn-success">
-              Save Prospect
-            </button>
-          </div>
 
-        </form>
-      </div>
-    </div>
-  </main>
 
  
 

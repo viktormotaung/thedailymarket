@@ -120,242 +120,596 @@
   </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="content">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-        <div>
-            <h2 class="m-0">
-            {{ client.client_number }} · {{ client.name }}{% if client.organization %} — {{ client.organization }}{% endif %}
+    <main class="content py-4">
+      <div class="container">
+
+        <!-- ================= HEADER ================= -->
+        <div class="d-flex justify-content-between align-items-start mb-4">
+          <div>
+            <h2 class="fw-semibold mb-1">
+              {{ client.organization|default:client.name }}
             </h2>
-            <div class="meta mt-1">
-            Updated {{ client.updated_at|date:"Y-m-d H:i" }} · Created {{ client.created_at|date:"Y-m-d H:i" }}
+            <div class="text-muted small">
+              {{ client.client_number }} ·
+              {{ client.get_client_type_display }} ·
+              {{ client.city|default:"—" }}
             </div>
-        </div>
-        <div class="d-flex gap-2">
+          </div>
 
-          <!-- Back (read-only) -->
-          <a href="{% url 'sales:sales-clients' %}"
-            class="btn btn-outline-secondary">
-            Back to Clients
-          </a>
+          
 
-          <!-- Edit Client (write) -->
-          <a href="{% if can_write %}{% url 'sales:edit-client' client.id %}{% else %}#{% endif %}"
-            class="btn btn-primary {% if not can_write %}disabled{% endif %}"
-            {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
-            Edit Client
-          </a>
-
-        </div>
-        </div>
-
-        {% if messages %}
-        <div class="mt-3">
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <!-- SUMMARY STRIP -->
-        <div class="row g-3 mt-3">
-        <!-- Account & Status -->
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100">
-            <div class="card-header bg-white"><strong>Account & Status</strong></div>
-            <div class="card-body">
-                <dl class="dl-grid m-0">
-                <dt>Account Manager</dt>
-                <dd>
-                    {% if client.account_manager %}
-                    {{ client.account_manager.get_full_name|default:client.account_manager.username }}
-                    {% if client.account_manager.email %} · <a href="mailto:{% firstof client.account_manager.email '' %}">Email</a>{% endif %}
-                    {% else %} — {% endif %}
-                </dd>
-
-                <dt>Client Type</dt>
-                <dd>{{ client.get_client_type_display }}</dd>
-
-                <dt>Account Type</dt>
-                <dd>
-                    {% if client.account_type == "CREDIT" %}
-                    <span class="badge bg-primary">Credit Account</span>
-                    {% else %}
-                    <span class="badge bg-secondary">Cash / EFT</span>
-                    {% endif %}
-                </dd>
-
-                <dt>Credit Status</dt>
-                <dd>
-                    {% if client.credit_status == "ACTIVE" %}
-                    <span class="badge bg-success">Active</span>
-                    {% elif client.credit_status == "PENDING" %}
-                    <span class="badge bg-warning text-dark">Pending</span>
-                    {% else %}
-                    <span class="badge bg-secondary">Inactive</span>
-                    {% endif %}
-                </dd>
-
-                <dt>Status</dt>
-                <dd>
-                    {% if client.status == "ACTIVE" %}
-                    <span class="badge bg-success">Active</span>
-                    {% elif client.status == "PENDING" %}
-                    <span class="badge bg-warning text-dark">Pending</span>
-                    {% else %}
-                    <span class="badge bg-secondary">Inactive</span>
-                    {% endif %}
-                </dd>
-
-                <dt>Est. Weekly Spend</dt>
-                <dd>{% if client.estimated_weekly_spend %}R{{ client.estimated_weekly_spend }}{% else %} — {% endif %}</dd>
-
-                <dt>Last Order</dt>
-                <dd>{% if client.last_order_at %}{{ client.last_order_at|date:"Y-m-d H:i" }}{% else %} — {% endif %}</dd>
-                </dl>
+          
+          <div class="d-flex gap-2">
+            <div class="text-end">
+              <span class="badge 
+                {% if client.status == 'ACTIVE' %}bg-success
+                {% elif client.status == 'INACTIVE' %}bg-secondary
+                {% else %}bg-warning{% endif %}">
+                {{ client.get_status_display }}
+              </span>
             </div>
-            </div>
+
+            <!-- Back (read-only) -->
+            <a href="{% url 'sales:sales-clients' %}"
+              class="btn btn-outline-secondary">
+              Back to Clients
+            </a>
+
+            <!-- Edit Client (write) -->
+            <a href="{% if can_write %}{% url 'sales:edit-client' client.id %}{% else %}#{% endif %}"
+              class="btn btn-primary {% if not can_write %}disabled{% endif %}"
+              {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
+              Edit Client
+            </a>
+
+          </div>
         </div>
 
-        <!-- Contact -->
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100">
-            <div class="card-header bg-white"><strong>Contact</strong></div>
-            <div class="card-body">
-                <dl class="dl-grid m-0">
-                <dt>Contact Person</dt>
-                <dd>{{ client.contact_person|default:"—" }}</dd>
+        
 
-                <dt>Phone</dt>
-                <dd>{% if client.phone %}<a href="tel:{{ client.phone }}">{{ client.phone }}</a>{% else %} — {% endif %}</dd>
+        <!-- ================= KPI ROW ================= -->
+        <div class="row g-3 mb-4 justify-content-between">
 
-                <dt>WhatsApp</dt>
-                <dd>
-                    {% if client.whatsapp %}
-                    <a href="https://wa.me/{{ client.whatsapp|urlencode }}" target="_blank" rel="noopener">Chat</a> · {{ client.whatsapp }}
-                    {% else %} — {% endif %}
-                </dd>
-
-                <dt>Email</dt>
-                <dd>{% if client.email %}<a href="mailto:{{ client.email }}">{{ client.email }}</a>{% else %} — {% endif %}</dd>
-                </dl>
+          <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="card p-3 h-100">
+              <div class="text-muted small">Days Active</div>
+              <div class="fs-5 fw-semibold">
+                {{ days_active }} days
+              </div>
             </div>
+          </div>
+
+          <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="card p-3 h-100">
+              <div class="text-muted small">Total Spend</div>
+              <div class="fs-5 fw-semibold">
+                R{{ total_spend|floatformat:2|intcomma }}
+              </div>
             </div>
+          </div>
+
+          <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="card p-3 h-100">
+              <div class="text-muted small">Account Type</div>
+              <div class="fs-5 fw-semibold">
+                {{ client.get_account_type_display }}
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="card p-3 h-100">
+              <div class="text-muted small">Compliance</div>
+              <div class="fs-5 fw-semibold">
+                {% if compliance %}
+                  {{ compliance.vetting_status }}
+                {% else %}
+                  Not Started
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="card p-3 h-100">
+              <div class="text-muted small">Spend Rank</div>
+              <div class="fs-5 fw-semibold">
+                #{{ spend_rank }} of {{ total_clients }}
+              </div>
+            </div>
+          </div>
+
         </div>
 
-        <!-- Address & Compliance -->
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100">
-            <div class="card-header bg-white"><strong>Address & Compliance</strong></div>
-            <div class="card-body">
-                <dl class="dl-grid m-0">
-                <dt>Address</dt>
-                <dd>
-                    {% if client.address_line1 or client.city or client.province or client.postal_code %}
-                    {% if client.address_line1 %}{{ client.address_line1 }}{% endif %}
-                    {% if client.address_line2 %}, {{ client.address_line2 }}{% endif %}{% if client.suburb %}, {{ client.suburb }}{% endif %},
-                    {{ client.city }}{% if client.get_province_display %}, {{ client.get_province_display }}{% endif %}{% if client.postal_code %}, {{ client.postal_code }}{% endif %}{% if client.country %}, {{ client.country }}{% endif %}
-                    <div>
-                        <a class="small" target="_blank" rel="noopener"
-                        href="https://www.google.com/maps/search/?api=1&query={{ client.address_line1|urlencode }}+{{ client.suburb|urlencode }}+{{ client.city|urlencode }}+{{ client.get_province_display|urlencode }}+{{ client.postal_code|urlencode }}+{{ client.country|urlencode }}">
-                        Open in Google Maps
-                        </a>
+
+        </div>
+
+        <!-- ================= TABS ================= -->
+        <ul class="nav nav-tabs mb-4" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview">
+              Overview
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#orders">
+              Orders
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#credit">
+              Credit
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#compliance">
+              Compliance
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+
+          <!-- ================= OVERVIEW TAB ================= -->
+          <div class="tab-pane fade show active" id="overview" role="tabpanel">
+            <div class="card shadow-sm">
+
+              <!-- HEADER -->
+              <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                <span>Client Overview</span>
+
+                <a href="{% if can_write %}{% url 'sales:edit-client' client.pk %}{% else %}#{% endif %}"
+                  class="btn btn-outline-primary btn-sm {% if not can_write %}disabled{% endif %}"
+                  title="{% if not can_write %}View-only access{% else %}Edit client details{% endif %}"
+                  {% if not can_write %}aria-disabled="true"{% endif %}>
+                  <i class="bi bi-pencil"></i> Edit
+                </a>
+              </div>
+
+              <div class="card-body">
+
+                <!-- ================= CLIENT IDENTITY ================= -->
+                <div class="row g-4 mb-4">
+                  <div class="col-md-3">
+                    <div class="text-muted small">Client Number</div>
+                    <div class="fw-semibold">{{ client.client_number }}</div>
+                  </div>
+
+                  <div class="col-md-3">
+                    <div class="text-muted small">Status</div>
+                    <span class="badge
+                      {% if client.status == 'ACTIVE' %}bg-success
+                      {% elif client.status == 'INACTIVE' %}bg-danger
+                      {% else %}bg-warning{% endif %}">
+                      {{ client.get_status_display }}
+                    </span>
+                  </div>
+
+                  <div class="col-md-3">
+                    <div class="text-muted small">Client Name</div>
+                    <div class="fw-semibold">
+                      {{ client.organization|default:client.name }}
                     </div>
-                    {% else %} — {% endif %}
-                </dd>
+                  </div>
 
-                <dt>VAT Number</dt>
-                <dd>{{ client.vat_number|default:"—" }}</dd>
+                  <div class="col-md-3">
+                    <div class="text-muted small">Country</div>
+                    <div class="fw-semibold">{{ client.country }}</div>
+                  </div>
+                </div>
 
-                <dt>Company Reg #</dt>
-                <dd>{{ client.company_reg_number|default:"—" }}</dd>
-                </dl>
+                <hr>
+                <!-- ================= CONTACT & COMMUNICATION ================= -->
+                <div class="row g-4 mb-4">
+                  <div class="col-md-4">
+                    <div class="text-muted small">Primary Contact</div>
+                    <div class="fw-semibold">{{ client.contact_person|default:"—" }}</div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Phone</div>
+                    <div class="fw-semibold">
+                      {{ client.phone|default:"—" }}
+                      {% if client.whatsapp %}
+                        <span class="text-muted small">(WhatsApp: {{ client.whatsapp }})</span>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Email</div>
+                    <div class="fw-semibold">
+                      {% if client.email %}
+                        <a href="mailto:{{ client.email }}">{{ client.email }}</a>
+                      {% else %}
+                        —
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row g-4 mb-4">
+                  <div class="col-md-6">
+                    <div class="text-muted small">Account Manager</div>
+                    <div class="fw-semibold">
+                      {{ client.account_manager.get_full_name|default:"Unassigned" }}
+                    </div>
+                  </div>
+                </div>
+
+                <hr>
+
+                <hr>
+
+                <!-- ================= DELIVERY ADDRESS ================= -->
+                <div class="row g-4 mb-3">
+                  <div class="col-md-8">
+                    <div class="text-muted small mb-1">Delivery Address</div>
+                    <div class="fw-semibold">
+                      {{ client.delivery_address_as_line|default:"—" }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small mb-1">Delivery Area</div>
+                    <div>
+                      {{ client.delivery_city|default:client.city|default:"—" }},
+                      {{ client.delivery_province|default:client.province|default:"—" }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ================= DELIVERY GEO ================= -->
+                <div class="row g-4 mb-4">
+                  <div class="col-md-4">
+                    <div class="text-muted small">Latitude</div>
+                    <div class="fw-semibold">
+                      {% if client.delivery_lat %}
+                        {{ client.delivery_lat }}
+                      {% else %}
+                        —
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Longitude</div>
+                    <div class="fw-semibold">
+                      {% if client.delivery_lng %}
+                        {{ client.delivery_lng }}
+                      {% else %}
+                        —
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Map</div>
+                    {% if client.has_delivery_geo %}
+                      <a href="{{ client.google_maps_link }}"
+                        target="_blank"
+                        class="fw-semibold">
+                        View on Google Maps
+                      </a>
+                    {% else %}
+                      <span class="text-muted">Not set</span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <hr>
+
+                <!-- ================= SEGMENTATION ================= -->
+                <div class="row g-4 mb-4">
+                  <div class="col-md-3">
+                    <div class="text-muted small">Client Type</div>
+                    <div class="fw-semibold">
+                      {{ client.get_client_type_display }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-3">
+                    <div class="text-muted small">Size Tier</div>
+                    <div class="fw-semibold">
+                      {{ client.client_size_tier|default:"—" }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-3">
+                    <div class="text-muted small">Pricing Type</div>
+                    <div class="fw-semibold">
+                      {{ client.get_price_type_display|default:"—" }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-3">
+                    <div class="text-muted small">Account Type</div>
+                    <div class="fw-semibold">
+                      {{ client.get_account_type_display }}
+                    </div>
+                  </div>
+                </div>
+
+                <hr>
+
+                <!-- ================= BUSINESS & COMPLIANCE ================= -->
+                <div class="row g-4 mb-4">
+                  <div class="col-md-4">
+                    <div class="text-muted small">Company Registration</div>
+                    <div class="fw-semibold">
+                      {{ client.company_reg_number|default:"—" }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">VAT Number</div>
+                    <div class="fw-semibold">
+                      {{ client.vat_number|default:"—" }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Compliance Status</div>
+                    <div>
+                      {% if compliance %}
+                        <span class="badge
+                          {% if compliance.vetting_status == 'APPROVED' %}bg-success
+                          {% elif compliance.vetting_status == 'REJECTED' %}bg-danger
+                          {% elif compliance.vetting_status == 'IN_REVIEW' %}bg-warning
+                          {% else %}bg-secondary{% endif %}">
+                          {{ compliance.get_vetting_status_display }}
+                        </span>
+                      {% else %}
+                        <span class="badge bg-secondary">Not Started</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+
+                <hr>
+
+                <!-- ================= COMMERCIAL CONTEXT ================= -->
+                <div class="row g-4 mb-4">
+                  <div class="col-md-4">
+                    <div class="text-muted small">Estimated Weekly Spend</div>
+                    <div class="fw-semibold">
+                      {% if client.estimated_weekly_spend %}
+                        R{{ client.estimated_weekly_spend|floatformat:2|intcomma }}
+                      {% else %}
+                        —
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Last Order</div>
+                    <div class="fw-semibold">
+                      {{ client.last_order_at|date:"Y-m-d"|default:"—" }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Client Since</div>
+                    <div class="fw-semibold">
+                      {{ client.created_at|date:"Y-m-d" }}
+                    </div>
+                  </div>
+                </div>
+
+                <hr>
+
+                <!-- ================= SYSTEM INFO ================= -->
+                <div class="row g-4">
+                  <div class="col-md-4">
+                    <div class="text-muted small">Created At</div>
+                    <div class="fw-semibold">{{ client.created_at|date:"Y-m-d H:i" }}</div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Last Updated</div>
+                    <div class="fw-semibold">{{ client.updated_at|date:"Y-m-d H:i" }}</div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="text-muted small">Last Order</div>
+                    <div class="fw-semibold">
+                      {{ client.last_order_at|date:"Y-m-d"|default:"—" }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ================= NOTES ================= -->
+                {% if client.notes %}
+                  <hr>
+                  <div>
+                    <div class="text-muted small mb-1">Internal Notes</div>
+                    <div class="small">
+                      {{ client.notes|linebreaks }}
+                    </div>
+                  </div>
+                {% endif %}
+
+              </div>
             </div>
-            </div>
-        </div>
-        </div>
+          </div>
 
-        <!-- Recent Orders -->
-        <div class="card mt-3">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <strong>Recent Orders</strong>
-            <a href="{% url 'staff-orders' %}?client={{ client.id }}" class="btn btn-sm btn-outline-secondary">View all</a>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-            <table class="table table-sm table-striped table-hover mb-0 align-middle">
-                <thead class="table-light position-sticky top-0" style="z-index:1;">
-                <tr>
-                    <th scope="col" style="width: 170px;">Order Date</th>
-                    <th scope="col" class="text-end" style="width: 170px;">Amount (Incl.)</th>
-                    <th scope="col" style="width: 160px;">Status</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if orders %}
+
+
+
+
+
+          <!-- ================= ORDERS TAB ================= -->
+          <div class="tab-pane fade" id="orders">
+            <div class="card shadow-sm">
+              <div class="card-header fw-semibold">
+                Recent Orders
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Date</th>
+                      <th>Status</th>
+                      <th class="text-end">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {% for o in orders %}
                     <tr>
-                        <td>{{ o.order_date|date:"Y-m-d H:i" }}</td>
-                        <td class="text-end">R{{ o.grand_total_inc|floatformat:2|intcomma }}</td>
-                        <td>
-                        {% if o.status == "approved" %}
-                            <span class="badge bg-primary">Approved</span>
-                        {% elif o.status == "ready_for_delivery" %}
-                            <span class="badge bg-info text-dark">Ready for Delivery</span>
-                        {% elif o.status == "out_for_delivery" %}
-                            <span class="badge bg-warning text-dark">Out for Delivery</span>
-                        {% elif o.status == "complete" %}
-                            <span class="badge bg-success">Complete</span>
-                        {% elif o.status == "returned" %}
-                            <span class="badge bg-secondary">Returned</span>
-                        {% elif o.status == "cancelled" %}
-                            <span class="badge bg-dark">Cancelled</span>
-                        {% else %}
-                            <span class="badge bg-secondary text-light">Pending</span>
-                        {% endif %}
-                        </td>
+                      <td>{{ o.order_date|date:"Y-m-d" }}</td>
+                      <td>{{ o.get_status_display }}</td>
+                      <td class="text-end">
+                        R{{ o.grand_total_inc|floatformat:2|intcomma }}
+                      </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="3" class="text-center text-muted py-3">
+                        No orders found.
+                      </td>
                     </tr>
                     {% endfor %}
-                {% else %}
-                    <tr>
-                    <td colspan="3" class="p-3 text-muted">No orders yet.</td>
-                    </tr>
-                {% endif %}
-                </tbody>
-            </table>
+                  </tbody>
+                </table>
+              </div>
             </div>
-        </div>
-        </div>
+          </div>
 
-        <!-- Categories -->
-        <div class="card mt-3">
-        <div class="card-header bg-white"><strong>Categories</strong></div>
-        <div class="card-body">
-            {% with cats=client.categories.all %}
-            {% if cats %}
-                {% for cat in cats %}
-                <span class="badge badge-cat me-1 mb-1">{{ cat.name }}</span>
-                {% empty %}
-                <span class="text-muted">No categories selected.</span>
-                {% endfor %}
-            {% else %}
-                <span class="text-muted">No categories selected.</span>
-            {% endif %}
-            {% endwith %}
-        </div>
-        </div>
+          <!-- ================= CREDIT TAB ================= -->
+          <div class="tab-pane fade" id="credit" role="tabpanel">
+            <div class="card shadow-sm">
+              <div class="card-body">
 
-        <!-- Notes -->
-        <div class="card mt-3">
-        <div class="card-header bg-white"><strong>Notes</strong></div>
-        <div class="card-body">
-            {% if client.notes %}
-            <div class="text-wrap" style="white-space:pre-line">{{ client.notes }}</div>
-            {% else %}
-            <span class="text-muted">No notes added.</span>
-            {% endif %}
-        </div>
-        </div>
+                {% if credit_account %}
 
+                  <!-- CREDIT KPIs -->
+                  <div class="row g-3 mb-3">
+
+                    <!-- Credit Limit -->
+                    <div class="col-md-4">
+                      <div class="card h-100 p-3">
+                        <div class="text-muted small">Credit Limit</div>
+                        <div class="fs-5 fw-semibold">
+                          R{{ credit_account.credit_limit|floatformat:2|intcomma }}
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Outstanding -->
+                    <div class="col-md-4">
+                      <div class="card h-100 p-3">
+                        <div class="text-muted small">Outstanding</div>
+                        <div class="fs-5 fw-semibold text-danger">
+                          R{{ credit_account.credit_used|default:"0.00"|floatformat:2|intcomma }}
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Utilisation -->
+                    <div class="col-md-4">
+                      <div class="card h-100 p-3">
+                        <div class="text-muted small">Utilisation</div>
+
+                        {% if credit_utilization_pct is not None %}
+                          <div class="fs-5 fw-semibold
+                            {% if credit_utilization_status == 'Healthy' %}text-success
+                            {% elif credit_utilization_status == 'Watch' %}text-warning
+                            {% elif credit_utilization_status == 'High Risk' %}text-danger
+                            {% else %}text-danger fw-bold{% endif %}">
+                            {{ credit_utilization_pct|floatformat:1 }}%
+                          </div>
+
+                          <div class="small text-muted">
+                            {{ credit_utilization_status }}
+                          </div>
+                        {% else %}
+                          <div class="text-muted">—</div>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                  </div>
+
+                  
+                  
+
+                {% else %}
+                  <!-- NO CREDIT ACCOUNT -->
+                  <div class="alert alert-light text-muted text-center mb-0">
+                    This client does not have a credit account.
+                  </div>
+                {% endif %}
+
+              </div>
+            </div>
+          </div>
+
+          <!-- ================= COMPLIANCE TAB ================= -->
+          <div class="tab-pane fade" id="compliance" role="tabpanel">
+            <div class="card shadow-sm">
+
+              <!-- HEADER -->
+              <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                  <span>Compliance Documents</span>
+                  <span class="badge bg-info">
+                    {{ compliance_completion_pct|floatformat:0 }}% complete
+                  </span>
+                </div>
+
+                <a href="#"
+                  class="btn btn-outline-primary btn-sm disabled"
+                  aria-disabled="true"
+                  title="Compliance editing is not available yet">
+                  <i class="bi bi-pencil"></i> Edit
+                </a>
+
+
+              </div>
+
+              <!-- TABLE -->
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Document</th>
+                      <th>Status</th>
+                      <th>Uploaded</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for d in compliance_documents %}
+                    <tr>
+                      <td>{{ d.get_document_type_display }}</td>
+                      <td>
+                        {% if d.is_verified %}
+                          <span class="badge bg-success">Verified</span>
+                        {% else %}
+                          <span class="badge bg-warning">Pending</span>
+                        {% endif %}
+                      </td>
+                      <td class="small text-muted">
+                        {{ d.uploaded_at|date:"Y-m-d"|default:"—" }}
+                      </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="3" class="text-center text-muted py-3">
+                        No compliance records found.
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          </div>
+
+
+        </div>
+      </div>
     </main>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

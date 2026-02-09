@@ -141,137 +141,161 @@
 
   <!-- MAIN CONTENT -->
   <main class="content">
-    <div class="container-fluid">
+   
+  
+    <h2 class="text-center">Clients</h2>
 
-      <!-- Centered header + add button -->
-      <div class="page-header">
-        <h2 class="mb-0">Clients</h2>
-        
-      </div>
+    
 
-      {% if success_message %}
-        <div class="alert alert-success">{{ success_message }}</div>
-      {% endif %}
-      {% if error_message %}
-        <div class="alert alert-danger">{{ error_message }}</div>
-      {% endif %}
+    {% if success_message %}
+      <div class="alert alert-success">{{ success_message }}</div>
+    {% endif %}
+    {% if error_message %}
+      <div class="alert alert-danger">{{ error_message }}</div>
+    {% endif %}
 
-      <div class="card shadow-sm mb-3">
-        <div class="card-header bg-white py-2">
-          <form method="get" class="row g-2 align-items-end">
-            <div class="col-md-4">
-              <label for="search" class="form-label mb-1">Search</label>
-              <input type="text" id="search" name="q" class="form-control" placeholder="Name, contact, org, phone, email..." value="{{ request.GET.q|default_if_none:'' }}">
-            </div>
-
-            <div class="col-md-3">
-              <label for="status" class="form-label mb-1">Status</label>
-              <select id="status" name="status" class="form-select">
-                <option value="">All</option>
-                <option value="ACTIVE" {% if request.GET.status == 'ACTIVE' %}selected{% endif %}>Active</option>
-                <option value="INACTIVE" {% if request.GET.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
-                <option value="PENDING" {% if request.GET.status == 'PENDING' %}selected{% endif %}>Pending</option>
-              </select>
-            </div>
-
-            <div class="col-md-3">
-              <label for="account_type" class="form-label mb-1">Account</label>
-              <select id="account_type" name="account_type" class="form-select">
-                <option value="">All</option>
-                <option value="CASH" {% if request.GET.account_type == 'CASH' %}selected{% endif %}>Cash</option>
-                <option value="CREDIT" {% if request.GET.account_type == 'CREDIT' %}selected{% endif %}>Credit</option>
-              </select>
-            </div>
-
-            <div class="col-md-2 text-md-end">
-              <button type="submit" class="btn btn-outline-success w-100">Apply</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-striped table-bordered mb-0 align-middle">
-              <thead>
-                <tr>
-                  <th style="font-size:13px;">#</th>
-                  <th style="font-size:13px;">Client #</th>
-                  <th style="font-size:13px;">Name / Organization</th>
-                  <th style="font-size:13px;">Contact</th>
-                  <th style="font-size:13px;">Phone</th>
-                  <th style="font-size:13px;">Email</th>
-                  <th style="font-size:13px;">Province</th>
-                  <th style="font-size:13px;">Account</th>
-                  <th style="font-size:13px;">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% if clients %}
-                  {% for cl in clients %}
-                    <tr role="button" onclick="window.location.href='{% url 'sales:client-detail' cl.pk %}'">
-                      <td>{{ forloop.counter }}</td>
-                      <td>{{ cl.client_number }}</td>
-                      <td><strong>{{ cl.name }}</strong><br><small class="text-muted">{{ cl.organization|default:"-" }}</small></td>
-                      <td>{{ cl.contact_person|default:"-" }}</td>
-                      <td>{{ cl.phone|default:"-" }}</td>
-                      <td>{% if cl.email %}<a href="mailto:{{ cl.email }}">{{ cl.email }}</a>{% else %}-{% endif %}</td>
-                      <td>{{ cl.get_province_display|default:"-" }}</td>
-                      <td>
-                        <span class="badge bg-{% if cl.account_type == 'CREDIT' %}info{% else %}secondary{% endif %}">
-                          {{ cl.get_account_type_display }}
-                        </span>
-                        {% if cl.account_type == 'CREDIT' %}
-                          <div class="small mt-1">
-                            <span class="badge bg-{% if cl.credit_status == 'ACTIVE' %}success{% elif cl.credit_status == 'PENDING' %}warning{% else %}secondary{% endif %}">
-                              {{ cl.get_credit_status_display }}
-                            </span>
-                          </div>
-                        {% endif %}
-                      </td>
-                      <td>
-                        <span class="badge
-                          {% if cl.status == 'ACTIVE' %}bg-success
-                          {% elif cl.status == 'PENDING' %}bg-warning
-                          {% else %}bg-secondary{% endif %}">
-                          {{ cl.get_status_display }}
-                        </span>
-                      </td>
-                    </tr>
-                  {% endfor %}
-                {% else %}
-                  <tr>
-                    <td colspan="9" class="text-center text-muted py-3" style="font-size:13px;">No clients found. Try changing your filters.</td>
-                  </tr>
-                {% endif %}
-              </tbody>
-            </table>
+    <div class="card shadow-sm">
+      <div class="card-header bg-white py-2">
+        <form method="get" class="row g-2 align-items-end">
+          <div class="col-lg-2 col-md-6">
+            <input type="text" name="search" class="form-control form-control-sm"
+                   placeholder="Search by name, org, contact, phone, email, suburb, city…"
+                   value="{{ request.GET.search|default:'' }}">
           </div>
-        </div>
+
+          <div class="col-lg-2 col-md-6">
+            <select name="credit_status" class="form-select form-select-sm">
+              <option value="">Credit: All</option>
+              {% for key,label in credit_statuses %}
+                <option value="{{ key }}" {% if request.GET.credit_status == key %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-lg-2 col-md-6">
+            <select name="status" class="form-select form-select-sm">
+              <option value="">Status: All</option>
+              {% for key,label in statuses %}
+                <option value="{{ key }}" {% if request.GET.status == key %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-lg-3 col-md-6">
+            <select name="category" class="form-select form-select-sm">
+              <option value="">All Categories</option>
+              {% for c in filter_categories %}
+                <option value="{{ c.id }}" {% if request.GET.category == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-lg-3 col-md-6 d-flex gap-2 justify-content-end">
+            <button type="submit" class="btn btn-sm btn-primary px-3">Filter</button>
+            <a href="{% url 'staff-clients' %}" class="btn btn-sm btn-outline-secondary px-3">Clear</a>
+          </div>
+        </form>
       </div>
 
-      {# Pagination #}
-      {% if page_obj %}
-        <nav class="d-flex justify-content-end" aria-label="Pagination">
-          <ul class="pagination">
-            {% if page_obj.has_previous %}
-              <li class="page-item">
-                <a class="page-link" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
-              </li>
-            {% else %}
-              <li class="page-item disabled"><span class="page-link">Previous</span></li>
-            {% endif %}
-            <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
-            {% if page_obj.has_next %}
-              <li class="page-item">
-                <a class="page-link" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
-              </li>
-            {% else %}
-              <li class="page-item disabled"><span class="page-link">Next</span></li>
-            {% endif %}
-          </ul>
-        </nav>
-      {% endif %}
+      <div class="card-body">
+        <div class="table-container">
+          <table class="table table-striped table-bordered mb-0">
+            <thead>
+              <tr>
+                <th style="width:5%; font-size:13px;">#</th>
+                <th style="width:10%; font-size:13px;">Client #</th>
+                <th style="width:18%; font-size:13px;">Name / Org</th>
+                <th style="width:12%; font-size:13px;">Contact</th>
+                <th style="width:12%; font-size:13px;">Phone</th>
+                <th style="width:16%; font-size:13px;">Email</th>
+                <th style="width:10%; font-size:13px;">Province</th>
+                <th style="width:9%; font-size:13px;">Acct</th>
+                <th style="width:8%; font-size:13px;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if clients %}
+                {% for cl in clients %}
+                  <tr role="button"
+                      onclick="window.location.href='{% url 'sales:client-detail' cl.pk %}'">
 
+                    <!-- Row number -->
+                    <td style="font-size:13px;">{{ forloop.counter }}</td>
+
+                    <!-- Client number -->
+                    <td style="font-size:13px;">{{ cl.client_number }}</td>
+
+                    <!-- Name / Org -->
+                    <td style="font-size:13px;">
+                      <div class="fw-medium">{{ cl.name }}</div>
+                      {% if cl.organization %}
+                        <div class="text-muted small">{{ cl.organization }}</div>
+                      {% endif %}
+                    </td>
+
+                    <!-- Contact -->
+                    <td style="font-size:13px;">
+                      {{ cl.contact_person|default:"—" }}
+                    </td>
+
+                    <!-- Phone -->
+                    <td style="font-size:13px;">
+                      {{ cl.phone|default:"—" }}
+                    </td>
+
+                    <!-- Email -->
+                    <td style="font-size:13px;">
+                      {% if cl.email %}
+                        <a href="mailto:{{ cl.email }}">{{ cl.email }}</a>
+                      {% else %}
+                        —
+                      {% endif %}
+                    </td>
+
+                    <!-- Province -->
+                    <td style="font-size:13px;">
+                      {{ cl.get_province_display|default:"—" }}
+                    </td>
+
+                    <!-- Account -->
+                    <td style="font-size:13px;">
+                      <span class="badge bg-{% if cl.account_type == 'CREDIT' %}info{% else %}secondary{% endif %}">
+                        {{ cl.get_account_type_display }}
+                      </span>
+
+                      {% if cl.account_type == 'CREDIT' %}
+                        <div class="small mt-1">
+                          <span class="badge bg-{% if cl.credit_status == 'ACTIVE' %}success{% elif cl.credit_status == 'PENDING' %}warning{% else %}secondary{% endif %}">
+                            {{ cl.get_credit_status_display }}
+                          </span>
+                        </div>
+                      {% endif %}
+                    </td>
+
+                    <!-- Status -->
+                    <td style="font-size:13px;">
+                      <span class="badge
+                        {% if cl.status == 'ACTIVE' %}bg-success
+                        {% elif cl.status == 'PENDING' %}bg-warning
+                        {% else %}bg-secondary{% endif %}">
+                        {{ cl.get_status_display }}
+                      </span>
+                    </td>
+
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="9" class="text-center text-muted">
+                    No clients found.
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+
+          </table>
+        </div>
+      </div>
     </div>
   </main>
 

@@ -265,23 +265,67 @@
         <!-- ================= Identity & Ownership ================= -->
         <div class="col-lg-6 form-section">
           <div class="card">
-            <div class="card-header"><strong>Identity & Ownership</strong></div>
+            <div class="card-header">
+              <strong>Identity & Ownership</strong>
+            </div>
+
             <div class="card-body">
+
+              <!-- Client number (read-only) -->
               <div class="mb-3">
                 <label class="form-label">Client Number</label>
-                <input type="text" class="form-control" value="{{ client.client_number }}" readonly />
+                <input
+                  type="text"
+                  class="form-control"
+                  value="{{ client.client_number }}"
+                  readonly
+                />
               </div>
 
-              <div class="mb-3">
+              <div class="row g-3">
+
+                <!-- Entity type -->
+                <div class="col-md-6">
+                  {{ form.entity_type.label_tag }}
+                  {{ form.entity_type }}
+                  {% if form.entity_type.errors %}
+                    <div class="text-danger small">
+                      {{ form.entity_type.errors }}
+                    </div>
+                  {% endif %}
+                </div>
+
+                <!-- Registration / ID -->
+                <div class="col-md-6">
+                  {{ form.registration_identifier.label_tag }}
+                  {{ form.registration_identifier }}
+                  {% if form.registration_identifier.errors %}
+                    <div class="text-danger small">
+                      {{ form.registration_identifier.errors }}
+                    </div>
+                  {% endif %}
+                </div>
+
+              </div>
+
+              <div class="mb-3 mt-3">
                 <label class="form-label">Name</label>
                 {{ form.name }}
-                {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+                {% if form.name.errors %}
+                  <div class="text-danger small">
+                    {{ form.name.errors }}
+                  </div>
+                {% endif %}
               </div>
 
               <div class="mb-3">
-                <label class="form-label">Organization</label>
+                <label class="form-label">Trading As</label>
                 {{ form.organization }}
-                {% if form.organization.errors %}<div class="text-danger small">{{ form.organization.errors }}</div>{% endif %}
+                {% if form.organization.errors %}
+                  <div class="text-danger small">
+                    {{ form.organization.errors }}
+                  </div>
+                {% endif %}
               </div>
 
               <div class="row g-3">
@@ -294,9 +338,11 @@
                   {{ form.client_size_tier }}
                 </div>
               </div>
+
             </div>
           </div>
         </div>
+
 
         <!-- ================= Contact ================= -->
         <div class="col-lg-6 form-section">
@@ -347,6 +393,62 @@
           </div>
         </div>
 
+        <!-- ================= Delivery Address ================= -->
+        <div class="col-lg-6 form-section">
+          <div class="card">
+            <div class="card-header">
+              <strong>Delivery Address</strong>
+            </div>
+            <div class="card-body">
+              <div class="form-check mb-3">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="sameAsBusinessAddress"
+                >
+                <label class="form-check-label" for="sameAsBusinessAddress">
+                  Delivery address same as business address
+                </label>
+              </div>
+
+
+              {{ form.delivery_address_line1.label_tag }}
+              {{ form.delivery_address_line1 }}
+
+              {{ form.delivery_address_line2.label_tag }}
+              {{ form.delivery_address_line2 }}
+
+              <div class="row g-3 mt-2">
+                <div class="col-md-4">
+                  {{ form.delivery_suburb.label_tag }}
+                  {{ form.delivery_suburb }}
+                </div>
+                <div class="col-md-4">
+                  {{ form.delivery_city.label_tag }}
+                  {{ form.delivery_city }}
+                </div>
+                <div class="col-md-4">
+                  {{ form.delivery_province.label_tag }}
+                  {{ form.delivery_province }}
+                </div>
+              </div>
+
+              <div class="row g-3 mt-2">
+                <div class="col-md-6">
+                  {{ form.delivery_postal_code.label_tag }}
+                  {{ form.delivery_postal_code }}
+                </div>
+                <div class="col-md-6">
+                  {{ form.delivery_country.label_tag }}
+                  {{ form.delivery_country }}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+
         <!-- ================= Delivery Geo ================= -->
         <div class="col-lg-6 form-section">
           <div class="card">
@@ -390,6 +492,28 @@
           </div>
         </div>
 
+        <!-- ================= Compliance ================= -->
+        <div class="col-lg-6 form-section">
+          <div class="card">
+            <div class="card-header">
+              <strong>Compliance</strong>
+            </div>
+            <div class="card-body">
+
+              <div class="row g-3">
+                <div class="col-md-6">
+                  {{ form.vat_number.label_tag }}
+                  {{ form.vat_number }}
+                </div>
+
+                
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+
         <!-- ================= Notes ================= -->
         <div class="col-12 form-section">
           <div class="card">
@@ -408,6 +532,54 @@
       </div>
     </form>
   </main>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const checkbox = document.getElementById("sameAsBusinessAddress");
+
+    if (!checkbox) return;
+
+    const map = [
+      ["address_line1", "delivery_address_line1"],
+      ["address_line2", "delivery_address_line2"],
+      ["suburb", "delivery_suburb"],
+      ["city", "delivery_city"],
+      ["province", "delivery_province"],
+      ["postal_code", "delivery_postal_code"],
+      ["country", "delivery_country"],
+    ];
+
+    function copyAndLock(copyValues) {
+      map.forEach(([from, to]) => {
+        const source = document.getElementById(`id_${from}`);
+        const target = document.getElementById(`id_${to}`);
+
+        if (!source || !target) return;
+
+        if (copyValues) {
+          target.value = source.value;
+          target.setAttribute("readonly", true);
+          target.setAttribute("disabled", true);
+        } else {
+          target.removeAttribute("readonly");
+          target.removeAttribute("disabled");
+        }
+      });
+    }
+
+    // ✅ HANDLE EDIT PAGE LOAD
+    if (checkbox.checked) {
+      copyAndLock(true);
+    }
+
+    // ✅ HANDLE USER TOGGLE
+    checkbox.addEventListener("change", function () {
+      copyAndLock(this.checked);
+    });
+  });
+  </script>
+
+
 
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
