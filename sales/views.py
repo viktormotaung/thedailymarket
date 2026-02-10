@@ -37,7 +37,7 @@ from credit.models import CreditAccount
 from clients.forms import ClientEditForm
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
-
+from .forms import SalesJobApplicationForm
 User = get_user_model()
 DAY_OPTIONS = [7, 14, 30, 60]
 
@@ -2505,3 +2505,35 @@ def view_ticket(request, pk):
 @login_required
 def profile(request):
     return render(request, "profile/profile.html")
+
+
+def sales_job(request):
+    """
+    Public job application page for The Daily Market sales roles.
+    """
+
+    if request.method == "POST":
+        form = SalesJobApplicationForm(request.POST)
+
+        if form.is_valid():
+            application = form.save()
+
+            return render(
+                request,
+                "jobs/sales_job_thank_you.html",
+                {
+                    "application": application
+                }
+            )
+    else:
+        form = SalesJobApplicationForm()
+
+    return render(
+        request,
+        "jobs/sales_job.html",
+        {"form": form},
+    )
+
+
+def sales_job_thank_you(request):
+    return render(request, "jobs/sales_job_thank_you.html")

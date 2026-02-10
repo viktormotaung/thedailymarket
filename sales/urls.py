@@ -89,6 +89,17 @@ urlpatterns = [
     # Sales rep profile
     path("profile/", views.profile, name="sales-profile"),
 
-    
+    path(
+        "jobs/sales-representative/",
+        views.sales_job,
+        name="sales-job",
+    ), 
+
+    path(
+        "sales-job/thank-you/",
+        views.sales_job_thank_you,
+        name="sales-job-thank-you",
+    ),
+
 
 ]

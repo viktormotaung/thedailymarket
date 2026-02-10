@@ -1,0 +1,623 @@
+{% load static %}
+{% load widget_tweaks %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sales Jobs – The Daily Market</title>
+
+  <!-- Bootstrap -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+
+  <!-- Page-specific styles only -->
+  <style>
+    .sales-jobs-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .jobs-top {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 2rem;
+    }
+
+    @media (max-width: 991px) {
+      .jobs-top {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .job-card {
+      padding: 1.5rem;
+      border-right: 1px solid #ddd;
+    }
+
+    .job-card:last-child {
+      border-right: none;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 1rem;
+    }
+
+    .rem-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+
+    .rem-table th,
+    .rem-table td {
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      text-align: left;
+    }
+
+    .note {
+      font-weight: 600;
+      color: #b00020;
+    }
+
+    .jobs-bottom {
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="sales-jobs-container">
+    <!-- ================= PAGE HEADER ================= -->
+  <div class="mb-4 text-center">
+    <h1 class="mb-1">Sales Opportunities</h1>
+    <p class="text-muted mb-0">
+      Join The Daily Market sales team
+    </p>
+  </div>
+    
+    <!-- ================= TOP ROW ================= -->
+    <div class="jobs-top">
+
+        <!-- ================= SALES SUPERVISOR ================= -->
+        <section class="job-card">
+        <h2>Sales Supervisor</h2>
+        <p class="subtitle">Full Role &amp; Remuneration Spec</p>
+
+        <h5>Role Purpose</h5>
+        <p>
+            Build, manage, and stabilise a field sales team that delivers
+            consistent, paying clients and predictable revenue.
+        </p>
+
+        <h5>Core Responsibilities</h5>
+        <ul>
+            <li>Recruit, onboard, and manage Sales Representatives</li>
+            <li>Set weekly sales and activity targets</li>
+            <li>Coach reps in the field</li>
+            <li>Oversee key client accounts</li>
+            <li>Enforce pricing and payment discipline</li>
+        </ul>
+
+        <h5>Earned Basic (Monthly)</h5>
+        <table class="rem-table">
+            <thead>
+            <tr>
+                <th>Consistent Clients</th>
+                <th>Earned Basic</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr><td>0 – 4</td><td>R0</td></tr>
+            <tr><td>5 – 9</td><td>R2,500</td></tr>
+            <tr><td>10 – 14</td><td>R5,000</td></tr>
+            <tr><td>15 – 19</td><td>R7,500</td></tr>
+            <tr><td>20+</td><td>R10,000</td></tr>
+            </tbody>
+        </table>
+
+        
+        </section>
+
+        <!-- ================= SALES REPRESENTATIVE ================= -->
+        <section class="job-card">
+        <h2>Sales Representative</h2>
+        <p class="subtitle">Full Role &amp; Remuneration Spec</p>
+
+        <h5>Role Purpose</h5>
+        <p>
+            Acquire new clients, manage assigned accounts,
+            and drive repeat orders in the field.
+        </p>
+
+        <h5>Core Responsibilities</h5>
+        <ul>
+            <li>Prospect and approach potential clients</li>
+            <li>Convert leads into paying clients</li>
+            <li>Maintain assigned client relationships</li>
+            <li>Drive repeat ordering</li>
+            <li>Follow up on payments</li>
+        </ul>
+
+        <h5>Remuneration</h5>
+        <p class="mb-1">
+            <strong>Probation:</strong> Commission only
+        </p>
+        <p class="mb-0">
+            <strong>Commission:</strong> Paid on net paid sales
+        </p>
+        </section>
+    </div>
+
+    <div class="jobs-bottom">
+
+        <section class="application-section">
+            <h2>Apply for This Opportunity</h2>
+            <p class="text-muted mb-4">
+            Please complete the form below. There are no right or wrong answers —
+            we are interested in how you think and work.
+            </p>
+
+            <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <div class="row g-3">
+
+                <!-- ================= PERSONAL INFORMATION ================= -->
+                <div class="col-lg-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header"><strong>Personal Information</strong></div>
+                    <div class="card-body">
+
+                    <div class="row g-3">
+
+                        <!-- First Name -->
+                        <div class="col-md-6">
+                        <label class="form-label">First name</label>
+                        {% if form.is_bound %}
+                            {% if form.first_name.errors %}
+                            {{ form.first_name|add_class:"is-invalid" }}
+                            {% else %}
+                            {{ form.first_name|add_class:"is-valid" }}
+                            {% endif %}
+                        {% else %}
+                            {{ form.first_name }}
+                        {% endif %}
+                        {% for error in form.first_name.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                        </div>
+
+                        <!-- Last Name -->
+                        <div class="col-md-6">
+                        <label class="form-label">Last name</label>
+                        {% if form.is_bound %}
+                            {% if form.last_name.errors %}
+                            {{ form.last_name|add_class:"is-invalid" }}
+                            {% else %}
+                            {{ form.last_name|add_class:"is-valid" }}
+                            {% endif %}
+                        {% else %}
+                            {{ form.last_name }}
+                        {% endif %}
+                        {% for error in form.last_name.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                        </div>
+
+                    </div>
+
+                    <!-- Email -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-12">
+                            <label class="form-label">Email address</label>
+                            {% if form.is_bound %}
+                            {% if form.email.errors %}
+                                {{ form.email|add_class:"is-invalid" }}
+                            {% else %}
+                                {{ form.email|add_class:"is-valid" }}
+                            {% endif %}
+                            {% else %}
+                            {{ form.email }}
+                            {% endif %}
+                            {% for error in form.email.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+
+
+                    <div class="row g-3 mt-2">
+
+                        <!-- DOB -->
+                        <div class="col-md-6">
+                        <label class="form-label">Date of birth</label>
+                        {% if form.is_bound %}
+                            {% if form.date_of_birth.errors %}
+                            {{ form.date_of_birth|add_class:"is-invalid" }}
+                            {% else %}
+                            {{ form.date_of_birth|add_class:"is-valid" }}
+                            {% endif %}
+                        {% else %}
+                            {{ form.date_of_birth }}
+                        {% endif %}
+                        {% for error in form.date_of_birth.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                        </div>
+
+                        <!-- Nationality -->
+                        <div class="col-md-6">
+                        <label class="form-label">Nationality</label>
+                        {% if form.is_bound %}
+                            {% if form.nationality.errors %}
+                            {{ form.nationality|add_class:"is-invalid" }}
+                            {% else %}
+                            {{ form.nationality|add_class:"is-valid" }}
+                            {% endif %}
+                        {% else %}
+                            {{ form.nationality }}
+                        {% endif %}
+                        {% for error in form.nationality.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                        </div>
+
+                    </div>
+
+                    <div class="row g-3 mt-2">
+
+                        <!-- Province -->
+                        <div class="col-md-6">
+                        <label class="form-label">Province</label>
+                        {% if form.is_bound %}
+                            {% if form.province.errors %}
+                            {{ form.province|add_class:"is-invalid" }}
+                            {% else %}
+                            {{ form.province|add_class:"is-valid" }}
+                            {% endif %}
+                        {% else %}
+                            {{ form.province }}
+                        {% endif %}
+                        {% for error in form.province.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                        </div>
+
+                        <!-- Town -->
+                        <div class="col-md-6">
+                        <label class="form-label">Town / City</label>
+                        {% if form.is_bound %}
+                            {% if form.town_or_city.errors %}
+                            {{ form.town_or_city|add_class:"is-invalid" }}
+                            {% else %}
+                            {{ form.town_or_city|add_class:"is-valid" }}
+                            {% endif %}
+                        {% else %}
+                            {{ form.town_or_city }}
+                        {% endif %}
+                        {% for error in form.town_or_city.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                        </div>
+
+                    </div>
+
+                    <div class="row g-3 mt-2">
+
+                        <!-- Suburb -->
+                        <div class="col-md-6">
+                        <label class="form-label">Suburb</label>
+                        {% if form.is_bound %}
+                            {% if form.suburb.errors %}
+                            {{ form.suburb|add_class:"is-invalid" }}
+                            {% else %}
+                            {{ form.suburb|add_class:"is-valid" }}
+                            {% endif %}
+                        {% else %}
+                            {{ form.suburb }}
+                        {% endif %}
+                        {% for error in form.suburb.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                        </div>
+
+                        <!-- Grew Up -->
+                        <div class="col-md-6">
+                        <label class="form-label">Where did you grow up?</label>
+                        {% if form.is_bound %}
+                            {% if form.where_grew_up.errors %}
+                            {{ form.where_grew_up|add_class:"is-invalid" }}
+                            {% else %}
+                            {{ form.where_grew_up|add_class:"is-valid" }}
+                            {% endif %}
+                        {% else %}
+                            {{ form.where_grew_up }}
+                        {% endif %}
+                        {% for error in form.where_grew_up.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                        </div>
+
+                    </div>
+
+                    </div>
+                </div>
+                </div>
+                <!-- ================= SALES BACKGROUND ================= -->
+                <div class="col-lg-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header"><strong>Sales Background</strong></div>
+                    <div class="card-body">
+
+                    <div class="mb-3">
+                        <label class="form-label">Describe your sales experience</label>
+                        {% if form.is_bound %}
+                        {% if form.sales_experience_summary.errors %}
+                            {{ form.sales_experience_summary|add_class:"is-invalid" }}
+                        {% else %}
+                            {{ form.sales_experience_summary|add_class:"is-valid" }}
+                        {% endif %}
+                        {% else %}
+                        {{ form.sales_experience_summary }}
+                        {% endif %}
+                        {% for error in form.sales_experience_summary.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Where have you worked before?</label>
+                        {% if form.is_bound %}
+                        {% if form.previous_workplaces.errors %}
+                            {{ form.previous_workplaces|add_class:"is-invalid" }}
+                        {% else %}
+                            {{ form.previous_workplaces|add_class:"is-valid" }}
+                        {% endif %}
+                        {% else %}
+                        {{ form.previous_workplaces }}
+                        {% endif %}
+                        {% for error in form.previous_workplaces.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">What responsibilities did you have?</label>
+                        {% if form.is_bound %}
+                        {% if form.responsibilities.errors %}
+                            {{ form.responsibilities|add_class:"is-invalid" }}
+                        {% else %}
+                            {{ form.responsibilities|add_class:"is-valid" }}
+                        {% endif %}
+                        {% else %}
+                        {{ form.responsibilities }}
+                        {% endif %}
+                        {% for error in form.responsibilities.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label">What did you learn from these roles?</label>
+                        {% if form.is_bound %}
+                        {% if form.lessons_learned.errors %}
+                            {{ form.lessons_learned|add_class:"is-invalid" }}
+                        {% else %}
+                            {{ form.lessons_learned|add_class:"is-valid" }}
+                        {% endif %}
+                        {% else %}
+                        {{ form.lessons_learned }}
+                        {% endif %}
+                        {% for error in form.lessons_learned.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    </div>
+                </div>
+                </div>
+                <!-- ================= SALES THINKING ================= -->
+                <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header"><strong>Sales Thinking (FMCG)</strong></div>
+                    <div class="card-body">
+
+                    <!-- Client Identification -->
+                    <div class="mb-3">
+                        <label class="form-label">How would you identify potential clients?</label>
+                        {% if form.is_bound %}
+                        {% if form.client_identification_strategy.errors %}
+                            {{ form.client_identification_strategy|add_class:"is-invalid" }}
+                        {% else %}
+                            {{ form.client_identification_strategy|add_class:"is-valid" }}
+                        {% endif %}
+                        {% else %}
+                        {{ form.client_identification_strategy }}
+                        {% endif %}
+                        {% for error in form.client_identification_strategy.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Pitching -->
+                    <div class="mb-3">
+                        <label class="form-label">How would you pitch FMCG products?</label>
+                        {% if form.is_bound %}
+                        {% if form.pitching_strategy.errors %}
+                            {{ form.pitching_strategy|add_class:"is-invalid" }}
+                        {% else %}
+                            {{ form.pitching_strategy|add_class:"is-valid" }}
+                        {% endif %}
+                        {% else %}
+                        {{ form.pitching_strategy }}
+                        {% endif %}
+                        {% for error in form.pitching_strategy.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Conversion -->
+                    <div class="mb-3">
+                        <label class="form-label">How do you convert prospects into clients?</label>
+                        {% if form.is_bound %}
+                        {% if form.conversion_strategy.errors %}
+                            {{ form.conversion_strategy|add_class:"is-invalid" }}
+                        {% else %}
+                            {{ form.conversion_strategy|add_class:"is-valid" }}
+                        {% endif %}
+                        {% else %}
+                        {{ form.conversion_strategy }}
+                        {% endif %}
+                        {% for error in form.conversion_strategy.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Client Management -->
+                    <div class="mb-0">
+                        <label class="form-label">How would you manage and retain clients?</label>
+                        {% if form.is_bound %}
+                        {% if form.client_management_strategy.errors %}
+                            {{ form.client_management_strategy|add_class:"is-invalid" }}
+                        {% else %}
+                            {{ form.client_management_strategy|add_class:"is-valid" }}
+                        {% endif %}
+                        {% else %}
+                        {{ form.client_management_strategy }}
+                        {% endif %}
+                        {% for error in form.client_management_strategy.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    </div>
+                </div>
+                </div>
+
+                <!-- ================= RESOURCES ================= -->
+                <div class="col-lg-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header"><strong>Resources</strong></div>
+                    <div class="card-body">
+
+                    <div class="mb-3">
+                        <label class="form-label">What resources do you need to perform well?</label>
+                        {% if form.is_bound %}
+                        {% if form.resources_needed.errors %}
+                            {{ form.resources_needed|add_class:"is-invalid" }}
+                        {% else %}
+                            {{ form.resources_needed|add_class:"is-valid" }}
+                        {% endif %}
+                        {% else %}
+                        {{ form.resources_needed }}
+                        {% endif %}
+                        {% for error in form.resources_needed.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="form-check mb-2">
+                        {{ form.has_drivers_license }} <label class="form-check-label">Valid driver’s license</label>
+                    </div>
+
+                    <div class="form-check mb-2">
+                        {{ form.has_vehicle_access }} <label class="form-check-label">Access to a vehicle</label>
+                    </div>
+
+                    <div class="form-check">
+                        {{ form.has_laptop_or_tablet }} <label class="form-check-label">Access to a laptop or tablet</label>
+                    </div>
+
+                    </div>
+                </div>
+                </div>
+                <!-- ================= WORK STYLE & AVAILABILITY ================= -->
+                <div class="col-lg-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header"><strong>Work Style & Availability</strong></div>
+                    <div class="card-body">
+
+                    <div class="form-check mb-2">
+                        {{ form.can_work_in_team }} <label class="form-check-label">Comfortable working in a team</label>
+                    </div>
+
+                    <div class="form-check mb-2">
+                        {{ form.comfortable_township_clients }} <label class="form-check-label">Comfortable with township clients</label>
+                    </div>
+
+                    <div class="form-check mb-2">
+                        {{ form.comfortable_suburban_clients }} <label class="form-check-label">Comfortable with suburban clients</label>
+                    </div>
+
+                    <div class="form-check mb-2">
+                        {{ form.comfortable_remote_work }} <label class="form-check-label">Comfortable working remotely</label>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        {{ form.comfortable_startup_environment }} <label class="form-check-label">Comfortable in a startup</label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Leadership skills or experience</label>
+                        {{ form.leadership_skills_description }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Current job (if any)</label>
+                        {{ form.current_job }}
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label">How soon can you start?</label>
+                        {{ form.availability_to_start }}
+                    </div>
+
+                    </div>
+                </div>
+                </div>
+
+
+
+
+
+                <!-- ================= SUBMIT ================= -->
+                <div class="col-12 d-flex justify-content-center mt-4">
+                <button type="submit" class="btn btn-primary btn-lg px-5">
+                    Submit Application
+                </button>
+                </div>
+
+            </div>
+            
+            </form>
+
+        </section>
+    </div>
+
+    
+
+
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

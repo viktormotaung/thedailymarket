@@ -1,0 +1,81 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Application Submitted – The Daily Market</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+
+    .thank-you-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .thank-you-card {
+      max-width: 600px;
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 2.5rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+
+    .thank-you-card h1 {
+      color: #0b5c39;
+      margin-bottom: 1rem;
+    }
+
+    .thank-you-card p {
+      font-size: 1.05rem;
+      color: #444;
+      margin-bottom: 1rem;
+    }
+
+    .email-highlight {
+      font-weight: 600;
+      color: #0b5c39;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="thank-you-container">
+  <div class="thank-you-card">
+
+    <h1>Thank You, {{ application.first_name }} {{ application.last_name }}</h1>
+
+    <p>
+      Your application has been successfully submitted and is currently under review.
+    </p>
+
+    <p>
+      Please keep an eye on your email —
+      <span class="email-highlight">{{ application.email }}</span> —
+      as this is where we’ll contact you.
+    </p>
+
+    <p>
+      If your application progresses to the next stage, you will receive an email
+      inviting you to book a virtual interview or meeting slot.
+    </p>
+
+    <p class="mt-4 text-muted">
+      We appreciate the time and effort you took to apply and wish you the best.
+    </p>
+
+  </div>
+</div>
+
+</body>
+</html>
