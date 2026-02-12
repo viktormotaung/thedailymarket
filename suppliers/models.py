@@ -1,7 +1,8 @@
 from django.conf import settings
 from django.db import models
 from image_cropping import ImageRatioField
-
+from django.core.validators import MinValueValidator, MaxValueValidator
+from decimal import Decimal
 
 class Supplier(models.Model):
     # Identity
@@ -36,14 +37,47 @@ class Supplier(models.Model):
     phone = models.CharField(max_length=50, blank=True)
     whatsapp = models.CharField(max_length=50, blank=True)
     website = models.URLField(blank=True)
+    PROVINCES = [
+        ("EC", "Eastern Cape"),
+        ("FS", "Free State"),
+        ("GP", "Gauteng"),
+        ("KZN", "KwaZulu-Natal"),
+        ("LP", "Limpopo"),
+        ("MP", "Mpumalanga"),
+        ("NC", "Northern Cape"),
+        ("NW", "North West"),
+        ("WC", "Western Cape"),
+    ]
 
     # Address
     address_line1 = models.CharField(max_length=200, blank=True)
     address_line2 = models.CharField(max_length=200, blank=True)
     city = models.CharField(max_length=120, blank=True)
-    province = models.CharField(max_length=120, blank=True)
+    province = models.CharField(
+        max_length=10,
+        choices=PROVINCES,
+        blank=True,
+    )
     postal_code = models.CharField(max_length=20, blank=True)
     country = models.CharField(max_length=120, default="South Africa")
+
+    # --- Delivery geolocation ---
+    delivery_lat = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("-90")), MaxValueValidator(Decimal("90"))]
+    )
+    delivery_lng = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("-180")), MaxValueValidator(Decimal("180"))]
+    )
+
+    vat_number = models.CharField(max_length=80, blank=True)
 
     # Notes
     notes = models.TextField(blank=True)

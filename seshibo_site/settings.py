@@ -8,6 +8,7 @@ from pathlib import Path
 import os
 from celery.schedules import crontab
 from dotenv import load_dotenv
+from decimal import Decimal
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -260,3 +261,6 @@ LOGGING = {
 }
 
 GOOGLE_MAPS_API_KEY = "AIzaSyChVDl--ftGbLBj4zzmNf9GKcqEh_ZM9IU"
+
+VAT_ENABLED = False
+DEFAULT_VAT_PERCENT = Decimal("0.00")

@@ -340,33 +340,71 @@
       <table class="table table-striped mb-0 align-middle">
         <thead class="table-light">
           <tr>
-            <th style="width: 60px;">#</th>
-            <th>Customer</th>
+            <th style="width:60px;">#</th>
+            <th style="width:120px;">Type</th>
+            <th>Stop</th>
             <th>Address</th>
-            <th>Estimated Min</th>
-            <th>Status</th>
+            <th style="width:140px;">Estimated Min</th>
+            <th style="width:120px;">Status</th>
           </tr>
         </thead>
-        <tbody>
 
+        <tbody>
           {% for stop in run.stops.all %}
             <tr>
+
+              <!-- Sequence -->
+              <td>{{ stop.sequence|default:"—" }}</td>
+
+              <!-- Type -->
               <td>
-                {{ stop.sequence|default:"—" }}
+                {% if stop.stop_type == "SUPPLIER" %}
+                  <span class="badge bg-warning text-dark">Pickup</span>
+                {% elif stop.stop_type == "CUSTOMER" %}
+                  <span class="badge bg-success">Delivery</span>
+                {% elif stop.stop_type == "START" %}
+                  <span class="badge bg-info">Start</span>
+                {% elif stop.stop_type == "RETURN" %}
+                  <span class="badge bg-secondary">Return</span>
+                {% endif %}
               </td>
 
+              <!-- Stop Name -->
               <td>
-                {{ stop.customer_name|default:"Order #"|add:stop.order_id|stringformat:"s" }}
+                {% if stop.stop_type == "SUPPLIER" and stop.supplier %}
+                  {{ stop.supplier.name }}
+                {% elif stop.stop_type == "CUSTOMER" %}
+                  {{ stop.customer_name }}
+                {% else %}
+                  {{ run.depot_label }}
+                {% endif %}
               </td>
 
+              <!-- Address -->
               <td>
-                {{ stop.address_one_line|default:"—" }}
+                {% if stop.stop_type == "SUPPLIER" and stop.supplier %}
+                  {{ stop.supplier.address_line1 }}
+                  {% if stop.supplier.address_line2 %}, {{ stop.supplier.address_line2 }}{% endif %}
+                  {% if stop.supplier.city %}, {{ stop.supplier.city }}{% endif %}
+                  {% if stop.supplier.province %}, {{ stop.supplier.province }}{% endif %}
+                  {% if stop.supplier.postal_code %}, {{ stop.supplier.postal_code }}{% endif %}
+                {% elif stop.address_one_line %}
+                  {{ stop.address_one_line }}
+                {% else %}
+                  —
+                {% endif %}
               </td>
 
+              <!-- Estimated Minutes -->
               <td>
-                {{ stop.drive_min|default:"—" }}
+                {% if stop.drive_min %}
+                  {{ stop.drive_min|add:stop.service_min }}
+                {% else %}
+                  —
+                {% endif %}
               </td>
 
+              <!-- Status -->
               <td>
                 {% if stop.status == "delivered" %}
                   <span class="badge bg-success">Delivered</span>
@@ -380,20 +418,23 @@
                   </span>
                 {% endif %}
               </td>
+
             </tr>
           {% empty %}
             <tr>
-              <td colspan="4"
-                  class="text-center text-muted py-4">
+              <td colspan="6" class="text-center text-muted py-4">
                 No stops assigned to this run.
               </td>
             </tr>
           {% endfor %}
-
         </tbody>
+
       </table>
     </div>
   </div>
+
+
+
 
 </main>
 

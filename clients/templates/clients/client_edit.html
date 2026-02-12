@@ -232,11 +232,14 @@
 
   <!-- MAIN CONTENT -->
   <main class="content">
+
+    <!-- ================= HEADER ================= -->
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
       <div>
         <h2 class="m-0">Edit Client</h2>
         <div class="text-muted">
-          {{ client.client_number }} · {{ client.name }}{% if client.organization %} ({{ client.organization }}){% endif %}
+          {{ client.client_number }} · {{ client.name }}
+          {% if client.organization %} ({{ client.organization }}){% endif %}
         </div>
       </div>
       <div class="d-flex gap-2">
@@ -245,293 +248,168 @@
       </div>
     </div>
 
-    {% if messages %}
-      <div class="mt-3">
-        {% for message in messages %}
-          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
+    <!-- ================= ERROR SUMMARY ================= -->
+    {% if form.errors %}
+      <div class="alert alert-danger mt-3">
+        <strong>Please fix the errors highlighted below.</strong>
       </div>
     {% endif %}
 
-    <form method="post" class="mt-3">
+    <form method="post" class="mt-3" novalidate>
       {% csrf_token %}
 
       {% if form.non_field_errors %}
-        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        <div class="alert alert-danger">
+          {{ form.non_field_errors }}
+        </div>
       {% endif %}
 
       <div class="row g-3">
 
         <!-- ================= Identity & Ownership ================= -->
-        <div class="col-lg-6 form-section">
+        <div class="col-lg-6">
           <div class="card">
-            <div class="card-header">
-              <strong>Identity & Ownership</strong>
-            </div>
-
+            <div class="card-header"><strong>Identity & Ownership</strong></div>
             <div class="card-body">
 
-              <!-- Client number (read-only) -->
               <div class="mb-3">
                 <label class="form-label">Client Number</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  value="{{ client.client_number }}"
-                  readonly
-                />
+                <input class="form-control" value="{{ client.client_number }}" readonly>
               </div>
 
-              <div class="row g-3">
-
-                <!-- Entity type -->
-                <div class="col-md-6">
-                  {{ form.entity_type.label_tag }}
-                  {{ form.entity_type }}
-                  {% if form.entity_type.errors %}
-                    <div class="text-danger small">
-                      {{ form.entity_type.errors }}
-                    </div>
-                  {% endif %}
-                </div>
-
-                <!-- Registration / ID -->
-                <div class="col-md-6">
-                  {{ form.registration_identifier.label_tag }}
-                  {{ form.registration_identifier }}
-                  {% if form.registration_identifier.errors %}
-                    <div class="text-danger small">
-                      {{ form.registration_identifier.errors }}
-                    </div>
-                  {% endif %}
-                </div>
-
-              </div>
-
-              <div class="mb-3 mt-3">
-                <label class="form-label">Name</label>
-                {{ form.name }}
-                {% if form.name.errors %}
-                  <div class="text-danger small">
-                    {{ form.name.errors }}
-                  </div>
-                {% endif %}
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">Trading As</label>
-                {{ form.organization }}
-                {% if form.organization.errors %}
-                  <div class="text-danger small">
-                    {{ form.organization.errors }}
-                  </div>
-                {% endif %}
-              </div>
-
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label class="form-label">Client Type</label>
-                  {{ form.client_type }}
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Client Size Tier</label>
-                  {{ form.client_size_tier }}
-                </div>
-              </div>
+              {{ form.entity_type.label_tag }} {{ form.entity_type }} {{ form.entity_type.errors }}
+              {{ form.registration_identifier.label_tag }} {{ form.registration_identifier }} {{ form.registration_identifier.errors }}
+              {{ form.name.label_tag }} {{ form.name }} {{ form.name.errors }}
+              {{ form.organization.label_tag }} {{ form.organization }} {{ form.organization.errors }}
+              {{ form.client_type.label_tag }} {{ form.client_type }} {{ form.client_type.errors }}
+              {{ form.client_size_tier.label_tag }} {{ form.client_size_tier }} {{ form.client_size_tier.errors }}
 
             </div>
           </div>
         </div>
 
-
         <!-- ================= Contact ================= -->
-        <div class="col-lg-6 form-section">
+        <div class="col-lg-6">
           <div class="card">
             <div class="card-header"><strong>Contact</strong></div>
             <div class="card-body">
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label class="form-label">Contact Person</label>
-                  {{ form.contact_person }}
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Email</label>
-                  {{ form.email }}
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Phone</label>
-                  {{ form.phone }}
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">WhatsApp</label>
-                  {{ form.whatsapp }}
-                </div>
-              </div>
+              {{ form.contact_person.label_tag }} {{ form.contact_person }} {{ form.contact_person.errors }}
+              {{ form.email.label_tag }} {{ form.email }} {{ form.email.errors }}
+              {{ form.phone.label_tag }} {{ form.phone }} {{ form.phone.errors }}
+              {{ form.whatsapp.label_tag }} {{ form.whatsapp }} {{ form.whatsapp.errors }}
             </div>
           </div>
         </div>
 
-        <!-- ================= Address ================= -->
-        <div class="col-lg-6 form-section">
+        <!-- ================= Business Address ================= -->
+        <div class="col-lg-6">
           <div class="card">
             <div class="card-header"><strong>Business Address</strong></div>
             <div class="card-body">
-              {{ form.address_line1.label_tag }} {{ form.address_line1 }}
-              {{ form.address_line2.label_tag }} {{ form.address_line2 }}
-
-              <div class="row g-3 mt-2">
-                <div class="col-md-4">{{ form.suburb.label_tag }} {{ form.suburb }}</div>
-                <div class="col-md-4">{{ form.city.label_tag }} {{ form.city }}</div>
-                <div class="col-md-4">{{ form.province.label_tag }} {{ form.province }}</div>
-              </div>
-
-              <div class="row g-3 mt-2">
-                <div class="col-md-6">{{ form.postal_code.label_tag }} {{ form.postal_code }}</div>
-                <div class="col-md-6">{{ form.country.label_tag }} {{ form.country }}</div>
-              </div>
+              {{ form.address_line1.label_tag }} {{ form.address_line1 }} {{ form.address_line1.errors }}
+              {{ form.address_line2.label_tag }} {{ form.address_line2 }} {{ form.address_line2.errors }}
+              {{ form.suburb.label_tag }} {{ form.suburb }} {{ form.suburb.errors }}
+              {{ form.city.label_tag }} {{ form.city }} {{ form.city.errors }}
+              {{ form.province.label_tag }} {{ form.province }} {{ form.province.errors }}
+              {{ form.postal_code.label_tag }} {{ form.postal_code }} {{ form.postal_code.errors }}
+              {{ form.country.label_tag }} {{ form.country }} {{ form.country.errors }}
             </div>
           </div>
         </div>
 
         <!-- ================= Delivery Address ================= -->
-        <div class="col-lg-6 form-section">
+        <div class="col-lg-6">
           <div class="card">
-            <div class="card-header">
-              <strong>Delivery Address</strong>
-            </div>
+            <div class="card-header"><strong>Delivery Address</strong></div>
             <div class="card-body">
-              <div class="form-check mb-3">
-                <input
-                  class="form-check-input"
-                  type="checkbox"
-                  id="sameAsBusinessAddress"
-                >
-                <label class="form-check-label" for="sameAsBusinessAddress">
-                  Delivery address same as business address
-                </label>
-              </div>
-
-
-              {{ form.delivery_address_line1.label_tag }}
-              {{ form.delivery_address_line1 }}
-
-              {{ form.delivery_address_line2.label_tag }}
-              {{ form.delivery_address_line2 }}
-
-              <div class="row g-3 mt-2">
-                <div class="col-md-4">
-                  {{ form.delivery_suburb.label_tag }}
-                  {{ form.delivery_suburb }}
-                </div>
-                <div class="col-md-4">
-                  {{ form.delivery_city.label_tag }}
-                  {{ form.delivery_city }}
-                </div>
-                <div class="col-md-4">
-                  {{ form.delivery_province.label_tag }}
-                  {{ form.delivery_province }}
-                </div>
-              </div>
-
-              <div class="row g-3 mt-2">
-                <div class="col-md-6">
-                  {{ form.delivery_postal_code.label_tag }}
-                  {{ form.delivery_postal_code }}
-                </div>
-                <div class="col-md-6">
-                  {{ form.delivery_country.label_tag }}
-                  {{ form.delivery_country }}
-                </div>
-              </div>
-
+              {{ form.delivery_address_line1.label_tag }} {{ form.delivery_address_line1 }} {{ form.delivery_address_line1.errors }}
+              {{ form.delivery_address_line2.label_tag }} {{ form.delivery_address_line2 }} {{ form.delivery_address_line2.errors }}
+              {{ form.delivery_suburb.label_tag }} {{ form.delivery_suburb }} {{ form.delivery_suburb.errors }}
+              {{ form.delivery_city.label_tag }} {{ form.delivery_city }} {{ form.delivery_city.errors }}
+              {{ form.delivery_province.label_tag }} {{ form.delivery_province }} {{ form.delivery_province.errors }}
+              {{ form.delivery_postal_code.label_tag }} {{ form.delivery_postal_code }} {{ form.delivery_postal_code.errors }}
+              {{ form.delivery_country.label_tag }} {{ form.delivery_country }} {{ form.delivery_country.errors }}
             </div>
           </div>
         </div>
 
-
         <!-- ================= Delivery Geo ================= -->
-        <div class="col-lg-6 form-section">
+        <div class="col-lg-6">
           <div class="card">
-            <div class="card-header">
-              <strong>Delivery Location (Geo)</strong>
-            </div>
+            <div class="card-header"><strong>Delivery Location (Geo)</strong></div>
             <div class="card-body">
-              <p class="text-muted small mb-3">
-                Used for routing, delivery verification, and maps.
-                Leave blank if unknown.
-              </p>
+              {{ form.delivery_lat.label_tag }} {{ form.delivery_lat }} {{ form.delivery_lat.errors }}
+              {{ form.delivery_lng.label_tag }} {{ form.delivery_lng }} {{ form.delivery_lng.errors }}
+            </div>
+          </div>
+        </div>
 
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label class="form-label">Latitude</label>
-                  {{ form.delivery_lat }}
-                  {% if form.delivery_lat.errors %}
-                    <div class="text-danger small">{{ form.delivery_lat.errors }}</div>
-                  {% endif %}
-                </div>
+        <!-- ================= Commercial ================= -->
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header"><strong>Commercial</strong></div>
+            <div class="card-body">
+              {{ form.price_type.label_tag }} {{ form.price_type }} {{ form.price_type.errors }}
+              {{ form.estimated_weekly_spend.label_tag }} {{ form.estimated_weekly_spend }} {{ form.estimated_weekly_spend.errors }}
+            </div>
+          </div>
+        </div>
 
-                <div class="col-md-6">
-                  <label class="form-label">Longitude</label>
-                  {{ form.delivery_lng }}
-                  {% if form.delivery_lng.errors %}
-                    <div class="text-danger small">{{ form.delivery_lng.errors }}</div>
-                  {% endif %}
-                </div>
-              </div>
+        <!-- ================= Status & Credit ================= -->
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header"><strong>Status & Credit</strong></div>
+            <div class="card-body">
+              {{ form.status.label_tag }} {{ form.status }} {{ form.status.errors }}
+              {{ form.account_type.label_tag }} {{ form.account_type }} {{ form.account_type.errors }}
+              {{ form.credit_status.label_tag }} {{ form.credit_status }} {{ form.credit_status.errors }}
+            </div>
+          </div>
+        </div>
 
-              {% if client.has_delivery_geo %}
-                <div class="mt-3">
-                  <a href="{{ client.google_maps_link }}"
-                    target="_blank"
-                    class="btn btn-sm btn-outline-primary">
-                    View on Google Maps
-                  </a>
-                </div>
-              {% endif %}
+        <!-- ================= Categories ================= -->
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header"><strong>Categories</strong></div>
+            <div class="card-body">
+              {{ form.categories.label_tag }}
+              {{ form.categories }}
+              {{ form.categories.errors }}
             </div>
           </div>
         </div>
 
         <!-- ================= Compliance ================= -->
-        <div class="col-lg-6 form-section">
+        <div class="col-lg-6">
           <div class="card">
-            <div class="card-header">
-              <strong>Compliance</strong>
-            </div>
+            <div class="card-header"><strong>Compliance</strong></div>
             <div class="card-body">
-
-              <div class="row g-3">
-                <div class="col-md-6">
-                  {{ form.vat_number.label_tag }}
-                  {{ form.vat_number }}
-                </div>
-
-                
-              </div>
-
+              {{ form.vat_number.label_tag }} {{ form.vat_number }} {{ form.vat_number.errors }}
             </div>
           </div>
         </div>
 
-
         <!-- ================= Notes ================= -->
-        <div class="col-12 form-section">
+        <div class="col-12">
           <div class="card">
             <div class="card-header"><strong>Notes</strong></div>
             <div class="card-body">
-              {{ form.notes }}
+              {{ form.notes }} {{ form.notes.errors }}
             </div>
           </div>
         </div>
 
       </div>
 
+      <!-- ================= ACTIONS ================= -->
       <div class="d-flex justify-content-end mt-3 gap-2">
         <a href="{% url 'client-view' client.id %}" class="btn btn-outline-secondary">Cancel</a>
         <button type="submit" class="btn btn-primary">Save Changes</button>
       </div>
+
     </form>
   </main>
+
 
   <script>
   document.addEventListener("DOMContentLoaded", function () {

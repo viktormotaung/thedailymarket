@@ -18,6 +18,7 @@ from django.db.models import Max
 from suppliers.models import Supplier
 
 
+
 # -----------------------------
 # Delivery schedule & depot config
 # -----------------------------
@@ -58,11 +59,15 @@ def _delivery_date_for(service_date: date, wave: str) -> date:
 # 1) WAREHOUSE: Picking
 # -----------------------------
 
+
+
+
 class PickingBatch(models.Model):
     """
-    A warehouse picking batch for a single service date and typically a wave (AM/PM).
-    Orders can be appended into an existing open batch.
+    A warehouse picking batch for a single service date and wave (AM/PM).
+    Completing a batch hands orders off to deliveries.
     """
+
     STATUS = [
         ("draft", "Draft"),
         ("in_progress", "In Progress"),
@@ -70,18 +75,34 @@ class PickingBatch(models.Model):
         ("cancelled", "Cancelled"),
     ]
 
-    name = models.CharField(max_length=140, help_text="Human-friendly label, e.g. '2025-09-20 AM'.")
+    # -------------------------------------------------
+    # Core fields
+    # -------------------------------------------------
+    name = models.CharField(
+        max_length=140,
+        help_text="Human-friendly label, e.g. '2025-09-20 AM'.",
+    )
     service_date = models.DateField(db_index=True)
-    status = models.CharField(max_length=20, choices=STATUS, default="draft", db_index=True)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS,
+        default="draft",
+        db_index=True,
+    )
 
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="picking_batches_created"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="picking_batches_created",
     )
+
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
     notes = models.TextField(blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -95,6 +116,9 @@ class PickingBatch(models.Model):
     def __str__(self) -> str:
         return f"{self.name} · {self.service_date} · {self.get_status_display()}"
 
+    # -------------------------------------------------
+    # Derived helpers
+    # -------------------------------------------------
     @property
     def item_count(self) -> int:
         return self.items.count()
@@ -106,35 +130,50 @@ class PickingBatch(models.Model):
     @property
     def wave(self) -> str:
         """
-        Infer AM/PM from the name. If 'PM' is present (and not 'AM'), return PM; otherwise AM.
+        Infer AM/PM from the name.
         """
         label = (self.name or "").upper()
         if "PM" in label and "AM" not in label:
             return "PM"
-        if "AM" in label:
-            return "AM"
-        # Default to AM if not explicit
         return "AM"
 
+    # -------------------------------------------------
+    # State transitions
+    # -------------------------------------------------
     def mark_started(self, user=None):
         self.status = "in_progress"
         self.started_at = now()
         self.save(update_fields=["status", "started_at", "updated_at"])
 
-    # Always detect a transition to 'complete' on save (covers admin edits & API)
     def save(self, *args, **kwargs):
         old_status = None
         if self.pk:
-            old_status = type(self).objects.filter(pk=self.pk).values_list("status", flat=True).first()
+            old_status = (
+                type(self)
+                .objects
+                .filter(pk=self.pk)
+                .values_list("status", flat=True)
+                .first()
+            )
+
         super().save(*args, **kwargs)
+
         if old_status != "complete" and self.status == "complete":
             self._handoff_to_delivery()
 
-    # Convenience: append all items for an Order into this batch
-    def add_order(self, order: "orders.Order"):
+    def mark_complete(self, user=None):
+        self.status = "complete"
+        if not self.completed_at:
+            self.completed_at = now()
+        self.save(update_fields=["status", "completed_at", "updated_at"])
+
+    # -------------------------------------------------
+    # IMPORTANT: used by Transactions
+    # -------------------------------------------------
+    def add_order(self, order):
         """
-        Creates PickingItem rows from an order's current OrderItems.
-        Snapshots qty/name/sku so pickers work off a stable list.
+        Idempotently add an order's items to this batch.
+        REQUIRED by transactions logic.
         """
         for oi in order.items.select_related("product", "category"):
             PickingItem.objects.get_or_create(
@@ -149,38 +188,21 @@ class PickingBatch(models.Model):
                 },
             )
 
-    def mark_complete(self, user=None):
-        """
-        Public method that flips status to 'complete'.
-        The actual handoff is triggered by save() when the transition occurs.
-        """
-        self.status = "complete"
-        if not self.completed_at:
-            self.completed_at = now()
-        self.save(update_fields=["status", "completed_at", "updated_at"])
-
+    # -------------------------------------------------
+    # DELIVERY HANDOFF (KEY LOGIC)
+    # -------------------------------------------------
     def _handoff_to_delivery(self):
-        """
-        Warehouse → Fleet handoff executed when a batch transitions to 'complete':
-          - Compute the correct delivery date from (service_date, wave).
-          - Create/reuse a DeliveryRun for that date (07:30 start, preferred depot).
-          - Create a DeliveryStop per distinct order in this batch (no duplicates across the date).
-          - Seed stop items from the batch's picking lines.
-          - Mark orders as 'ready_for_delivery'.
-        """
         DeliveryRun = apps.get_model("deliveries", "DeliveryRun")
         DeliveryStop = apps.get_model("deliveries", "DeliveryStop")
         DeliveryStopItem = apps.get_model("deliveries", "DeliveryStopItem")
         Order = apps.get_model("orders", "Order")
 
-        # 1) Choose delivery date from AM/PM policy
         target_date = _delivery_date_for(self.service_date, self.wave)
-
-        # 2) Depot priority (can be made dynamic later)
         depot_label, depot_lat, depot_lng = DEPOT_PREFERENCE[0]
 
         with transaction.atomic():
-            # 3) Create/reuse a run for that date; name shows wave (batch name)
+
+            # 1️⃣ Create / reuse delivery run
             run, _ = DeliveryRun.objects.get_or_create(
                 service_date=target_date,
                 name=self.name or f"{target_date.isoformat()} Run",
@@ -193,105 +215,136 @@ class PickingBatch(models.Model):
                 },
             )
 
-            # 4) Distinct orders in this batch
-            order_ids = list(self.items.values_list("order_id", flat=True).distinct())
-
-            # Avoid duplicates across ANY run on that service_date
-            # Avoid duplicates on THIS run (enough to satisfy the unique_together)
-            existing_in_run = set(
-                run.stops.filter(order_id__in=order_ids).values_list("order_id", flat=True)
-            )
-
-            # Next sequence number (not unique, just orderly)
             next_seq = (run.stops.aggregate(m=Max("sequence"))["m"] or 0) + 1
 
+            # -------------------------------------------------
+            # 2️⃣ SUPPLIER STOPS
+            # -------------------------------------------------
+            supplier_ids = (
+                self.items
+                .exclude(supplier__isnull=True)
+                .values_list("supplier_id", flat=True)
+                .distinct()
+            )
+
+            for sid in supplier_ids:
+                supplier = Supplier.objects.get(id=sid)
+
+                stop, created = DeliveryStop.objects.get_or_create(
+                    run=run,
+                    supplier=supplier,
+                    stop_type="SUPPLIER",
+                    defaults={
+                        "status": "assigned",
+                        "sequence": next_seq,
+                        "customer_name": supplier.name,
+                        "address_line1": supplier.address_line1,
+                        "address_line2": supplier.address_line2,
+                        "city": supplier.city,
+                        "province": supplier.province,
+                        "postal_code": supplier.postal_code,
+                        "country": supplier.country,
+                        "lat": supplier.delivery_lat,
+                        "lng": supplier.delivery_lng,
+                    },
+                )
+
+                if created:
+                    next_seq += 1
+
+            # -------------------------------------------------
+            # 3️⃣ CUSTOMER STOPS
+            # -------------------------------------------------
+            order_ids = list(
+                self.items.values_list("order_id", flat=True).distinct()
+            )
+
+            existing_orders = set(
+                run.stops
+                .filter(order_id__in=order_ids)
+                .values_list("order_id", flat=True)
+            )
+
             for oid in order_ids:
-                if oid in existing_in_run:
+                if oid in existing_orders:
                     continue
 
-                try:
-                    stop, created = DeliveryStop.objects.get_or_create(
-                        run=run,
-                        order_id=oid,
-                        defaults={
-                            "status": "assigned",
-                            "sequence": next_seq,
-                        },
-                    )
-                    if created:
-                        next_seq += 1
-                        # Snapshot address/contact for stability
-                        stop.snapshot_from_order()
-                        stop.save(update_fields=[
-                            "customer_name","phone","email",
-                            "address_line1","address_line2","suburb","city",
-                            "province","postal_code","country","updated_at",
-                        ])
+                stop, created = DeliveryStop.objects.get_or_create(
+                    run=run,
+                    order_id=oid,
+                    defaults={
+                        "status": "assigned",
+                        "sequence": next_seq,
+                        "stop_type": "CUSTOMER",
+                    },
+                )
 
-                        # Seed stop items from this batch’s picking lines
-                        batch_lines = self.items.filter(order_id=oid).select_related("order_item")
-                        for pi in batch_lines:
-                            planned = (pi.picked_qty or pi.expected_qty or Decimal("0.00"))
-                            DeliveryStopItem.objects.get_or_create(
-                                stop=stop,
-                                order_item_id=pi.order_item_id,
-                                defaults={
-                                    "product_name": pi.product_name,
-                                    "sku": pi.sku,
-                                    "uom": pi.uom,
-                                    "planned_qty": planned,
-                                    "loaded_qty": (pi.picked_qty or Decimal("0.00")),
-                                    "delivered_qty": Decimal("0.00"),
-                                },
-                            )
-                except IntegrityError:
-                    # Another request created the same (run, order) concurrently; just skip
-                    continue
+                if created:
+                    next_seq += 1
 
+                    stop.snapshot_from_order()
+                    stop.save(update_fields=[
+                        "customer_name", "phone", "email",
+                        "address_line1", "address_line2",
+                        "suburb", "city", "province",
+                        "postal_code", "country",
+                        "lat", "lng", "updated_at",
+                    ])
 
-                # Snapshot address/contact for stability
-                stop.snapshot_from_order()
-                stop.save(update_fields=[
-                    "customer_name", "phone", "email",
-                    "address_line1", "address_line2", "suburb", "city",
-                    "province", "postal_code", "country", "updated_at",
-                ])
+                    for pi in self.items.filter(order_id=oid):
+                        planned = pi.picked_qty or pi.expected_qty or Decimal("0.00")
+                        DeliveryStopItem.objects.get_or_create(
+                            stop=stop,
+                            order_item_id=pi.order_item_id,
+                            defaults={
+                                "product_name": pi.product_name,
+                                "sku": pi.sku,
+                                "uom": pi.uom,
+                                "planned_qty": planned,
+                                "loaded_qty": pi.picked_qty or Decimal("0.00"),
+                                "delivered_qty": Decimal("0.00"),
+                            },
+                        )
 
-                # 5) Seed stop items from this batch’s picking lines
-                batch_lines = self.items.filter(order_id=oid).select_related("order_item")
-                for pi in batch_lines:
-                    planned = (pi.picked_qty or pi.expected_qty or Decimal("0.00"))
-                    DeliveryStopItem.objects.get_or_create(
-                        stop=stop,
-                        order_item_id=pi.order_item_id,
-                        defaults={
-                            "product_name": pi.product_name,
-                            "sku": pi.sku,
-                            "uom": pi.uom,
-                            "planned_qty": planned,
-                            "loaded_qty": (pi.picked_qty or Decimal("0.00")),
-                            "delivered_qty": Decimal("0.00"),
-                        },
-                    )
+            # -------------------------------------------------
+            # 4️⃣ RETURN TO DEPOT (FINAL STOP) ✅
+            # -------------------------------------------------
+            if not run.stops.filter(stop_type="RETURN").exists():
+                DeliveryStop.objects.create(
+                    run=run,
+                    stop_type="RETURN",
+                    status="assigned",
+                    sequence=next_seq,
+                    customer_name=run.depot_label or "Depot",
+                    address_line1=run.depot_label or "Depot",
+                    lat=run.depot_lat,
+                    lng=run.depot_lng,
+                    service_min=0,
+                )
 
-            # 6) Mark orders ready for delivery (don’t override later stages)
+            # -------------------------------------------------
+            # 5️⃣ Update orders + aggregates
+            # -------------------------------------------------
             Order.objects.filter(id__in=order_ids).exclude(
-                status__in=["out_for_delivery", "complete", "returned", "cancelled"]
+                status__in=[
+                    "out_for_delivery",
+                    "complete",
+                    "returned",
+                    "cancelled",
+                ]
             ).update(status="ready_for_delivery")
 
-            # 7) Refresh run aggregates
             run.recalc_aggregates(save=True)
 
+    # -------------------------------------------------
+    # Wave helper
+    # -------------------------------------------------
     @classmethod
     def get_or_create_wave(cls, *, service_date, wave: str):
-        """
-        Return an open (draft/in_progress) batch for service_date + wave ('AM'/'PM').
-        If none is open, create one. If the base name exists but is closed, create '#2', '#3', etc.
-        """
         assert wave in ("AM", "PM")
+
         base_name = f"{service_date.isoformat()} {wave}"
 
-        # Prefer an open batch for this wave
         open_qs = cls.objects.filter(
             service_date=service_date,
             status__in=["draft", "in_progress"],
@@ -299,16 +352,19 @@ class PickingBatch(models.Model):
         ).order_by("created_at")
 
         if open_qs.exists():
-            return open_qs.last(), False  # (batch, created=False)
+            return open_qs.last(), False
 
-        # Create new (avoid name collision if earlier wave was closed)
         name = base_name
         suffix = 1
         while cls.objects.filter(service_date=service_date, name=name).exists():
             suffix += 1
             name = f"{base_name} #{suffix}"
 
-        batch = cls.objects.create(service_date=service_date, name=name, status="draft")
+        batch = cls.objects.create(
+            service_date=service_date,
+            name=name,
+            status="draft",
+        )
         return batch, True
 
 
@@ -847,27 +903,101 @@ class ExternalDeliveryRate(models.Model):
 # 3) STOPS & POD (Proof of Delivery)
 # -----------------------------
 
+def pod_upload_to(instance, filename):
+    """
+    Proof-of-delivery upload path.
+    Example:
+    deliveries/run_12/stop_45/signature.png
+    """
+    return (
+        f"deliveries/"
+        f"run_{instance.run_id}/"
+        f"stop_{instance.id or 'new'}/"
+        f"{filename}"
+    )
+
+
 class DeliveryStop(models.Model):
     """
-    One order on a delivery run (one physical drop).
-    Holds address & contact snapshots, routing data, POD/signature.
+    One physical stop on a delivery run.
+
+    Can represent:
+      - Start
+      - Supplier pickup
+      - Customer delivery
+      - Return to depot
     """
+
+    # -----------------------------
+    # Status & Type
+    # -----------------------------
     STATUS = [
-        ("pending", "Pending"),             # created; not assigned or not picked
-        ("assigned", "Assigned"),           # part of a planned run
-        ("en_route", "En Route"),           # driver heading to/arrived
+        ("pending", "Pending"),
+        ("assigned", "Assigned"),
+        ("en_route", "En Route"),
         ("delivered", "Delivered"),
         ("failed", "Failed Attempt"),
         ("cancelled", "Cancelled"),
     ]
 
-    run = models.ForeignKey(DeliveryRun, on_delete=models.CASCADE, related_name="stops")
-    order = models.ForeignKey("orders.Order", on_delete=models.PROTECT, related_name="delivery_stops")
+    STOP_TYPE = [
+        ("START", "Start / Departure"),
+        ("SUPPLIER", "Supplier Pickup"),
+        ("CUSTOMER", "Customer Delivery"),
+        ("RETURN", "Return to Depot"),
+    ]
 
-    status = models.CharField(max_length=20, choices=STATUS, default="pending", db_index=True)
-    sequence = models.PositiveIntegerField(null=True, blank=True, help_text="Route order (1..N).")
+    stop_type = models.CharField(
+        max_length=20,
+        choices=STOP_TYPE,
+        default="CUSTOMER",
+        db_index=True,
+    )
 
-    # Address / Contact snapshots (from order.client at time of creation)
+    # -----------------------------
+    # Core relations
+    # -----------------------------
+    run = models.ForeignKey(
+        DeliveryRun,
+        on_delete=models.CASCADE,
+        related_name="stops",
+    )
+
+    order = models.ForeignKey(
+        "orders.Order",
+        on_delete=models.PROTECT,
+        related_name="delivery_stops",
+        null=True,
+        blank=True,
+    )
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="delivery_stops",
+    )
+
+    # -----------------------------
+    # Routing / state
+    # -----------------------------
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS,
+        default="pending",
+        db_index=True,
+    )
+
+    sequence = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Route order (1..N).",
+    )
+
+    # -----------------------------
+    # Address & contact snapshot
+    # -----------------------------
     customer_name = models.CharField(max_length=200, blank=True)
     phone = models.CharField(max_length=50, blank=True)
     email = models.EmailField(blank=True)
@@ -882,31 +1012,56 @@ class DeliveryStop(models.Model):
 
     lat = models.FloatField(null=True, blank=True)
     lng = models.FloatField(null=True, blank=True)
-    service_min = models.PositiveIntegerField(default=5, help_text="Expected time on site.")
 
+    service_min = models.PositiveIntegerField(
+        default=5,
+        help_text="Expected time on site (minutes).",
+    )
+
+    # -----------------------------
     # Routing outputs
+    # -----------------------------
     eta = models.DateTimeField(null=True, blank=True)
-    distance_km = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    distance_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
     drive_min = models.PositiveIntegerField(null=True, blank=True)
 
-    # Proof of delivery
+    # -----------------------------
+    # Proof of delivery / pickup
+    # -----------------------------
     recipient_name = models.CharField(max_length=160, blank=True)
     recipient_id_no = models.CharField(max_length=80, blank=True)
     signature = models.ImageField(upload_to=pod_upload_to, blank=True, null=True)
     signed_at = models.DateTimeField(null=True, blank=True)
     delivery_notes = models.TextField(blank=True)
 
+    # -----------------------------
     # Exceptions
+    # -----------------------------
     failed_reason = models.CharField(max_length=220, blank=True)
     failed_at = models.DateTimeField(null=True, blank=True)
 
+    # -----------------------------
+    # Audit
+    # -----------------------------
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="delivery_stops_created"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delivery_stops_created",
     )
+
     updated_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="delivery_stops_updated"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delivery_stops_updated",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -915,94 +1070,95 @@ class DeliveryStop(models.Model):
     started_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
 
+    # -----------------------------
+    # Snapshot helpers
+    # -----------------------------
+    def snapshot_from_supplier(self):
+        if not self.supplier:
+            return
 
-    class Meta:
-        ordering = ["run_id", "sequence", "id"]
-        indexes = [
-            models.Index(fields=["run", "status"]),
-            models.Index(fields=["order"]),
-        ]
-        unique_together = [("run", "order")]  # each order appears at most once per run
-
-    def __str__(self) -> str:
-        label = self.customer_name or f"Order #{self.order_id}"
-        return f"{self.run.service_date} · {label} · {self.get_status_display()}"
-
-    @property
-    def has_geo(self) -> bool:
-        return self.lat is not None and self.lng is not None
-
-    def address_one_line(self) -> str:
-        parts = [self.address_line1, self.address_line2, self.suburb, self.city, self.province, self.postal_code]
-        return ", ".join([p for p in parts if p])
-    
-    @property
-    def final_minutes(self):
-        if self.started_at and self.ended_at:
-            delta = self.ended_at - self.started_at
-            return int(delta.total_seconds() // 60)
-        return None
-    
-    @property
-    def vehicle(self):
-        return self.run.vehicle
-
+        s = self.supplier
+        self.customer_name = s.name
+        self.address_line1 = s.address_line1 or ""
+        self.address_line2 = s.address_line2 or ""
+        self.suburb = getattr(s, "suburb", "") or ""
+        self.city = s.city or ""
+        self.province = s.province or ""
+        self.postal_code = s.postal_code or ""
+        self.country = s.country or ""
+        self.lat = s.delivery_lat
+        self.lng = s.delivery_lng
 
     def snapshot_from_order(self):
-        """
-        Seed snapshot fields from the Order’s current client details,
-        including delivery coordinates.
-        """
-        c = self.order.client
+        if not self.order:
+            return
 
-        # ---- Identity / contact ----
+        c = self.order.client
         self.customer_name = str(c)
         self.phone = getattr(c, "phone", "") or ""
         self.email = getattr(c, "email", "") or ""
 
-        # ---- Address (delivery preferred) ----
         self.address_line1 = c.delivery_address_line1 or c.address_line1 or ""
         self.address_line2 = c.delivery_address_line2 or c.address_line2 or ""
         self.suburb = c.delivery_suburb or c.suburb or ""
         self.city = c.delivery_city or c.city or ""
 
         prov_disp = getattr(c, "get_delivery_province_display", None)
-        self.province = (
-            prov_disp()
-            if callable(prov_disp)
-            else (c.delivery_province or c.province or "")
-        )
+        self.province = prov_disp() if callable(prov_disp) else (c.delivery_province or c.province or "")
 
         self.postal_code = c.delivery_postal_code or c.postal_code or ""
         self.country = c.delivery_country or c.country or ""
-
-        # ---- ✅ GEO SNAPSHOT (THIS IS THE KEY PART) ----
         self.lat = c.delivery_lat
         self.lng = c.delivery_lng
 
+    # -----------------------------
+    # Helpers
+    # -----------------------------
+    def address_one_line(self) -> str:
+        parts = [
+            self.address_line1,
+            self.address_line2,
+            self.suburb,
+            self.city,
+            self.province,
+            self.postal_code,
+        ]
+        return ", ".join([p for p in parts if p])
 
-    def mark_delivered(self, *, recipient_name: str = "", recipient_id_no: str = "", user=None):
-        self.status = "delivered"
-        if recipient_name:
-            self.recipient_name = recipient_name
-        if recipient_id_no:
-            self.recipient_id_no = recipient_id_no
-        self.signed_at = now()
-        if user:
-            self.updated_by = user
-        self.save(update_fields=[
-            "status", "recipient_name", "recipient_id_no", "signed_at", "updated_by", "updated_at"
-        ])
+    @property
+    def has_geo(self):
+        return self.lat is not None and self.lng is not None
 
-    def mark_failed(self, reason: str, user=None):
-        self.status = "failed"
-        self.failed_reason = reason[:220]
-        self.failed_at = now()
-        if user:
-            self.updated_by = user
-        self.save(update_fields=["status", "failed_reason", "failed_at", "updated_by", "updated_at"])
+    # -----------------------------
+    # Meta
+    # -----------------------------
+    class Meta:
+        ordering = ["run_id", "sequence", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run", "order"],
+                condition=models.Q(order__isnull=False),
+                name="unique_order_per_run",
+            ),
+            models.UniqueConstraint(
+                fields=["run", "supplier"],
+                condition=models.Q(
+                    supplier__isnull=False,
+                    stop_type="SUPPLIER",
+                ),
+                name="unique_supplier_per_run",
+            ),
+        ]
 
-
+    def __str__(self):
+        if self.stop_type == "SUPPLIER" and self.supplier:
+            label = self.supplier.name
+        elif self.customer_name:
+            label = self.customer_name
+        else:
+            label = f"Order #{self.order_id}"
+        return f"{self.run.service_date} · {label} · {self.get_status_display()}"
+    
 class DeliveryStopItem(models.Model):
     """
     Optional per-stop item tracking (load vs delivered).

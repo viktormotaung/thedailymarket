@@ -287,14 +287,13 @@ def client_create(request):
 @login_required
 @staff_required
 def client_edit(request, pk):
-    # Fetch client with related objects efficiently
     client = get_object_or_404(
         Client.objects.select_related("account_manager")
                       .prefetch_related("categories"),
         pk=pk
     )
 
-    original_status = client.status  # capture status before changes
+    original_status = client.status
 
     if request.method == "POST":
         form = ClientEditForm(request.POST, instance=client)
@@ -303,7 +302,6 @@ def client_edit(request, pk):
             with transaction.atomic():
                 updated_client = form.save()
 
-                # 1️⃣ Close the latest task associated with this client
                 content_type = ContentType.objects.get_for_model(updated_client)
                 latest_task = Task.objects.filter(
                     content_type=content_type,
@@ -315,7 +313,6 @@ def client_edit(request, pk):
                     latest_task.completed_at = timezone.now()
                     latest_task.save(update_fields=["status", "completed_at", "updated_at"])
 
-                # 2️⃣ Send client status change email
                 customer_profile = updated_client.customer_profiles.select_related("user").first()
                 user = getattr(customer_profile, "user", None)
 
@@ -330,7 +327,17 @@ def client_edit(request, pk):
             messages.success(request, "Client updated successfully.")
             return redirect("client-view", pk=updated_client.pk)
 
+        # 🔥 DEBUG PRINT BLOCK
+        print("\n========== FORM ERRORS ==========")
+        print("Form errors dict:", form.errors)
+        print("Non-field errors:", form.non_field_errors())
+        for field in form:
+            if field.errors:
+                print(f"Field '{field.name}' errors:", field.errors)
+        print("=================================\n")
+
         messages.error(request, "Please fix the errors below.")
+
     else:
         form = ClientEditForm(instance=client)
 

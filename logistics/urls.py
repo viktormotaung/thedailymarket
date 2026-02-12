@@ -102,4 +102,11 @@ urlpatterns = [
 
     # Monitor
     path("monitor/", views.monitor_view, name="monitor-view"),
+
+    path(
+        "driver/stops/<int:stop_id>/supplier/",
+        views.supplier_stop_completion,
+        name="supplier-stop-completion",
+    ),
+
 ]

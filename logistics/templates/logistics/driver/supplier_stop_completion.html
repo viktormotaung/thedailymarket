@@ -1,0 +1,154 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Supplier Pickup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+
+  <style>
+    body { background: #f8f9fa; }
+    .card { border-radius: 10px; }
+    .label-muted {
+      font-size: 0.85rem;
+      color: #6c757d;
+    }
+    .item-row td {
+      vertical-align: middle;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container py-4">
+
+  <!-- HEADER -->
+  <div class="mb-4">
+    <h4 class="mb-1">Supplier Pickup</h4>
+    <div class="text-muted small">
+      {{ stop.customer_name }} · {{ stop.address_one_line }}
+    </div>
+  </div>
+
+  <!-- STOP SUMMARY -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-md-6">
+          <div class="label-muted">Stop Type</div>
+          <span class="badge bg-warning text-dark">Supplier</span>
+        </div>
+
+        <div class="col-md-6">
+          <div class="label-muted">Status</div>
+          <span class="badge bg-success">{{ stop.get_status_display }}</span>
+        </div>
+
+        <div class="col-md-6">
+          <div class="label-muted">Started</div>
+          <div>{{ stop.started_at|date:"H:i" }}</div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="label-muted">Completed</div>
+          <div>{{ stop.ended_at|date:"H:i" }}</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- FORM -->
+  <form method="post">
+    {% csrf_token %}
+
+    <!-- ITEMS -->
+    <div class="card mb-4">
+      <div class="card-body">
+
+        <h6 class="mb-3">Items to Collect</h6>
+
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width:60px;" class="text-center">✔</th>
+                <th>Item</th>
+                <th style="width:120px;">Expected Qty</th>
+                <th style="width:35%;">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+
+              {% for item in items %}
+              <tr class="item-row">
+                <td class="text-center">
+                  <input
+                    type="checkbox"
+                    name="item_collected_{{ item.id }}"
+                    class="form-check-input"
+                  >
+                </td>
+                <td class="fw-semibold">
+                  {{ item.product_name }}
+                </td>
+                <td>
+                  {{ item.expected_qty }}
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    name="item_notes_{{ item.id }}"
+                    class="form-control form-control-sm"
+                    placeholder="Short supply, damage, substitution..."
+                  >
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="text-center text-muted">
+                  No items expected from this supplier
+                </td>
+              </tr>
+              {% endfor %}
+
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="d-flex flex-column flex-md-row gap-2">
+
+      <button
+        type="submit"
+        class="btn btn-success flex-fill"
+      >
+        ✔ Complete Pickup
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-outline-secondary flex-fill"
+        onclick="window.close();"
+      >
+        Close
+      </button>
+
+    </div>
+
+  </form>
+
+</div>
+
+</body>
+</html>

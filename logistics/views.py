@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect, reverse
 from django.http import HttpResponseForbidden, JsonResponse
 from django.urls import reverse
-
+from django.db.models import Prefetch
 from django.utils.timezone import now
 from datetime import timedelta
 from django.db.models import Sum, Count, Q
@@ -490,9 +490,24 @@ def deliveries(request):
 
 @login_required
 def delivery_run_detail(request, run_id):
-    run = get_object_or_404(DeliveryRun, id=run_id)
+    """
+    View a delivery run, including supplier pickups and customer deliveries.
+    Allows assigning a driver and vehicle to the run.
+    """
 
-    # ✅ FIX: use status, not is_active
+    run = get_object_or_404(
+        DeliveryRun.objects.prefetch_related(
+            Prefetch(
+                "stops",
+                queryset=DeliveryStop.objects
+                .select_related("supplier", "order")
+                .order_by("sequence", "id"),
+            )
+        ),
+        id=run_id,
+    )
+
+    # Only active vehicles can be assigned
     vehicles = Vehicle.objects.filter(status="active")
 
     if request.method == "POST":
@@ -518,7 +533,7 @@ def delivery_run_detail(request, run_id):
         {
             "run": run,
             "form": form,
-        }
+        },
     )
 
 
@@ -593,7 +608,9 @@ def driver_view(request):
         .first()
     )
 
-    # --- No active run ---
+    # -------------------------------------------------
+    # No active run
+    # -------------------------------------------------
     if not run:
         return render(
             request,
@@ -609,10 +626,33 @@ def driver_view(request):
             }
         )
 
-    # --- All stops ---
-    stops = run.stops.all().order_by("sequence", "id")
+    # -------------------------------------------------
+    # Load stops with ordering
+    # -------------------------------------------------
+    stops = (
+        run.stops
+        .select_related("supplier", "order")
+        .order_by("sequence", "id")
+    )
 
-    # --- Actionable stops ONLY ---
+    # -------------------------------------------------
+    # Decorate stops with display helpers
+    # -------------------------------------------------
+    for stop in stops:
+        if stop.stop_type == "SUPPLIER":
+            stop.display_type = "Pickup"
+        elif stop.stop_type == "CUSTOMER":
+            stop.display_type = "Delivery"
+        elif stop.stop_type == "RETURN":
+            stop.display_type = "Return"
+        else:
+            stop.display_type = "Start"
+
+        stop.display_address = stop.address_one_line() or "—"
+
+    # -------------------------------------------------
+    # Actionable stops
+    # -------------------------------------------------
     actionable_stops = stops.filter(
         status__in=["assigned", "en_route"]
     )
@@ -622,8 +662,8 @@ def driver_view(request):
     context = {
         "run": run,
         "stops": stops,
-        "current_stop": current_stop,          # ✅ SAFE
-        "upcoming_stops": actionable_stops,    # ✅ SAFE
+        "current_stop": current_stop,
+        "upcoming_stops": actionable_stops,
         "all_completed": not actionable_stops.exists(),
         "total_stops": stops.count(),
         "completed_stops": stops.filter(status="delivered").count(),
@@ -634,6 +674,7 @@ def driver_view(request):
         "logistics/driver/driver_view.html",
         context,
     )
+
 
 
 
@@ -783,7 +824,59 @@ def end_stop(request, stop_id):
         run.status = "complete"
         run.save(update_fields=["status", "updated_at"])
 
-    return redirect("logistics:stop-completion", stop_id=stop.id)
+    if stop.stop_type == "SUPPLIER":
+        return redirect("logistics:supplier-stop-completion", stop_id=stop.id)
+
+    elif stop.stop_type == "CUSTOMER":
+        return redirect("logistics:stop-completion", stop_id=stop.id)
+
+    elif stop.stop_type == "RETURN":
+        return redirect("logistics:run-summary", run_id=stop.run_id)
+
+    return redirect("logistics:driver-dashboard")
+
+
+@login_required
+def supplier_stop_completion(request, stop_id):
+    stop = get_object_or_404(
+        DeliveryStop.objects.select_related("run", "supplier"),
+        id=stop_id,
+    )
+
+    # 🔐 Security
+    if stop.run.driver_id != request.user.id:
+        return HttpResponseForbidden("Not assigned")
+
+    if stop.stop_type != "SUPPLIER":
+        return HttpResponseForbidden("Invalid stop type")
+
+    # 🔗 Identify the picking batch that created this run
+    # Assumption (current design): one batch → one run
+    picking_batch = (
+        PickingBatch.objects
+        .filter(name=stop.run.name)
+        .order_by("-created_at")
+        .first()
+    )
+
+    items = []
+    if picking_batch:
+        items = (
+            picking_batch.items
+            .filter(supplier=stop.supplier)
+            .order_by("product_name")
+        )
+
+    return render(
+        request,
+        "logistics/driver/supplier_stop_completion.html",
+        {
+            "stop": stop,
+            "supplier": stop.supplier,
+            "items": items,
+            "batch": picking_batch,
+        }
+    )
 
 
 

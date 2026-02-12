@@ -12,6 +12,7 @@ from django.db import models, transaction
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils.timezone import now
+from django.conf import settings
 
 from clients.models import Client
 from products.models import Product, Category

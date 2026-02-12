@@ -416,44 +416,87 @@
     <!-- UPCOMING STOPS -->
     <div class="row mt-4">
       <div class="col-12">
-        <h5 class="mb-3">Upcoming Stops</h5>
+        <h4 class="mt-4">Upcoming Stops</h4>
 
-        {% if upcoming_stops %}
         <div class="table-responsive">
-          <table class="table table-hover align-middle">
+          <table class="table table-striped align-middle">
             <thead class="table-light">
               <tr>
-                <th style="width:80px;">Stop</th>
-                <th>Customer</th>
+                <th style="width:60px;">#</th>
+                <th style="width:120px;">Type</th>
+                <th>Stop</th>
                 <th>Address</th>
                 <th style="width:120px;">Status</th>
               </tr>
             </thead>
+
             <tbody>
               {% for stop in upcoming_stops %}
-              {% if stop.status != "delivered" %}
-              <tr>
-                <td class="fw-bold">{{ stop.sequence }}</td>
-                <td>{{ stop.customer_name }}</td>
-                <td class="text-muted small">{{ stop.address_one_line }}</td>
-                <td>
-                  {% if stop.id == current_stop.id %}
-                    <span class="badge bg-primary">Current</span>
-                  {% else %}
-                    <span class="badge bg-secondary">Pending</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endif %}
+                <tr>
+
+                  <!-- Sequence -->
+                  <td class="fw-bold">{{ stop.sequence }}</td>
+
+                  <!-- Type -->
+                  <td>
+                    {% if stop.stop_type == "SUPPLIER" %}
+                      <span class="badge bg-warning text-dark">Pickup</span>
+                    {% elif stop.stop_type == "CUSTOMER" %}
+                      <span class="badge bg-success">Delivery</span>
+                    {% elif stop.stop_type == "RETURN" %}
+                      <span class="badge bg-secondary">Return</span>
+                    {% else %}
+                      <span class="badge bg-info">Start</span>
+                    {% endif %}
+                  </td>
+
+                  <!-- Stop name -->
+                  <td>
+                    {% if stop.stop_type == "SUPPLIER" and stop.supplier %}
+                      {{ stop.supplier.name }}
+                    {% elif stop.stop_type == "CUSTOMER" %}
+                      {{ stop.customer_name }}
+                    {% else %}
+                      {{ run.depot_label }}
+                    {% endif %}
+                  </td>
+
+                  <!-- Address -->
+                  <td class="text-muted small">
+                    {% if stop.stop_type == "SUPPLIER" and stop.supplier %}
+                      {{ stop.supplier.address_line1 }}
+                      {% if stop.supplier.address_line2 %}, {{ stop.supplier.address_line2 }}{% endif %}
+                      {% if stop.supplier.city %}, {{ stop.supplier.city }}{% endif %}
+                      {% if stop.supplier.province %}, {{ stop.supplier.province }}{% endif %}
+                      {% if stop.supplier.postal_code %}, {{ stop.supplier.postal_code }}{% endif %}
+                    {% elif stop.address_one_line %}
+                      {{ stop.address_one_line }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+
+                  <!-- Status -->
+                  <td>
+                    {% if current_stop and stop.id == current_stop.id %}
+                      <span class="badge bg-primary">Current</span>
+                    {% else %}
+                      <span class="badge bg-secondary">Pending</span>
+                    {% endif %}
+                  </td>
+
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="5" class="text-center text-muted py-4">
+                    No upcoming stops.
+                  </td>
+                </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
-        {% else %}
-          <div class="alert alert-success mb-0">
-            🎉 All stops completed for this run.
-          </div>
-        {% endif %}
+
       </div>
     </div>
 

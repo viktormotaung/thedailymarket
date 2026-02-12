@@ -375,12 +375,17 @@ class DeliveryRunAdmin(admin.ModelAdmin):
     # =========================
 
     def overall_total_cost_display(self, obj):
-        if obj.overall_total_cost is not None:
-            return format_html(
-                "<strong>R {:,.2f}</strong>",
-                obj.overall_total_cost
-            )
-        return "—"
+        value = obj.overall_total_cost
+
+        if value is None:
+            return "—"
+
+        try:
+            value = Decimal(value)
+        except Exception:
+            return format_html("<strong>{}</strong>", value)
+
+        return format_html("<strong>R {:,.2f}</strong>", value)
 
     overall_total_cost_display.short_description = "Total Cost"
     overall_total_cost_display.admin_order_field = "overall_total_cost"
