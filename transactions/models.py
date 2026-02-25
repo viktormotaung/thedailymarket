@@ -10,6 +10,7 @@ from django.utils.timezone import now, localdate
 from django.utils import timezone
 
 
+
 # ---------- helpers ----------
 def _r2(x: Decimal | None) -> Decimal:
     return Decimal("0.00") if x is None else x.quantize(Decimal("0.01"))
@@ -129,7 +130,11 @@ class Transaction(models.Model):
 
     client = models.ForeignKey("clients.Client", on_delete=models.CASCADE, related_name="transactions")
     invoice = models.ForeignKey(
-        "invoices.Invoice", on_delete=models.SET_NULL, null=True, blank=True, related_name="transactions"
+        "invoices.Invoice",
+        on_delete=models.CASCADE,
+        related_name="transactions",
+        null=True,
+        blank=True,
     )
 
     transaction_type = models.CharField(max_length=30, choices=TRANSACTION_TYPES)

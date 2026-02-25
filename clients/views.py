@@ -24,7 +24,7 @@ from django.contrib.contenttypes.models import ContentType
 from decimal import Decimal
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
-from .forms import ClientEditForm, ClientComplianceForm, ClientComplianceDocumentForm, ClientComplianceDocumentStatusForm
+from .forms import ClientEditForm, ClientComplianceForm, ClientComplianceDocumentForm, ClientComplianceDocumentStatusForm, ClientForm, ClientOperationsForm
 def _bs(extra_class=None):
     """
     Bootstrap helper for form widgets.
@@ -108,164 +108,6 @@ def client_list(request):
         "credit_statuses": credit_statuses,
         "statuses": statuses,
     })
-
-class ClientForm(forms.ModelForm):
-
-    city = forms.ChoiceField(
-        choices=[("", "Select a city")] + GAUTENG_CITY_CHOICES,
-        required=False,
-        widget=forms.Select(attrs={"class": "form-select"}),
-        label="City",
-    )
-
-    delivery_city = forms.ChoiceField(
-        choices=[("", "Select a city")] + GAUTENG_CITY_CHOICES,
-        required=False,
-        widget=forms.Select(attrs={"class": "form-select"}),
-        label="Delivery City",
-    )
-    class Meta:
-        model = Client
-        fields = [
-            # Identity & Ownership
-            "entity_type",                 # ✅ ADDED
-            "name",
-            "organization",
-            "client_type",
-            "account_manager",
-            "price_type",
-
-            # Contact
-            "contact_person",
-            "email",
-            "phone",
-            "whatsapp",
-
-            # Address
-            "address_line1",
-            "address_line2",
-            "suburb",
-            "city",
-            "province",
-            "postal_code",
-            "country",
-
-            # ✅ Delivery Address (ADD THESE)
-            "delivery_address_line1",
-            "delivery_address_line2",
-            "delivery_suburb",
-            "delivery_city",
-            "delivery_province",
-            "delivery_postal_code",
-            "delivery_country",
-
-            # Delivery geo
-            "delivery_lat",
-            "delivery_lng",
-
-            # Compliance
-            "registration_identifier",
-            "vat_number",
-
-            # Categorisation & Account
-            "categories",
-            "status",
-            "account_type",
-            "credit_status",
-
-            # Spend & Notes
-            "estimated_weekly_spend",
-            "notes",
-        ]
-
-        widgets = {
-            # Text inputs
-            "name": forms.TextInput(attrs={"class": "form-control"}),
-            "organization": forms.TextInput(attrs={"class": "form-control"}),
-            "contact_person": forms.TextInput(attrs={"class": "form-control"}),
-            "email": forms.EmailInput(attrs={"class": "form-control"}),
-            "phone": forms.TextInput(attrs={"class": "form-control"}),
-            "whatsapp": forms.TextInput(attrs={"class": "form-control"}),
-            "address_line1": forms.TextInput(attrs={"class": "form-control"}),
-            "address_line2": forms.TextInput(attrs={"class": "form-control"}),
-            "suburb": forms.TextInput(attrs={"class": "form-control"}),
-            
-            "postal_code": forms.TextInput(attrs={"class": "form-control"}),
-            "country": forms.TextInput(attrs={"class": "form-control"}),
-
-            "delivery_address_line1": forms.TextInput(attrs={"class": "form-control"}),
-            "delivery_address_line2": forms.TextInput(attrs={"class": "form-control"}),
-            "delivery_suburb": forms.TextInput(attrs={"class": "form-control"}),
-            
-            "delivery_province": forms.Select(attrs={"class": "form-select"}),
-            "delivery_postal_code": forms.TextInput(attrs={"class": "form-control"}),
-            "delivery_country": forms.TextInput(attrs={"class": "form-control"}),
-
-            # Geo (hidden but editable by JS/maps later)
-            "delivery_lat": forms.NumberInput(
-                attrs={**_bs(), "step": "0.000001"}
-            ),
-            "delivery_lng": forms.NumberInput(
-                attrs={**_bs(), "step": "0.000001"}
-            ),
-
-            # Compliance
-            "registration_identifier": forms.TextInput(attrs={
-                "class": "form-control",
-                "placeholder": "Company registration number or SA ID number",
-            }),
-            "vat_number": forms.TextInput(attrs={"class": "form-control"}),
-
-            # Numbers
-            "estimated_weekly_spend": forms.NumberInput(
-                attrs={"class": "form-control", "step": "0.01", "min": "0"}
-            ),
-
-            # Notes
-            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 5}),
-
-            # Selects
-            "entity_type": forms.Select(attrs={"class": "form-select"}),   # ✅ ADDED
-            "client_type": forms.Select(attrs={"class": "form-select"}),
-            "account_manager": forms.Select(attrs={"class": "form-select"}),
-            "province": forms.Select(attrs={"class": "form-select"}),
-            "status": forms.Select(attrs={"class": "form-select"}),
-            "account_type": forms.Select(attrs={"class": "form-select"}),
-            "credit_status": forms.Select(attrs={"class": "form-select"}),
-            "price_type": forms.Select(attrs={"class": "form-select"}),
-
-            # Many-to-many
-            "categories": forms.SelectMultiple(
-                attrs={"class": "form-select", "size": "6"}
-            ),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Only active categories
-        self.fields["categories"].queryset = (
-            Category.objects.filter(is_active=True).order_by("name")
-        )
-
-        # Human-friendly labels
-        self.fields["entity_type"].label = "Business Type"
-        self.fields["registration_identifier"].label = "Registration / ID Number"
-
-        # Placeholders
-        self.fields["email"].widget.attrs.setdefault(
-            "placeholder", "name@example.com"
-        )
-        self.fields["phone"].widget.attrs.setdefault(
-            "placeholder", "e.g. 072 123 4567"
-        )
-        self.fields["whatsapp"].widget.attrs.setdefault(
-            "placeholder", "e.g. 072 123 4567"
-        )
-
-        # Default price type
-        if not self.instance.pk and not self.initial.get("price_type"):
-            self.fields["price_type"].initial = "Retail"
 
 
 @login_required
@@ -693,3 +535,21 @@ def client_view(request, pk):
         "clients/client_view.html",
         context
     )
+
+
+@login_required
+def client_edit_operations(request, pk):
+    client = get_object_or_404(Client, pk=pk)
+
+    if request.method == "POST":
+        form = ClientOperationsForm(request.POST, instance=client)
+        if form.is_valid():
+            form.save()
+            return redirect("client-view", pk=client.pk)
+    else:
+        form = ClientOperationsForm(instance=client)
+
+    return render(request, "clients/client_edit_operations.html", {
+        "client": client,
+        "form": form,
+    })

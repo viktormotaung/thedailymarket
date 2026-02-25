@@ -440,129 +440,74 @@ class Client(models.Model):
         # fallback to address search
         from urllib.parse import quote_plus
         return f"https://www.google.com/maps/search/?api=1&query={quote_plus(self.delivery_address_as_line())}"
+    
+    def is_open_now(self):
+        now = timezone.localtime()
+        today = now.strftime("%a").upper()[:3]
 
+        hours = self.operating_hours.filter(day=today).first()
 
-class ClientCompliance(models.Model):
-    VETTING_STATUS = [
-        ("PENDING", "Pending"),
-        ("IN_REVIEW", "In Review"),
-        ("APPROVED", "Approved"),
-        ("REJECTED", "Rejected"),
-        ("EXPIRED", "Expired"),
+        if not hours or hours.is_closed:
+            return False
+
+        if not hours.open_time or not hours.close_time:
+            return False
+
+        return hours.open_time <= now.time() <= hours.close_time
+    
+    def get_today_hours(self):
+        today = timezone.localtime().strftime("%a").upper()[:3]
+        return self.operating_hours.filter(day=today).first()
+
+class ClientOperatingHours(models.Model):
+    DAY_CHOICES = [
+        ("MON", "Monday"),
+        ("TUE", "Tuesday"),
+        ("WED", "Wednesday"),
+        ("THU", "Thursday"),
+        ("FRI", "Friday"),
+        ("SAT", "Saturday"),
+        ("SUN", "Sunday"),
     ]
 
-    client = models.OneToOneField(
+    client = models.ForeignKey(
         Client,
         on_delete=models.CASCADE,
-        related_name="compliance",
+        related_name="operating_hours",
     )
 
-    # --- Registration & identity ---
-    registration_identifier = models.CharField(
-        max_length=80,
-        blank=True,
-    )
-    vat_number = models.CharField(max_length=80, blank=True)
-
-    # --- Vetting state ---
-    vetting_status = models.CharField(
-        max_length=20,
-        choices=VETTING_STATUS,
-        default="PENDING",
-        db_index=True,
+    day = models.CharField(
+        max_length=3,
+        choices=DAY_CHOICES,
     )
 
-    vetted_at = models.DateTimeField(null=True, blank=True)
-    vetted_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="vetted_clients",
-    )
+    is_closed = models.BooleanField(default=False)
 
-    notes = models.TextField(blank=True)
+    open_time = models.TimeField(null=True, blank=True)
+    close_time = models.TimeField(null=True, blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        unique_together = ("client", "day")
+        ordering = ["day"]
 
-
-
+    def __str__(self):
+        return f"{self.client} - {self.get_day_display()}"
     
-class ClientComplianceDocument(models.Model):
-    DOCUMENT_TYPES = [
-        ("CIPC", "CIPC Registration"),
-        ("ID", "Director ID"),
-        ("PROOF_ADDRESS", "Proof of Address"),
-        ("BANK_LETTER", "Bank Confirmation Letter"),
-        ("CONTRACT", "Signed Contract / Agreement"),
-        ("OTHER", "Other"),
-    ]
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.is_closed:
+            if self.open_time or self.close_time:
+                raise ValidationError("Closed days should not have opening times.")
+
+        if not self.is_closed:
+            if not self.open_time or not self.close_time:
+                raise ValidationError("Open days must have both opening and closing times.")
+
+            if self.close_time <= self.open_time:
+                raise ValidationError("Closing time must be after opening time.")
     
-    DOCUMENT_STATUS = [
-        ("PENDING", "Pending"),
-        ("APPROVED", "Approved"),
-        ("REJECTED", "Rejected"),
-    ]
-
-    compliance = models.ForeignKey(
-        ClientCompliance,
-        on_delete=models.CASCADE,
-        related_name="documents",
-    )
-
-    document_type = models.CharField(max_length=30, choices=DOCUMENT_TYPES)
-    file = models.FileField(upload_to="compliance/client_docs/", blank=True)
     
-    status = models.CharField(
-        max_length=20,
-        choices=DOCUMENT_STATUS,
-        default="PENDING",
-    )
-
-    reviewed_at = models.DateTimeField(null=True, blank=True)
-    reviewed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="reviewed_documents",
-    )
-
-    uploaded_at = models.DateTimeField(auto_now_add=True)
-    uploaded_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-    )
-
-    notes = models.CharField(max_length=255, blank=True)
-
-
-
-
-# --------- keep CreditAccount.funder mirrored from Client.funder ----------
-@receiver(post_save, sender=Client)
-def sync_creditaccount_funder(sender, instance: Client, created, **kwargs):
-    """
-    Keep CreditAccount.funder in sync with Client.funder IF that field exists.
-    No-op if CreditAccount has no 'funder' field.
-    """
-    # Ensure the 1–1 exists (per your earlier helper)
-    ca = instance.ensure_credit_account()
-
-    # If CreditAccount has no funder field, just bail out
-    if not hasattr(ca, "funder_id"):
-        return
-
-    client_funder_id = getattr(instance, "funder_id", None)
-    if ca.funder_id != client_funder_id:
-        # Update only if the field exists
-        ca.funder_id = client_funder_id
-        ca.save(update_fields=["funder"])
-
-
 class Prospect(models.Model):
     """
     A potential client that the sales team is working on.
@@ -819,6 +764,173 @@ class Prospect(models.Model):
         return "Very overdue"
     
     
+
+
+    
+class ProspectOperatingHours(models.Model):
+    DAY_CHOICES = ClientOperatingHours.DAY_CHOICES
+
+    prospect = models.ForeignKey(
+        Prospect,
+        on_delete=models.CASCADE,
+        related_name="operating_hours",
+    )
+
+    day = models.CharField(
+        max_length=3,
+        choices=DAY_CHOICES,
+    )
+
+    is_closed = models.BooleanField(default=False)
+
+    open_time = models.TimeField(null=True, blank=True)
+    close_time = models.TimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("prospect", "day")
+        ordering = ["day"]
+
+    def __str__(self):
+        return f"{self.prospect} - {self.get_day_display()}"
+    
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.is_closed:
+            if self.open_time or self.close_time:
+                raise ValidationError("Closed days should not have opening times.")
+
+        if not self.is_closed:
+            if not self.open_time or not self.close_time:
+                raise ValidationError("Open days must have both opening and closing times.")
+
+            if self.close_time <= self.open_time:
+                raise ValidationError("Closing time must be after opening time.")
+    
+
+
+
+class ClientCompliance(models.Model):
+    VETTING_STATUS = [
+        ("PENDING", "Pending"),
+        ("IN_REVIEW", "In Review"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+        ("EXPIRED", "Expired"),
+    ]
+
+    client = models.OneToOneField(
+        Client,
+        on_delete=models.CASCADE,
+        related_name="compliance",
+    )
+
+    # --- Registration & identity ---
+    registration_identifier = models.CharField(
+        max_length=80,
+        blank=True,
+    )
+    vat_number = models.CharField(max_length=80, blank=True)
+
+    # --- Vetting state ---
+    vetting_status = models.CharField(
+        max_length=20,
+        choices=VETTING_STATUS,
+        default="PENDING",
+        db_index=True,
+    )
+
+    vetted_at = models.DateTimeField(null=True, blank=True)
+    vetted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="vetted_clients",
+    )
+
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+
+    
+class ClientComplianceDocument(models.Model):
+    DOCUMENT_TYPES = [
+        ("CIPC", "CIPC Registration"),
+        ("ID", "Director ID"),
+        ("PROOF_ADDRESS", "Proof of Address"),
+        ("BANK_LETTER", "Bank Confirmation Letter"),
+        ("CONTRACT", "Signed Contract / Agreement"),
+        ("OTHER", "Other"),
+    ]
+    
+    DOCUMENT_STATUS = [
+        ("PENDING", "Pending"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+    ]
+
+    compliance = models.ForeignKey(
+        ClientCompliance,
+        on_delete=models.CASCADE,
+        related_name="documents",
+    )
+
+    document_type = models.CharField(max_length=30, choices=DOCUMENT_TYPES)
+    file = models.FileField(upload_to="compliance/client_docs/", blank=True)
+    
+    status = models.CharField(
+        max_length=20,
+        choices=DOCUMENT_STATUS,
+        default="PENDING",
+    )
+
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_documents",
+    )
+
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+
+    notes = models.CharField(max_length=255, blank=True)
+
+
+
+
+# --------- keep CreditAccount.funder mirrored from Client.funder ----------
+@receiver(post_save, sender=Client)
+def sync_creditaccount_funder(sender, instance: Client, created, **kwargs):
+    """
+    Keep CreditAccount.funder in sync with Client.funder IF that field exists.
+    No-op if CreditAccount has no 'funder' field.
+    """
+    # Ensure the 1–1 exists (per your earlier helper)
+    ca = instance.ensure_credit_account()
+
+    # If CreditAccount has no funder field, just bail out
+    if not hasattr(ca, "funder_id"):
+        return
+
+    client_funder_id = getattr(instance, "funder_id", None)
+    if ca.funder_id != client_funder_id:
+        # Update only if the field exists
+        ca.funder_id = client_funder_id
+        ca.save(update_fields=["funder"])
+
+
 
 
 

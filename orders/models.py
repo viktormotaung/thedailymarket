@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
-
+from django.db import transaction
+import threading
+import time
 from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -30,16 +32,18 @@ def r2(x: Decimal | None) -> Decimal:
 # Order
 # ====================================================================
 class Order(models.Model):
+
     STATUS_CHOICES = [
-        ("pending", "Pending"),                 
+        ("pending", "Pending"),
         ("approved", "Approved"),
-        ("awaiting_payment", "Awaiting Payment"),              
+        ("awaiting_payment", "Awaiting Payment"),
         ("at_warehouse", "At Warehouse"),
         ("ready_for_delivery", "Ready for Delivery"),
         ("out_for_delivery", "Out for Delivery"),
         ("complete", "Complete"),
         ("returned", "Returned"),
         ("cancelled", "Cancelled"),
+        ("credit_blocked", "Credit Blocked"),
     ]
 
     CHANNELS = [
@@ -48,17 +52,14 @@ class Order(models.Model):
         ("API", "API"),
     ]
 
-    # --- Ownership / identity ---
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="orders")
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name="orders_created",
-        help_text="Null if self-serve; set if captured by staff.",
     )
 
-    # --- Flow / timing ---
     channel = models.CharField(max_length=16, choices=CHANNELS, default="WEB")
     order_date = models.DateTimeField(default=now, editable=True)
     status = models.CharField(max_length=25, choices=STATUS_CHOICES, default="pending")
@@ -70,7 +71,6 @@ class Order(models.Model):
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name="orders_reviewed",
-        help_text="Staff member who reviewed the order.",
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
 
@@ -79,26 +79,15 @@ class Order(models.Model):
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name="orders_approved",
-        help_text="Staff member who approved the order.",
     )
     approved_at = models.DateTimeField(null=True, blank=True)
 
     customer_notes = models.TextField(blank=True)
-    notes = models.TextField(blank=True, help_text="Internal notes visible to staff only.")
+    notes = models.TextField(blank=True)
 
-    # --- Order-level totals (snapshots) ---
-    discount_total_excl = models.DecimalField(
-        max_digits=12, decimal_places=2, default=Decimal("0.00"),
-        validators=[MinValueValidator(Decimal("0.00"))],
-    )
-    delivery_fee_excl = models.DecimalField(
-        max_digits=12, decimal_places=2, default=Decimal("0.00"),
-        validators=[MinValueValidator(Decimal("0.00"))],
-    )
-    delivery_fee_vat_percent = models.DecimalField(
-        max_digits=5, decimal_places=2, default=Decimal("0.00"),  # not VAT-registered currently
-        validators=[MinValueValidator(Decimal("0.00")), MaxValueValidator(Decimal("100.00"))],
-    )
+    discount_total_excl = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    delivery_fee_excl = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    delivery_fee_vat_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
 
     subtotal_excl = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     vat_total = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
@@ -108,116 +97,20 @@ class Order(models.Model):
 
     class Meta:
         ordering = ["-submitted_at"]
-        indexes = [
-            models.Index(fields=["status"]),
-            models.Index(fields=["submitted_at"]),
-            models.Index(fields=["client", "status"]),
-        ]
 
     def __str__(self):
         return f"Order #{self.pk or '—'} · {self.client} · {self.status}"
 
-    # ---- Convenience ----
-    @property
-    def is_approved(self) -> bool:
-        return self.status == "approved" and self.approved_at is not None
-
-    def mark_reviewed(self, user):
-        self.reviewed_by = user
-        self.reviewed_at = now()
-        self.save(update_fields=["reviewed_by", "reviewed_at", "updated_at"])
-
-    def ensure_delivery_artifacts(self) -> bool:
-        """
-        Make sure delivery-related rows exist for this order:
-        - DeliveryReceipt (1:1 with Order)
-        - DeliveryPickList (+ DeliveryPickItem rows cloned from Order items)
-
-        Returns True if anything was created; False if everything already existed.
-        """
-        DeliveryReceipt = apps.get_model("deliveries", "DeliveryReceipt")
-        DeliveryPickList = apps.get_model("deliveries", "DeliveryPickList")
-        DeliveryPickItem = apps.get_model("deliveries", "DeliveryPickItem")
-
-        created_any = False
-
-        with transaction.atomic():
-            # 1) Receipt (for client signature on delivery)
-            _, created = DeliveryReceipt.objects.get_or_create(
-                order=self,
-                defaults={
-                    "client": self.client,
-                    "status": "pending",
-                },
-            )
-            created_any = created or created_any
-
-            # 2) Pick list (for the warehouse)
-            pick, created = DeliveryPickList.objects.get_or_create(
-                order=self,
-                defaults={
-                    "client": self.client,
-                    "status": "pending",
-                },
-            )
-            created_any = created or created_any
-
-            # If we just created the pick list, populate its items from the order items
-            if created:
-                items_to_create = []
-                for oi in self.items.select_related("product"):
-                    items_to_create.append(
-                        DeliveryPickItem(
-                            pick_list=pick,
-                            product=oi.product,                                # FK to Product
-                            product_name=oi.product_name or oi.product.name,   # snapshot
-                            sku=oi.sku or oi.product.sku,                      # snapshot
-                            uom=oi.uom or oi.product.uom,                      # snapshot
-                            quantity=oi.quantity,
-                        )
-                    )
-                if items_to_create:
-                    DeliveryPickItem.objects.bulk_create(items_to_create)
-
-        return created_any
-
-    def mark_approved(self, user):
-        """
-        Mark approved and ensure an invoice exists.
-        Also ensures delivery artifacts exist (non-blocking).
-        """
-        self.approved_by = user
-        self.approved_at = now()
-        self.status = "approved"
-        self.save(update_fields=["approved_by", "approved_at", "status", "updated_at"])
-
-        # Create invoice if it doesn't exist
-        try:
-            self.invoice  # touching relation
-        except Exception:
-            from invoices.models import Invoice  # lazy import to avoid circulars
-            if not Invoice.objects.filter(order=self).exists():
-                Invoice.create_for_order(self)
-
-        # Ensure delivery artefacts (don't block on failure)
-        try:
-            self.ensure_delivery_artifacts()
-        except Exception:
-            pass
-
-    # ---- Delivery VAT ----
-    @property
-    def delivery_fee_vat_amount(self) -> Decimal:
-        return r2(self.delivery_fee_excl * (self.delivery_fee_vat_percent / Decimal("100")))
-
-    # ---- Totals rollup ----
-    def recalc_totals(self, save: bool = False):
+    # -------------------------------------------------
+    # Totals
+    # -------------------------------------------------
+    def recalc_totals(self, save=False):
         items = list(self.items.all())
         sub_excl = sum((i.line_total_excl or Decimal("0.00")) for i in items)
         vat_items = sum((i.line_vat_amount or Decimal("0.00")) for i in items)
 
         sub_after_discount = r2(sub_excl - (self.discount_total_excl or Decimal("0.00")))
-        deliv_vat = self.delivery_fee_vat_amount
+        deliv_vat = r2(self.delivery_fee_excl * (self.delivery_fee_vat_percent / Decimal("100")))
         deliv_inc = r2(self.delivery_fee_excl + deliv_vat)
 
         self.subtotal_excl = sub_after_discount
@@ -225,107 +118,321 @@ class Order(models.Model):
         self.grand_total_inc = r2(self.subtotal_excl + self.vat_total + deliv_inc)
 
         if save:
-            self.save(update_fields=["subtotal_excl", "vat_total", "grand_total_inc", "updated_at"])
+            super().save(update_fields=["subtotal_excl", "vat_total", "grand_total_inc", "updated_at"])
 
-    def _audit_snapshot(self) -> dict:
-        """
-        Small, safe JSON snapshot used in the audit trail.
-        Keep this light so logs stay readable.
-        """
+    # -------------------------------------------------
+    # Snapshot
+    # -------------------------------------------------
+    def _audit_snapshot(self):
         return {
             "id": self.pk,
-            "client_id": self.client_id,
             "client": str(self.client),
             "status": self.status,
-            "totals": {
-                "subtotal_excl": str(self.subtotal_excl or Decimal("0.00")),
-                "vat_total": str(self.vat_total or Decimal("0.00")),
-                "grand_total_inc": str(self.grand_total_inc or Decimal("0.00")),
-            },
-            "items_count": self.items.count(),
+            "grand_total_inc": str(self.grand_total_inc),
             "invoice_id": getattr(getattr(self, "invoice", None), "id", None),
         }
 
+    # -------------------------------------------------
+    # SAVE
+    # -------------------------------------------------
     @transaction.atomic
-    def delete_with_audit(
-        self,
-        *,
-        request,                 # pass the current request so we can record actor/IP/UA
-        reason: str = "",
-        auth_verified: bool = False,
-        auth_method: str = "",   # e.g. "staff_code"
-        extra: dict | None = None,
-    ):
-        """
-        Logs an 'order_delete' audit event and then deletes the order
-        within the same DB transaction. If the delete fails, the log
-        also rolls back.
-        """
-        from audit.utils import log_event  # lazy import
+    def save(self, *args, **kwargs):
+        from invoices.models import Invoice
+        from decimal import Decimal
+        from django.core.exceptions import ValidationError
+        from django.db import transaction
+        import threading
+        import time
 
-        before = self._audit_snapshot()
+        print("\n================ ORDER SAVE START ================")
 
-        # Write the audit row first; lives/dies with this transaction
-        log_event(
-            request=request,
-            action="order_delete",
-            obj=self,
-            reason=reason,
-            auth_verified=auth_verified,
-            auth_method=auth_method or "",
-            before_snapshot=before,
-            extra=extra or {},
+        creating = self.pk is None
+        old_status = None
+        before_snapshot = None
+
+        if not creating:
+            try:
+                old = Order.objects.get(pk=self.pk)
+                old_status = old.status
+                before_snapshot = old._audit_snapshot()
+            except Order.DoesNotExist:
+                pass
+
+        print(f"[DEBUG] Creating: {creating}")
+        print(f"[DEBUG] Old status: {old_status}")
+        print(f"[DEBUG] New status (before save): {self.status}")
+
+        super().save(*args, **kwargs)
+
+        print(f"[DEBUG] Order {self.pk} saved with status: {self.status}")
+
+        action = OrderAudit.CREATED if creating else OrderAudit.UPDATED
+        if old_status != self.status:
+            action = OrderAudit.STATUS_CHANGED
+
+        # =================================================
+        # WEB AUTO-APPROVAL (Delayed 2 seconds)
+        # =================================================
+        if creating and self.channel == "WEB" and self.status == "pending":
+
+            print("[DEBUG] Scheduling WEB auto-approval in 2 seconds")
+
+            def delayed_auto_approve(order_id):
+                time.sleep(2)
+                try:
+                    order = Order.objects.get(pk=order_id)
+
+                    # Safety checks
+                    if (
+                        order.channel == "WEB"
+                        and order.status == "pending"
+                        and order.items.exists()
+                    ):
+                        print(f"[AUTO] Auto-approving Order {order.pk}")
+                        order.status = "approved"
+                        order.save(update_fields=["status", "updated_at"])
+                    else:
+                        print(f"[AUTO] Conditions not met for Order {order.pk}")
+
+                except Exception as e:
+                    print(f"[AUTO] Auto-approval failed: {e}")
+
+            transaction.on_commit(
+                lambda: threading.Thread(
+                    target=delayed_auto_approve,
+                    args=(self.pk,),
+                    daemon=True
+                ).start()
+            )
+
+        # -------------------------------------------------
+        # APPROVED → trigger second save (ONLY IF ITEMS EXIST)
+        # -------------------------------------------------
+        if old_status != "approved" and self.status == "approved":
+
+            print(f"[DEBUG] APPROVAL TRIGGERED for Order {self.pk}")
+
+            # 🚨 Enforce items exist
+            if not self.items.exists():
+                print("[DEBUG] APPROVAL BLOCKED — NO ITEMS FOUND")
+                raise ValidationError("Order must contain at least one item before approval.")
+
+            # Log approval FIRST
+            OrderAudit.objects.create(
+                order=self,
+                action=OrderAudit.APPROVED,
+                performed_by=self.approved_by or self.created_by,
+                status_before=old_status or "",
+                status_after="approved",
+                amount_before=(
+                    Decimal(before_snapshot.get("grand_total_inc", "0.00"))
+                    if before_snapshot else None
+                ),
+                amount_after=self.grand_total_inc,
+                snapshot_before=before_snapshot,
+                snapshot_after=self._audit_snapshot(),
+                description="Order approved",
+            )
+
+            print(f"[DEBUG] Moving Order {self.pk} to awaiting_payment")
+
+            self.status = "awaiting_payment"
+            self.save(update_fields=["status", "updated_at"])
+            print(f"[DEBUG] Second save complete → status now: {self.status}")
+            print("================ ORDER SAVE END (APPROVAL) ================\n")
+            return
+
+        # -------------------------------------------------
+        # FINANCIAL GATE (only entering awaiting_payment)
+        # -------------------------------------------------
+        if old_status != "awaiting_payment" and self.status == "awaiting_payment":
+
+            print(f"[DEBUG] ENTERING FINANCIAL GATE for Order {self.pk}")
+
+            self.recalc_totals(save=True)
+            print(f"[DEBUG] Totals recalculated → Grand Total: {self.grand_total_inc}")
+
+            client = self.client
+            credit_status = (getattr(client, "credit_status", "") or "").upper()
+            credit_account = getattr(client, "credit_account", None)
+
+            print(f"[DEBUG] Credit status: {credit_status}")
+
+            if credit_status == "ACTIVE" and credit_account:
+
+                total = self.grand_total_inc or Decimal("0.00")
+                deposit_pct = Decimal(str(getattr(credit_account, "credit_deposit_pct", 100) or 100))
+                deposit_required = r2(total * (deposit_pct / Decimal("100")))
+                credit_required = r2(total - deposit_required)
+                credit_available = credit_account.credit_available or Decimal("0.00")
+
+                print(f"[DEBUG] Deposit %: {deposit_pct}")
+                print(f"[DEBUG] Deposit Required: {deposit_required}")
+                print(f"[DEBUG] Credit Required: {credit_required}")
+                print(f"[DEBUG] Credit Available: {credit_available}")
+
+                if credit_required > credit_available:
+
+                    print("[DEBUG] CREDIT BLOCKED")
+
+                    self.status = "credit_blocked"
+                    self.save(update_fields=["status", "updated_at"])
+
+                    OrderAudit.objects.create(
+                        order=self,
+                        action=OrderAudit.CREDIT_BLOCKED,
+                        performed_by=self.approved_by or self.created_by,
+                        status_before="awaiting_payment",
+                        status_after="credit_blocked",
+                        amount_before=self.grand_total_inc,
+                        amount_after=self.grand_total_inc,
+                        snapshot_before=before_snapshot,
+                        snapshot_after=self._audit_snapshot(),
+                        description=(
+                            f"Credit insufficient. Required: {credit_required}, "
+                            f"Available: {credit_available}"
+                        ),
+                    )
+
+                    print("================ ORDER SAVE END (BLOCKED) ================\n")
+                    return
+
+            print(f"[DEBUG] Invoice exists? {hasattr(self, 'invoice')}")
+
+            if not hasattr(self, "invoice"):
+                print("[DEBUG] Creating invoice now...")
+                Invoice.create_for_order(self)
+                print("[DEBUG] Invoice created.")
+            else:
+                print("[DEBUG] Invoice already exists.")
+
+        # -------------------------------------------------
+        # FINAL AUDIT
+        # -------------------------------------------------
+        print(f"[DEBUG] Final audit action: {action}")
+
+        OrderAudit.objects.create(
+            order=self,
+            action=action,
+            performed_by=self.approved_by or self.reviewed_by or self.created_by,
+            status_before=old_status or "",
+            status_after=self.status,
+            amount_before=(
+                Decimal(before_snapshot.get("grand_total_inc", "0.00"))
+                if before_snapshot
+                else None
+            ),
+            amount_after=self.grand_total_inc,
+            snapshot_before=before_snapshot,
+            snapshot_after=self._audit_snapshot(),
+            description="Automatic system audit entry",
         )
 
-        # Perform the actual deletion (will cascade to items by FK)
-        super(Order, self).delete()
+        print("================ ORDER SAVE END ================\n")
+            
+        
+class OrderAudit(models.Model):
 
-    # ---- Credit gate (enforce only when there is outstanding credit) ----
-    def _enforce_credit_rule_on_create(self):
-        """
-        Enforce: if client has ACTIVE credit **and** outstanding credit_used > 0,
-        require that the most recent repayment after the last credit-out is >= 50%
-        of that credit-out before allowing a new order.
+    # -------------------------------------------------
+    # RELATION
+    # -------------------------------------------------
+    order = models.ForeignKey(
+        "orders.Order",
+        on_delete=models.CASCADE,
+        related_name="audit_entries",
+    )
 
-        This allows first orders / COD-only clients or clients with zero utilisation
-        to place orders without being blocked.
-        """
-        # Only for brand new orders
-        if self.pk is not None:
-            return
+    # -------------------------------------------------
+    # ACTION TYPE
+    # -------------------------------------------------
+    CREATED         = "created"
+    UPDATED         = "updated"
+    STATUS_CHANGED  = "status_changed"
+    CREDIT_BLOCKED  = "credit_blocked"
+    APPROVED        = "approved"
+    CANCELLED       = "cancelled"
+    DELETED         = "deleted"
 
-        # Enforce only for ACTIVE credit clients
-        status = (getattr(self.client, "credit_status", "") or "").upper()
-        if status != "ACTIVE":
-            return
+    ACTION_CHOICES = [
+        (CREATED, "Created"),
+        (UPDATED, "Updated"),
+        (STATUS_CHANGED, "Status Changed"),
+        (CREDIT_BLOCKED, "Credit Blocked"),
+        (APPROVED, "Approved"),
+        (CANCELLED, "Cancelled"),
+        (DELETED, "Deleted"),
+    ]
 
-        # If no account or no outstanding utilisation, do not block
-        try:
-            credit_account = getattr(self.client, "credit_account", None)
-            if credit_account is None:
-                return
-            used = getattr(credit_account, "credit_used", Decimal("0.00")) or Decimal("0.00")
-            if used <= Decimal("0.00"):
-                # Nothing outstanding -> skip the rule
-                return
-        except Exception:
-            # If we cannot read the account safely, do not block checkout
-            return
+    action = models.CharField(
+        max_length=32,
+        choices=ACTION_CHOICES,
+    )
 
-        # There is outstanding usage: now enforce the 50% repayment rule
-        try:
-            from credit.models import CreditEntry  # lazy import to avoid cycles
-            ok, reason = CreditEntry.check_50pct_rule(self.client)
-        except Exception:
-            # Fail-open: if credit module/logic is unavailable, don't block web checkout
-            ok, reason = True, ""
+    # -------------------------------------------------
+    # USER + TIMESTAMP
+    # -------------------------------------------------
+    performed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="order_audit_actions",
+    )
 
-        if not ok:
-            nice_reason = reason or (
-                "Outstanding credit requires a repayment of at least 50% before a new order."
-            )
-            # Attach to 'client' field for a friendly form error
-            raise ValidationError({"client": nice_reason})
+    performed_at = models.DateTimeField(auto_now_add=True)
+
+    # -------------------------------------------------
+    # SNAPSHOTS
+    # -------------------------------------------------
+    status_before = models.CharField(
+        max_length=32,
+        blank=True,
+    )
+    status_after = models.CharField(
+        max_length=32,
+        blank=True,
+    )
+
+    amount_before = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    amount_after = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    # Optional structured state capture
+    snapshot_before = models.JSONField(
+        null=True,
+        blank=True,
+    )
+    snapshot_after = models.JSONField(
+        null=True,
+        blank=True,
+    )
+
+    # -------------------------------------------------
+    # DESCRIPTION
+    # -------------------------------------------------
+    description = models.TextField(blank=True)
+
+    # -------------------------------------------------
+    # META
+    # -------------------------------------------------
+    class Meta:
+        ordering = ["-performed_at", "-id"]
+        indexes = [
+            models.Index(fields=["order", "performed_at"]),
+            models.Index(fields=["action"]),
+        ]
+
+    def __str__(self):
+        return f"Order #{self.order_id} · {self.action} · {self.performed_at}"
 
 
 # ====================================================================
@@ -450,8 +557,25 @@ class OrderItem(models.Model):
                 raise ValidationError("No active pricing found for this product; please enter a unit price.")
 
     def save(self, *args, **kwargs):
-        self._prefill_from_product()
-        super().save(*args, **kwargs)
-        if self.order_id:
-            self.order.recalc_totals(save=True)
+        from decimal import Decimal
+        from django.db import transaction
 
+        with transaction.atomic():
+
+            # ------------------------------------------
+            # 1️⃣ Prefill pricing + save item
+            # ------------------------------------------
+            self._prefill_from_product()
+            super().save(*args, **kwargs)
+
+            if not self.order_id:
+                return
+
+            order = self.order
+
+            # ------------------------------------------
+            # 2️⃣ Recalculate order totals
+            # ------------------------------------------
+            order.recalc_totals(save=True)
+
+            

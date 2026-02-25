@@ -125,6 +125,31 @@ class SalesJobApplication(models.Model):
     reviewed = models.BooleanField(default=False)
     shortlisted = models.BooleanField(default=False)
 
+    # =========================
+    # OVERALL EVALUATION
+    # =========================
+
+    RATING_CHOICES = [
+        (1, "1 - Very Weak"),
+        (2, "2 - Weak"),
+        (3, "3 - Average"),
+        (4, "4 - Strong"),
+        (5, "5 - Exceptional"),
+    ]
+
+    overall_rating = models.IntegerField(
+        choices=RATING_CHOICES,
+        null=True,
+        blank=True,
+        help_text="Internal rating from 1 (Very Weak) to 5 (Exceptional)"
+    )
+
+    evaluator_notes = models.TextField(
+        blank=True,
+        help_text="Internal notes about this candidate"
+    )
+
+
     class Meta:
         ordering = ["-submitted_at"]
 

@@ -1,0 +1,12 @@
+Hi {{ candidate.first_name }},
+
+Thank you for taking the time to apply to The Daily Market.
+
+After careful consideration of your application, we regret to inform you that we will not be proceeding with your application at this stage.
+
+We sincerely appreciate the time and effort you put into your submission and wish you every success in your future opportunities.
+
+Kind regards,
+
+The Daily Market Team
+info@thedailymarket.co.za

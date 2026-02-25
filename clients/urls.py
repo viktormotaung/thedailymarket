@@ -12,4 +12,5 @@ urlpatterns = [
         name="client-compliance-edit", 
     ),
     path("<int:pk>/view/", views.client_view, name="client-view"),
+    path("<int:pk>/operations/edit/", views.client_edit_operations, name="client-edit-operations"),
 ]

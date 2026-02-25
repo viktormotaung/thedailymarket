@@ -1,8 +1,8 @@
 # C:\Seshibo Daily Market\seshibo_site\clients\forms.py
 from __future__ import annotations
-
+from .models import ProspectOperatingHours
 from decimal import Decimal
-
+from .models import ClientOperatingHours
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -51,16 +51,16 @@ def _add_bs_classes(field: forms.Field, *, is_check: bool = False) -> None:
         widget.attrs["class"] = (base + " form-control").strip()
 
 
-# --------------------------------
-# Full-fat Client editor form
-# --------------------------------
+
+
 class ClientForm(forms.ModelForm):
     """
     Main create / edit form for Clients.
+    Fully aligned with original view version.
     """
 
     # ----------------------------
-    # ADDRESS DROPDOWNS (FORM-OWNED)
+    # ADDRESS DROPDOWNS
     # ----------------------------
     city = forms.ChoiceField(
         choices=GAUTENG_CITY_CHOICES,
@@ -86,12 +86,14 @@ class ClientForm(forms.ModelForm):
     class Meta:
         model = Client
         fields = [
-            # Identity
+            # Identity & Ownership
             "entity_type",
             "name",
             "organization",
             "client_type",
             "client_size_tier",
+            "account_manager",
+            "price_type",
 
             # Contact
             "contact_person",
@@ -113,16 +115,19 @@ class ClientForm(forms.ModelForm):
             "delivery_address_line2",
             "delivery_suburb",
             "delivery_city",
-            # ❌ delivery_province REMOVED
+            "delivery_province",
             "delivery_postal_code",
             "delivery_country",
+
+            # Delivery geo
+            "delivery_lat",
+            "delivery_lng",
 
             # Compliance
             "registration_identifier",
             "vat_number",
 
             # Commercial
-            "price_type",
             "estimated_weekly_spend",
 
             # Categorisation
@@ -136,20 +141,165 @@ class ClientForm(forms.ModelForm):
             # Notes
             "notes",
         ]
-        
+
         widgets = {
+            # Text inputs
+            "name": forms.TextInput(attrs=_bs()),
+            "organization": forms.TextInput(attrs=_bs()),
+            "contact_person": forms.TextInput(attrs=_bs()),
+            "email": forms.EmailInput(attrs=_bs()),
+            "phone": forms.TextInput(attrs=_bs()),
+            "whatsapp": forms.TextInput(attrs=_bs()),
+            "address_line1": forms.TextInput(attrs=_bs()),
+            "address_line2": forms.TextInput(attrs=_bs()),
+            "suburb": forms.TextInput(attrs=_bs()),
+            "postal_code": forms.TextInput(attrs=_bs()),
+            "country": forms.TextInput(attrs=_bs()),
+
+            "delivery_address_line1": forms.TextInput(attrs=_bs()),
+            "delivery_address_line2": forms.TextInput(attrs=_bs()),
+            "delivery_suburb": forms.TextInput(attrs=_bs()),
+            "delivery_postal_code": forms.TextInput(attrs=_bs()),
+            "delivery_country": forms.TextInput(attrs=_bs()),
+
+            "delivery_lat": forms.NumberInput(attrs={**_bs(), "step": "0.000001"}),
+            "delivery_lng": forms.NumberInput(attrs={**_bs(), "step": "0.000001"}),
+
+            "registration_identifier": forms.TextInput(attrs=_bs()),
+            "vat_number": forms.TextInput(attrs=_bs()),
+
+            "estimated_weekly_spend": forms.NumberInput(
+                attrs={**_bs(), "step": "0.01", "min": "0"}
+            ),
+
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+
+            # Selects
             "entity_type": forms.Select(attrs=_bs("form-select")),
-            "city": forms.Select(attrs={"class": "form-select"}),
-            "province": forms.Select(attrs={"class": "form-select"}),
-            "client_type": forms.Select(attrs={"class": "form-select"}),
-            "client_size_tier": forms.Select(attrs={"class": "form-select"}),
-            "price_type": forms.Select(attrs={"class": "form-select"}),
-            "status": forms.Select(attrs={"class": "form-select"}),
-            "account_type": forms.Select(attrs={"class": "form-select"}),
-            "credit_status": forms.Select(attrs={"class": "form-select"}),
+            "client_type": forms.Select(attrs=_bs("form-select")),
+            "client_size_tier": forms.Select(attrs=_bs("form-select")),
+            "account_manager": forms.Select(attrs=_bs("form-select")),
+            "province": forms.Select(attrs=_bs("form-select")),
+            "status": forms.Select(attrs=_bs("form-select")),
+            "account_type": forms.Select(attrs=_bs("form-select")),
+            "credit_status": forms.Select(attrs=_bs("form-select")),
+            "price_type": forms.Select(attrs=_bs("form-select")),
+
+            "categories": forms.SelectMultiple(
+                attrs={"class": "form-select", "size": 6}
+            ),
         }
 
+    # ----------------------------
+    # INIT
+    # ----------------------------
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
+        self.fields["categories"].queryset = (
+            Category.objects.filter(is_active=True).order_by("name")
+        )
+
+        if not self.instance.pk and not self.initial.get("price_type"):
+            self.fields["price_type"].initial = "Retail"
+
+        self.fields["country"].initial = "South Africa"
+        self.fields["delivery_country"].initial = "South Africa"
+
+        # ----------------------------
+        # OPERATING HOURS
+        # ----------------------------
+        for day_code, day_label in ClientOperatingHours.DAY_CHOICES:
+
+            self.fields[f"{day_code}_is_closed"] = forms.BooleanField(
+                required=False,
+                label=f"{day_label} Closed",
+                widget=forms.CheckboxInput(attrs={"class": "form-check-input"})
+            )
+
+            self.fields[f"{day_code}_open"] = forms.TimeField(
+                required=False,
+                widget=forms.TimeInput(
+                    attrs={"class": "form-control", "type": "time"}
+                )
+            )
+
+            self.fields[f"{day_code}_close"] = forms.TimeField(
+                required=False,
+                widget=forms.TimeInput(
+                    attrs={"class": "form-control", "type": "time"}
+                )
+            )
+
+            if self.instance.pk:
+                hours = self.instance.operating_hours.filter(day=day_code).first()
+                if hours:
+                    self.fields[f"{day_code}_is_closed"].initial = hours.is_closed
+                    self.fields[f"{day_code}_open"].initial = hours.open_time
+                    self.fields[f"{day_code}_close"].initial = hours.close_time
+
+    # ----------------------------
+    # CLEAN
+    # ----------------------------
+    def clean(self):
+        cleaned = super().clean()
+
+        if not cleaned.get("name") and not cleaned.get("organization"):
+            raise ValidationError(
+                "Please provide at least a Name or an Organization."
+            )
+
+        spend = cleaned.get("estimated_weekly_spend")
+        if spend is not None and spend < Decimal("0"):
+            self.add_error(
+                "estimated_weekly_spend",
+                "Estimated weekly spend cannot be negative."
+            )
+
+        for day_code, day_label in ClientOperatingHours.DAY_CHOICES:
+            is_closed = cleaned.get(f"{day_code}_is_closed")
+            open_time = cleaned.get(f"{day_code}_open")
+            close_time = cleaned.get(f"{day_code}_close")
+
+            if not bool(is_closed):
+                if not open_time or not close_time:
+                    self.add_error(
+                        f"{day_code}_open",
+                        f"{day_label}: Opening and closing times required unless closed."
+                    )
+                elif close_time <= open_time:
+                    self.add_error(
+                        f"{day_code}_close",
+                        f"{day_label}: Closing time must be after opening time."
+                    )
+
+        return cleaned
+
+    # ----------------------------
+    # SAVE
+    # ----------------------------
+    def save(self, commit=True):
+        client = super().save(commit=False)
+
+        if commit:
+            client.save()
+
+            for day_code, _ in ClientOperatingHours.DAY_CHOICES:
+                is_closed = self.cleaned_data.get(f"{day_code}_is_closed")
+                open_time = self.cleaned_data.get(f"{day_code}_open")
+                close_time = self.cleaned_data.get(f"{day_code}_close")
+
+                hours, _ = ClientOperatingHours.objects.get_or_create(
+                    client=client,
+                    day=day_code,
+                )
+
+                hours.is_closed = bool(is_closed)
+                hours.open_time = None if is_closed else open_time
+                hours.close_time = None if is_closed else close_time
+                hours.save()
+
+        return client
 
 # -------------------------------------------------
 # Lightweight “quick create” form (front-office)
@@ -401,23 +551,91 @@ class ProspectForm(forms.ModelForm):
 
         self.fields["country"].initial = "South Africa"
 
+        for day_code, day_label in ProspectOperatingHours.DAY_CHOICES:
+            self.fields[f"{day_code}_is_closed"] = forms.BooleanField(
+                required=False,
+                label=f"{day_label} Closed",
+                widget=forms.CheckboxInput(attrs={"class": "form-check-input"})
+            )
+
+            self.fields[f"{day_code}_open"] = forms.TimeField(
+                required=False,
+                widget=forms.TimeInput(attrs={"class": "form-control", "type": "time"})
+            )
+
+            self.fields[f"{day_code}_close"] = forms.TimeField(
+                required=False,
+                widget=forms.TimeInput(attrs={"class": "form-control", "type": "time"})
+            )
+
+            if self.instance.pk:
+                hours = self.instance.operating_hours.filter(day=day_code).first()
+                if hours:
+                    self.fields[f"{day_code}_is_closed"].initial = hours.is_closed
+                    self.fields[f"{day_code}_open"].initial = hours.open_time
+                    self.fields[f"{day_code}_close"].initial = hours.close_time
+
     def clean(self):
         cleaned = super().clean()
 
-        if not any([
-            cleaned.get("email"),
-            cleaned.get("phone"),
-            cleaned.get("whatsapp"),
-        ]):
+        # Require at least name or organization
+        if not cleaned.get("name") and not cleaned.get("organization"):
             raise ValidationError(
-                "Provide at least one contact method (email, phone, or WhatsApp)."
+                "Please provide at least a Name or an Organization."
             )
 
+        
+
+        # Spend sanity
         spend = cleaned.get("estimated_weekly_spend")
         if spend is not None and spend < Decimal("0"):
-            self.add_error("estimated_weekly_spend", "Spend cannot be negative.")
+            self.add_error(
+                "estimated_weekly_spend",
+                "Estimated weekly spend cannot be negative."
+            )
+
+        # 🔥 WEEKDAY VALIDATION
+        for day_code, day_label in ProspectOperatingHours.DAY_CHOICES:
+            is_closed = cleaned.get(f"{day_code}_is_closed")
+            open_time = cleaned.get(f"{day_code}_open")
+            close_time = cleaned.get(f"{day_code}_close")
+
+            if not bool(is_closed):
+                if not open_time or not close_time:
+                    self.add_error(
+                        f"{day_code}_open",
+                        f"{day_label}: Opening and closing times are required unless closed."
+                    )
+                elif close_time <= open_time:
+                    self.add_error(
+                        f"{day_code}_close",
+                        f"{day_label}: Closing time must be after opening time."
+                    )
 
         return cleaned
+    
+    def save(self, commit=True):
+        prospect = super().save(commit=False)
+
+        if commit:
+            prospect.save()
+
+            for day_code, _ in ProspectOperatingHours.DAY_CHOICES:
+                is_closed = self.cleaned_data.get(f"{day_code}_is_closed")
+                open_time = self.cleaned_data.get(f"{day_code}_open")
+                close_time = self.cleaned_data.get(f"{day_code}_close")
+
+                hours, _ = ProspectOperatingHours.objects.get_or_create(
+                    prospect=prospect,
+                    day=day_code,
+                )
+
+                hours.is_closed = bool(is_closed)
+                hours.open_time = None if is_closed else open_time
+                hours.close_time = None if is_closed else close_time
+                hours.save()
+
+        return prospect
 
     
 
@@ -638,11 +856,11 @@ class ClientBusinessForm(forms.ModelForm):
         return cleaned
     
 
-
 class ClientEditForm(forms.ModelForm):
     """
     Staff-facing Client edit form.
-    Full coverage of Client model including delivery geo.
+    Edits identity, contact, commercial and compliance data only.
+    Operating hours handled separately.
     """
 
     # ----------------------------
@@ -731,28 +949,7 @@ class ClientEditForm(forms.ModelForm):
         ]
 
         widgets = {
-            # Text
             "entity_type": forms.Select(attrs=_bs("form-select")),
-            "name": forms.TextInput(attrs=_bs()),
-            "organization": forms.TextInput(attrs=_bs()),
-            "contact_person": forms.TextInput(attrs=_bs()),
-            "email": forms.EmailInput(attrs=_bs()),
-            "phone": forms.TextInput(attrs=_bs()),
-            "whatsapp": forms.TextInput(attrs=_bs()),
-
-            "address_line1": forms.TextInput(attrs=_bs()),
-            "address_line2": forms.TextInput(attrs=_bs()),
-            "suburb": forms.TextInput(attrs=_bs()),
-            "postal_code": forms.TextInput(attrs=_bs()),
-            "country": forms.TextInput(attrs=_bs()),
-
-            "delivery_address_line1": forms.TextInput(attrs=_bs()),
-            "delivery_address_line2": forms.TextInput(attrs=_bs()),
-            "delivery_suburb": forms.TextInput(attrs=_bs()),
-            "delivery_postal_code": forms.TextInput(attrs=_bs()),
-            "delivery_country": forms.TextInput(attrs=_bs()),
-
-            # Selects
             "province": forms.Select(attrs=_bs("form-select")),
             "client_type": forms.Select(attrs=_bs("form-select")),
             "client_size_tier": forms.Select(attrs=_bs("form-select")),
@@ -761,12 +958,10 @@ class ClientEditForm(forms.ModelForm):
             "account_type": forms.Select(attrs=_bs("form-select")),
             "credit_status": forms.Select(attrs=_bs("form-select")),
 
-            # Numbers
             "estimated_weekly_spend": forms.NumberInput(
                 attrs={**_bs(), "step": "0.01", "min": "0"}
             ),
 
-            # Geo (hidden but editable by JS/maps later)
             "delivery_lat": forms.NumberInput(
                 attrs={**_bs(), "step": "0.000001"}
             ),
@@ -774,10 +969,7 @@ class ClientEditForm(forms.ModelForm):
                 attrs={**_bs(), "step": "0.000001"}
             ),
 
-            # Notes
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-
-            # Categories
             "categories": forms.SelectMultiple(
                 attrs={"class": "form-select", "size": 6}
             ),
@@ -789,37 +981,38 @@ class ClientEditForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Active categories only
+        # Only active categories selectable
         self.fields["categories"].queryset = (
             Category.objects.filter(is_active=True).order_by("name")
         )
 
-        # Defaults
-        self.fields["country"].initial = "South Africa"
-        self.fields["delivery_country"].initial = "South Africa"
+        # Defaults only for new clients
+        if not self.instance.pk:
+            self.fields["country"].initial = "South Africa"
+            self.fields["delivery_country"].initial = "South Africa"
 
-        # Placeholders
+        # Helpful placeholders
         self.fields["email"].widget.attrs.setdefault("placeholder", "name@example.com")
         self.fields["phone"].widget.attrs.setdefault("placeholder", "+27 82 123 4567")
         self.fields["whatsapp"].widget.attrs.setdefault("placeholder", "+27 82 123 4567")
 
     # ----------------------------
-    # VALIDATION
+    # CLEAN
     # ----------------------------
     def clean(self):
         cleaned = super().clean()
 
-        # Require at least name or organization
+        # Require at least one identifier
         if not cleaned.get("name") and not cleaned.get("organization"):
             raise ValidationError(
                 "Please provide at least a Name or an Organization."
             )
 
-        # Credit logic safety
+        # Auto-enforce credit account type
         if cleaned.get("credit_status") == "ACTIVE":
             cleaned["account_type"] = "CREDIT"
 
-        # Spend sanity
+        # Prevent negative spend
         spend = cleaned.get("estimated_weekly_spend")
         if spend is not None and spend < Decimal("0"):
             self.add_error(
@@ -828,7 +1021,17 @@ class ClientEditForm(forms.ModelForm):
             )
 
         return cleaned
-    
+
+    # ----------------------------
+    # SAVE
+    # ----------------------------
+    def save(self, commit=True):
+        client = super().save(commit=False)
+
+        if commit:
+            client.save()
+
+        return client
 
 
 class ClientComplianceForm(forms.ModelForm):
@@ -882,6 +1085,7 @@ class ClientComplianceForm(forms.ModelForm):
             instance.save()
 
         return instance
+   
     
 class ClientComplianceDocumentForm(forms.ModelForm):
     """
@@ -942,3 +1146,88 @@ class ClientComplianceDocumentStatusForm(forms.ModelForm):
             ),
         }
 
+
+class ClientOperationsForm(forms.ModelForm):
+    """
+    Edit ONLY business operations:
+    - Working hours
+    """
+
+    class Meta:
+        model = Client
+        fields = []  # No core client fields
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        for day_code, day_label in ClientOperatingHours.DAY_CHOICES:
+
+            self.fields[f"{day_code}_is_closed"] = forms.BooleanField(
+                required=False,
+                label=f"{day_label} Closed",
+                widget=forms.CheckboxInput(attrs={"class": "form-check-input"})
+            )
+
+            self.fields[f"{day_code}_open"] = forms.TimeField(
+                required=False,
+                widget=forms.TimeInput(
+                    attrs={"class": "form-control", "type": "time"}
+                )
+            )
+
+            self.fields[f"{day_code}_close"] = forms.TimeField(
+                required=False,
+                widget=forms.TimeInput(
+                    attrs={"class": "form-control", "type": "time"}
+                )
+            )
+
+            # preload existing
+            if self.instance.pk:
+                hours = self.instance.operating_hours.filter(day=day_code).first()
+                if hours:
+                    self.initial[f"{day_code}_is_closed"] = hours.is_closed
+                    self.initial[f"{day_code}_open"] = hours.open_time
+                    self.initial[f"{day_code}_close"] = hours.close_time
+
+    def clean(self):
+        cleaned = super().clean()
+
+        for day_code, day_label in ClientOperatingHours.DAY_CHOICES:
+            is_closed = cleaned.get(f"{day_code}_is_closed")
+            open_time = cleaned.get(f"{day_code}_open")
+            close_time = cleaned.get(f"{day_code}_close")
+
+            if not bool(is_closed):
+                if not open_time or not close_time:
+                    self.add_error(
+                        f"{day_code}_open",
+                        f"{day_label}: Opening and closing times required unless closed."
+                    )
+                elif close_time <= open_time:
+                    self.add_error(
+                        f"{day_code}_close",
+                        f"{day_label}: Closing time must be after opening time."
+                    )
+
+        return cleaned
+
+    def save(self, commit=True):
+        client = self.instance
+
+        for day_code, _ in ClientOperatingHours.DAY_CHOICES:
+            is_closed = self.cleaned_data.get(f"{day_code}_is_closed")
+            open_time = self.cleaned_data.get(f"{day_code}_open")
+            close_time = self.cleaned_data.get(f"{day_code}_close")
+
+            hours, _ = ClientOperatingHours.objects.get_or_create(
+                client=client,
+                day=day_code,
+            )
+
+            hours.is_closed = bool(is_closed)
+            hours.open_time = None if is_closed else open_time
+            hours.close_time = None if is_closed else close_time
+            hours.save()
+
+        return client

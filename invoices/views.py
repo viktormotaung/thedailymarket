@@ -18,6 +18,9 @@ from django.views.decorators.http import require_POST
 from django.template.loader import render_to_string
 from django.utils.timezone import now, make_aware
 from datetime import datetime, timedelta, time, date
+import logging
+
+logger = logging.getLogger(__name__)
 
 DAY_OPTIONS = [7, 14, 30, 60]
 
@@ -175,60 +178,131 @@ def invoice_view(request, pk):
 
 @login_required
 @staff_required
+@require_POST
 def invoice_confirm_payment(request, pk):
-    """
-    'Confirm Payment' from the modal (manual capture).
 
-    - For deposit: records a cash Transaction using Invoice.record_payment().
-    - For credit: records a CreditEntry repayment using Invoice.record_credit_repayment().
-    The amount + reference come from the popup form (pre-populated but editable).
-    """
+    print("========== PAYMENT START ==========")
+
     invoice = get_object_or_404(Invoice, pk=pk)
 
-    if request.method != "POST":
-        return redirect("invoice-view", pk=pk)
+    print(f"Invoice ID: {invoice.id}")
+    print(f"Current deposit_paid: {invoice.deposit_paid}")
+    print(f"Deposit required: {invoice.deposit_required}")
+    print(f"Current status: {invoice.status}")
 
-    kind = (request.POST.get("kind") or "deposit").lower()  # "deposit" or "credit"
+    kind = (request.POST.get("kind") or "deposit").lower()
     raw_amount = (request.POST.get("amount") or "").replace(",", "").strip()
     reference = request.POST.get("reference") or f"INV-{invoice.id}: {kind}"
 
+    print(f"Payment kind: {kind}")
+    print(f"Raw amount: {raw_amount}")
+
+    # --------------------------------------------------
+    # Validate amount
+    # --------------------------------------------------
     try:
         amount = Decimal(raw_amount)
-    except (InvalidOperation, TypeError):
+    except (InvalidOperation, TypeError) as e:
+        print("❌ Invalid amount:", e)
         messages.error(request, "Invalid amount entered.")
-        return redirect("invoice-view", pk=pk)
+        return redirect("invoice-view", pk=invoice.pk)
 
     if amount <= 0:
+        print("❌ Amount <= 0")
         messages.error(request, "Amount must be greater than zero.")
-        return redirect("invoice-view", pk=pk)
+        return redirect("invoice-view", pk=invoice.pk)
 
     note = f"Manual {kind} payment captured on invoice screen."
 
+    # ==================================================
+    # CREDIT REPAYMENT
+    # ==================================================
     if kind == "credit":
-        # This hits the credit ledger (CreditEntry) only – not deposit.
-        invoice.record_credit_repayment(
-            amount,
+        try:
+            result = invoice.record_credit_repayment(
+                amount=amount,
+                reference=reference,
+                note=note,
+            )
+            print("Credit repayment result:", result)
+
+        except Exception as e:
+            print("❌ Payment error:", e)
+            logger.exception("Payment failed")
+
+            # Try to reload invoice safely
+            try:
+                invoice.refresh_from_db()
+                messages.error(request, f"Payment failed: {str(e)}")
+                return redirect("invoice-view", pk=invoice.pk)
+            except Invoice.DoesNotExist:
+                # Invoice was deleted (credit blocked scenario)
+                order = invoice.order  # safe because already loaded
+                messages.error(
+                    request,
+                    "Insufficient credit. Invoice deleted and order blocked."
+                )
+                return redirect("order-view", pk=order.pk)
+
+        print("========== PAYMENT END ==========")
+        messages.success(
+            request,
+            f"Credit repayment of R{amount:.2f} recorded."
+        )
+        return redirect("invoice-view", pk=invoice.pk)
+
+    # ==================================================
+    # DEPOSIT PAYMENT
+    # ==================================================
+    try:
+        result = invoice.record_payment(
+            amount=amount,
             reference=reference,
             note=note,
         )
-        messages.success(
+
+        print("record_payment() returned:", result)
+
+        # Reload invoice from DB to check new values
+        invoice.refresh_from_db()
+
+        print("After payment:")
+        print("Deposit paid:", invoice.deposit_paid)
+        print("Status:", invoice.status)
+        print("Paid date:", invoice.paid_date)
+
+    except Exception as e:
+        print("❌ Payment error:", e)
+        logger.exception("Payment failed")
+        messages.error(request, f"Payment failed: {str(e)}")
+        return redirect("invoice-view", pk=invoice.pk)
+
+    # --------------------------------------------------
+    # CREDIT BLOCKED
+    # --------------------------------------------------
+    if result is False:
+        print("⚠ Credit blocked scenario")
+
+        order = invoice.order
+        order.status = "credit_blocked"
+        order.save(update_fields=["status"])
+
+        messages.error(
             request,
-            f"Credit repayment of R{amount:.2f} recorded for Invoice #{invoice.id}.",
-        )
-    else:
-        # This hits the deposit / cash side.
-        invoice.record_payment(
-            amount,
-            reference=reference,
-            note=note,
-        )
-        messages.success(
-            request,
-            f"Deposit payment of R{amount:.2f} recorded for Invoice #{invoice.id}.",
+            "Insufficient credit balance. Order blocked."
         )
 
-    return redirect("invoice-view", pk=pk)
+        print("========== PAYMENT END ==========")
+        return redirect("order-detail", pk=order.pk)
 
+    # --------------------------------------------------
+    # SUCCESS
+    # --------------------------------------------------
+    print("✅ Payment successful")
+    print("========== PAYMENT END ==========")
+
+    messages.success(request, "Payment recorded successfully.")
+    return redirect("invoice-view", pk=invoice.pk)
 
 @login_required
 def generate_payfast_request(request, invoice_id):
@@ -345,61 +419,7 @@ def send_invoice_payment_request(request, invoice_id):
 
     return JsonResponse({"success": True, "message": "Payment request sent successfully."})
 
-@login_required
-@staff_required
-def invoice_confirm_payment(request, pk):
-    """
-    'Confirm Payment' from the modal (manual capture).
 
-    - For deposit: records a cash Transaction using Invoice.record_payment().
-    - For credit: records a CreditEntry repayment using Invoice.record_credit_repayment().
-    The amount + reference come from the popup form (pre-populated but editable).
-    """
-    invoice = get_object_or_404(Invoice, pk=pk)
-
-    if request.method != "POST":
-        return redirect("invoice-view", pk=pk)
-
-    kind = (request.POST.get("kind") or "deposit").lower()  # "deposit" or "credit"
-    raw_amount = (request.POST.get("amount") or "").replace(",", "").strip()
-    reference = request.POST.get("reference") or f"INV-{invoice.id}: {kind}"
-
-    try:
-        amount = Decimal(raw_amount)
-    except (InvalidOperation, TypeError):
-        messages.error(request, "Invalid amount entered.")
-        return redirect("invoice-view", pk=pk)
-
-    if amount <= 0:
-        messages.error(request, "Amount must be greater than zero.")
-        return redirect("invoice-view", pk=pk)
-
-    note = f"Manual {kind} payment captured on invoice screen."
-
-    if kind == "credit":
-        # This hits the credit ledger (CreditEntry) only – not deposit.
-        invoice.record_credit_repayment(
-            amount,
-            reference=reference,
-            note=note,
-        )
-        messages.success(
-            request,
-            f"Credit repayment of R{amount:.2f} recorded for Invoice #{invoice.id}.",
-        )
-    else:
-        # This hits the deposit / cash side.
-        invoice.record_payment(
-            amount,
-            reference=reference,
-            note=note,
-        )
-        messages.success(
-            request,
-            f"Deposit payment of R{amount:.2f} recorded for Invoice #{invoice.id}.",
-        )
-
-    return redirect("invoice-view", pk=pk)
 
 @login_required
 @staff_required

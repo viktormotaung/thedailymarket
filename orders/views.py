@@ -116,7 +116,89 @@ class OrderForm(ModelForm):
             "notes": widgets.Textarea(attrs={"class": "form-control", "rows": 3}),
         }
 
+class CreateOrderForm(ModelForm):
 
+    class Meta:
+        model = Order
+        fields = [
+            "client",
+            "order_date",
+            "channel",
+            "status",
+            "customer_notes",
+            "discount_total_excl",
+            "delivery_fee_excl",
+            "delivery_fee_vat_percent",
+            "notes",
+        ]
+
+        widgets = {
+            "client": widgets.Select(attrs={"class": "form-select"}),
+
+            "order_date": widgets.DateTimeInput(
+                attrs={
+                    "class": "form-control",
+                    "type": "datetime-local",
+                }
+            ),
+
+            # 🔒 Visible but disabled
+            "channel": widgets.Select(
+                attrs={"class": "form-select", "disabled": "disabled"}
+            ),
+
+            "status": widgets.Select(
+                attrs={"class": "form-select", "disabled": "disabled"}
+            ),
+
+            "customer_notes": widgets.Textarea(
+                attrs={"class": "form-control", "rows": 3}
+            ),
+
+            "discount_total_excl": widgets.NumberInput(
+                attrs={"class": "form-control", "step": "0.01", "min": "0"}
+            ),
+
+            "delivery_fee_excl": widgets.NumberInput(
+                attrs={"class": "form-control", "step": "0.01", "min": "0"}
+            ),
+
+            "delivery_fee_vat_percent": widgets.NumberInput(
+                attrs={
+                    "class": "form-control",
+                    "step": "0.01",
+                    "min": "0",
+                    "max": "100",
+                }
+            ),
+
+            "notes": widgets.Textarea(
+                attrs={"class": "form-control", "rows": 3}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Set preset values for display
+        self.fields["channel"].initial = "STAFF"
+        self.fields["status"].initial = "pending"
+
+        # Mark fields as not required (since disabled fields don’t POST)
+        self.fields["channel"].required = False
+        self.fields["status"].required = False
+
+    # 🔒 Hard-enforce system values
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+
+        instance.channel = "STAFF"
+        instance.status = "pending"
+
+        if commit:
+            instance.save()
+
+        return instance
 class OrderItemForm(ModelForm):
     class Meta:
         model = OrderItem
@@ -158,28 +240,44 @@ def order_create(request):
     Create an order + items with dynamic add/remove via formset.
     """
     if request.method == "POST":
-        form = OrderForm(request.POST)
-        # validate items against a dummy instance; we’ll attach the saved order before saving items
-        dummy_parent = Order()
-        formset = OrderItemFormSet(request.POST, instance=dummy_parent, prefix="items")
+        form = CreateOrderForm(request.POST)
 
-        if form.is_valid() and formset.is_valid():
+        if form.is_valid():
             order = form.save(commit=False)
+
             if request.user.is_authenticated:
                 order.created_by = request.user
+
             order.save()
 
-            formset.instance = order
-            formset.save()
+            # Now bind formset to real saved order
+            formset = OrderItemFormSet(
+                request.POST,
+                instance=order,
+                prefix="items"
+            )
 
-            # roll-up totals after items saved
-            order.recalc_totals(save=True)
+            if formset.is_valid():
+                formset.save()
 
-            messages.success(request, f"Order #{order.id} created.")
-            return redirect("order-view", pk=order.id)
+                # roll-up totals after items saved
+                order.recalc_totals(save=True)
+
+                messages.success(request, f"Order #{order.id} created.")
+                return redirect("order-view", pk=order.id)
+        else:
+            formset = OrderItemFormSet(
+                request.POST,
+                instance=Order(),
+                prefix="items"
+            )
+
     else:
-        form = OrderForm()
-        formset = OrderItemFormSet(instance=Order(), prefix="items")  # empty; rows added with JS
+        form = CreateOrderForm()
+        formset = OrderItemFormSet(
+            instance=Order(),
+            prefix="items"
+        )
 
     return render(
         request,
@@ -187,7 +285,7 @@ def order_create(request):
         {
             "form": form,
             "formset": formset,
-            "prefix": "items",   # used by the template JS as a fallback
+            "prefix": "items",
         },
     )
 

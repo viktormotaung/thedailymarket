@@ -401,16 +401,34 @@ class Invoice(models.Model):
 
         # If now fully paid (deposit side), persist paid_date to the actual calendar day
         if self.status == "paid":
+
             payment_day = (when or now()).date()
+
+            # ---------------------------------------
+            # 1️⃣ Persist paid_date (calendar day)
+            # ---------------------------------------
             if self.paid_date != payment_day:
                 self.paid_date = payment_day
                 self.save(update_fields=["paid_date", "updated_at"])
 
-                # --- Update CreditAccount next_due_date to actual deposit payment day ---
-                ca = getattr(self.client, "credit_account", None)
-                if ca:
-                    ca.next_due_date = payment_day + timedelta(days=1)
-                    ca.save(update_fields=["next_due_date"])
+            # ---------------------------------------
+            # 2️⃣ Update CreditAccount next_due_date
+            # ---------------------------------------
+            ca = getattr(self.client, "credit_account", None)
+            if ca:
+                ca.next_due_date = payment_day + timedelta(days=1)
+                ca.save(update_fields=["next_due_date"])
+
+            # ---------------------------------------
+            # 3️⃣ Move Order to "at_warehouse"
+            # ---------------------------------------
+            order = getattr(self, "order", None)
+
+            if order:
+                # Only transition if still waiting for payment
+                if order.status == "awaiting_payment":
+                    order.status = "at_warehouse"
+                    order.save(update_fields=["status", "updated_at"])
 
         # Ensure credit artefacts reflect the (possibly new) state
         self.ensure_credit_after_deposit()

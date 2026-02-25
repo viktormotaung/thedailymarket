@@ -38,9 +38,30 @@
     /* ================= ORDER STATUS TRACKER ================= */
     .order-tracker {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin: 1.5rem 0 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .order-tracker {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .order-step {
+        display: flex;
+        align-items: center;
+        text-align: left;
+      }
+
+      .order-step::after {
+        display: none;
+      }
+
+      .step-label {
+        margin-left: 0.5rem;
+        font-size: 0.9rem;
+      }
     }
 
     .order-step {
@@ -270,10 +291,16 @@
 
       <div class="text-end">
         <span class="badge rounded-pill
-          {% if order.status == 'APPROVED' %} bg-success
-          {% elif order.status == 'PENDING' %} bg-warning text-dark
-          {% elif order.status == 'CANCELLED' %} bg-secondary
-          {% elif order.status == 'DELIVERED' %} bg-primary
+          {% if order.status == 'pending' %} bg-warning text-dark
+          {% elif order.status == 'approved' %} bg-info
+          {% elif order.status == 'awaiting_payment' %} bg-warning text-dark
+          {% elif order.status == 'credit_blocked' %} bg-danger
+          {% elif order.status == 'at_warehouse' %} bg-primary
+          {% elif order.status == 'ready_for_delivery' %} bg-primary
+          {% elif order.status == 'out_for_delivery' %} bg-dark
+          {% elif order.status == 'complete' %} bg-success
+          {% elif order.status == 'cancelled' %} bg-secondary
+          {% elif order.status == 'returned' %} bg-secondary
           {% else %} bg-light text-dark
           {% endif %}
         ">
@@ -285,6 +312,9 @@
     <div class="row g-4">
       <!-- ================= ORDER STATUS TRACKER ================= -->
       {% with s=order.status %}
+
+      {% if s != "cancelled" and s != "credit_blocked" %}
+
       <div class="order-tracker">
 
         <!-- Step 1: Order Placed -->
@@ -297,13 +327,13 @@
 
         <!-- Step 2: Approved -->
         <div class="order-step
-          {% if s == 'approved' or s == 'at_warehouse' or s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
+          {% if s == 'approved' or s == 'awaiting_payment' or s == 'at_warehouse' or s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
             completed
           {% endif %}
           {% if s == 'approved' %}active{% endif %}
         ">
           <div class="step-icon">
-            {% if s == 'approved' or s == 'at_warehouse' or s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
+            {% if s == 'approved' or s == 'awaiting_payment' or s == 'at_warehouse' or s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
               <i class="bi bi-check"></i>
             {% else %}
               <i class="bi bi-clock"></i>
@@ -312,7 +342,24 @@
           <div class="step-label">Approved</div>
         </div>
 
-        <!-- Step 3: At Warehouse -->
+        <!-- Step 3: Awaiting Payment -->
+        <div class="order-step
+          {% if s == 'awaiting_payment' or s == 'at_warehouse' or s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
+            completed
+          {% endif %}
+          {% if s == 'awaiting_payment' %}active{% endif %}
+        ">
+          <div class="step-icon">
+            {% if s == 'awaiting_payment' or s == 'at_warehouse' or s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
+              <i class="bi bi-check"></i>
+            {% else %}
+              <i class="bi bi-credit-card"></i>
+            {% endif %}
+          </div>
+          <div class="step-label">Awaiting Payment</div>
+        </div>
+
+        <!-- Step 4: At Warehouse -->
         <div class="order-step
           {% if s == 'at_warehouse' or s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
             completed
@@ -329,7 +376,7 @@
           <div class="step-label">At Warehouse</div>
         </div>
 
-        <!-- Step 4: Ready for Delivery -->
+        <!-- Step 5: Ready for Delivery -->
         <div class="order-step
           {% if s == 'ready_for_delivery' or s == 'out_for_delivery' or s == 'complete' %}
             completed
@@ -346,7 +393,7 @@
           <div class="step-label">Ready</div>
         </div>
 
-        <!-- Step 5: Out for Delivery -->
+        <!-- Step 6: Out for Delivery -->
         <div class="order-step
           {% if s == 'out_for_delivery' or s == 'complete' %}
             completed
@@ -363,7 +410,7 @@
           <div class="step-label">Out for Delivery</div>
         </div>
 
-        <!-- Step 6: Complete -->
+        <!-- Step 7: Complete -->
         <div class="order-step
           {% if s == 'complete' %}
             completed active
@@ -380,6 +427,16 @@
         </div>
 
       </div>
+
+      {% else %}
+
+      <!-- Special Case: Cancelled or Credit Blocked -->
+      <div class="alert alert-danger mt-3">
+        <strong>{{ order.get_status_display }}</strong>
+      </div>
+
+      {% endif %}
+
       {% endwith %}
 
 

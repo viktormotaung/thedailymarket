@@ -1,37 +1,38 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.conf import settings
+from django.urls import path
+from django.shortcuts import redirect
+from django.utils.html import format_html
 from .models import SalesJobApplication
 
 
 @admin.register(SalesJobApplication)
 class SalesJobApplicationAdmin(admin.ModelAdmin):
+
     # =========================
     # LIST VIEW (TABLE)
     # =========================
     list_display = (
         "first_name",
         "last_name",
-        "email",
         "province",
         "town_or_city",
-        "availability_to_start",
-        "has_drivers_license",
-        "has_vehicle_access",
+        "overall_rating",
         "reviewed",
-        "shortlisted",
-        "submitted_at",
+    )
+
+    list_editable = (
+        "overall_rating",
+        "reviewed",
     )
 
     list_filter = (
         "province",
-        "has_drivers_license",
-        "has_vehicle_access",
-        "has_laptop_or_tablet",
-        "comfortable_township_clients",
-        "comfortable_suburban_clients",
-        "comfortable_remote_work",
-        "comfortable_startup_environment",
         "reviewed",
         "shortlisted",
+        "overall_rating",
         "submitted_at",
     )
 
@@ -39,109 +40,129 @@ class SalesJobApplicationAdmin(admin.ModelAdmin):
         "first_name",
         "last_name",
         "email",
-        "nationality",
         "town_or_city",
         "suburb",
-        "previous_workplaces",
-        "current_job",
     )
 
-    ordering = ("-submitted_at",)
-
+    ordering = ("-overall_rating", "-submitted_at")
     list_per_page = 25
-
-    list_select_related = False
     date_hierarchy = "submitted_at"
-
-    # =========================
-    # DETAIL VIEW (FORM)
-    # =========================
     readonly_fields = ("submitted_at",)
 
-    fieldsets = (
+    # =========================================================
+    # ADD CUSTOM BULK EMAIL BUTTON TO ADMIN LIST PAGE
+    # =========================================================
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "run-bulk-email/",
+                self.admin_site.admin_view(self.run_bulk_email),
+                name="run_bulk_email",
+            ),
+        ]
+        return custom_urls + urls
 
-        ("Basic Information", {
-            "fields": (
-                ("first_name", "last_name"),
-                "email",
-                "date_of_birth",
-                "nationality",
-                ("province", "town_or_city", "suburb"),
-                "where_grew_up",
-            )
-        }),
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["bulk_email_button"] = format_html(
+            '<a class="button" '
+            'style="background:#0a5c39;color:white;padding:8px 15px;'
+            'border-radius:4px;text-decoration:none;margin-left:10px;" '
+            'href="run-bulk-email/">Run Bulk Email (Auto by Rating)</a>'
+        )
+        return super().changelist_view(request, extra_context=extra_context)
 
-        ("Sales Background", {
-            "fields": (
-                "sales_experience_summary",
-                "previous_workplaces",
-                "responsibilities",
-                "lessons_learned",
-            )
-        }),
+    # =========================================================
+    # BULK EMAIL LOGIC
+    # =========================================================
+    def run_bulk_email(self, request):
 
-        ("Sales Thinking (Critical)", {
-            "fields": (
-                "client_identification_strategy",
-                "pitching_strategy",
-                "conversion_strategy",
-                "client_management_strategy",
-            )
-        }),
+        applications = (
+            SalesJobApplication.objects
+            .exclude(overall_rating__isnull=True)
+            .exclude(email__isnull=True)
+            .exclude(email="")
+        )
 
-        ("Resources & Tools", {
-            "fields": (
-                "resources_needed",
-                ("has_drivers_license", "has_vehicle_access", "has_laptop_or_tablet"),
-            )
-        }),
+        invite_count = 0
+        reject_count = 0
 
-        ("Work Style & Fit", {
-            "fields": (
-                "can_work_in_team",
-                ("comfortable_township_clients", "comfortable_suburban_clients"),
-                ("comfortable_remote_work", "comfortable_startup_environment"),
-                "leadership_skills_description",
-            )
-        }),
+        for candidate in applications:
 
-        ("Current Status", {
-            "fields": (
-                "current_job",
-                "availability_to_start",
-            )
-        }),
+            # =========================
+            # INTERVIEW INVITE (3–5)
+            # =========================
+            if candidate.overall_rating >= 3:
 
-        ("Review & Shortlisting", {
-            "fields": (
-                ("reviewed", "shortlisted"),
-                "submitted_at",
-            )
-        }),
-    )
+                ctx = {
+                    "candidate": candidate,
+                    "calendly_link": "https://calendly.com/victor-thedailymarket/the-daily-market-interview",
+                }
 
-    # =========================
-    # QUICK ACTIONS
-    # =========================
-    actions = (
-        "mark_as_reviewed",
-        "mark_as_shortlisted",
-        "unmark_reviewed",
-        "unmark_shortlisted",
-    )
+                subject = "The Daily Market – Schedule Your 15-Minute Interview"
 
-    @admin.action(description="Mark selected applications as reviewed")
-    def mark_as_reviewed(self, request, queryset):
-        queryset.update(reviewed=True)
+                text_body = render_to_string(
+                    "email/interview_invite.txt",
+                    ctx
+                )
 
-    @admin.action(description="Remove reviewed flag")
-    def unmark_reviewed(self, request, queryset):
-        queryset.update(reviewed=False)
+                html_body = render_to_string(
+                    "email/interview_invite.html",
+                    ctx
+                )
 
-    @admin.action(description="Mark selected applications as shortlisted")
-    def mark_as_shortlisted(self, request, queryset):
-        queryset.update(shortlisted=True)
+                msg = EmailMultiAlternatives(
+                    subject=subject,
+                    body=text_body,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=[candidate.email],
+                    headers={"Reply-To": settings.SUPPORT_EMAIL},
+                )
 
-    @admin.action(description="Remove shortlisted flag")
-    def unmark_shortlisted(self, request, queryset):
-        queryset.update(shortlisted=False)
+                msg.attach_alternative(html_body, "text/html")
+                msg.send(fail_silently=False)
+
+                invite_count += 1
+
+            # =========================
+            # REJECTION EMAIL (1–2)
+            # =========================
+            elif candidate.overall_rating <= 2:
+
+                ctx = {"candidate": candidate}
+
+                subject = "The Daily Market – Update on Your Application"
+
+                text_body = render_to_string(
+                    "email/application_rejected.txt",
+                    ctx
+                )
+
+                html_body = render_to_string(
+                    "email/application_rejected.html",
+                    ctx
+                )
+
+                msg = EmailMultiAlternatives(
+                    subject=subject,
+                    body=text_body,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=[candidate.email],
+                    headers={"Reply-To": settings.SUPPORT_EMAIL},
+                )
+
+                msg.attach_alternative(html_body, "text/html")
+                msg.send(fail_silently=False)
+
+                reject_count += 1
+
+        self.message_user(
+            request,
+            f"Bulk email complete. "
+            f"{invite_count} interview invites sent, "
+            f"{reject_count} rejection emails sent.",
+            messages.SUCCESS,
+        )
+
+        return redirect("../")

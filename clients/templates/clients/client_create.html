@@ -607,6 +607,85 @@
           </div>
         </div>
 
+        <!-- ========================= -->
+        <!-- Operating Hours -->
+        <!-- ========================= -->
+        <div class="col-12 form-section">
+          <div class="card">
+            <div class="card-header">
+              <strong>Operating Hours</strong>
+            </div>
+            <div class="card-body">
+
+              <div class="table-responsive">
+                <table class="table table-bordered align-middle">
+                  <thead>
+                    <tr>
+                      <th style="width: 20%">Day</th>
+                      <th style="width: 15%">Closed</th>
+                      <th style="width: 30%">Open Time</th>
+                      <th style="width: 30%">Close Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+
+                    <tr>
+                      <td><strong>Monday</strong></td>
+                      <td>{{ form.MON_is_closed }}</td>
+                      <td>{{ form.MON_open }}</td>
+                      <td>{{ form.MON_close }}</td>
+                    </tr>
+
+                    <tr>
+                      <td><strong>Tuesday</strong></td>
+                      <td>{{ form.TUE_is_closed }}</td>
+                      <td>{{ form.TUE_open }}</td>
+                      <td>{{ form.TUE_close }}</td>
+                    </tr>
+
+                    <tr>
+                      <td><strong>Wednesday</strong></td>
+                      <td>{{ form.WED_is_closed }}</td>
+                      <td>{{ form.WED_open }}</td>
+                      <td>{{ form.WED_close }}</td>
+                    </tr>
+
+                    <tr>
+                      <td><strong>Thursday</strong></td>
+                      <td>{{ form.THU_is_closed }}</td>
+                      <td>{{ form.THU_open }}</td>
+                      <td>{{ form.THU_close }}</td>
+                    </tr>
+
+                    <tr>
+                      <td><strong>Friday</strong></td>
+                      <td>{{ form.FRI_is_closed }}</td>
+                      <td>{{ form.FRI_open }}</td>
+                      <td>{{ form.FRI_close }}</td>
+                    </tr>
+
+                    <tr>
+                      <td><strong>Saturday</strong></td>
+                      <td>{{ form.SAT_is_closed }}</td>
+                      <td>{{ form.SAT_open }}</td>
+                      <td>{{ form.SAT_close }}</td>
+                    </tr>
+
+                    <tr>
+                      <td><strong>Sunday</strong></td>
+                      <td>{{ form.SUN_is_closed }}</td>
+                      <td>{{ form.SUN_open }}</td>
+                      <td>{{ form.SUN_close }}</td>
+                    </tr>
+
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <div class="d-flex justify-content-end mt-3 gap-2">
@@ -619,6 +698,8 @@
       </div>
     </form>
   </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
   document.addEventListener("DOMContentLoaded", function () {
@@ -658,8 +739,47 @@
   });
   </script>
 
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+
+    const days = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
+
+    days.forEach(function(day) {
+      const closed = document.getElementById(`id_${day}_is_closed`);
+      const open = document.getElementById(`id_${day}_open`);
+      const close = document.getElementById(`id_${day}_close`);
+
+      if (!closed || !open || !close) return;
+
+      function toggleTimeFields() {
+        if (closed.checked) {
+          open.value = "";
+          close.value = "";
+          open.readOnly = true;
+          close.readOnly = true;
+          open.style.backgroundColor = "#f8f9fa";
+          close.style.backgroundColor = "#f8f9fa";
+        } else {
+          open.readOnly = false;
+          close.readOnly = false;
+          open.style.backgroundColor = "";
+          close.style.backgroundColor = "";
+        }
+      }
+
+      // Force editable on create page load
+      open.readOnly = false;
+      close.readOnly = false;
+
+      toggleTimeFields();
+      closed.addEventListener("change", toggleTimeFields);
+    });
+
+  });
+  </script>
 
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  
 </body>
 </html>

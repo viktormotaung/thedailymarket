@@ -1,0 +1,20 @@
+Hi {{ candidate.first_name }},
+
+Thank you for applying to The Daily Market.
+
+After carefully reviewing your application, we are pleased to inform you that you have progressed to the next stage of our selection process.
+
+Please use the link below to schedule your 15-minute interview at a time that suits you:
+
+{{ calendly_link }}
+
+During the interview, we will discuss your experience, your approach to sales, and how you could contribute to our growing team.
+
+Kindly schedule your interview within the next 48 hours to secure your opportunity.
+
+We look forward to speaking with you.
+
+Kind regards,
+
+The Daily Market Team
+info@thedailymarket.co.za

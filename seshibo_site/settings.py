@@ -189,11 +189,12 @@ EMAIL_BACKEND = "postmarker.django.EmailBackend"
 POSTMARK = {
     "TOKEN": os.getenv("POSTMARK_TOKEN", "cf107fec-de2b-4aea-ba4e-7fe4b3dcbfa3"), 
 }
-
+INFO_EMAIL = os.getenv("INFO_EMAIL", "info@thedailymarket.co.za")
 DEFAULT_FROM_EMAIL = "The Daily Market <accounts@thedailymarket.co.za>"
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "support@thedailymarket.co.za")
+
 
 
 # ---------------------------
