@@ -15,6 +15,9 @@
       .sidebar-desktop { width: 220px; min-height: 100vh; }
       .content { flex: 1; }
     }
+    .form-select-sm {
+      min-width: 180px;
+    }
 
     /* Shared styles */
     .sidebar-skin { background-color: #0b5c39; color: #fff; padding: 1rem; }
@@ -114,213 +117,245 @@
 
   <!-- MAIN CONTENT -->
   <main class="content container-fluid">
-    <div class="row mb-4">
-      <div class="col-12">
-        <h2 class="text-center my-3">Commission Dashboard</h2>
-      </div>
-    </div>
 
-    <!-- cards -->
-    <div class="row g-3 mb-4">
-      <!-- This Week -->
-      <div class="col-12 col-md-4">
-        <div class="card card-compact">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <small class="text-muted">This Week</small>
-              <h4 class="mt-1">R{{ this_week_total|floatformat:2 }}</h4>
-              <div class="text-muted small"># entries: {{ this_week_count }}</div>
-            </div>
-            <div class="text-end">
-              <small class="text-muted">Period</small>
-              <div>{{ week_start|date:"d M" }} — {{ week_end|date:"d M" }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <!-- ===================================================== -->
+    <!-- HEADER SECTION -->
+    <!-- ===================================================== -->
+    <div class="row mb-4 align-items-center">
 
-      <!-- This Month -->
-      <div class="col-12 col-md-4">
-        <div class="card card-compact">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <small class="text-muted">This Month (payable)</small>
-              <h4 class="mt-1">R{{ this_month_total|floatformat:2 }}</h4>
-              <div class="text-muted small">Unpaid: R{{ this_month_unpaid|floatformat:2 }}</div>
-            </div>
-            <div class="text-end">
-              <small class="text-muted">Month</small>
-              <div>{{ current_month_name }} {{ current_year }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3-Month Trend -->
-      <div class="col-12 col-md-4">
-        <div class="card card-compact">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <small class="text-muted">3-Month Trend</small>
-
-              {% if target_rep %}
-                {% with lm=last_3_months|last %}
-                  <h4 class="mt-1">R{{ lm.total|floatformat:2 }}</h4>
-                {% endwith %}
-
-                <div class="small">
-                  {% if trend_direction == "up" %}
-                    <span class="text-success">▲ {{ trend_pct|floatformat:1 }}%</span>
-                  {% elif trend_direction == "down" %}
-                    <span class="text-danger">▼ {{ trend_pct|floatformat:1 }}%</span>
-                  {% else %}
-                    <span class="text-muted">➜ 0.0%</span>
-                  {% endif %}
-                  <span class="text-muted">vs last month</span>
-                </div>
-              {% else %}
-                <h4 class="mt-1 text-muted">—</h4>
-                <div class="small text-muted">Select an agent to view trend</div>
-              {% endif %}
-            </div>
-
-            {% if target_rep %}
-              <div class="text-end">
-                <small class="text-muted">Last 3 months</small>
-                <div class="small">
-                  {% for m in last_3_months %}
-                    <div>{{ m.label }}: R{{ m.total|floatformat:0 }}</div>
-                  {% endfor %}
-                </div>
-              </div>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- filter + table -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-white py-2">
-        <form method="get" class="d-flex flex-wrap filter-bar">
-          {% if agents %}
-            <div class="me-2">
-              <label class="form-label small mb-1">Agent</label>
-              <select name="agent" class="form-select form-select-sm" {% if not is_admin_viewing %}disabled{% endif %}>
-                {% if is_admin_viewing %}
-                  <option value="">All agents</option>
-                {% endif %}
-                {% for a in agents %}
-                  <option value="{{ a.id }}" {% if target_rep and a.id == target_rep.id %}selected{% endif %} data-email="{{ a.email }}">
-                    {{ a.get_full_name|default:a.username }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
+      <div class="col-md-6">
+        <h3 class="mb-1">
+          {{ current_month_name }} {{ current_year }}
+        </h3>
+        <div class="text-muted small">
+          Area:
+          {% if selected_area %}
+            <strong>{{ selected_area }}</strong>
+          {% else %}
+            All Areas
           {% endif %}
+        </div>
+      </div>
 
-          <div class="me-2">
-            <label class="form-label small mb-1">From</label>
-            <input type="date" name="from" value="{{ filter_date_from|date:'Y-m-d' }}" class="form-control form-control-sm">
-          </div>
-
-          <div class="me-2">
-            <label class="form-label small mb-1">To</label>
-            <input type="date" name="to" value="{{ filter_date_to|date:'Y-m-d' }}" class="form-control form-control-sm">
-          </div>
-
-          <div class="align-self-end ms-2">
-            <button type="submit" class="btn btn-primary btn-sm" {% if not is_admin_viewing %}disabled{% endif %}>Apply</button>
-            <a href="{% url 'sales:sales-commission' %}" class="btn btn-outline-secondary btn-sm ms-1">Reset</a>
-          </div>
+      <div class="col-md-6 text-md-end">
+        <form method="get">
+          <select name="area" class="form-select w-auto d-inline-block">
+            <option value="">All Areas</option>
+            <option value="NORTH_CENTRAL" {% if selected_area == "NORTH_CENTRAL" %}selected{% endif %}>North/Central</option>
+            <option value="SOUTH_WEST" {% if selected_area == "SOUTH_WEST" %}selected{% endif %}>South/West</option>
+            <option value="EAST" {% if selected_area == "EAST" %}selected{% endif %}>East</option>
+          </select>
+          <button class="btn btn-primary btn-sm ms-2">Apply</button>
         </form>
       </div>
 
-      <div class="card-body p-3">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="mb-0">Commission entries — {{ current_month_name }} {{ current_year }}</h5>
+    </div>
 
-          {% if target_rep %}
-            <div>
-              <button type="button" class="btn btn-sm btn-outline-primary" 
-                      data-bs-toggle="modal" data-bs-target="#emailStatementModal">
-                Email Statement
-              </button>
-            </div>
-          {% else %}
-            <div>
-              <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
-                Email Statement (Select a rep)
-              </button>
-            </div>
-          {% endif %}
+
+    <!-- ===================================================== -->
+    <!-- PERFORMANCE SNAPSHOT -->
+    <!-- ===================================================== -->
+    <div class="row g-3 mb-4">
+
+      <div class="col-md-4">
+        <div class="card card-compact">
+          <small class="text-muted">Monthly Target</small>
+          <h4 class="mt-1">R{{ target_value|floatformat:2 }}</h4>
         </div>
+      </div>
 
-        <div class="table-responsive">
-          <table class="table table-hover table-striped align-middle">
-            <thead>
+      <div class="col-md-4">
+        <div class="card card-compact">
+          <small class="text-muted">Actual Utilization</small>
+          <h4 class="mt-1">R{{ utilization_total|floatformat:2 }}</h4>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card card-compact">
+          <small class="text-muted">Achievement</small>
+          <h4 class="mt-1">
+            {{ achievement_pct|floatformat:1 }}%
+          </h4>
+
+          <div class="progress mt-2" style="height:6px;">
+            <div class="progress-bar
+              {% if achievement_pct >= 100 %}
+                bg-success
+              {% elif achievement_pct >= 70 %}
+                bg-warning
+              {% else %}
+                bg-danger
+              {% endif %}"
+              style="width: {{ achievement_pct|floatformat:0 }}%;">
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- WEEKLY BREAKDOWN -->
+    <!-- ===================================================== -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <strong>Weekly Target Breakdown</strong>
+      </div>
+      <div class="card-body p-0">
+
+        <table class="table table-sm table-striped mb-0">
+          <thead>
+            <tr>
+              <th>Week</th>
+              <th>Allocated</th>
+              <th>Actual</th>
+              <th>%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for w in weekly_data %}
               <tr>
-                <th>Invoice</th>
-                <th>Client</th>
-                <th>Agent</th>
-                <th>Date</th>
-                <th>Invoice total</th>
-                <th>Rate (%)</th>
-                <th>Commission</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for entry in commission_entries %}
-                <tr onclick="window.location.href='{% url 'sales:sales-commission-view' entry.pk %}'" style="cursor:pointer;">
-                  <td>#{{ entry.invoice.id }}</td>
-                  <td>{{ entry.invoice.client|default:"-" }}</td>
-
-                  <td>
-                    {% if entry.rep %}
-                      {{ entry.rep.get_full_name|default:entry.rep.username }}
+                <td>{{ w.week }}</td>
+                <td>R{{ w.allocated|floatformat:0 }}</td>
+                <td>R{{ w.actual|floatformat:0 }}</td>
+                <td>
+                  <span class="
+                    {% if w.pct >= 100 %}
+                      text-success
+                    {% elif w.pct >= 70 %}
+                      text-warning
                     {% else %}
-                      <span class="text-muted">-</span>
+                      text-danger
                     {% endif %}
-                  </td>
+                  ">
+                    {{ w.pct|floatformat:1 }}%
+                  </span>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="4" class="text-center text-muted">
+                  No weekly data available.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
 
-                  <td>{{ entry.invoice.paid_date|date:"d M Y"|default:"-" }}</td>
-                  <td>R{{ entry.cost_total|floatformat:2 }}</td>
-
-                  <!-- RATE -->
-                  <td>
-                    
-                    <div class="small fw-bold text-primary">
-                      {{ entry.total_rate|floatformat:2 }}%
-                    </div>
-                  </td>
-
-                  <!-- AMOUNT -->
-                  <td>
-                    
-                    <div class="small fw-bold text-success">
-                      R{{ entry.total_amount|floatformat:2 }}
-                    </div>
-                  </td>
-                </tr>
-              {% empty %}
-                <tr>
-                  <td colspan="7" class="text-center text-muted">
-                    No commission entries for this period.
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-
-
-
-          </table>
-        </div>
-
-        {% if commission_entries|length >= 200 %}
-          <div class="text-muted small mt-2">Showing first 200 entries. Use filters to narrow results or add pagination.</div>
-        {% endif %}
       </div>
     </div>
+
+
+    <!-- ===================================================== -->
+    <!-- SEGMENT BREAKDOWN -->
+    <!-- ===================================================== -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <strong>Segment Breakdown</strong>
+      </div>
+      <div class="card-body">
+
+        {% if segment_data %}
+          {% for segment in segment_data %}
+            <div class="d-flex justify-content-between">
+              <div>{{ segment.name }}</div>
+              <div>
+                R{{ segment.value|floatformat:0 }}
+                ({{ segment.actual_pct|floatformat:1 }}%)
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-muted">No segment data available.</div>
+        {% endif %}
+
+      </div>
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- SUPERVISOR COMMISSION LOGIC -->
+    <!-- ===================================================== -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <strong>Supervisor Commission Calculation</strong>
+      </div>
+      <div class="card-body">
+
+        <div class="row">
+
+          <div class="col-md-6">
+            <p><strong>Target Achievement:</strong> {{ achievement_pct|floatformat:1 }}%</p>
+            <p><strong>Units Earned:</strong> {{ units_earned }}</p>
+            <p><strong>Unit Value:</strong> R{{ unit_value|floatformat:0 }}</p>
+            <p><strong>Performance Commission:</strong>
+              R{{ performance_commission|floatformat:2 }}
+            </p>
+          </div>
+
+          <div class="col-md-6">
+            <p><strong>Management Score:</strong> {{ management_score }}%</p>
+            <p><strong>Management Commission:</strong>
+              R{{ management_commission|floatformat:2 }}
+            </p>
+
+            <hr>
+
+            <h5>
+              Total Commission:
+              <span class="text-success">
+                R{{ supervisor_total_commission|floatformat:2 }}
+              </span>
+            </h5>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- REP TABLE -->
+    <!-- ===================================================== -->
+    <div class="card mb-5">
+      <div class="card-header">
+        <strong>Sales Representative Performance</strong>
+      </div>
+      <div class="card-body p-0">
+
+        <table class="table table-hover table-striped mb-0">
+          <thead>
+            <tr>
+              <th>Rep</th>
+              <th>Utilization</th>
+              <th>Commission</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rep in rep_summary %}
+              <tr>
+                <td>{{ rep.name }}</td>
+                <td>R{{ rep.utilization|floatformat:0 }}</td>
+                <td class="text-success">
+                  R{{ rep.commission|floatformat:2 }}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="3" class="text-center text-muted">
+                  No rep data available.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+      </div>
+    </div>
+
   </main>
 
   <!-- SWITCH PLATFORM MODAL -->

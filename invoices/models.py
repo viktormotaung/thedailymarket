@@ -3,10 +3,11 @@ from __future__ import annotations
 from decimal import Decimal
 from datetime import date, datetime, timedelta
 import math
+from django.apps import apps
 from calendar import monthrange
 from collections import defaultdict
 from typing import Callable, Optional
-
+import calendar
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models import Sum
@@ -77,6 +78,15 @@ class Invoice(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    segment = models.ForeignKey(
+        "UtilizationSegment",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="invoices",
+        help_text="Utilization segment this invoice belongs to (Daily / 3-Day / 7-Day)."
+    )
+
     # Only customer cash toward deposit counts here (exclude funder cash/credit events).
     PAYMENT_TYPES = {"payment", "refund"}
 
@@ -144,6 +154,15 @@ class Invoice(models.Model):
                 # CREDIT client but no CreditAccount yet:
                 # You can customise this behaviour if you want different defaults.
                 pass
+        UtilizationSegment = apps.get_model("invoices", "UtilizationSegment")
+
+        cycle_days = term_days if term_days > 0 else 1
+
+        self.segment = (
+            UtilizationSegment.objects
+            .filter(cycle_days=cycle_days, is_active=True)
+            .first()
+        )
 
         # Compute deposit + credit portions
         self.deposit_required = r2(total * (deposit_pct / Decimal("100")))
@@ -995,3 +1014,292 @@ def calculate_monthly_commissions(
                 "total_payout": total_payout,
             },
         )
+
+
+
+
+# =========================================================
+# UTILIZATION SEGMENT MODEL
+# =========================================================
+
+class UtilizationSegment(models.Model):
+    """
+    Defines utilization cycle types (Daily, 3 Day, 7 Day, 14 Day etc.)
+    """
+
+    name = models.CharField(max_length=50)  # e.g. Daily, 3 Days
+    cycle_days = models.IntegerField()      # 1, 3, 7, 14
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["cycle_days"]
+
+    def __str__(self):
+        return f"{self.name} ({self.cycle_days}-Day Cycle)"
+
+
+# =========================================================
+# MONTHLY TARGET MODEL
+# =========================================================
+
+class MonthlyTarget(models.Model):
+
+    MONTH_CHOICES = [
+        ("JAN", "January"),
+        ("FEB", "February"),
+        ("MAR", "March"),
+        ("APR", "April"),
+        ("MAY", "May"),
+        ("JUN", "June"),
+        ("JUL", "July"),
+        ("AUG", "August"),
+        ("SEP", "September"),
+        ("OCT", "October"),
+        ("NOV", "November"),
+        ("DEC", "December"),
+    ]
+
+    YEAR_CHOICES = [(y, str(y)) for y in range(2026, 2031)]
+
+    QUARTER_CHOICES = [
+        ("Q1", "Q1"),
+        ("Q2", "Q2"),
+        ("Q3", "Q3"),
+        ("Q4", "Q4"),
+    ]
+
+    AREA_CHOICES = [
+        ("NORTH_CENTRAL", "North/Central"),
+        ("SOUTH_WEST", "South/West"),
+        ("EAST", "East"),
+    ]
+
+    month = models.CharField(max_length=3, choices=MONTH_CHOICES)
+    year = models.IntegerField(choices=YEAR_CHOICES)
+    quarter = models.CharField(max_length=2, choices=QUARTER_CHOICES)
+    area = models.CharField(max_length=20, choices=AREA_CHOICES)
+
+    monthly_target = models.DecimalField(max_digits=14, decimal_places=2)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("month", "year", "area")
+        ordering = ["-year", "month"]
+
+    def __str__(self):
+        return f"{self.get_area_display()} - {self.get_month_display()} {self.year}"
+
+    # -----------------------------------------------------
+    # HELPER METHODS
+    # -----------------------------------------------------
+
+    def get_month_number(self):
+        month_map = {
+            "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4,
+            "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8,
+            "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
+        }
+        return month_map[self.month]
+
+    def get_total_days(self):
+        return calendar.monthrange(self.year, self.get_month_number())[1]
+
+    def get_daily_target(self):
+        total_days = self.get_total_days()
+        return (self.monthly_target / Decimal(total_days)).quantize(Decimal("0.01"))
+
+    def validate_allocations(self):
+        total = sum(a.percentage for a in self.allocations.all())
+        if total != Decimal("100.00"):
+            raise ValueError("Total allocation must equal 100%")
+        
+    def get_segment_actuals(self):
+        """
+        Returns actual paid invoice totals per segment for this month,
+        filtered by territory area.
+        """
+
+        from django.db.models import Sum
+
+        month_number = self.get_month_number()
+
+        first_day = date(self.year, month_number, 1)
+        last_day = date(self.year, month_number, self.get_total_days())
+
+        actuals = {}
+
+        for allocation in self.allocations.all():
+
+            segment = allocation.segment
+
+            total = (
+                segment.invoices
+                .filter(
+                    status="paid",
+                    paid_date__gte=first_day,
+                    paid_date__lte=last_day,
+                    order__client__area=self.area  # 🔥 THIS IS THE KEY
+                )
+                .aggregate(s=Sum("order_total_inc"))["s"]
+                or Decimal("0.00")
+            )
+
+            actuals[segment.name] = total.quantize(Decimal("0.01"))
+
+        return actuals
+    
+    def get_segment_performance(self):
+        """
+        Returns target vs actual vs gap per segment.
+        """
+
+        breakdown = self.get_segment_breakdown()
+        actuals = self.get_segment_actuals()
+
+        performance = {}
+
+        for segment_name, data in breakdown.items():
+
+            target = data["monthly_allocation"]
+            actual = actuals.get(segment_name, Decimal("0.00"))
+            gap = (actual - target).quantize(Decimal("0.01"))
+
+            performance[segment_name] = {
+                "target": target,
+                "actual": actual,
+                "gap": gap,
+                "percentage_achieved": (
+                    (actual / target) * Decimal("100")
+                ).quantize(Decimal("0.01")) if target > 0 else Decimal("0.00")
+            }
+
+        return performance
+
+    def get_segment_breakdown(self):
+        """
+        Returns full breakdown per segment:
+        - Monthly allocation
+        - Daily pacing
+        - ISO weekly breakdown
+        """
+
+        month_number = self.get_month_number()
+        total_days = self.get_total_days()
+        daily_master_target = self.get_daily_target()
+
+        first_day = date(self.year, month_number, 1)
+        last_day = date(self.year, month_number, total_days)
+
+        breakdown = {}
+
+        for allocation in self.allocations.all():
+
+            segment = allocation.segment
+            percentage = allocation.percentage
+
+            # Monthly allocation per segment
+            monthly_alloc = (
+                self.monthly_target * (percentage / Decimal("100"))
+            ).quantize(Decimal("0.01"))
+
+            # Daily allocation per segment
+            segment_daily_target = (
+                monthly_alloc / Decimal(total_days)
+            ).quantize(Decimal("0.01"))
+
+            # ISO weekly breakdown
+            current = first_day
+            weeks = {}
+
+            while current <= last_day:
+                iso_year, iso_week, _ = current.isocalendar()
+                key = f"{iso_year}-W{iso_week}"
+
+                if key not in weeks:
+                    weeks[key] = 0
+
+                weeks[key] += 1
+                current += timedelta(days=1)
+
+            # Convert days per week into monetary allocation
+            for week in weeks:
+                weeks[week] = (
+                    Decimal(weeks[week]) * segment_daily_target
+                ).quantize(Decimal("0.01"))
+
+            breakdown[segment.name] = {
+                "cycle_days": segment.cycle_days,
+                "percentage": percentage,
+                "monthly_allocation": monthly_alloc,
+                "daily_target": segment_daily_target,
+                "weekly_breakdown": weeks,
+            }
+
+        return breakdown
+
+
+# =========================================================
+# MONTHLY TARGET ALLOCATION MODEL
+# =========================================================
+
+class MonthlyTargetAllocation(models.Model):
+    """
+    Defines % split of MonthlyTarget across segments.
+    Example:
+        Daily 30%
+        3 Day 30%
+        7 Day 40%
+    """
+
+    monthly_target = models.ForeignKey(
+        MonthlyTarget,
+        on_delete=models.CASCADE,
+        related_name="allocations"
+    )
+
+    segment = models.ForeignKey(
+        UtilizationSegment,
+        on_delete=models.PROTECT
+    )
+
+    percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        help_text="Allocation percentage of total monthly target"
+    )
+
+    class Meta:
+        unique_together = ("monthly_target", "segment")
+        ordering = ["segment__cycle_days"]
+
+    def get_allocated_amount(self):
+        return (
+            self.monthly_target.monthly_target
+            * (self.percentage / Decimal("100"))
+        ).quantize(Decimal("0.01"))
+
+    def __str__(self):
+        return f"{self.segment.name} - {self.percentage}%"
+    
+
+class PaymentLog(models.Model):
+    PROVIDER_CHOICES = [
+        ("ozow", "Ozow"),
+    ]
+
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
+    invoice = models.ForeignKey("Invoice", on_delete=models.CASCADE, related_name="payment_logs")
+
+    transaction_reference = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    raw_request = models.JSONField(null=True, blank=True)
+    raw_response = models.JSONField(null=True, blank=True)
+
+    status = models.CharField(max_length=50, blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.provider.upper()} - {self.transaction_reference}"

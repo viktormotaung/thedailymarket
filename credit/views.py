@@ -397,6 +397,7 @@ def credit_client_view(request, client_id):
             "invoice__invoice_date",
             "invoice__due_date",
             "invoice__status",
+            "invoice__order_id",
         )
         .annotate(
             credit_used=Coalesce(
@@ -424,6 +425,7 @@ def credit_client_view(request, client_id):
                 "credit_used": row["credit_used"],
                 "credit_repaid": row["credit_repaid"],
                 "outstanding": outstanding,
+                "order_id": row["invoice__order_id"],
             })
 
     open_credit_total = credit_used
@@ -437,29 +439,8 @@ def credit_client_view(request, client_id):
         .order_by("posted_at", "id")  # OLDEST → NEWEST
     )
 
-    wallet_balance = Decimal("0.00")
-
     for entry in credit_entries:
-
-        # Money IN
-        if entry.kind in (
-            CreditEntry.ISSUE,
-            CreditEntry.REPAYMENT,
-        ):
-            wallet_balance += entry.amount
-
-        # Money OUT
-        elif entry.kind in (
-            CreditEntry.USAGE,
-            CreditEntry.WRITEOFF,
-        ):
-            wallet_balance -= entry.amount
-
-        # Signed corrections
-        elif entry.kind == CreditEntry.ADJUSTMENT:
-            wallet_balance += entry.amount
-
-        entry.running_balance = wallet_balance
+        entry.running_balance = entry.balance
 
     credit_entries.reverse()
 

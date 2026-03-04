@@ -35,7 +35,7 @@ class FunderAllocationInline(admin.TabularInline):
 class CreditEntryInline(admin.TabularInline):
     model = CreditEntry
     extra = 0
-    fields = ("posted_at", "kind", "amount", "reference")
+    fields = ("posted_at", "kind", "amount", "balance")
     readonly_fields = fields
     ordering = ("-posted_at",)
     can_delete = False
@@ -220,7 +220,7 @@ class CreditEntryAdmin(admin.ModelAdmin):
         "credit_account",
         "kind",
         "amount",
-        "reference",
+        "balance",
     )
     list_filter = ("kind", "posted_at")
     search_fields = (

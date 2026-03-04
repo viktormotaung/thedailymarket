@@ -116,6 +116,18 @@ class Client(models.Model):
         ("ACTIVE", "Active"),
     ]
 
+    AREA_CHOICES = [
+        ("NORTH_CENTRAL", "North/Central"),
+        ("SOUTH_WEST", "South/West"),
+        ("EAST", "East"),
+    ]
+
+    DELIVERY_SLOT_CHOICES = [
+        ("SLOT_1", "08:00 - 10:00"),
+        ("SLOT_2", "10:30 - 14:00"),
+        ("SLOT_3", "14:30 - 17:00"),
+    ]
+
     funder = models.ForeignKey(
         "credit.Funder",
         null=True,
@@ -156,6 +168,12 @@ class Client(models.Model):
         max_length=80,
         blank=True,
         help_text="Company registration number or SA ID number.",
+    )
+
+    area = models.CharField(
+        max_length=20,
+        choices=AREA_CHOICES,
+        help_text="Territory assignment for this client."
     )
 
 
@@ -242,6 +260,27 @@ class Client(models.Model):
         validators=[MinValueValidator(Decimal("-180")), MaxValueValidator(Decimal("180"))]
     )
 
+    preferred_delivery_slot_1 = models.CharField(
+        max_length=10,
+        choices=DELIVERY_SLOT_CHOICES,
+        blank=True,
+        help_text="Client's first preferred delivery slot."
+    )
+
+    preferred_delivery_slot_2 = models.CharField(
+        max_length=10,
+        choices=DELIVERY_SLOT_CHOICES,
+        blank=True,
+        help_text="Client's second preferred delivery slot."
+    )
+
+    preferred_delivery_slot_3 = models.CharField(
+        max_length=10,
+        choices=DELIVERY_SLOT_CHOICES,
+        blank=True,
+        help_text="Client's third preferred delivery slot."
+    )
+    
     # ---- Compliance (for businesses) ----
     vat_number = models.CharField(max_length=80, blank=True)
     
@@ -481,6 +520,8 @@ class ClientOperatingHours(models.Model):
         choices=DAY_CHOICES,
     )
 
+    day_order = models.IntegerField(editable=False)
+
     is_closed = models.BooleanField(default=False)
 
     open_time = models.TimeField(null=True, blank=True)
@@ -496,16 +537,36 @@ class ClientOperatingHours(models.Model):
     def clean(self):
         from django.core.exceptions import ValidationError
 
+        errors = {}
+
+        # -----------------------------
+        # If marked as closed
+        # -----------------------------
         if self.is_closed:
             if self.open_time or self.close_time:
-                raise ValidationError("Closed days should not have opening times.")
+                errors["is_closed"] = "Closed days must not have opening or closing times."
 
-        if not self.is_closed:
-            if not self.open_time or not self.close_time:
-                raise ValidationError("Open days must have both opening and closing times.")
+        # -----------------------------
+        # If marked as open
+        # -----------------------------
+        else:
+            # Both times required
+            if not self.open_time:
+                errors["open_time"] = "Opening time is required when the day is not closed."
 
-            if self.close_time <= self.open_time:
-                raise ValidationError("Closing time must be after opening time.")
+            if not self.close_time:
+                errors["close_time"] = "Closing time is required when the day is not closed."
+
+            # Only compare times if both exist
+            if self.open_time and self.close_time:
+                if self.close_time <= self.open_time:
+                    errors["close_time"] = "Closing time must be after opening time."
+
+        # -----------------------------
+        # Raise structured validation
+        # -----------------------------
+        if errors:
+            raise ValidationError(errors)
     
     
 class Prospect(models.Model):
@@ -531,6 +592,14 @@ class Prospect(models.Model):
         ("ACTIVE", "Active"),
         ("ARCHIVED", "Archived"),
     ]
+
+    AREA_CHOICES = [
+        ("NORTH_CENTRAL", "North/Central"),
+        ("SOUTH_WEST", "South/West"),
+        ("EAST", "East"),
+    ]
+
+    
 
     stage = models.CharField(
         max_length=20,
@@ -640,6 +709,12 @@ class Prospect(models.Model):
     )
     postal_code = models.CharField(max_length=20, blank=True)
     country = models.CharField(max_length=120, default="South Africa")
+
+    area = models.CharField(
+        max_length=20,
+        choices=AREA_CHOICES,
+        help_text="Territory assignment for this prospect."
+    )
 
     # -------------------------------------------------
     # Early compliance (optional, speeds up conversion)
@@ -781,6 +856,8 @@ class ProspectOperatingHours(models.Model):
         choices=DAY_CHOICES,
     )
 
+    day_order = models.IntegerField(editable=False)
+
     is_closed = models.BooleanField(default=False)
 
     open_time = models.TimeField(null=True, blank=True)
@@ -796,16 +873,29 @@ class ProspectOperatingHours(models.Model):
     def clean(self):
         from django.core.exceptions import ValidationError
 
+        errors = {}
+
         if self.is_closed:
             if self.open_time or self.close_time:
-                raise ValidationError("Closed days should not have opening times.")
+                errors["is_closed"] = "Closed days must not have opening or closing times."
 
-        if not self.is_closed:
-            if not self.open_time or not self.close_time:
-                raise ValidationError("Open days must have both opening and closing times.")
+        else:
+            if not self.open_time:
+                errors["open_time"] = "Opening time is required when the day is not closed."
 
-            if self.close_time <= self.open_time:
-                raise ValidationError("Closing time must be after opening time.")
+            if not self.close_time:
+                errors["close_time"] = "Closing time is required when the day is not closed."
+
+            if self.open_time and self.close_time:
+                if self.close_time <= self.open_time:
+                    errors["close_time"] = "Closing time must be after opening time."
+
+        if errors:
+            raise ValidationError(errors)
+        
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
     
 
 

@@ -95,6 +95,9 @@ class ClientForm(forms.ModelForm):
             "account_manager",
             "price_type",
 
+            # Territory
+            "area",
+
             # Contact
             "contact_person",
             "email",
@@ -122,6 +125,11 @@ class ClientForm(forms.ModelForm):
             # Delivery geo
             "delivery_lat",
             "delivery_lng",
+
+            # Preferred Delivery Slots
+            "preferred_delivery_slot_1",
+            "preferred_delivery_slot_2",
+            "preferred_delivery_slot_3",
 
             # Compliance
             "registration_identifier",
@@ -184,6 +192,11 @@ class ClientForm(forms.ModelForm):
             "account_type": forms.Select(attrs=_bs("form-select")),
             "credit_status": forms.Select(attrs=_bs("form-select")),
             "price_type": forms.Select(attrs=_bs("form-select")),
+            "area": forms.Select(attrs=_bs("form-select")),
+
+            "preferred_delivery_slot_1": forms.Select(attrs=_bs("form-select")),
+            "preferred_delivery_slot_2": forms.Select(attrs=_bs("form-select")),
+            "preferred_delivery_slot_3": forms.Select(attrs=_bs("form-select")),
 
             "categories": forms.SelectMultiple(
                 attrs={"class": "form-select", "size": 6}
@@ -255,6 +268,17 @@ class ClientForm(forms.ModelForm):
                 "estimated_weekly_spend",
                 "Estimated weekly spend cannot be negative."
             )
+
+        # Prevent duplicate preferred delivery slots
+        slots = [
+            cleaned.get("preferred_delivery_slot_1"),
+            cleaned.get("preferred_delivery_slot_2"),
+            cleaned.get("preferred_delivery_slot_3"),
+        ]
+        slots = [s for s in slots if s]
+
+        if len(slots) != len(set(slots)):
+            raise ValidationError("Preferred delivery slots must be unique.")
 
         for day_code, day_label in ClientOperatingHours.DAY_CHOICES:
             is_closed = cleaned.get(f"{day_code}_is_closed")
@@ -419,6 +443,9 @@ class ProspectForm(forms.ModelForm):
             "potential_client_type",
             "potential_size_tier",
 
+            # Territory
+            "area",
+
             # ---- Address (conversion-ready) ----
             "address_line1",
             "address_line2",
@@ -480,6 +507,7 @@ class ProspectForm(forms.ModelForm):
             # Segmentation
             "potential_client_type": forms.Select(attrs={"class": "form-select"}),
             "potential_size_tier": forms.Select(attrs={"class": "form-select"}),
+            "area": forms.Select(attrs=_bs("form-select")),
 
             # Address
             "address_line1": forms.TextInput(attrs={"class": "form-control"}),
@@ -899,6 +927,7 @@ class ClientEditForm(forms.ModelForm):
             "organization",
             "client_type",
             "client_size_tier",
+            "area",
 
             # Contact
             "contact_person",
@@ -923,6 +952,9 @@ class ClientEditForm(forms.ModelForm):
             "delivery_province",
             "delivery_postal_code",
             "delivery_country",
+            "preferred_delivery_slot_1",
+            "preferred_delivery_slot_2",
+            "preferred_delivery_slot_3",
 
             # Delivery geo
             "delivery_lat",

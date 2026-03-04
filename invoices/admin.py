@@ -1,4 +1,5 @@
 # invoices/admin.py
+
 from django.contrib import admin
 from django.utils.html import format_html
 
@@ -8,18 +9,22 @@ from .models import (
     CommissionEntry,
     MonthlyCommission,
     CommissionAdjustment,
+    UtilizationSegment,
+    MonthlyTarget,
+    MonthlyTargetAllocation,
 )
 
 
-# ==============================
+# =========================================================
 # Invoice admin
-# ==============================
+# =========================================================
 @admin.register(Invoice)
 class InvoiceAdmin(admin.ModelAdmin):
     list_display = [
         "id",
         "client_name",
         "order_id",
+        "segment",
         "invoice_date",
         "due_date",
         "order_total_display",
@@ -29,17 +34,21 @@ class InvoiceAdmin(admin.ModelAdmin):
         "status_colored",
         "is_fully_paid",
     ]
+
     list_filter = [
         "status",
+        "segment",
         "invoice_date",
         "due_date",
         "client__account_type",
     ]
+
     search_fields = [
-        "client__name",          # from Client model
-        "client__client_number", # your auto-generated CL####
+        "client__name",
+        "client__client_number",
         "order__id",
     ]
+
     readonly_fields = [
         "created_at",
         "updated_at",
@@ -48,6 +57,7 @@ class InvoiceAdmin(admin.ModelAdmin):
         "credit_used",
         "amount_due",
     ]
+
     fieldsets = (
         (
             None,
@@ -55,6 +65,7 @@ class InvoiceAdmin(admin.ModelAdmin):
                 "fields": (
                     "client",
                     "order",
+                    "segment",
                     "status",
                     "invoice_date",
                     "due_date",
@@ -82,6 +93,7 @@ class InvoiceAdmin(admin.ModelAdmin):
             },
         ),
     )
+
     ordering = ["-invoice_date", "-id"]
     date_hierarchy = "invoice_date"
 
@@ -110,9 +122,48 @@ class InvoiceAdmin(admin.ModelAdmin):
     order_total_display.short_description = "Order Total"
 
 
-# ==============================
+# =========================================================
+# Utilization Segment Admin
+# =========================================================
+@admin.register(UtilizationSegment)
+class UtilizationSegmentAdmin(admin.ModelAdmin):
+    list_display = ("name", "cycle_days", "is_active")
+    list_filter = ("is_active",)
+    ordering = ("cycle_days",)
+
+
+# =========================================================
+# Monthly Target Allocation Inline
+# =========================================================
+class MonthlyTargetAllocationInline(admin.TabularInline):
+    model = MonthlyTargetAllocation
+    extra = 1
+
+
+# =========================================================
+# Monthly Target Admin
+# =========================================================
+@admin.register(MonthlyTarget)
+class MonthlyTargetAdmin(admin.ModelAdmin):
+    list_display = (
+        "area",
+        "month",
+        "year",
+        "quarter",
+        "monthly_target",
+        "created_at",
+    )
+
+    list_filter = ("year", "quarter", "area")
+    search_fields = ("area",)
+    ordering = ("-year", "month")
+
+    inlines = [MonthlyTargetAllocationInline]
+
+
+# =========================================================
 # DailyOverdueSummary admin
-# ==============================
+# =========================================================
 @admin.register(DailyOverdueSummary)
 class DailyOverdueSummaryAdmin(admin.ModelAdmin):
     list_display = ("run_date", "new_overdue", "total_overdue", "created_at")
@@ -120,14 +171,15 @@ class DailyOverdueSummaryAdmin(admin.ModelAdmin):
     ordering = ["-run_date"]
 
 
-# ==============================
+# =========================================================
 # CommissionEntry admin
-# ==============================
+# =========================================================
 @admin.register(CommissionEntry)
 class CommissionEntryAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "invoice_id",
+        "segment",
         "rep",
         "supervisor",
         "cost_total",
@@ -138,7 +190,14 @@ class CommissionEntryAdmin(admin.ModelAdmin):
         "is_new_business",
         "created_at",
     )
-    list_filter = ("is_new_business", "rep", "supervisor")
+
+    list_filter = (
+        "is_new_business",
+        "rep",
+        "supervisor",
+        "invoice__segment",
+    )
+
     search_fields = (
         "invoice__id",
         "rep__username",
@@ -148,12 +207,21 @@ class CommissionEntryAdmin(admin.ModelAdmin):
         "supervisor__first_name",
         "supervisor__last_name",
     )
+
     readonly_fields = ("created_at",)
 
+    def invoice_id(self, obj):
+        return obj.invoice.id
+    invoice_id.short_description = "Invoice"
 
-# ==============================
+    def segment(self, obj):
+        return obj.invoice.segment
+    segment.short_description = "Segment"
+
+
+# =========================================================
 # MonthlyCommission admin
-# ==============================
+# =========================================================
 @admin.register(MonthlyCommission)
 class MonthlyCommissionAdmin(admin.ModelAdmin):
     list_display = (
@@ -171,25 +239,31 @@ class MonthlyCommissionAdmin(admin.ModelAdmin):
         "paid",
         "paid_on",
     )
+
     list_filter = ("year", "month", "paid")
+
     search_fields = (
         "rep__username",
         "rep__first_name",
         "rep__last_name",
     )
+
     date_hierarchy = "paid_on"
+
     readonly_fields = ("created_at", "updated_at")
 
 
-# ==============================
+# =========================================================
 # CommissionAdjustment admin
-# ==============================
+# =========================================================
 @admin.register(CommissionAdjustment)
 class CommissionAdjustmentAdmin(admin.ModelAdmin):
     list_display = ("id", "monthly_commission", "amount", "created_at")
+
     search_fields = (
         "monthly_commission__rep__username",
         "monthly_commission__rep__first_name",
         "monthly_commission__rep__last_name",
     )
+
     readonly_fields = ("created_at",)

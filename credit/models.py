@@ -430,6 +430,20 @@ class CreditAccount(models.Model):
             authorised_by=authorised_by,
             note=note,
         )
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        last_entry = self.entries.order_by("-id").first()
+
+        if last_entry:
+            new_used = r2(self.credit_limit - last_entry.balance)
+        else:
+            new_used = Decimal("0.00")
+
+        if new_used != self.credit_used:
+            self.credit_used = new_used
+            models.Model.save(self, update_fields=["credit_used", "updated_at"])
 
 
 # ============================================================
@@ -572,6 +586,13 @@ class CreditEntry(models.Model):
         validators=[MinValueValidator(Decimal("0.01"))],
     )
 
+    balance = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Running available credit after this entry."
+    )
+
     posted_at = models.DateTimeField(default=now, db_index=True)
 
     # Optional traceability
@@ -686,18 +707,35 @@ class CreditEntry(models.Model):
         note: str = "",
         created_by=None,
     ) -> "CreditEntry":
+
         ca, _ = CreditAccount.objects.get_or_create(client=client)
 
         amount = r2(amount)
 
-        # 🚨 HARD BUSINESS RULE ENFORCEMENT
-        if ca.credit_used + amount > ca.credit_limit:
-            raise ValidationError(
-                f"Credit limit exceeded. "
-                f"Limit: R{ca.credit_limit:.2f}, "
-                f"Used: R{ca.credit_used:.2f}, "
-                f"Available: R{ca.credit_available:.2f}"
-            )
+        # Get latest ledger balance (available credit)
+        last_entry = (
+            ca.entries
+            .order_by("-id")
+            .first()
+        )
+
+        current_available = last_entry.balance if last_entry else Decimal("0.00")
+
+        # Calculate new available after this usage
+        new_available = r2(current_available - amount)
+
+        # 🚨 OPTIONAL LIMIT ENFORCEMENT
+        # If you still want to prevent going beyond assigned limit:
+        #
+        # outstanding = ca.credit_limit - new_available
+        # if outstanding > ca.credit_limit:
+        #     raise ValidationError(
+        #         f"Credit limit exceeded. "
+        #         f"Limit: R{ca.credit_limit:.2f}, "
+        #         f"Available: R{current_available:.2f}"
+        #     )
+        #
+        # Since you allowed negative balance, we are not blocking it.
 
         return cls.objects.create(
             credit_account=ca,
@@ -722,6 +760,7 @@ class CreditEntry(models.Model):
         created_by=None,
     ) -> "CreditEntry":
         ca, _ = CreditAccount.objects.get_or_create(client=client)
+        ca.refresh_from_db()
         return cls.objects.create(
             credit_account=ca,
             kind=cls.REPAYMENT,
@@ -731,116 +770,41 @@ class CreditEntry(models.Model):
             note=note,
             created_by=created_by,
         )
+    
+    def save(self, *args, **kwargs):
+        is_create = self.pk is None
 
+        if is_create:
+            last_entry = (
+                CreditEntry.objects
+                .filter(credit_account=self.credit_account)
+                .order_by("-id")   # safer than posted_at
+                .first()
+            )
 
-# ============================================================
-# LEDGER DELTA ENGINE
-# ============================================================
+            previous_balance = last_entry.balance if last_entry else Decimal("0.00")
 
-def apply_ledger_delta(
-    *,
-    account: CreditAccount,
-    entry: CreditEntry,
-    reverse: bool = False,
-):
-    """
-    Apply or reverse a ledger entry.
-    This is the ONLY place credit_used / credit_limit mutate.
-    """
-    used  = r2(account.credit_used)
-    limit = r2(account.credit_limit)
-    amt   = r2(entry.amount)
+            if self.kind in (self.ISSUE, self.REPAYMENT, self.WRITEOFF):
+                new_balance = previous_balance + self.amount
 
-    sign = Decimal("-1.00") if reverse else Decimal("1.00")
+            elif self.kind in (self.USAGE, self.LIMIT_DECREASE):
+                new_balance = previous_balance - self.amount
 
-    if entry.kind == CreditEntry.USAGE:
-        used += sign * amt
+            elif self.kind == self.ADJUSTMENT:
+                new_balance = previous_balance + self.amount
 
-    elif entry.kind in (CreditEntry.REPAYMENT, CreditEntry.WRITEOFF):
-        used -= sign * amt
+            else:
+                new_balance = previous_balance
 
-    elif entry.kind == CreditEntry.ADJUSTMENT:
-        used += sign * amt
+            self.balance = r2(new_balance)
 
-    elif entry.kind == CreditEntry.ISSUE:
-        limit += sign * amt
-
-    elif entry.kind == CreditEntry.LIMIT_DECREASE:
-        limit -= sign * amt
-
-    account.credit_used = max(r2(used), Decimal("0.00"))
-    account.credit_limit = max(r2(limit), Decimal("0.00"))
-
-    account.save(
-        update_fields=[
-            "credit_used",
-            "credit_limit",
-            "updated_at",
-        ]
-    )
-
-# ============================================================
-# SIGNALS — APPLY EXACTLY ONCE
-# ============================================================
-
-@receiver(post_delete, sender=CreditEntry)
-def creditentry_reverse(sender, instance: CreditEntry, **kwargs):
-    if is_bypassing_ledger():
-        return
-
-    transaction.on_commit(
-        lambda: apply_ledger_delta(
-            account=instance.credit_account,
-            entry=instance,
-            reverse=True,
-        )
-    )
+        super().save(*args, **kwargs)
+        self.credit_account.save()
 
 
 
 
-@receiver(post_delete, sender=CreditEntry)
-def creditentry_reverse(sender, instance: CreditEntry, **kwargs):
-    transaction.on_commit(
-        lambda: apply_ledger_delta(
-            account=instance.credit_account,
-            entry=instance,
-            reverse=True,
-        )
-    )
 
-    # ============================================================
-# SIGNALS — APPLY EXACTLY ONCE
-# ============================================================
-
-@receiver(post_save, sender=CreditEntry)
-def creditentry_apply(sender, instance: CreditEntry, created, **kwargs):
-    if not created:
-        return
-    if is_bypassing_ledger():
-        return
-
-    transaction.on_commit(
-        lambda: apply_ledger_delta(
-            account=instance.credit_account,
-            entry=instance,
-            reverse=False,
-        )
-    )
-
-
-@receiver(post_delete, sender=CreditEntry)
-def creditentry_reverse(sender, instance: CreditEntry, **kwargs):
-    if is_bypassing_ledger():
-        return
-
-    transaction.on_commit(
-        lambda: apply_ledger_delta(
-            account=instance.credit_account,
-            entry=instance,
-            reverse=True,
-        )
-    )
 
 
 # ============================================================

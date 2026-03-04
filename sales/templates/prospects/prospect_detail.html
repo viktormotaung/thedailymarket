@@ -430,6 +430,15 @@
                       {% endif %}
                     </dd>
 
+                    <dt>Territory</dt>
+                    <dd>
+                      {% if prospect.area %}
+                        {{ prospect.get_area_display }}
+                      {% else %}
+                        <span class="text-muted">Not assigned</span>
+                      {% endif %}
+                    </dd>
+
                     <dt>Estimated weekly spend</dt>
                     <dd>
                       {% if prospect.estimated_weekly_spend %}

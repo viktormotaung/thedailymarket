@@ -300,6 +300,16 @@
                   <label class="form-label">Client Size Tier</label>
                   {{ form.client_size_tier }}
                 </div>
+                
+              </div>
+              <div class="row g-3 mt-1">
+                <div class="col-md-6">
+                  <label class="form-label">Territory</label>
+                  {{ form.area }}
+                  {% for err in form.area.errors %}
+                    <div class="text-danger small">{{ err }}</div>
+                  {% endfor %}
+                </div>
               </div>
             </div>
           </div>
@@ -515,6 +525,22 @@
                 <div class="col-md-4">
                   <label class="form-label">Country</label>
                   {{ form.delivery_country }}
+                </div>
+              </div>
+              <hr class="my-3">
+
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label">Delivery Slot 1</label>
+                  {{ form.preferred_delivery_slot_1 }}
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Delivery Slot 2</label>
+                  {{ form.preferred_delivery_slot_2 }}
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Delivery Slot 3</label>
+                  {{ form.preferred_delivery_slot_3 }}
                 </div>
               </div>
 

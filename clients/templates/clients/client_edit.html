@@ -283,6 +283,7 @@
               {{ form.organization.label_tag }} {{ form.organization }} {{ form.organization.errors }}
               {{ form.client_type.label_tag }} {{ form.client_type }} {{ form.client_type.errors }}
               {{ form.client_size_tier.label_tag }} {{ form.client_size_tier }} {{ form.client_size_tier.errors }}
+              {{ form.area.label_tag }} {{ form.area }} {{ form.area.errors }}
 
             </div>
           </div>
@@ -329,6 +330,19 @@
               {{ form.delivery_province.label_tag }} {{ form.delivery_province }} {{ form.delivery_province.errors }}
               {{ form.delivery_postal_code.label_tag }} {{ form.delivery_postal_code }} {{ form.delivery_postal_code.errors }}
               {{ form.delivery_country.label_tag }} {{ form.delivery_country }} {{ form.delivery_country.errors }}
+              <hr>
+
+              {{ form.preferred_delivery_slot_1.label_tag }} 
+              {{ form.preferred_delivery_slot_1 }} 
+              {{ form.preferred_delivery_slot_1.errors }}
+
+              {{ form.preferred_delivery_slot_2.label_tag }} 
+              {{ form.preferred_delivery_slot_2 }} 
+              {{ form.preferred_delivery_slot_2.errors }}
+
+              {{ form.preferred_delivery_slot_3.label_tag }} 
+              {{ form.preferred_delivery_slot_3 }} 
+              {{ form.preferred_delivery_slot_3.errors }}
             </div>
           </div>
         </div>

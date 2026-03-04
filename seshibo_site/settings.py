@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     "logistics",
     "core",
     "django_extensions",
+    "payments",
 
     # third party
     'django_celery_beat',
@@ -265,3 +266,14 @@ GOOGLE_MAPS_API_KEY = "AIzaSyChVDl--ftGbLBj4zzmNf9GKcqEh_ZM9IU"
 
 VAT_ENABLED = False
 DEFAULT_VAT_PERCENT = Decimal("0.00")
+
+
+# OZOW CONFIGURATION (STAGING)
+OZOW_SITE_CODE = "TSTSTF0001"
+OZOW_API_KEY = "EB5758F2C3B4DF3FF4F2669D5FF5B"
+OZOW_PRIVATE_KEY = "215114531AFF7134A94C88CEEA48E"
+
+OZOW_COUNTRY_CODE = "ZA"
+OZOW_CURRENCY_CODE = "ZAR"
+
+OZOW_API_URL = "https://sandbox.ozow.com/PostPaymentRequest"

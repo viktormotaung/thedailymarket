@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -18,7 +17,7 @@ from django.conf import settings
 import json
 from decimal import Decimal, InvalidOperation
 from typing import Iterable
-
+import requests
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q, Prefetch
@@ -100,13 +99,13 @@ from django.shortcuts import render
 from typing import Optional, Tuple
 from clients.forms import ClientMinimalForm
 from datetime import date, timedelta
-
+from payments.ozow import generate_ozow_hash
 from .forms import UserProfileForm
 import hashlib
 import urllib.parse
 from invoices.models import Invoice
 from credit.models import CreditAccount, CreditEntry
-from invoices.models import Invoice
+from invoices.models import Invoice, PaymentLog
 from orders.models import Order
 from credit.models import FunderMember 
 from clients.models import Client
@@ -2093,46 +2092,6 @@ def payfast_itn(request):
 
 
 @login_required
-def pay_invoice(request, pk):
-    client = resolve_client_for_user(request.user, request=request)
-
-    invoice = get_object_or_404(
-        Invoice.objects.select_related("order", "order__client"),
-        pk=pk,
-        order__client=client
-    )
-
-    data = [
-        ("merchant_id", settings.PAYFAST_MERCHANT_ID),
-        ("merchant_key", settings.PAYFAST_MERCHANT_KEY),
-        ("return_url", "https://yourdomain.co.za/payfast/return/"),
-        ("cancel_url", "https://yourdomain.co.za/payfast/cancel/"),
-        ("notify_url", "https://yourdomain.co.za/payfast/itn/"),
-
-        ("name_first", invoice.order.client.contact_person.split()[0]),
-        ("name_last", invoice.order.client.contact_person.split()[-1]),
-        ("email_address", invoice.order.client.email),
-
-        ("m_payment_id", f"INV-{invoice.id}"),
-        ("amount", f"{invoice.amount_due:.2f}"),
-        ("item_name", f"Invoice #{invoice.id}"),
-    ]
-
-    signature = generate_payfast_signature(
-        data=data,
-        passphrase=settings.PAYFAST_PASSPHRASE
-    )
-
-    payfast_data = dict(data)
-    payfast_data["signature"] = signature
-
-    return render(request, "home/payfast_redirect.html", {
-        "payfast_url": settings.PAYFAST_PROCESS_URL,
-        "data": payfast_data,
-    })
-
-
-@login_required
 def send_invoice_email(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk)
 
@@ -2844,3 +2803,138 @@ def refund(request):
 
 def shipping(request):
     return render(request, "legal/shipping.html")
+
+
+@login_required
+def pay_invoice(request, invoice_id):
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+
+    if invoice.amount_due <= 0:
+        return redirect("view-invoice", pk=invoice.id)
+
+    amount = f"{invoice.amount_due:.2f}"
+
+    transaction_reference = f"INV-{invoice.id}"
+    bank_reference = f"INV-{invoice.id}"
+    customer_email = request.user.email
+
+    success_url = request.build_absolute_uri(
+        reverse("ozow-success", args=[invoice.id])
+    )
+    cancel_url = request.build_absolute_uri(
+        reverse("ozow-cancel", args=[invoice.id])
+    )
+    error_url = request.build_absolute_uri(
+        reverse("ozow-error", args=[invoice.id])
+    )
+    notify_url = request.build_absolute_uri(
+        reverse("ozow-notify")
+    )
+
+    hash_value = generate_ozow_hash(
+        settings.OZOW_SITE_CODE,
+        settings.OZOW_COUNTRY_CODE,
+        settings.OZOW_CURRENCY_CODE,
+        amount,
+        transaction_reference,
+        bank_reference,
+        customer_email,
+        success_url,
+        cancel_url,
+        error_url,
+        notify_url,
+        settings.OZOW_PRIVATE_KEY,
+    )
+
+    payload = {
+        "ApiKey": settings.OZOW_API_KEY,
+        "SiteCode": settings.OZOW_SITE_CODE,
+        "CountryCode": settings.OZOW_COUNTRY_CODE,
+        "CurrencyCode": settings.OZOW_CURRENCY_CODE,
+        "Amount": amount,
+        "TransactionReference": transaction_reference,
+        "BankReference": bank_reference,
+        "Customer": customer_email,
+        "SuccessUrl": success_url,
+        "CancelUrl": cancel_url,
+        "ErrorUrl": error_url,
+        "NotifyUrl": notify_url,
+        "HashCheck": hash_value,
+    }
+
+    headers = {"Content-Type": "application/json"}
+
+    response = requests.post(
+        settings.OZOW_API_URL,
+        json=payload,
+        headers={"Content-Type": "application/json"}
+    )
+
+    print("OZOW STATUS:", response.status_code)
+    print("OZOW RESPONSE TEXT:", response.text)
+
+    try:
+        data = response.json()
+    except Exception:
+        data = {}
+
+    PaymentLog.objects.create(
+        provider="ozow",
+        invoice=invoice,
+        transaction_reference=transaction_reference,
+        amount=invoice.amount_due,
+        raw_request=payload,
+        raw_response=data,
+        status="initiated",
+    )
+
+    if data.get("PaymentUrl"):
+        return redirect(data["PaymentUrl"])
+
+    return redirect("view-invoice", pk=invoice.id)
+
+@csrf_exempt
+def ozow_notify(request):
+    if request.method != "POST":
+        return HttpResponse(status=405)
+
+    data = request.POST
+
+    transaction_reference = data.get("TransactionReference")
+    amount = Decimal(data.get("Amount", "0"))
+    status = data.get("Status")
+
+    if not transaction_reference:
+        return HttpResponse("Missing reference", status=400)
+
+    invoice_id = transaction_reference.replace("INV-", "")
+    invoice = Invoice.objects.filter(id=invoice_id).first()
+
+    if not invoice:
+        return HttpResponse("Invalid invoice", status=400)
+
+    PaymentLog.objects.create(
+        provider="ozow",
+        invoice=invoice,
+        transaction_reference=transaction_reference,
+        amount=amount,
+        raw_request=dict(data),
+        status=status,
+    )
+
+    if status == "Complete":
+
+        if invoice.is_fully_paid():
+            return HttpResponse("Already processed")
+
+        if amount != invoice.amount_due:
+            return HttpResponse("Amount mismatch", status=400)
+
+        with transaction.atomic():
+            invoice.record_payment(
+                amount=amount,
+                reference=f"OZOW-{transaction_reference}",
+                note="Ozow payment received",
+            )
+
+    return HttpResponse("OK")

@@ -656,7 +656,15 @@
                       {% if inv.due_date %}{{ inv.due_date|date:"Y-m-d" }}{% else %}—{% endif %}
                     </td>
                     <td style="font-size:13px;">R{{ inv.credit_used|floatformat:2 }}</td>
-                    <td style="font-size:13px;"> </td>
+                    <td style="font-size:13px;">
+                      {% if inv.order_id %}
+                        <a href="{% url 'order-view' inv.order_id %}">
+                          #{{ inv.order_id }}
+                        </a>
+                      {% else %}
+                        —
+                      {% endif %}
+                    </td>
                     
                   </tr>
                 {% endfor %}
@@ -805,7 +813,7 @@
 
                         <!-- Running Balance -->
                         <td style="font-size:13px; font-weight:600;">
-                          R{{ entry.running_balance|floatformat:2 }}
+                          R{{ entry.balance|floatformat:2 }}
                         </td>
                       </tr>
                     {% endfor %}
