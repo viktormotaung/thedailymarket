@@ -5,9 +5,9 @@ from .ozow_service import create_payment_request
 
 
 @login_required
-def pay_invoice(request, invoice_id):
+def pay_invoice(request, pk):
 
-    invoice = get_object_or_404(Invoice, id=invoice_id)
+    invoice = get_object_or_404(Invoice, id=pk)
 
     if invoice.amount_due <= 0:
         return redirect("view-invoice", pk=invoice.id)
