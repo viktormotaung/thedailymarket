@@ -67,10 +67,10 @@ urlpatterns = [
     path("refund-policy/", views.refund, name="refund"),
     path("shipping-policy/", views.shipping, name="shipping"),
     path("pay-invoice/<int:invoice_id>/", views.pay_invoice, name="pay-invoice"),
+    path("payment/ozow/success/", views.ozow_success, name="ozow-success"),
+    path("payment/ozow/cancel/", views.ozow_cancel, name="ozow-cancel"),
+    path("payment/ozow/error/", views.ozow_error, name="ozow-error"),
     path("payment/ozow/notify/", views.ozow_notify, name="ozow-notify"),
-    path("payment/ozow/success/<int:pk>/", views.view_invoice, name="ozow-success"),
-    path("payment/ozow/cancel/<int:pk>/", views.view_invoice, name="ozow-cancel"),
-    path("payment/ozow/error/<int:pk>/", views.view_invoice, name="ozow-error"),
 
 ]
 

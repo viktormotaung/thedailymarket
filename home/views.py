@@ -2818,18 +2818,10 @@ def pay_invoice(request, invoice_id):
     bank_reference = f"INV-{invoice.id}"
     customer_email = request.user.email
 
-    success_url = request.build_absolute_uri(
-        reverse("ozow-success", args=[invoice.id])
-    )
-    cancel_url = request.build_absolute_uri(
-        reverse("ozow-cancel", args=[invoice.id])
-    )
-    error_url = request.build_absolute_uri(
-        reverse("ozow-error", args=[invoice.id])
-    )
-    notify_url = request.build_absolute_uri(
-        reverse("ozow-notify")
-    )
+    success_url = "https://thedailymarket.co.za/payment/ozow/success/"
+    cancel_url = "https://thedailymarket.co.za/payment/ozow/cancel/"
+    error_url = "https://thedailymarket.co.za/payment/ozow/error/"
+    notify_url = "https://thedailymarket.co.za/payment/ozow/notify/"
 
     hash_value = generate_ozow_hash(
         settings.OZOW_SITE_CODE,
@@ -2843,35 +2835,47 @@ def pay_invoice(request, invoice_id):
         cancel_url,
         error_url,
         notify_url,
+        str(invoice.id),
         settings.OZOW_PRIVATE_KEY,
     )
 
     payload = {
-        "ApiKey": settings.OZOW_API_KEY,
-        "SiteCode": settings.OZOW_SITE_CODE,
-        "CountryCode": settings.OZOW_COUNTRY_CODE,
-        "CurrencyCode": settings.OZOW_CURRENCY_CODE,
-        "Amount": amount,
-        "TransactionReference": transaction_reference,
-        "BankReference": bank_reference,
-        "Customer": customer_email,
-        "SuccessUrl": success_url,
-        "CancelUrl": cancel_url,
-        "ErrorUrl": error_url,
-        "NotifyUrl": notify_url,
-        "HashCheck": hash_value,
+        "siteCode": settings.OZOW_SITE_CODE,
+        "countryCode": settings.OZOW_COUNTRY_CODE,
+        "currencyCode": settings.OZOW_CURRENCY_CODE,
+        "amount": amount,
+        "transactionReference": transaction_reference,
+        "bankReference": bank_reference,
+        "customerEmail": customer_email,
+        "successUrl": success_url,
+        "cancelUrl": cancel_url,
+        "errorUrl": error_url,
+        "notifyUrl": notify_url,
+        "optional1": str(invoice.id),   # ADD THIS LINE
+        "hashCheck": hash_value,
     }
 
-    headers = {"Content-Type": "application/json"}
+    print("---- OZOW REQUEST ----")
+    print("URL:", settings.OZOW_API_URL)
+    print("HEADERS:", {
+        "Content-Type": "application/json",
+        "ApiKey": settings.OZOW_API_KEY
+    })
+    print("BODY:", json.dumps(payload, indent=2))
+    print("----------------------")
 
     response = requests.post(
         settings.OZOW_API_URL,
         json=payload,
-        headers={"Content-Type": "application/json"}
+        headers={
+            "Content-Type": "application/json",
+            "apiKey": settings.OZOW_API_KEY
+        },
+        timeout=30
     )
 
     print("OZOW STATUS:", response.status_code)
-    print("OZOW RESPONSE TEXT:", response.text)
+    print("OZOW RESPONSE:", response.text)
 
     try:
         data = response.json()
@@ -2888,8 +2892,8 @@ def pay_invoice(request, invoice_id):
         status="initiated",
     )
 
-    if data.get("PaymentUrl"):
-        return redirect(data["PaymentUrl"])
+    if data.get("paymentUrl"):
+        return redirect(data["paymentUrl"])
 
     return redirect("view-invoice", pk=invoice.id)
 
@@ -2938,3 +2942,20 @@ def ozow_notify(request):
             )
 
     return HttpResponse("OK")
+
+@login_required
+def ozow_success(request):
+    messages.success(request, "Payment completed successfully.")
+    return redirect("orders")  # or your dashboard
+
+
+@login_required
+def ozow_cancel(request):
+    messages.warning(request, "Payment was cancelled.")
+    return redirect("orders")
+
+
+@login_required
+def ozow_error(request):
+    messages.error(request, "An error occurred during payment.")
+    return redirect("orders")
