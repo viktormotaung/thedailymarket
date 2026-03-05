@@ -1,6 +1,5 @@
 import hashlib
 
-
 def generate_ozow_hash(
     site_code,
     country_code,
@@ -13,7 +12,6 @@ def generate_ozow_hash(
     cancel_url,
     error_url,
     notify_url,
-    optional1,
     private_key,
 ):
 
@@ -29,7 +27,6 @@ def generate_ozow_hash(
         + cancel_url
         + error_url
         + notify_url
-        + optional1
         + private_key
     )
 

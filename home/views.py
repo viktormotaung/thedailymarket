@@ -2835,7 +2835,6 @@ def pay_invoice(request, invoice_id):
         cancel_url,
         error_url,
         notify_url,
-        str(invoice.id),
         settings.OZOW_PRIVATE_KEY,
     )
 
@@ -2892,8 +2891,8 @@ def pay_invoice(request, invoice_id):
         status="initiated",
     )
 
-    if data.get("paymentUrl"):
-        return redirect(data["paymentUrl"])
+    if data.get("url"):
+        return redirect(data["url"])
 
     return redirect("view-invoice", pk=invoice.id)
 
