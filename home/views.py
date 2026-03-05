@@ -2830,10 +2830,11 @@ def pay_invoice(request, invoice_id):
         amount,
         transaction_reference,
         bank_reference,
+        str(invoice.id),   # optional1
         customer_email,
-        success_url,
         cancel_url,
         error_url,
+        success_url,
         notify_url,
         settings.OZOW_PRIVATE_KEY,
     )

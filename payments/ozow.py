@@ -7,10 +7,11 @@ def generate_ozow_hash(
     amount,
     transaction_reference,
     bank_reference,
+    optional1,
     customer_email,
-    success_url,
     cancel_url,
     error_url,
+    success_url,
     notify_url,
     private_key,
 ):
@@ -22,17 +23,19 @@ def generate_ozow_hash(
         + amount
         + transaction_reference
         + bank_reference
+        + optional1
         + customer_email
-        + success_url
         + cancel_url
         + error_url
+        + success_url
         + notify_url
         + private_key
     )
 
+    print("OZOW HASH STRING:", hash_string)
+
     hash_value = hashlib.sha512(hash_string.encode("utf-8")).hexdigest()
 
-    print("OZOW HASH STRING:", hash_string)
     print("OZOW HASH:", hash_value)
 
     return hash_value
