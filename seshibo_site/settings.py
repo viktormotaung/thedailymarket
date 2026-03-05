@@ -270,10 +270,15 @@ DEFAULT_VAT_PERCENT = Decimal("0.00")
 
 # OZOW CONFIGURATION (STAGING)
 OZOW_SITE_CODE = "PER-PER-030"
-OZOW_API_KEY = "faad04c558849b3d2be2a3b799bf6319"
-OZOW_PRIVATE_KEY = "174c37e9f54a6f4c3dd906ef69cf41d2"
+OZOW_API_KEY = "your_api_key"
+OZOW_PRIVATE_KEY = "your_private_key"
+
+OZOW_API_URL = "https://api.ozow.com/PostPaymentRequest"
+
+OZOW_SUCCESS_URL = "https://thedailymarket.co.za/payment/ozow/success/"
+OZOW_CANCEL_URL = "https://thedailymarket.co.za/payment/ozow/cancel/"
+OZOW_ERROR_URL = "https://thedailymarket.co.za/payment/ozow/error/"
+OZOW_NOTIFY_URL = "https://thedailymarket.co.za/payment/ozow/notify/"
 
 OZOW_COUNTRY_CODE = "ZA"
 OZOW_CURRENCY_CODE = "ZAR"
-
-OZOW_API_URL = "https://api.ozow.com/PostPaymentRequest"
