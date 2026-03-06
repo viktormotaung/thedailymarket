@@ -565,9 +565,8 @@
                 </div>
 
                 {% if invoice.amount_due > 0 %}
-                  <a href="{% url 'pay-invoice' invoice.id %}"
-                    class="btn btn-success">
-                    Pay Amount
+                  <a href="{% url 'pay_invoice' invoice.id %}" class="btn btn-success">
+                  Pay with Ozow
                   </a>
                 {% endif %}
               </div>
