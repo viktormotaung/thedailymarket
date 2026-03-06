@@ -67,8 +67,11 @@ def pay_invoice(request, invoice_id):
         success_url +
         cancel_url +
         error_url +
-        notify_url
+        notify_url +
+        settings.OZOW_PRIVATE_KEY
     )
+
+    hash_check = hashlib.sha512(hash_string.encode("utf-8")).hexdigest()
 
     print("\nHash String:")
     print(hash_string)
@@ -104,7 +107,10 @@ def pay_invoice(request, invoice_id):
 
     print("==============================\n")
 
-    return redirect(redirect_url)
+    return render(request, "payments/ozow_redirect.html", {
+        "payment_data": payment_data,
+        "ozow_url": "https://pay.ozow.com"
+    })
 
 
 # =========================================================
