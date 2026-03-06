@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Redirecting to Ozow...</title>
+</head>
+<body>
+
+<p>Redirecting to secure payment...</p>
+
+<form id="ozowForm" method="POST" action="{{ ozow_url }}">
+    {% for key, value in payment_data.items %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+    {% endfor %}
+</form>
+
+<script>
+    document.getElementById("ozowForm").submit();
+</script>
+
+</body>
+</html>
