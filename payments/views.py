@@ -47,11 +47,13 @@ def pay_invoice(request, invoice_id):
     success_url = request.build_absolute_uri("/payment-success/")
     cancel_url = request.build_absolute_uri("/payment-cancel/")
     notify_url = request.build_absolute_uri("/payments/ozow/notify/")
+    error_url = request.build_absolute_uri("/payment-error/")
 
     print("\n--- URLs ---")
     print("Success URL:", success_url)
     print("Cancel URL:", cancel_url)
     print("Notify URL:", notify_url)
+    print("Error URL:", error_url)
 
     # Build hash string
     hash_string = (
@@ -64,6 +66,7 @@ def pay_invoice(request, invoice_id):
         invoice.client.email +
         success_url +
         cancel_url +
+        error_url +
         notify_url
     )
 
@@ -85,6 +88,7 @@ def pay_invoice(request, invoice_id):
         "CustomerEmail": invoice.client.email,
         "SuccessUrl": success_url,
         "CancelUrl": cancel_url,
+        "ErrorUrl": error_url,
         "NotifyUrl": notify_url,
         "HashCheck": hash_check,
     }
