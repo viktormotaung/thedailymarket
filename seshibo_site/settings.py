@@ -267,6 +267,27 @@ GOOGLE_MAPS_API_KEY = "AIzaSyChVDl--ftGbLBj4zzmNf9GKcqEh_ZM9IU"
 VAT_ENABLED = False
 DEFAULT_VAT_PERCENT = Decimal("0.00")
 
+# ===============================
+# YOCO PAYMENT GATEWAY SETTINGS
+# ===============================
+
+# API Keys
+YOCO_PUBLIC_KEY = "pk_test_c768e9b80qgDbWj0e8c4"
+YOCO_SECRET_KEY = "sk_test_6486f73eOgzA6o434d747319ea9a"
+
+# API Endpoint
+YOCO_API_URL = "https://payments.yoco.com/api/checkouts"
+
+# Default Redirect URLs
+# (These can be overridden dynamically per invoice)
+YOCO_SUCCESS_URL = "https://www.thedailymarket.co.za/payment-success/"
+YOCO_CANCEL_URL = "https://www.thedailymarket.co.za/payment-cancel/"
+
+# Webhook URL (Yoco sends payment confirmations here)
+YOCO_WEBHOOK_URL = "https://www.thedailymarket.co.za/payments/yoco/webhook/"
+
+YOCO_WEBHOOK_SECRET = "whsec_MDZGN0I0NUQwQTUzNDc2QTM2Qzg0QTVDMDAwQTA2MDc="
+
 
 OZOW_SITE_CODE = "PER-PER-030"
 OZOW_PRIVATE_KEY = "174c37e9f54a6f4c3dd906ef69cf41d2"

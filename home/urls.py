@@ -41,6 +41,8 @@ urlpatterns = [
     path("orders/", views.orders, name="orders"),
     path("invoice/<int:pk>/", views.view_invoice, name="view-invoice"),
 
+    path("invoice/<int:invoice_id>/pay/", views.pay_invoice, name="pay-invoice"),
+
     
     path("invoices/<int:pk>/send-email/", views.send_invoice_email, name="send-invoice-email"),
 

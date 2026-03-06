@@ -1,7 +1,14 @@
 from django.urls import path
-from . import views
+from .views import pay_invoice_yoco, yoco_webhook
 
 urlpatterns = [
-    path("invoice/<int:invoice_id>/pay/", views.pay_invoice, name="pay_invoice"),
-    path("payments/ozow/notify/", views.ozow_notify, name="ozow_notify"),
+    path(
+        "yoco/pay/<int:invoice_id>/",
+        pay_invoice_yoco,
+        name="pay_invoice_yoco",
+    ),
+    
+   
+    path("yoco/webhook/", yoco_webhook, name="yoco-webhook"),
+
 ]
