@@ -27,9 +27,6 @@ def payment_success(request):
 
 @csrf_exempt
 def yoco_webhook(request):
-    """
-    Receives webhook notifications from Yoco
-    """
 
     if request.method != "POST":
         return HttpResponse(status=405)
@@ -44,10 +41,9 @@ def yoco_webhook(request):
 
         event_type = data.get("type")
 
-        # We only care about successful payments
         if event_type == "payment.succeeded":
 
-            payment_data = data.get("data", {})
+            payment_data = data.get("payload", {})
             metadata = payment_data.get("metadata", {})
 
             invoice_id = metadata.get("invoice_id")
@@ -59,20 +55,17 @@ def yoco_webhook(request):
             try:
                 invoice = Invoice.objects.get(id=invoice_id)
 
-                # Prevent duplicate webhook updates
                 if invoice.status != "PAID":
                     invoice.status = "PAID"
                     invoice.save()
 
                     print(f"Invoice {invoice_id} marked as PAID")
-                else:
-                    print(f"Invoice {invoice_id} already paid")
 
             except Invoice.DoesNotExist:
-                print(f"Invoice {invoice_id} not found")
+                print("Invoice not found")
 
         return HttpResponse(status=200)
 
     except Exception as e:
-        print("Webhook error:", str(e))
+        print("Webhook error:", e)
         return HttpResponse(status=400)
