@@ -18,7 +18,10 @@ def ozow_notify(request):
 
     if status == "Complete":
 
-        invoice.status = "paid"
-        invoice.save()
+        invoice.record_payment(
+            amount=Decimal(payment_data.get("amount")) / Decimal("100"),
+            reference=payment_data.get("id"),
+            note="Yoco payment",
+        )
 
     return HttpResponse("OK")

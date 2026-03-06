@@ -55,8 +55,8 @@ def yoco_webhook(request):
             try:
                 invoice = Invoice.objects.get(id=invoice_id)
 
-                if invoice.status != "PAID":
-                    invoice.status = "PAID"
+                if invoice.status != "paid":
+                    invoice.status = "paid"
                     invoice.save()
 
                     print(f"Invoice {invoice_id} marked as PAID")

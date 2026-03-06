@@ -1286,6 +1286,7 @@ class MonthlyTargetAllocation(models.Model):
 class PaymentLog(models.Model):
     PROVIDER_CHOICES = [
         ("ozow", "Ozow"),
+        ("yoco", "Yoco")
     ]
 
     provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)

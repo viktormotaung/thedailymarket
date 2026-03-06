@@ -82,7 +82,7 @@ def yoco_webhook(request):
         try:
             invoice = Invoice.objects.get(id=invoice_id)
 
-            invoice.status = "PAID"
+            invoice.status = "paid"
             invoice.save()
 
             print(f"Invoice {invoice_id} marked as PAID")
