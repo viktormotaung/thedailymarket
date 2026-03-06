@@ -24,9 +24,9 @@ def generate_hash(data_string):
 # =========================================================
 
 @login_required
-def pay_invoice(request, pk):
+def pay_invoice(request, invoice_id):
 
-    invoice = get_object_or_404(Invoice, id=pk)
+    invoice = get_object_or_404(Invoice, id=invoice_id)
 
     print("\n==============================")
     print("OZOW PAYMENT DEBUG")
