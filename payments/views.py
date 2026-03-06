@@ -1,35 +1,45 @@
 import hashlib
+from decimal import Decimal
+from urllib.parse import urlencode
+
 from django.conf import settings
 from django.shortcuts import redirect, get_object_or_404, render
 from django.http import HttpResponse
-from invoices.models import Invoice
-from urllib.parse import urlencode
-from django.http import JsonResponse
-from decimal import Decimal
+from django.contrib.auth.decorators import login_required
+
+from invoices.models import Invoice, PaymentLog
 
 
-
+# =========================================================
+# HASH GENERATOR
+# =========================================================
 
 def generate_hash(data_string):
     combined = data_string + settings.OZOW_PRIVATE_KEY
     return hashlib.sha512(combined.encode()).hexdigest()
 
 
-def pay_invoice(request, invoice_id):
+# =========================================================
+# PAY INVOICE (START OZOW PAYMENT)
+# =========================================================
 
-    invoice = get_object_or_404(Invoice, id=invoice_id)
+@login_required
+def pay_invoice(request, pk):
+
+    invoice = get_object_or_404(Invoice, id=pk)
 
     print("\n==============================")
     print("OZOW PAYMENT DEBUG")
     print("==============================")
 
-    # Invoice information
     print("Invoice ID:", invoice.id)
     print("Client:", invoice.client)
     print("Deposit Required:", invoice.amount_due)
     print("Deposit Paid:", invoice.deposit_paid)
 
-    amount = "{:.2f}".format(invoice.amount_due)
+    # Remaining deposit to pay
+    remaining = invoice.amount_due - invoice.deposit_paid
+    amount = "{:.2f}".format(remaining)
 
     transaction_reference = f"INV{invoice.id}"
     bank_reference = f"DailyMarket{invoice.id}"
@@ -43,6 +53,7 @@ def pay_invoice(request, invoice_id):
     print("Cancel URL:", cancel_url)
     print("Notify URL:", notify_url)
 
+    # Build hash string
     hash_string = (
         settings.OZOW_SITE_CODE +
         settings.OZOW_COUNTRY_CODE +
@@ -89,17 +100,12 @@ def pay_invoice(request, invoice_id):
 
     print("==============================\n")
 
-    return JsonResponse({
-        "invoice_id": invoice.id,
-        "amount": amount,
-        "payment_data": payment_data,
-        "redirect_url": redirect_url
-    })
+    return redirect(redirect_url)
 
 
-
-
-
+# =========================================================
+# OZOW NOTIFY WEBHOOK
+# =========================================================
 
 def ozow_notify(request):
 
@@ -129,9 +135,9 @@ def ozow_notify(request):
         print("Invoice not found:", invoice_id)
         return HttpResponse("Invoice not found", status=404)
 
-    # -------------------------------------------------
-    # Save raw log (for debugging and audit)
-    # -------------------------------------------------
+    # =========================================================
+    # LOG RAW PAYMENT DATA
+    # =========================================================
 
     log = PaymentLog.objects.create(
         provider="ozow",
@@ -144,9 +150,9 @@ def ozow_notify(request):
 
     print("PaymentLog created:", log.id)
 
-    # -------------------------------------------------
-    # Verify Ozow hash (security check)
-    # -------------------------------------------------
+    # =========================================================
+    # HASH VERIFICATION
+    # =========================================================
 
     hash_string = (
         settings.OZOW_SITE_CODE +
@@ -174,9 +180,9 @@ def ozow_notify(request):
 
     print("HASH VERIFIED")
 
-    # -------------------------------------------------
-    # Prevent duplicate payments
-    # -------------------------------------------------
+    # =========================================================
+    # DUPLICATE PAYMENT PROTECTION
+    # =========================================================
 
     if invoice.is_fully_paid():
         print("Invoice already paid")
@@ -184,9 +190,9 @@ def ozow_notify(request):
         log.save(update_fields=["status"])
         return HttpResponse("Already processed")
 
-    # -------------------------------------------------
-    # Process successful payment
-    # -------------------------------------------------
+    # =========================================================
+    # PROCESS PAYMENT
+    # =========================================================
 
     if status == "Complete":
 
@@ -206,6 +212,7 @@ def ozow_notify(request):
     else:
 
         print("Payment status:", status)
+
         log.status = status
         log.save(update_fields=["status"])
 
@@ -213,9 +220,18 @@ def ozow_notify(request):
 
     return HttpResponse("OK")
 
+
+# =========================================================
+# SUCCESS / CANCEL PAGES
+# =========================================================
+
 def payment_success(request):
     return render(request, "payments/success.html")
 
 
 def payment_cancel(request):
+    return render(request, "payments/cancel.html")
+
+
+def ozow_cancel(request):
     return render(request, "payments/cancel.html")

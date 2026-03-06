@@ -40,7 +40,7 @@ urlpatterns = [
     path("orders/<int:pk>/", views.view_order, name="view-order"),
     path("orders/", views.orders, name="orders"),
     path("invoice/<int:pk>/", views.view_invoice, name="view-invoice"),
-    
+
     
     path("invoices/<int:pk>/send-email/", views.send_invoice_email, name="send-invoice-email"),
 
