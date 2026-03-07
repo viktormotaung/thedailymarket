@@ -15,41 +15,52 @@ def yoco_webhook(request):
 
     data = json.loads(request.body)
 
-    print("=================================")
+    print("\n=================================")
     print("YOCO WEBHOOK RECEIVED")
     print(data)
     print("=================================")
 
-    payload = data.get("payload", {})
-    metadata = payload.get("metadata", {})
+    try:
 
-    invoice_id = metadata.get("invoice_id")
+        event_type = data.get("type")
+        print("Event type:", event_type)
 
-    print("Invoice ID:", invoice_id)
+        if event_type != "payment.succeeded":
+            print("Event ignored")
+            return HttpResponse(status=200)
 
-    if not invoice_id:
-        print("No invoice_id in metadata")
+        payload = data.get("payload", {})
+        metadata = payload.get("metadata", {})
+
+        invoice_id = metadata.get("invoice_id")
+
+        print("Invoice ID:", invoice_id)
+
+        if not invoice_id:
+            print("No invoice id")
+            return HttpResponse(status=200)
+
+        invoice = Invoice.objects.get(id=int(invoice_id))
+
+        amount = Decimal(payload["amount"]) / Decimal("100")
+        payment_id = payload["id"]
+
+        print("Amount:", amount)
+        print("Payment ID:", payment_id)
+
+        invoice.record_payment(
+            amount=amount,
+            reference=payment_id,
+            note="Yoco payment"
+        )
+
+        print("Payment recorded successfully")
+
         return HttpResponse(status=200)
 
-    invoice = Invoice.objects.filter(id=int(invoice_id)).first()
-
-    if not invoice:
-        print("Invoice not found")
-        return HttpResponse(status=200)
-
-    amount = Decimal(payload.get("amount")) / Decimal("100")
-
-    print("Recording payment:", amount)
-
-    invoice.record_payment(
-        amount=amount,
-        reference=payload.get("id"),
-        note="Yoco payment"
-    )
-
-    print("Payment recorded")
-
-    return HttpResponse(status=200)
+    except Exception as e:
+        print("WEBHOOK ERROR:", e)
+        return HttpResponse(status=400)
 
 
 
