@@ -1,69 +1,76 @@
-from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
+import json
 from decimal import Decimal
 
-from invoices.models import Invoice
-from invoices.models import PaymentLog
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+
+from invoices.models import Invoice, PaymentLog
 
 
 @csrf_exempt
-def ozow_notify(request):
-    """
-    Ozow server-to-server notification endpoint.
-    This confirms a payment after Ozow processes it.
-    """
+def yoco_webhook(request):
 
     if request.method != "POST":
         return HttpResponse(status=405)
 
-    print("================================")
-    print("OZOW NOTIFY RECEIVED")
-    print(request.POST)
-    print("================================")
+    data = json.loads(request.body)
+
+    print("=================================")
+    print("YOCO WEBHOOK RECEIVED")
+    print(data)
+    print("=================================")
 
     try:
 
-        transaction_reference = request.POST.get("transactionReference")
-        status = request.POST.get("status")
-        amount = request.POST.get("amount")
-        payment_id = request.POST.get("transactionId")
+        event_type = data.get("type")
 
-        if not transaction_reference:
-            return HttpResponse(status=400)
+        if event_type != "payment.succeeded":
+            return HttpResponse(status=200)
 
-        # Example reference: INV29
-        invoice_id = transaction_reference.replace("INV", "")
+        payload = data.get("payload", {})
+        metadata = payload.get("metadata", {})
+
+        invoice_id = metadata.get("invoice_id")
+
+        if not invoice_id:
+            print("No invoice_id in metadata")
+            return HttpResponse(status=200)
 
         invoice = Invoice.objects.filter(id=invoice_id).first()
 
         if not invoice:
+            print("Invoice not found")
             return HttpResponse(status=404)
 
-        # Save raw payment log for audit
+        payment_id = payload.get("id")
+        amount = Decimal(payload.get("amount")) / Decimal("100")
+
+        # Prevent duplicate payments
+        if invoice.transactions.filter(reference=payment_id).exists():
+            print("Payment already processed")
+            return HttpResponse(status=200)
+
+        # Save gateway log
         PaymentLog.objects.create(
-            provider="ozow",
+            provider="yoco",
             invoice=invoice,
-            transaction_reference=payment_id or transaction_reference,
-            amount=Decimal(amount) if amount else Decimal("0.00"),
-            raw_request=dict(request.POST),
-            status=status,
+            transaction_reference=payment_id,
+            amount=amount,
+            raw_request=data,
+            status=payload.get("status"),
         )
 
-        # Only process successful payments
-        if status == "Complete":
+        # Record payment using invoice logic
+        invoice.record_payment(
+            amount=amount,
+            reference=payment_id,
+            note="Yoco payment",
+        )
 
-            payment_amount = Decimal(amount)
+        print(f"Invoice {invoice_id} payment recorded")
 
-            invoice.record_payment(
-                amount=payment_amount,
-                reference=payment_id or transaction_reference,
-                note="Ozow payment",
-            )
-
-            print(f"Invoice {invoice.id} payment recorded")
-
-        return HttpResponse("OK")
+        return HttpResponse(status=200)
 
     except Exception as e:
-        print("OZOW ERROR:", e)
-        return HttpResponse(status=500)
+        print("Webhook error:", e)
+        return HttpResponse(status=400)
