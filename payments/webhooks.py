@@ -9,6 +9,7 @@ from invoices.models import Invoice
 
 @csrf_exempt
 def yoco_webhook(request):
+    print("🔥 NEW YOCO WEBHOOK VERSION 🔥")
 
     print("\n==============================")
     print("YOCO WEBHOOK HIT")
