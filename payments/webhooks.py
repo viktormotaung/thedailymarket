@@ -61,7 +61,7 @@ def yoco_webhook(request):
         # ---------------------------------------------------
         # 5️⃣ Fetch invoice
         # ---------------------------------------------------
-        invoice = Invoice.objects.filter(id=int(invoice_id)).first()
+        invoice = Invoice.objects.filter(id=int(invoice_id)).select_related("order").first()
         print("6️⃣ INVOICE OBJECT:", invoice)
 
         if not invoice:
@@ -88,27 +88,44 @@ def yoco_webhook(request):
         # ---------------------------------------------------
         if invoice.transactions.filter(reference=payment_id).exists():
             print("⚠ Payment already recorded")
-            return HttpResponse(status=200)
+
+        else:
+
+            # ---------------------------------------------------
+            # 🔟 Record payment
+            # ---------------------------------------------------
+            print("🔟 CALLING record_payment()")
+
+            invoice.record_payment(
+                amount=amount,
+                reference=payment_id,
+                note="Yoco payment"
+            )
+
+            print("✅ PAYMENT RECORDED SUCCESSFULLY")
 
         # ---------------------------------------------------
-        # 🔟 Record payment
-        # ---------------------------------------------------
-        print("🔟 CALLING record_payment()")
-
-        invoice.record_payment(
-            amount=amount,
-            reference=payment_id,
-            note="Yoco payment"
-        )
-
-        print("✅ PAYMENT RECORDED SUCCESSFULLY")
-
-        # ---------------------------------------------------
-        # Refresh invoice and show outcome
+        # 1️⃣1️⃣ Ensure order status is correct
+        # (important for webhook retries)
         # ---------------------------------------------------
         invoice.refresh_from_db()
 
-        print("📊 NEW STATUS:", invoice.status)
+        if invoice.status == "paid" and invoice.order:
+
+            if invoice.order.status == "awaiting_payment":
+
+                print("📦 Moving order to AT_WAREHOUSE")
+
+                invoice.order.status = "at_warehouse"
+                invoice.order.save(update_fields=["status", "updated_at"])
+
+            else:
+                print("📦 Order already moved:", invoice.order.status)
+
+        # ---------------------------------------------------
+        # 1️⃣2️⃣ Print final state
+        # ---------------------------------------------------
+        print("📊 FINAL INVOICE STATUS:", invoice.status)
         print("💰 DEPOSIT PAID:", invoice.deposit_paid)
         print("📅 PAID DATE:", invoice.paid_date)
 
@@ -122,5 +139,6 @@ def yoco_webhook(request):
     except Exception as e:
         print("❌ WEBHOOK ERROR:", str(e))
         return HttpResponse(status=400)
+    
 
-
+    
