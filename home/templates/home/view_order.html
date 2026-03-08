@@ -564,10 +564,18 @@
                   </span>
                 </div>
 
-                {% if invoice.amount_due > 0 %}
-                  <a href="{% url 'pay_invoice_yoco' invoice.id %}" class="btn btn-success">
-                      Pay with Card
-                  </a>
+                {% if invoice.status == "paid" %}
+
+                <button class="btn btn-success" disabled>
+                    Paid
+                </button>
+
+                {% elif invoice.amount_due > 0 %}
+
+                <a href="{% url 'pay_invoice_yoco' invoice.id %}" class="btn btn-success">
+                    Pay with Card
+                </a>
+
                 {% endif %}
               </div>
 

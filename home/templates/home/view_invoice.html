@@ -203,14 +203,23 @@
       </div>
 
       <!-- PAYMENT -->
-      {% if invoice.amount_due > 0 %}
+      {% if invoice.status == "paid" %}
+
+      <div class="d-flex justify-content-end">
+        <button class="btn btn-success" disabled>
+          <i class="bi bi-check-circle"></i> Paid
+        </button>
+      </div>
+
+      {% elif invoice.amount_due > 0 %}
+
       <div class="d-flex justify-content-end">
         <a href="{% url 'pay-invoice' invoice.id %}"
             class="btn btn-success">
             Pay Invoice
         </a>
-
       </div>
+
       {% endif %}
 
       <!-- FOOTER -->
