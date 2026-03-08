@@ -1,71 +1,77 @@
 import requests
 from django.conf import settings
 from django.shortcuts import redirect, get_object_or_404
+from django.http import HttpResponse
+
 from invoices.models import Invoice
 from .yoco_service import create_yoco_checkout
-from django.http import HttpResponse
-import json
-from django.views.decorators.csrf import csrf_exempt
-
-
 
 
 def pay_invoice_yoco(request, invoice_id):
+    """
+    Redirects the user to the Yoco checkout page
+    """
 
     invoice = get_object_or_404(Invoice, id=invoice_id)
 
+    print("=================================")
+    print("CREATING YOCO CHECKOUT")
+    print("Invoice:", invoice.id)
+    print("Client:", invoice.client)
+    print("Amount:", invoice.deposit_required)
+    print("=================================")
+
     checkout = create_yoco_checkout(invoice)
 
-    checkout_url = checkout["redirectUrl"]
+    print("YOCO CHECKOUT CREATED")
+    print(checkout)
+
+    checkout_url = checkout.get("redirectUrl")
+
+    if not checkout_url:
+        print("❌ No redirect URL returned from Yoco")
+        return HttpResponse("Failed to create checkout", status=500)
 
     return redirect(checkout_url)
 
+
 def payment_success(request):
-    return HttpResponse("Payment successful")
+    """
+    Customer returned from Yoco after successful payment
+    NOTE: Invoice status is NOT updated here.
+    Webhook handles the real payment confirmation.
+    """
+
+    print("=================================")
+    print("YOCO SUCCESS REDIRECT")
+    print("Customer returned from payment page")
+    print("=================================")
+
+    return HttpResponse("Payment successful. Your payment is being processed.")
 
 
+def payment_cancel(request):
+    """
+    Customer cancelled payment
+    """
 
-@csrf_exempt
-def yoco_webhook(request):
+    print("=================================")
+    print("YOCO PAYMENT CANCELLED")
+    print("Customer cancelled payment")
+    print("=================================")
 
-    if request.method != "POST":
-        return HttpResponse(status=405)
+    return HttpResponse("Payment cancelled.")
 
-    try:
-        data = json.loads(request.body)
 
-        print("=================================")
-        print("YOCO WEBHOOK RECEIVED")
-        print(data)
-        print("=================================")
+def payment_error(request):
+    """
+    Payment error page
+    """
 
-        event_type = data.get("type")
+    print("=================================")
+    print("YOCO PAYMENT ERROR")
+    print("Something went wrong during payment")
+    print("=================================")
 
-        if event_type == "payment.succeeded":
+    return HttpResponse("Payment error occurred.")
 
-            payment_data = data.get("payload", {})
-            metadata = payment_data.get("metadata", {})
-
-            invoice_id = metadata.get("invoice_id")
-
-            if not invoice_id:
-                print("No invoice_id in metadata")
-                return HttpResponse(status=200)
-
-            try:
-                invoice = Invoice.objects.get(id=invoice_id)
-
-                if invoice.status != "paid":
-                    invoice.status = "paid"
-                    invoice.save()
-
-                    print(f"Invoice {invoice_id} marked as PAID")
-
-            except Invoice.DoesNotExist:
-                print("Invoice not found")
-
-        return HttpResponse(status=200)
-
-    except Exception as e:
-        print("Webhook error:", e)
-        return HttpResponse(status=400)
