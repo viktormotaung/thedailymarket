@@ -9,50 +9,65 @@ from invoices.models import Invoice
 
 @csrf_exempt
 def yoco_webhook(request):
-    print("🔥 NEW YOCO WEBHOOK VERSION 🔥")
 
-    print("\n==============================")
-    print("YOCO WEBHOOK HIT")
+    print("\n🔥 NEW YOCO WEBHOOK VERSION 🔥")
     print("==============================")
+
+    if request.method != "POST":
+        print("❌ Invalid request method:", request.method)
+        return HttpResponse(status=405)
 
     try:
 
-        # Step 1 — parse body
+        # -----------------------------
+        # 1️⃣ Parse request body
+        # -----------------------------
         data = json.loads(request.body)
         print("1️⃣ RAW DATA:", data)
 
-        # Step 2 — event type
+        # -----------------------------
+        # 2️⃣ Validate event type
+        # -----------------------------
         event_type = data.get("type")
         print("2️⃣ EVENT TYPE:", event_type)
 
         if event_type != "payment.succeeded":
-            print("❌ Not a payment success event")
+            print("⚠ Ignoring event:", event_type)
             return HttpResponse(status=200)
 
-        # Step 3 — extract payload
+        # -----------------------------
+        # 3️⃣ Extract payload
+        # -----------------------------
         payload = data.get("payload", {})
         print("3️⃣ PAYLOAD:", payload)
 
-        # Step 4 — metadata
         metadata = payload.get("metadata", {})
         print("4️⃣ METADATA:", metadata)
 
+        # -----------------------------
+        # 4️⃣ Extract invoice ID
+        # -----------------------------
         invoice_id = metadata.get("invoice_id")
         print("5️⃣ INVOICE ID:", invoice_id)
 
         if not invoice_id:
-            print("❌ No invoice_id found")
+            print("❌ No invoice_id in metadata")
             return HttpResponse(status=200)
 
-        # Step 6 — fetch invoice
+        # -----------------------------
+        # 5️⃣ Fetch invoice
+        # -----------------------------
         invoice = Invoice.objects.filter(id=int(invoice_id)).first()
         print("6️⃣ INVOICE OBJECT:", invoice)
 
         if not invoice:
-            print("❌ Invoice does not exist")
+            print("❌ Invoice not found:", invoice_id)
             return HttpResponse(status=200)
 
-        # Step 7 — amount conversion
+        # -----------------------------
+        # 6️⃣ Convert amount
+        # Yoco sends cents
+        # -----------------------------
         raw_amount = payload.get("amount")
         print("7️⃣ RAW AMOUNT:", raw_amount)
 
@@ -62,7 +77,16 @@ def yoco_webhook(request):
         payment_id = payload.get("id")
         print("9️⃣ PAYMENT ID:", payment_id)
 
-        # Step 8 — call payment logic
+        # -----------------------------
+        # 🔒 Prevent duplicate payments
+        # -----------------------------
+        if invoice.transactions.filter(reference=payment_id).exists():
+            print("⚠ Payment already recorded")
+            return HttpResponse(status=200)
+
+        # -----------------------------
+        # 🔟 Record payment
+        # -----------------------------
         print("🔟 CALLING record_payment()")
 
         invoice.record_payment(
@@ -71,12 +95,21 @@ def yoco_webhook(request):
             note="Yoco payment"
         )
 
-        print("✅ PAYMENT RECORDED")
+        print("✅ PAYMENT RECORDED SUCCESSFULLY")
+
+        # Refresh to inspect outcome
+        invoice.refresh_from_db()
+
+        print("📊 NEW STATUS:", invoice.status)
+        print("💰 DEPOSIT PAID:", invoice.deposit_paid)
+        print("📅 PAID DATE:", invoice.paid_date)
+        print("📦 ORDER STATUS:", invoice.order.status)
+
+        print("==============================")
 
         return HttpResponse(status=200)
 
     except Exception as e:
-        print("❌ WEBHOOK ERROR:", e)
+        print("❌ WEBHOOK ERROR:", str(e))
         return HttpResponse(status=400)
-
 
