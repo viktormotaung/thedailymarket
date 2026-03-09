@@ -1565,8 +1565,30 @@ def _get_session_cart(request):
 @login_required
 @require_http_methods(["GET", "POST"])
 def cart(request):
-    # Get session cart or create a default structure
+
+    # ==================================================
+    # Resolve client
+    # ==================================================
+    client = resolve_client_for_user(request.user, request=request)
+
+    credit_account = None
+    credit_available = Decimal("0.00")
+
+    if client:
+        if (
+            getattr(client, "account_type", "") == "CREDIT"
+            and getattr(client, "credit_status", "") == "ACTIVE"
+        ):
+            credit_account = CreditAccount.objects.filter(client=client).first()
+
+            if credit_account:
+                credit_available = credit_account.credit_available
+
+    # ==================================================
+    # Get session cart or create default
+    # ==================================================
     cart = request.session.get("cart")
+
     if not cart:
         cart = {"lines": []}
         request.session["cart"] = cart
@@ -1577,6 +1599,7 @@ def cart(request):
     # POST ACTIONS
     # ==================================================
     if request.method == "POST":
+
         action = request.POST.get("action")
 
         # -------------------------------
@@ -1584,15 +1607,23 @@ def cart(request):
         # -------------------------------
         if action == "remove":
             line_id = request.POST.get("line_id")
-            cart["lines"] = [l for l in lines if str(l.get("product_id")) != line_id]
+
+            cart["lines"] = [
+                l for l in lines
+                if str(l.get("product_id")) != line_id
+            ]
+
             request.session.modified = True
+
             print("REMOVE LINE DEBUG → Cart after removal:", cart)
+
             return redirect("cart")
 
         # -------------------------------
         # UPDATE QTY
         # -------------------------------
         if action == "update":
+
             line_id = request.POST.get("line_id")
             qty = max(1, int(request.POST.get("qty", 1)))
 
@@ -1603,6 +1634,7 @@ def cart(request):
                     break
 
             request.session.modified = True
+
             return redirect("cart")
 
         # -------------------------------
@@ -1610,33 +1642,35 @@ def cart(request):
         # -------------------------------
         product_id = int(request.POST.get("product_id"))
         qty = max(1, int(request.POST.get("qty", 1)))
+
         product = get_object_or_404(Product, pk=product_id)
 
-        # Get the active pricing row
         pricing = (
-            product.pricing_rows.filter(is_active=True).order_by("-is_primary").first()
+            product.pricing_rows
+            .filter(is_active=True)
+            .order_by("-is_primary")
+            .first()
         )
+
         if not pricing:
             raise ValueError(f"No pricing configured for product {product.id}")
 
-        # Ensure prices are valid Decimals
         unit_price_excl = pricing.wholesale_price_excl or Decimal("0.00")
         unit_price_inc = pricing.wholesale_price_inc or Decimal("0.00")
 
-        # Debug print
         print("ADD TO CART DEBUG → Product:", product.name)
         print("Qty:", qty)
         print("Unit excl:", unit_price_excl, "Unit inc:", unit_price_inc)
         print("Cart before add:", cart)
 
-        # Check if product already in cart
+        # If product already in cart
         for l in lines:
             if l["product_id"] == product.id:
                 l["qty"] += qty
                 print("Updated existing line:", l)
                 break
         else:
-            # Append new line
+
             lines.append({
                 "product_id": product.id,
                 "name": product.name,
@@ -1645,22 +1679,28 @@ def cart(request):
                 "unit_price_excl": str(unit_price_excl),
                 "unit_price_inc": str(unit_price_inc),
             })
+
             print("Appended new line:", lines[-1])
 
         request.session.modified = True
+
         print("Cart after add:", cart)
+
         return redirect("cart")
 
     # ==================================================
     # VIEW CART (GET)
     # ==================================================
     rich_lines = []
+
     subtotal_excl = Decimal("0.00")
     vat_total = Decimal("0.00")
     total_inc = Decimal("0.00")
 
     for line in lines:
+
         qty = Decimal(str(line.get("qty", "0")))
+
         unit_excl = Decimal(str(line.get("unit_price_excl", "0.00")))
         unit_inc = Decimal(str(line.get("unit_price_inc", "0.00")))
 
@@ -1682,6 +1722,9 @@ def cart(request):
 
     print("CART GET DEBUG →", rich_lines, subtotal_excl, vat_total, total_inc)
 
+    # ==================================================
+    # Render
+    # ==================================================
     return render(
         request,
         "home/cart.html",
@@ -1690,8 +1733,14 @@ def cart(request):
             "subtotal_excl": subtotal_excl,
             "vat_total": vat_total,
             "total_inc": total_inc,
+
+            # CREDIT INFO
+            "credit_account": credit_account,
+            "credit_available": credit_available,
         },
     )
+
+
 
 VAT_PERCENT = Decimal("15")
 
