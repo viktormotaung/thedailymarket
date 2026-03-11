@@ -2,7 +2,7 @@
 from decimal import Decimal
 from django.contrib import admin, messages
 
-from .models import Order, OrderItem
+from .models import Order, OrderItem, OrderAudit
 
 
 # ---------- helpers ----------
@@ -58,12 +58,33 @@ class OrderItemInline(admin.TabularInline):
             return "—"
 
 
+class OrderAuditInline(admin.TabularInline):
+    model = OrderAudit
+    extra = 0
+    can_delete = False
+    show_change_link = False
+
+    fields = (
+        "performed_at",
+        "action",
+        "performed_by",
+        "status_before",
+        "status_after",
+        "amount_before",
+        "amount_after",
+        "description",
+    )
+
+    readonly_fields = fields
+
+    ordering = ("-performed_at",)
+
 # ---------- order admin ----------
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     
     # date_hierarchy removed – MySQL-safe
-    inlines = [OrderItemInline]
+    inlines = [OrderItemInline, OrderAuditInline]
 
 
     list_display = (
@@ -242,3 +263,47 @@ class OrderItemAdmin(admin.ModelAdmin):
     @admin.display(description="Line Total (Inc)")
     def line_total_inc_display(self, obj: OrderItem):
         return money(obj.line_total_inc)
+
+
+@admin.register(OrderAudit)
+class OrderAuditAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "order",
+        "action",
+        "performed_by",
+        "status_before",
+        "status_after",
+        "amount_before",
+        "amount_after",
+        "performed_at",
+    )
+
+    list_filter = (
+        "action",
+        "performed_at",
+    )
+
+    search_fields = (
+        "order__id",
+        "description",
+        "performed_by__username",
+    )
+
+    readonly_fields = (
+        "order",
+        "action",
+        "performed_by",
+        "performed_at",
+        "status_before",
+        "status_after",
+        "amount_before",
+        "amount_after",
+        "snapshot_before",
+        "snapshot_after",
+        "description",
+    )
+
+    ordering = ("-performed_at",)
+
+    

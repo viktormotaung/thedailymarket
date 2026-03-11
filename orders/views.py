@@ -116,6 +116,8 @@ class OrderForm(ModelForm):
             "notes": widgets.Textarea(attrs={"class": "form-control", "rows": 3}),
         }
 
+
+
 class CreateOrderForm(ModelForm):
 
     class Meta:
@@ -199,6 +201,8 @@ class CreateOrderForm(ModelForm):
             instance.save()
 
         return instance
+
+
 class OrderItemForm(ModelForm):
     class Meta:
         model = OrderItem
@@ -336,24 +340,36 @@ def order_view(request, pk):
     order = get_object_or_404(
         Order.objects
              .select_related("client", "created_by", "reviewed_by", "approved_by")
-             .prefetch_related("items__product", "items__category"),
+             .prefetch_related("items__product", "items__category", "audits"),
         pk=pk
     )
+
     # keep totals fresh (no DB write)
     order.recalc_totals(save=False)
 
-    # invoice (if one-to-one exists, pass it safely)
+    # invoice (if one-to-one exists)
     try:
         invoice = order.invoice
     except Exception:
         invoice = None
 
     items = order.items.all().order_by("id")
-    return render(request, "orders/order_view.html", {
-        "order": order,
-        "items": items,
-        "invoice": invoice,
-    })
+
+    # 🔹 Get order audit history
+    audits = order.audits.all().order_by("-performed_at")
+
+    return render(
+        request,
+        "orders/order_view.html",
+        {
+            "order": order,
+            "items": items,
+            "invoice": invoice,
+            "audits": audits,   # 👈 added
+        },
+    )
+
+
 
 @login_required
 @staff_required

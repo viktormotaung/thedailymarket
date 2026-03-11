@@ -96,9 +96,8 @@
           <button type="submit" class="btn btn-light w-100">Sign out</button>
         </form>
       {% else %}
-        <div class="text-uppercase small opacity-75">Sign in</div>
-        <a href="{% url 'client-login' %}" class="btn btn-outline-light w-100 mt-2">Client</a>
-        <a href="{% url 'staff-login' %}" target="_blank" class="btn btn-outline-light w-100 mt-2">Staff</a>
+        <div class="text-uppercase small opacity-75"></div>
+        <a href="{% url 'client-login' %}" class="btn btn-outline-light w-100 mt-2">Sign in</a>
       {% endif %}
     </div>
   </div>
@@ -179,9 +178,8 @@
               </form>
             </li>
           {% else %}
-            <li class="dropdown-header text-white-50">Sign in</li>
-            <li><a class="dropdown-item" href="{% url 'client-login' %}">Client</a></li>
-            <li><a class="dropdown-item" href="{% url 'staff-login' %}">Staff</a></li>
+            <li class="dropdown-header text-white-50"></li>
+            <li><a class="dropdown-item" href="{% url 'client-login' %}">Sign in</a></li>
           {% endif %}
         </ul>
       </div>

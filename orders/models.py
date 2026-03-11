@@ -337,9 +337,9 @@ class OrderAudit(models.Model):
     # RELATION
     # -------------------------------------------------
     order = models.ForeignKey(
-        "orders.Order",
+        Order,
         on_delete=models.CASCADE,
-        related_name="audit_entries",
+        related_name="audits"
     )
 
     # -------------------------------------------------
