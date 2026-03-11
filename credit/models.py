@@ -37,6 +37,77 @@ def monday_of(d: date) -> date:
     """Return ISO-week Monday for a given date."""
     return d - timedelta(days=d.weekday())
 
+def update_funder_week_summary(entry):
+    """
+    Update the weekly funder summary when credit is used.
+    Applies the capital cap rule.
+    """
+
+    from decimal import Decimal
+
+    ca = entry.credit_account
+    funder = ca.funder
+
+    # If the credit account has no funder, nothing to calculate
+    if not funder:
+        return
+
+    # Determine week start (Monday)
+    week_start = monday_of(entry.posted_at.date())
+
+    # Get or create the weekly summary
+    summary, created = FunderWeekSummary.objects.get_or_create(
+        funder=funder,
+        week_start=week_start,
+        defaults={
+            "raw_weekly_usage": Decimal("0.00"),
+            "visible_utilization_total": Decimal("0.00"),
+            "weekly_rate_pct_snapshot": funder.weekly_rate_pct,
+            "weekly_return": Decimal("0.00"),
+        }
+    )
+
+    # --------------------------------------------------
+    # 1. Increase raw weekly usage
+    # --------------------------------------------------
+
+    summary.raw_weekly_usage = r2(summary.raw_weekly_usage + entry.amount)
+
+    # --------------------------------------------------
+    # 2. Determine total capital allocated to funder
+    # --------------------------------------------------
+
+    allocated_capital = funder.total_allocated()
+
+    # --------------------------------------------------
+    # 3. Apply capital cap rule
+    # --------------------------------------------------
+
+    summary.visible_utilization_total = min(
+        summary.raw_weekly_usage,
+        allocated_capital
+    )
+
+    # --------------------------------------------------
+    # 4. Calculate weekly return
+    # --------------------------------------------------
+
+    summary.weekly_return = r2(
+        summary.visible_utilization_total *
+        (summary.weekly_rate_pct_snapshot / Decimal("100"))
+    )
+
+    # --------------------------------------------------
+    # 5. Save
+    # --------------------------------------------------
+
+    summary.save(update_fields=[
+        "raw_weekly_usage",
+        "visible_utilization_total",
+        "weekly_return",
+        "updated_at",
+    ])
+
 from contextlib import contextmanager
 import threading
 
@@ -778,7 +849,7 @@ class CreditEntry(models.Model):
             last_entry = (
                 CreditEntry.objects
                 .filter(credit_account=self.credit_account)
-                .order_by("-id")   # safer than posted_at
+                .order_by("-id")
                 .first()
             )
 
@@ -798,9 +869,17 @@ class CreditEntry(models.Model):
 
             self.balance = r2(new_balance)
 
+        # Save ledger entry
         super().save(*args, **kwargs)
+
+        # Recalculate credit account usage
         self.credit_account.save()
 
+        # ---------------------------------------------------
+        # Update weekly funder summary
+        # ---------------------------------------------------
+        if is_create and self.kind == self.USAGE:
+            update_funder_week_summary(self)
 
 
 
@@ -828,6 +907,14 @@ class FunderWeekSummary(models.Model):
         help_text="ISO week Monday",
         db_index=True,
     )
+
+    raw_weekly_usage = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Total credit usage recorded this week before applying the funder cap.",
+    )
+
 
     visible_utilization_total = models.DecimalField(
         max_digits=14,

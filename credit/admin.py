@@ -258,12 +258,34 @@ class FunderWeekSummaryAdmin(admin.ModelAdmin):
     list_display = (
         "week_start",
         "funder",
+        "raw_weekly_usage",
         "visible_utilization_total",
         "weekly_rate_pct_snapshot",
         "weekly_return",
+        "created_at",
+        "updated_at",
     )
-    list_filter = ("funder", "week_start")
-    search_fields = ("funder__name",)
-    readonly_fields = [f.name for f in FunderWeekSummary._meta.fields]
 
-    ordering = ("-week_start",)
+    list_filter = (
+        "funder",
+        "week_start",
+    )
+
+    search_fields = (
+        "funder__name",
+    )
+
+    readonly_fields = (
+        "funder",
+        "week_start",
+        "raw_weekly_usage",
+        "visible_utilization_total",
+        "weekly_rate_pct_snapshot",
+        "weekly_return",
+        "created_at",
+        "updated_at",
+    )
+
+    ordering = ("-week_start", "-created_at")
+
+    date_hierarchy = "week_start"
