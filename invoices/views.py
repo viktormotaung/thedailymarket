@@ -31,30 +31,30 @@ def staff_check(user):
 
 staff_required = user_passes_test(staff_check, login_url="/portal/client/login/")
 
-
 @login_required
 @staff_required
 def invoice_list(request):
+
     # --- days param (validated) ---
     raw = request.GET.get("days", "7")
     try:
         days = int(raw)
     except ValueError:
         days = 7
+
     if days not in DAY_OPTIONS:
         days = 7
 
-    # --- filters for template ---
+    # --- filters ---
     search = request.GET.get("q", "").strip()
     filter_status = request.GET.get("status", "").strip()
     date_from = request.GET.get("from", "")
     date_to = request.GET.get("to", "")
 
     # --- base date range ---
-    end_date = now().date()
+    end_date = localdate()
     start_date = end_date - timedelta(days=days)
 
-    # optional overrides (YYYY-MM-DD)
     if date_from:
         try:
             start_date = date.fromisoformat(date_from)
@@ -67,14 +67,14 @@ def invoice_list(request):
         except ValueError:
             pass
 
-    # --- timezone-aware datetime range (MySQL safe) ---
-    start_dt = make_aware(datetime.combine(start_date, time.min))
-    end_dt = make_aware(datetime.combine(end_date, time.max))
+    # --------------------------------------------------
+    # BASE QUERYSET
+    # --------------------------------------------------
 
-    # --- base queryset ---
-    recent_qs = (
+    invoices_qs = (
         Invoice.objects
-        .filter(created_at__gte=start_dt, created_at__lte=end_dt)
+        .select_related("client", "order")
+        .filter(invoice_date__gte=start_date, invoice_date__lte=end_date)
         .annotate(
             balance=ExpressionWrapper(
                 F("amount_due") - F("deposit_paid"),
@@ -83,36 +83,65 @@ def invoice_list(request):
         )
     )
 
-    # --- KPIs ---
-    recent_unpaid_qs = recent_qs.exclude(status="paid")
+    # --------------------------------------------------
+    # SEARCH FILTER
+    # --------------------------------------------------
+
+    if search:
+        invoices_qs = invoices_qs.filter(
+            Q(client__name__icontains=search) |
+            Q(client__client_number__icontains=search) |
+            Q(order__id__icontains=search)
+        )
+
+    # --------------------------------------------------
+    # STATUS FILTER
+    # --------------------------------------------------
+
+    if filter_status:
+        invoices_qs = invoices_qs.filter(status=filter_status)
+
+    # --------------------------------------------------
+    # KPI CALCULATIONS
+    # --------------------------------------------------
+
+    recent_unpaid_qs = invoices_qs.exclude(status="paid")
 
     recent_unpaid_total = recent_unpaid_qs.aggregate(
         total_unpaid=Coalesce(Sum("balance"), Decimal("0.00"))
     )["total_unpaid"]
 
-    recent_paid_total = recent_qs.filter(status="paid").aggregate(
-        total_paid=Coalesce(Sum("deposit_paid"), Decimal("0.00"))
+    # FIX: use full invoice value instead of deposit
+    recent_paid_total = invoices_qs.filter(status="paid").aggregate(
+        total_paid=Coalesce(Sum("order_total_inc"), Decimal("0.00"))
     )["total_paid"]
 
-    # --- context ---
+    recent_paid_count = invoices_qs.filter(status="paid").count()
+
+    # --------------------------------------------------
+    # CONTEXT
+    # --------------------------------------------------
+
     context = {
         "DAY_OPTIONS": DAY_OPTIONS,
         "days": days,
+
         "recent_paid_start": start_date,
         "recent_unpaid_start": start_date,
+
         "recent_unpaid_total": recent_unpaid_total,
         "recent_unpaid_count": recent_unpaid_qs.count(),
+
         "recent_paid_total": recent_paid_total,
-        "recent_paid_count": recent_qs.filter(status="paid").count(),
-        "invoices": (
-            recent_qs
-            .select_related("client", "order")
-            .order_by("-created_at")
-        ),
+        "recent_paid_count": recent_paid_count,
+
+        "invoices": invoices_qs.order_by("-created_at"),
+
         "search": search,
         "filter_status": filter_status,
         "date_from": start_date,
         "date_to": end_date,
+
         "status_choices": Invoice.STATUS_CHOICES,
     }
 
@@ -304,6 +333,8 @@ def invoice_confirm_payment(request, pk):
     messages.success(request, "Payment recorded successfully.")
     return redirect("invoice-view", pk=invoice.pk)
 
+
+
 @login_required
 def generate_payfast_request(request, invoice_id):
     invoice = get_object_or_404(
@@ -341,6 +372,8 @@ def generate_payfast_request(request, invoice_id):
 
     return JsonResponse({"payment_url": payfast_link})
 
+
+
 def generate_payfast_signature(data, passphrase):
     parts = []
 
@@ -362,6 +395,8 @@ def generate_payfast_signature(data, passphrase):
     print(signature)
 
     return signature
+
+
 
 @login_required
 @require_POST

@@ -444,10 +444,27 @@ class Invoice(models.Model):
             order = getattr(self, "order", None)
 
             if order:
-                # Only transition if still waiting for payment
-                if order.status == "awaiting_payment":
+
+                order.refresh_from_db()
+
+                # Prevent moving orders that are already past warehouse
+                terminal_statuses = [
+                    "at_warehouse",
+                    "ready_for_delivery",
+                    "out_for_delivery",
+                    "complete",
+                    "cancelled",
+                ]
+
+                if order.status not in terminal_statuses:
+
+                    print(f"📦 Moving order {order.id} to AT_WAREHOUSE")
+                    print(f"Previous order status: {order.status}")
+
                     order.status = "at_warehouse"
                     order.save(update_fields=["status", "updated_at"])
+
+                    print(f"✅ Order {order.id} moved to AT_WAREHOUSE")
 
         # Ensure credit artefacts reflect the (possibly new) state
         self.ensure_credit_after_deposit()
@@ -542,6 +559,34 @@ class Invoice(models.Model):
             ce.delete()
 
         super().delete(*args, **kwargs)
+
+@receiver(post_save, sender=Invoice)
+def ensure_order_progress_after_payment(sender, instance, **kwargs):
+
+    if instance.status != "paid":
+        return
+
+    order = getattr(instance, "order", None)
+
+    if not order:
+        return
+
+    order.refresh_from_db()
+
+    terminal_statuses = [
+        "at_warehouse",
+        "ready_for_delivery",
+        "out_for_delivery",
+        "complete",
+        "cancelled",
+    ]
+
+    if order.status not in terminal_statuses:
+
+        print(f"📦 Signal moving order {order.id} to AT_WAREHOUSE")
+
+        order.status = "at_warehouse"
+        order.save(update_fields=["status", "updated_at"])
 
 @receiver(post_save, sender=CreditEntry)
 def update_credit_next_due(sender, instance, **kwargs):

@@ -608,6 +608,7 @@ class CreditLog(models.Model):
         if delta == 0:
             return
 
+        # Create ledger entry
         CreditEntry.objects.create(
             credit_account=self.credit_account,
             kind=(
@@ -620,6 +621,10 @@ class CreditLog(models.Model):
             note=self.note,
         )
 
+        # ✅ Update actual account limit
+        ca = self.credit_account
+        ca.credit_limit = self.new_limit
+        ca.save(update_fields=["credit_limit", "updated_at"])
 
 # ============================================================
 # CREDIT ENTRY (LEDGER — SINGLE SOURCE OF TRUTH)
