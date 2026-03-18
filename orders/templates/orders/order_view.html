@@ -539,6 +539,18 @@
           </a>
         {% endif %}
 
+        <!-- View Delivery Note -->
+
+        {% if delivery_stop and delivery_stop.status in ["delivered","failed","cancelled"] %}
+        <a href="{% url 'delivery-note-view' delivery_stop.id %}" class="btn btn-outline-success">
+        View Delivery Note
+        </a>
+        {% else %}
+        <button class="btn btn-outline-secondary disabled">
+        View Delivery Note
+        </button>
+        {% endif %}
+
         <!-- Delete (write / destructive) -->
         <button type="button"
                 class="btn btn-outline-danger"

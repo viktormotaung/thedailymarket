@@ -136,7 +136,7 @@ DATABASES = {
         "NAME": "daily_market",
         "USER": "daily_market",
         "PASSWORD": "Enter19931993",
-        "HOST": "daily-market.clcaumk8w62m.af-south-1.rds.amazonaws.com",
+        "HOST": "daily-market.cnkegask69lq.af-south-1.rds.amazonaws.com",
         "PORT": "3306",
         "OPTIONS": {
             "charset": "utf8mb4",
@@ -297,3 +297,10 @@ OZOW_COUNTRY_CODE = "ZA"
 OZOW_CURRENCY_CODE = "ZAR"
 
 OZOW_PAYMENT_URL = "https://pay.ozow.com"
+
+OZOW_IS_TEST = True
+
+OZOW_CANCEL_URL = "https://www.thedailymarket.co.za/payment/cancel/"
+OZOW_ERROR_URL = "https://www.thedailymarket.co.za/payment/error/"
+OZOW_SUCCESS_URL = "https://www.thedailymarket.co.za/payment/success/"
+OZOW_NOTIFY_URL = "https://www.thedailymarket.co.za/payments/ozow/notify/"

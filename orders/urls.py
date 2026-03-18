@@ -9,4 +9,6 @@ urlpatterns = [
     path("<int:pk>/view/", views.order_view, name="order-view"),
     path("orders/<int:pk>/delete/", views.order_delete, name="order-delete"),
     path("ajax/products-by-category/", views.ajax_products_by_category, name="ajax-products-by-category"),
+    path("delivery-note/<int:stop_id>/",views.delivery_note_view,name="delivery-note-view"),
+    path("delivery-note/<int:stop_id>/email/",views.send_delivery_note_email,name="delivery-note-email",)
 ]

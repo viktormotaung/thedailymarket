@@ -22,7 +22,12 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import Sum
 from decimal import Decimal
-
+from django.forms import inlineformset_factory
+from .forms import (
+    FunderForm,
+    FunderMemberFormSet,
+    FunderAllocationFormSet, FunderMovementForm
+)
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import get_object_or_404, redirect, render
@@ -34,6 +39,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from profiles.models import CustomerProfile
+from .forms import FunderForm
 import hashlib
 import urllib.parse
 
@@ -294,6 +300,8 @@ def send_email_credit_active(client, user):
     msg.attach_alternative(html_body, "text/html")
     msg.send(fail_silently=False)
 
+
+
 def send_email_credit_active(client, user):
     """
     Sends an email to the client when their credit account becomes active.
@@ -320,6 +328,8 @@ def send_email_credit_active(client, user):
     )
     msg.attach_alternative(html_body, "text/html")
     msg.send(fail_silently=False)
+
+
 
 @login_required
 @staff_required
@@ -872,3 +882,119 @@ def funder_view(request, funder_id):
     }
 
     return render(request, "credit/funder_view.html", context)
+
+
+
+@login_required
+def add_funder(request):
+
+    if request.method == "POST":
+
+        form = FunderForm(request.POST)
+
+        if form.is_valid():
+            form.save()
+            return redirect("funder-list")
+
+    else:
+        form = FunderForm()
+
+    return render(
+        request,
+        "credit/add_funder.html",
+        {
+            "form": form
+        }
+    )
+
+
+@login_required
+def funder_edit(request, funder_id):
+
+
+    funder = get_object_or_404(Funder, id=funder_id)
+
+    if request.method == "POST":
+
+        form = FunderForm(request.POST, instance=funder)
+
+        member_formset = FunderMemberFormSet(
+            request.POST,
+            instance=funder
+        )
+
+        allocation_formset = FunderAllocationFormSet(
+            request.POST,
+            instance=funder
+        )
+
+        if (
+            form.is_valid()
+            and member_formset.is_valid()
+            and allocation_formset.is_valid()
+        ):
+            form.save()
+            member_formset.save()
+            allocation_formset.save()
+
+            return redirect("funder-view", funder_id=funder.id)
+
+    else:
+
+        form = FunderForm(instance=funder)
+        member_formset = FunderMemberFormSet(instance=funder)
+        allocation_formset = FunderAllocationFormSet(instance=funder)
+
+
+    # ================= CAPITAL CALCULATIONS =================
+
+    from django.db.models import Sum
+    from decimal import Decimal
+
+    allocated_total = (
+        funder.allocations
+        .aggregate(total=Sum("amount"))
+        .get("total") or Decimal("0.00")
+    )
+
+    available_for_allocation = funder.balance - allocated_total
+    
+
+    available_for_allocation = funder.balance - allocated_total
+
+
+    return render(
+        request,
+        "credit/funder_edit.html",
+        {
+            "form": form,
+            "member_formset": member_formset,
+            "allocation_formset": allocation_formset,
+            "funder": funder,
+
+            # Capital metrics
+            "allocated_total": allocated_total,
+            "available_for_allocation": available_for_allocation,
+        },
+    )
+
+
+@login_required
+def funder_add_movement(request, funder_id):
+
+    funder = get_object_or_404(Funder, id=funder_id)
+
+    if request.method == "POST":
+
+        form = FunderMovementForm(request.POST)
+
+        if form.is_valid():
+
+            movement = form.save(commit=False)
+            movement.funder = funder
+            movement.save()
+
+            return redirect("funder-view", funder_id=funder.id)
+
+    return redirect("funder-view", funder_id=funder.id)
+

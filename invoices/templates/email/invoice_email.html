@@ -1,0 +1,173 @@
+{% load humanize %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>The Daily Market — Invoice INV-{{ invoice.id }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f7faf8;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: #111827;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    a { color: #0b5c39; text-decoration: none; }
+
+    .wrap { max-width: 640px; margin: 0 auto; padding: 24px; }
+    .center { text-align: center; }
+
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 24px 22px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+    }
+
+    .brand { color: #0b5c39; }
+    .muted { color: #6b7280; font-size: 14px; }
+
+    .btn {
+      display: inline-block;
+      padding: 12px 18px;
+      border-radius: 10px;
+      text-decoration: none;
+      background: #0b5c39;
+      color: #ffffff !important;
+      font-weight: 600;
+      margin-top: 12px;
+    }
+
+    .hr { height: 1px; background: #eef2f7; border: 0; margin: 18px 0 16px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 14px;
+    }
+    th { background-color: #f3f4f6; text-transform: uppercase; }
+    td.text-end { text-align: right; }
+    .fw-bold { font-weight: 600; }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <!-- Header -->
+    <div class="center" style="margin-bottom: 16px;">
+      <h2 class="brand" style="margin: 0; font-weight: 800;">The Daily Market</h2>
+      <div class="muted">Invoice INV-{{ invoice.id }}</div>
+    </div>
+
+    <!-- Card -->
+    <div class="card">
+      <p>Hi {{ recipient_name }},</p>
+
+      <p>
+        Please find your invoice below. This invoice is for
+        <strong>{{ client.organization|default:client.name }}</strong>.
+      </p>
+
+      <div>
+        <strong>Invoice Date:</strong> {{ invoice.created_at|date:"d M Y" }}<br>
+        {% if invoice.due_date %}
+        <strong>Due Date:</strong> {{ invoice.due_date|date:"d M Y" }}<br>
+        {% endif %}
+        <strong>Status:</strong> {{ invoice.get_status_display }}
+      </div>
+
+      <div class="hr"></div>
+
+      <!-- Invoice Items -->
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th class="text-end">Qty</th>
+            <th class="text-end">Unit Price</th>
+            <th class="text-end">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in invoice.order.items.all %}
+          <tr>
+            <td>{{ item.product_name }}</td>
+            <td class="text-end">{{ item.quantity|floatformat:2 }}</td>
+            <td class="text-end">R{{ item.unit_price_inc|floatformat:2|intcomma }}</td>
+            <td class="text-end fw-bold">R{{ item.line_total_inc|floatformat:2|intcomma }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <!-- Totals -->
+      <div style="margin-top: 16px; text-align: right;">
+        <div>Invoice Total: R{{ invoice.order_total_inc|floatformat:2|intcomma }}</div>
+        {% if invoice.credit_used > 0 %}
+        <div>Credit Used: -R{{ invoice.credit_used|floatformat:2|intcomma }}</div>
+        {% endif %}
+        <div class="fw-bold" style="margin-top: 8px;">
+          Total Payable: R{{ invoice.amount_due|floatformat:2|intcomma }}
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <!-- Banking Details -->
+      <div style="margin-top: 12px;">
+        <h4 style="margin: 0 0 8px; color: #0b5c39;">Banking Details</h4>
+
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0;"><strong>Account Name:</strong></td>
+            <td style="padding: 6px 0;">The Daily Market (Pty) Ltd</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0;"><strong>Bank:</strong></td>
+            <td style="padding: 6px 0;">Capitec Business</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0;"><strong>Account Number:</strong></td>
+            <td style="padding: 6px 0;">1053135394</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0;"><strong>Payment Reference:</strong></td>
+            <td style="padding: 6px 0;">
+              INV-{{ invoice.id }} / {{ client.organization|default:client.name }}
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="hr"></div>
+
+      <p class="muted" style="margin: 0 0 8px;">
+        If you need assistance, simply reply to this email or contact us at
+        <a href="mailto:{{ support_email|default:'support@thedailymarket.co.za' }}">
+          {{ support_email|default:'support@thedailymarket.co.za' }}
+        </a>.
+      </p>
+
+      <p style="margin: 0;">— The Daily Market Team</p>
+    </div>
+
+    <!-- Footer -->
+    <p class="muted center" style="margin-top: 14px;">
+      If you weren’t expecting this invoice, please ignore this email.
+    </p>
+
+  </div>
+</body>
+</html>

@@ -626,6 +626,18 @@ class CreditLog(models.Model):
         ca.credit_limit = self.new_limit
         ca.save(update_fields=["credit_limit", "updated_at"])
 
+        CreditEntry.objects.create(
+            credit_account=ca,
+            kind=(
+                CreditEntry.ISSUE
+                if delta > 0
+                else CreditEntry.LIMIT_DECREASE
+            ),
+            amount=abs(delta),
+            reference=f"CREDIT-LIMIT-{self.pk}",
+            note=self.note,
+        )
+
 # ============================================================
 # CREDIT ENTRY (LEDGER — SINGLE SOURCE OF TRUTH)
 # ============================================================

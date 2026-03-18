@@ -46,6 +46,8 @@ urlpatterns = [
     
     path("invoices/<int:pk>/send-email/", views.send_invoice_email, name="send-invoice-email"),
 
+    path("ozow/pay/<int:invoice_id>/",views.pay_invoice_ozow,name="pay_invoice_ozow",), 
+
 
 
     # PayFast endpoints

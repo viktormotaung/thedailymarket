@@ -7,10 +7,12 @@ from django.db.models import Sum, F, ExpressionWrapper, DecimalField
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.utils.timezone import now, localdate
 from django.http import JsonResponse
 from invoices.models import Invoice
 from credit.models import CreditEntry  # 👈 for credit repayments
+import json
 import hashlib
 import urllib.parse
 from django.core.mail import EmailMultiAlternatives
@@ -18,6 +20,7 @@ from django.views.decorators.http import require_POST
 from django.template.loader import render_to_string
 from django.utils.timezone import now, make_aware
 from datetime import datetime, timedelta, time, date
+from clients.models import Client
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,6 +33,24 @@ def staff_check(user):
 
 
 staff_required = user_passes_test(staff_check, login_url="/portal/client/login/")
+
+def resolve_client_for_user(user, request=None):
+    """
+    Canonical path for your setup:
+    User -> user.customer_profile -> effective_client (business Client or None).
+    Staff can optionally preview another client via ?client_id=...
+    """
+    # Optional staff preview: /wholesale_assist/?client_id=123
+    if request and (user.is_staff or user.is_superuser):
+        cid = request.GET.get("client_id")
+        if cid:
+            return Client.objects.filter(pk=cid).first()
+
+    prof = getattr(user, "customer_profile", None)
+    if prof:
+        return prof.effective_client  # returns client if BUSINESS, else None
+
+    return None
 
 @login_required
 @staff_required
@@ -652,4 +673,113 @@ def invoice_send_payment_request(request, pk):
     )
     return redirect("invoice-view", pk=pk)
 
+
+
+
+@login_required
+@login_required
+def send_invoice_email_internal(request, pk):
+
+    invoice = get_object_or_404(Invoice, pk=pk)
+
+    if request.method != "POST":
+        return JsonResponse(
+            {"success": False, "error": "Invalid request method."},
+            status=400
+        )
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"success": False, "error": "Invalid JSON."},
+            status=400
+        )
+
+    email_to = (data.get("email") or "").strip()
+    recipient_name = (data.get("recipient_name") or "").strip()
+
+    if not email_to:
+        return JsonResponse(
+            {"success": False, "error": "No email provided."},
+            status=400
+        )
+
+    client = invoice.client
+
+    # --------------------------------------------------
+    # Resolve recipient name safely
+    # --------------------------------------------------
+
+    if not recipient_name:
+        profile = client.customer_profiles.select_related("user").first()
+
+        if profile and profile.user:
+            recipient_name = (
+                profile.user.get_full_name()
+                or profile.user.username
+            )
+        else:
+            recipient_name = client.name or "Valued Customer"
+
+    # --------------------------------------------------
+    # Build context
+    # --------------------------------------------------
+
+    ctx = {
+        "invoice": invoice,
+        "client": client,
+        "recipient_name": recipient_name,
+        "support_email": getattr(
+            settings,
+            "SUPPORT_EMAIL",
+            "support@thedailymarket.co.za"
+        ),
+        "invoice_url": request.build_absolute_uri(
+            reverse("view-invoice", args=[invoice.id])
+        ),
+    }
+
+    # --------------------------------------------------
+    # Render templates
+    # --------------------------------------------------
+
+    text_body = render_to_string(
+        "email/invoice_email.txt",
+        ctx
+    )
+
+    html_body = render_to_string(
+        "email/invoice_email.html",
+        ctx
+    )
+
+    # --------------------------------------------------
+    # Send email
+    # --------------------------------------------------
+
+    subject = f"The Daily Market – Invoice INV-{invoice.id}"
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=getattr(
+            settings,
+            "DEFAULT_FROM_EMAIL",
+            "accounts@thedailymarket.co.za"
+        ),
+        to=[email_to],
+        headers={
+            "Reply-To": getattr(
+                settings,
+                "SUPPORT_EMAIL",
+                "support@thedailymarket.co.za"
+            )
+        },
+    )
+
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+    return JsonResponse({"success": True})
 

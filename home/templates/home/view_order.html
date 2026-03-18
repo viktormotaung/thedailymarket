@@ -571,10 +571,16 @@
                 {% elif invoice.amount_due > 0 %}
 
                 <a href="{% url 'pay_invoice_yoco' invoice.id %}" class="btn btn-success">
-                    Pay with Card
+                    <i class="bi bi-credit-card"></i> Pay with Card
+                </a>
+
+                <a href="{% url 'pay_invoice_ozow' invoice.id %}" class="btn btn-primary">
+                    <i class="bi bi-bank"></i> Pay with Ozow
                 </a>
 
                 {% endif %}
+
+                
               </div>
 
             {% else %}

@@ -7,6 +7,12 @@ from django.utils.dateparse import parse_datetime, parse_date
 from django.db.models import Sum, F, DecimalField, ExpressionWrapper, Count, Q
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
+from deliveries.models import DeliveryStop
+from django.template.loader import render_to_string
+from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
+
+
 
 from decimal import Decimal
 
@@ -310,10 +316,18 @@ def order_edit(request, pk):
         formset = OrderItemFormSet(request.POST, instance=order, prefix="items")
 
         if form.is_valid() and formset.is_valid():
-            form.save()
-            formset.save()
 
-            # keep totals in sync
+            order = form.save()
+
+            items = formset.save(commit=False)
+
+            for item in items:
+                item.order = order
+                item.save()
+
+            for deleted in formset.deleted_objects:
+                deleted.delete()
+
             order.recalc_totals(save=True)
 
             messages.success(request, f"Order #{order.id} updated.")
@@ -339,15 +353,13 @@ def order_edit(request, pk):
 def order_view(request, pk):
     order = get_object_or_404(
         Order.objects
-             .select_related("client", "created_by", "reviewed_by", "approved_by")
-             .prefetch_related("items__product", "items__category", "audits"),
+        .select_related("client", "created_by", "reviewed_by", "approved_by")
+        .prefetch_related("items__product", "items__category", "audits"),
         pk=pk
     )
 
-    # keep totals fresh (no DB write)
     order.recalc_totals(save=False)
 
-    # invoice (if one-to-one exists)
     try:
         invoice = order.invoice
     except Exception:
@@ -355,8 +367,15 @@ def order_view(request, pk):
 
     items = order.items.all().order_by("id")
 
-    # 🔹 Get order audit history
     audits = order.audits.all().order_by("-performed_at")
+
+    # 🔹 DELIVERY STOP
+    delivery_stop = (
+        DeliveryStop.objects
+        .filter(order=order)
+        .order_by("-id")
+        .first()
+    )
 
     return render(
         request,
@@ -365,7 +384,8 @@ def order_view(request, pk):
             "order": order,
             "items": items,
             "invoice": invoice,
-            "audits": audits,   # 👈 added
+            "audits": audits,
+            "delivery_stop": delivery_stop,
         },
     )
 
@@ -452,3 +472,85 @@ def ajax_products_by_category(request):
     )
     results = [{"id": p["id"], "text": f'{p["sku"]} · {p["name"]} ({p["uom"]})'} for p in qs]
     return JsonResponse({"results": results})
+
+
+@login_required
+@staff_required
+def delivery_note_view(request, stop_id):
+    from deliveries.models import DeliveryStop
+
+    stop = get_object_or_404(
+        DeliveryStop.objects
+        .select_related("order", "order__client", "run")
+        .prefetch_related("order__items__product"),
+        id=stop_id
+    )
+
+    order = stop.order
+    items = order.items.all()
+
+    return render(
+        request,
+        "orders/delivery_note.html",
+        {
+            "stop": stop,
+            "order": order,
+            "items": items,
+        },
+    )
+
+@login_required
+@staff_required
+def send_delivery_note_email(request, stop_id):
+
+    stop = get_object_or_404(
+        DeliveryStop.objects.select_related(
+            "order",
+            "order__client"
+        ).prefetch_related("order__items"),
+        id=stop_id
+    )
+
+    order = stop.order
+    client = order.client
+
+    if not client.email:
+        messages.error(request, "Client has no email address.")
+        return redirect("delivery-note-view", stop_id=stop.id)
+
+    ctx = {
+        "stop": stop,
+        "order": order,
+        "client": client,
+        "items": order.items.all(),
+    }
+
+    subject = f"Delivery Confirmation · Order #{order.id}"
+
+    html_body = render_to_string(
+        "email/delivery_note_email.html",
+        ctx
+    )
+
+    text_body = render_to_string(
+        "email/delivery_note_email.txt",
+        ctx
+    )
+
+    msg = EmailMultiAlternatives(
+        subject,
+        text_body,
+        settings.DEFAULT_FROM_EMAIL,
+        [client.email],
+    )
+
+    msg.attach_alternative(html_body, "text/html")
+    msg.send()
+
+    messages.success(
+        request,
+        f"Delivery note sent to {client.email}"
+    )
+
+    return redirect("delivery-note-view", stop_id=stop.id)
+

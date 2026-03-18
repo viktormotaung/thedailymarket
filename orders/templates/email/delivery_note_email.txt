@@ -1,0 +1,17 @@
+Delivery Confirmation
+
+Order #{{ order.id }}
+
+Recipient: {{ stop.recipient_name }}
+Completed: {{ stop.ended_at }}
+
+Items:
+
+{% for item in items %}
+- {{ item.product }} ({{ item.quantity }})
+{% endfor %}
+
+Notes:
+{{ stop.delivery_notes }}
+
+Thank you for choosing Seshibo Daily Market.

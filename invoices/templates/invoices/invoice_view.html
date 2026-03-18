@@ -528,7 +528,11 @@
           <a href="{% url 'order-view' order.id %}" class="btn btn-outline-primary">View Order</a>
         {% endif %}
         {% if invoice and invoice.id %}
-          <a href="{% url 'invoice-download' invoice.id %}" class="btn btn-success">Download PDF</a>
+          <button class="btn btn-outline-primary btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#sendInvoiceModal">
+          <i class="bi bi-envelope"></i> Send via Email
+        </button>
         {% endif %}
       </div>
     </div>
@@ -681,6 +685,92 @@
     </div>
   </main>
 
+  <!-- SEND INVOICE MODAL -->
+  <div class="modal fade" id="sendInvoiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow">
+
+        <div class="modal-header">
+          <h5 class="modal-title fw-semibold">
+            Send Invoice INV-{{ invoice.id }}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+
+          <!-- ERROR -->
+          <div id="sendInvoiceError" class="alert alert-danger d-none"></div>
+
+          <!-- SUCCESS -->
+          <div id="sendInvoiceSuccess" class="alert alert-success d-none">
+            Invoice sent successfully.
+          </div>
+
+          <!-- RECIPIENT NAME -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Recipient Name</label>
+            <input
+              type="text"
+              class="form-control"
+              id="invoiceRecipientName"
+              {% with profile=invoice.order.client.customer_profiles.first %}
+              value="{% if profile %}{{ profile.user.get_full_name|default:profile.user.username }}{% else %}{{ client.name }}{% endif %}"
+              {% endwith %}
+              placeholder="Full Name"
+              required
+            >
+            <div class="form-text">
+              You can change the recipient name before sending.
+            </div>
+          </div>
+
+          <!-- EMAIL -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Recipient Email</label>
+            <input
+              type="email"
+              class="form-control"
+              id="invoiceEmail"
+              value="{{ default_email }}"
+              placeholder="email@example.com"
+              required
+            >
+            <div class="form-text">
+              You can change the email before sending.
+            </div>
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal">
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="sendInvoiceBtn">
+
+            <span
+              id="sendInvoiceSpinner"
+              class="spinner-border spinner-border-sm d-none"
+              role="status"
+              aria-hidden="true">
+            </span>
+
+            <span id="sendInvoiceBtnText">Send Invoice</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   
   <!-- Payment Choice Modal -->
   <div class="modal fade" id="paymentChoiceModal" tabindex="-1" aria-labelledby="paymentChoiceModalLabel" aria-hidden="true">
@@ -801,6 +891,80 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const sendBtn = document.getElementById("sendInvoiceBtn");
+      const emailInput = document.getElementById("invoiceEmail");
+      const recipientNameInput = document.getElementById("invoiceRecipientName");
+
+      const spinner = document.getElementById("sendInvoiceSpinner");
+      const btnText = document.getElementById("sendInvoiceBtnText");
+
+      const errorBox = document.getElementById("sendInvoiceError");
+      const successBox = document.getElementById("sendInvoiceSuccess");
+
+      sendBtn.addEventListener("click", function () {
+        const email = emailInput.value.trim();
+        const recipientName = recipientNameInput.value.trim();
+
+        errorBox.classList.add("d-none");
+        successBox.classList.add("d-none");
+
+        if (!recipientName) {
+          errorBox.textContent = "Please enter a recipient name.";
+          errorBox.classList.remove("d-none");
+          return;
+        }
+
+        if (!email) {
+          errorBox.textContent = "Please enter a valid email address.";
+          errorBox.classList.remove("d-none");
+          return;
+        }
+
+        // UI loading state
+        sendBtn.disabled = true;
+        spinner.classList.remove("d-none");
+        btnText.textContent = "Sending...";
+
+        fetch("{% url 'send-invoice-email' invoice.id %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+          },
+          body: JSON.stringify({ email: email, recipient_name: recipientName })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            successBox.classList.remove("d-none");
+
+            setTimeout(() => {
+              const modal = bootstrap.Modal.getInstance(
+                document.getElementById("sendInvoiceModal")
+              );
+              modal.hide();
+            }, 1200);
+          } else {
+            throw new Error(data.error || "Failed to send invoice.");
+          }
+        })
+        .catch(err => {
+          errorBox.textContent = err.message;
+          errorBox.classList.remove("d-none");
+        })
+        .finally(() => {
+          sendBtn.disabled = false;
+          spinner.classList.add("d-none");
+          btnText.textContent = "Send Invoice";
+        });
+      });
+    });
+
+  </script>
+
   <script>
   document.addEventListener("DOMContentLoaded", function () {
       const btnOpenConfirm = document.getElementById("btnOpenConfirmModal");
@@ -904,4 +1068,3 @@
 
 </body>
 </html>
-h

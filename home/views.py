@@ -2203,6 +2203,8 @@ def send_invoice_email(request, pk):
 
     return JsonResponse({"success": True})
 
+
+
 @csrf_exempt
 def payfast_itn(request):
     data = request.POST.dict()
@@ -3008,3 +3010,68 @@ def ozow_cancel(request):
 def ozow_error(request):
     messages.error(request, "An error occurred during payment.")
     return redirect("orders")
+
+
+@login_required
+def pay_invoice_ozow(request, invoice_id):
+    """
+    Redirects the client to Ozow payment gateway
+    """
+
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+
+    # Prevent payment if already paid
+    if invoice.status == "paid":
+        return redirect("view-invoice", invoice_id=invoice.id)
+
+    amount = invoice.amount_due
+
+    # ===============================
+    # OZOW PAYMENT PARAMETERS
+    # ===============================
+    data = {
+        "SiteCode": settings.OZOW_SITE_CODE,
+        "CountryCode": "ZA",
+        "CurrencyCode": "ZAR",
+        "Amount": f"{amount:.2f}",
+        "TransactionReference": f"INV-{invoice.id}",
+        "BankReference": f"Invoice {invoice.id}",
+        "Customer": invoice.client.name if invoice.client else "Customer",
+        "CustomerEmail": invoice.client.email if invoice.client else "",
+        "CancelUrl": settings.OZOW_CANCEL_URL,
+        "ErrorUrl": settings.OZOW_ERROR_URL,
+        "SuccessUrl": settings.OZOW_SUCCESS_URL,
+        "NotifyUrl": settings.OZOW_NOTIFY_URL,
+        "IsTest": settings.OZOW_IS_TEST,
+    }
+
+    # ===============================
+    # CREATE OZOW HASH
+    # ===============================
+    hash_string = (
+        data["SiteCode"]
+        + data["CountryCode"]
+        + data["CurrencyCode"]
+        + data["Amount"]
+        + data["TransactionReference"]
+        + data["BankReference"]
+        + data["Customer"]
+        + data["CustomerEmail"]
+        + data["CancelUrl"]
+        + data["ErrorUrl"]
+        + data["SuccessUrl"]
+        + data["NotifyUrl"]
+        + str(data["IsTest"])
+        + settings.OZOW_PRIVATE_KEY
+    )
+
+    secure_hash = hashlib.sha512(hash_string.encode("utf-8")).hexdigest()
+
+    data["HashCheck"] = secure_hash
+
+    # ===============================
+    # REDIRECT TO OZOW
+    # ===============================
+    ozow_url = settings.OZOW_PAYMENT_URL + "?" + urlencode(data)
+
+    return redirect(ozow_url)

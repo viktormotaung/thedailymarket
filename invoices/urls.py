@@ -20,4 +20,7 @@ urlpatterns = [
     ),
 
     path("<int:invoice_id>/send-request/", views.send_invoice_payment_request, name="invoice-send-request"),
+
+
+    path("invoices/<int:pk>/send-email/", views.send_invoice_email_internal, name="send-invoice-email-internal"),
 ]

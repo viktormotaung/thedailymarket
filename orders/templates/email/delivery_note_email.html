@@ -1,0 +1,41 @@
+<h2>Delivery Confirmation</h2>
+
+<p>Hello {{ client }},</p>
+
+<p>Your order has been delivered.</p>
+
+<p>
+<strong>Order:</strong> #{{ order.id }}<br>
+<strong>Recipient:</strong> {{ stop.recipient_name }}<br>
+<strong>Completed:</strong> {{ stop.ended_at }}
+</p>
+
+<h3>Items Delivered</h3>
+
+<table border="1" cellpadding="6" cellspacing="0">
+<tr>
+<th>Product</th>
+<th>Qty</th>
+</tr>
+
+{% for item in items %}
+<tr>
+<td>{{ item.product }}</td>
+<td>{{ item.quantity }}</td>
+</tr>
+{% endfor %}
+
+</table>
+
+<p><strong>Notes:</strong><br>
+{{ stop.delivery_notes|default:"—" }}
+</p>
+
+{% if stop.signature %}
+<p><strong>Proof of Delivery</strong></p>
+<img src="{{ stop.signature.url }}" style="max-width:300px;">
+{% endif %}
+
+<p>
+Thank you for choosing <strong>Seshibo Daily Market</strong>.
+</p>
