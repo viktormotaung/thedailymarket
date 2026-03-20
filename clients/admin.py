@@ -23,6 +23,7 @@ class ClientAdmin(admin.ModelAdmin):
     list_display = (
         "client_number",
         "display_name",
+        "is_dummy",
         "client_type",
         "price_type",
         "status",
@@ -37,6 +38,7 @@ class ClientAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
+        "is_dummy",
         "status",
         "client_type",
         "price_type",
@@ -95,6 +97,7 @@ class ClientAdmin(admin.ModelAdmin):
                 ("price_type",),
                 ("account_type", "credit_status"),
                 ("account_manager", "funder"),
+                ("is_dummy",), 
             )
         }),
         ("Identity", {

@@ -63,6 +63,7 @@ class CreditLogInline(admin.TabularInline):
 class FunderAdmin(admin.ModelAdmin):
     list_display = (
         "name",
+        "is_dummy",
         "balance",
         "total_allocated_display",
         "allocatable_balance",
@@ -77,9 +78,13 @@ class FunderAdmin(admin.ModelAdmin):
         FunderAllocationInline,
     )
 
+    list_filter = (
+        "is_dummy",  # 👈 ADD THIS
+    )
+
     fieldsets = (
         (None, {
-            "fields": ("name", "weekly_rate_pct"),
+            "fields": ("name", "is_dummy", "weekly_rate_pct"),
         }),
         ("Financials (System Controlled)", {
             "fields": ("balance",),

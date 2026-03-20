@@ -145,6 +145,11 @@ class Funder(models.Model):
         help_text="Live balance held for this funder.",
     )
 
+    is_dummy = models.BooleanField(
+        default=False,
+        help_text="Indicates whether this funder is for internal/dummy use only."
+    )
+
     allocated_clients = models.ManyToManyField(
         Client,
         through="FunderAllocation",

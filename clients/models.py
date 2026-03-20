@@ -137,6 +137,11 @@ class Client(models.Model):
         help_text="Optional: which funder backs this client's credit."
     )
 
+    is_dummy = models.BooleanField(
+        default=False,
+        help_text="Indicates whether this is a dummy client for funder/internal use only."
+    )
+
     name = models.CharField(
         max_length=160,
         help_text="Primary display name (person or business)."

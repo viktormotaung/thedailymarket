@@ -141,8 +141,20 @@ DATABASES = {
         "OPTIONS": {
             "charset": "utf8mb4",
         },
-    }
+    },
+    "dummy": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "daily_market_dummy",
+        "USER": "daily_market",
+        "PASSWORD": "Enter19931993",
+        "HOST": "daily-market.cnkegask69lq.af-south-1.rds.amazonaws.com",
+        "PORT": "3306",
+        "OPTIONS": {
+            "charset": "utf8mb4",
+        },
+    },
 }
+
 
 
 # ---------------------------

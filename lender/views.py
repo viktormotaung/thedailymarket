@@ -24,60 +24,169 @@ def _movement_kind(value: str) -> str:
         return getattr(FunderMovement, "PAYOUT", "payout")
     return value or getattr(FunderMovement, "TOPUP", "topup")
 
+
 def _ensure_membership(request, funder: Funder) -> bool:
-    """Allow if user is an active member of this funder or is_staff."""
+    """Allow if user is an active member of this funder or is_staff (checks BOTH DBs)."""
     if request.user.is_staff:
         return True
-    return FunderMember.objects.filter(
-        user=request.user, funder=funder, is_active=True
-    ).exists()
+
+    return (
+        FunderMember.objects.using("default")
+        .filter(user=request.user, funder=funder, is_active=True)
+        .exists()
+        or
+        FunderMember.objects.using("dummy")
+        .filter(user=request.user, funder=funder, is_active=True)
+        .exists()
+    )
+
+
+def _get_db_for_funder(funder, default_memberships, dummy_memberships):
+    """Determine which DB this funder belongs to."""
+    if any(m.funder.id == funder.id for m in dummy_memberships):
+        return "dummy"
+    return "default"
+
 
 @login_required
 def funder_dashboard(request):
-    memberships = (
-        FunderMember.objects
+    # 🔹 STEP 1 — GET MEMBERSHIPS FROM BOTH DBS
+    default_memberships = (
+        FunderMember.objects.using("default")
         .filter(user=request.user, is_active=True)
         .select_related("funder")
     )
-    if not memberships.exists():
+
+    dummy_memberships = (
+        FunderMember.objects.using("dummy")
+        .filter(user=request.user, is_active=True)
+        .select_related("funder")
+    )
+
+    memberships = list(default_memberships) + list(dummy_memberships)
+
+    if not memberships:
         return redirect(reverse("staff-dashboard"))
 
+    has_default = default_memberships.exists()
+    has_dummy = dummy_memberships.exists()
+
+    # 🔹 STEP 2 — SELECT FUNDER
     qs_funder_id = request.GET.get("funder")
+
+    all_funders = [m.funder for m in memberships]
+
     if qs_funder_id:
-        current = memberships.filter(funder_id=qs_funder_id).first()
-        funder = current.funder if current else memberships.first().funder
+        funder = next((f for f in all_funders if str(f.id) == qs_funder_id), None)
+        if not funder:
+            funder = all_funders[0]
     else:
-        funder = memberships.first().funder
+        funder = all_funders[0]
 
-    allocations = (
-        FunderAllocation.objects
-        .filter(funder=funder)
-        .select_related("client")
-        .order_by("client__name")
-    )
-    total_alloc = allocations.aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
+    # 🔹 STEP 3 — DETERMINE DB
+    db = _get_db_for_funder(funder, default_memberships, dummy_memberships)
 
-    latest_week = (
-        FunderWeekSummary.objects
-        .filter(funder=funder)
-        .order_by("-week_start")
-        .first()
-    )
+    # 🔹 OPTIONAL: COMBINED MODE
+    combined_mode = request.GET.get("mode") == "combined" and has_default and has_dummy
 
+    # 🔹 STEP 4 — ALLOCATIONS
+    if combined_mode:
+        allocations_default = (
+            FunderAllocation.objects.using("default")
+            .filter(funder=funder)
+            .select_related("client")
+        )
+
+        allocations_dummy = (
+            FunderAllocation.objects.using("dummy")
+            .filter(funder=funder)
+            .select_related("client")
+        )
+
+        allocations = list(allocations_default) + list(allocations_dummy)
+        allocations = sorted(allocations, key=lambda x: x.client.name)
+
+        total_alloc = sum(a.amount for a in allocations)
+
+    else:
+        allocations = (
+            FunderAllocation.objects.using(db)
+            .filter(funder=funder)
+            .select_related("client")
+            .order_by("client__name")
+        )
+
+        total_alloc = allocations.aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
+
+    # 🔹 STEP 5 — WEEKLY DATA
     today = date.today()
     four_weeks_ago = today - timedelta(weeks=4)
-    recent_weeks = list(
-        FunderWeekSummary.objects
-        .filter(funder=funder, week_start__gte=four_weeks_ago)
-        .order_by("week_start")
-        .values(
-            "week_start",
-            "visible_utilization_total",
-            "weekly_rate_pct_snapshot",
-            "weekly_return",
-        )
-    )
 
+    if combined_mode:
+        latest_week_default = (
+            FunderWeekSummary.objects.using("default")
+            .filter(funder=funder)
+            .order_by("-week_start")
+            .first()
+        )
+
+        latest_week_dummy = (
+            FunderWeekSummary.objects.using("dummy")
+            .filter(funder=funder)
+            .order_by("-week_start")
+            .first()
+        )
+
+        latest_week = latest_week_default or latest_week_dummy
+
+        recent_default = list(
+            FunderWeekSummary.objects.using("default")
+            .filter(funder=funder, week_start__gte=four_weeks_ago)
+            .values(
+                "week_start",
+                "visible_utilization_total",
+                "weekly_rate_pct_snapshot",
+                "weekly_return",
+            )
+        )
+
+        recent_dummy = list(
+            FunderWeekSummary.objects.using("dummy")
+            .filter(funder=funder, week_start__gte=four_weeks_ago)
+            .values(
+                "week_start",
+                "visible_utilization_total",
+                "weekly_rate_pct_snapshot",
+                "weekly_return",
+            )
+        )
+
+        recent_weeks = sorted(
+            recent_default + recent_dummy,
+            key=lambda x: x["week_start"]
+        )
+
+    else:
+        latest_week = (
+            FunderWeekSummary.objects.using(db)
+            .filter(funder=funder)
+            .order_by("-week_start")
+            .first()
+        )
+
+        recent_weeks = list(
+            FunderWeekSummary.objects.using(db)
+            .filter(funder=funder, week_start__gte=four_weeks_ago)
+            .order_by("week_start")
+            .values(
+                "week_start",
+                "visible_utilization_total",
+                "weekly_rate_pct_snapshot",
+                "weekly_return",
+            )
+        )
+
+    # 🔹 FINAL CONTEXT
     ctx = {
         "funder": funder,
         "allocations": allocations,
@@ -86,7 +195,9 @@ def funder_dashboard(request):
         "latest_week": latest_week,
         "memberships": memberships,
         "recent_weeks": recent_weeks,
+        "mode": "combined" if combined_mode else db,
     }
+
     return render(request, "lender/dashboard.html", ctx)
 
 @login_required

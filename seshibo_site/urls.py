@@ -2,10 +2,12 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include
 from django.conf.urls.static import static
+from core.dummy_admin import dummy_admin_site
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path("dummy-admin/", dummy_admin_site.urls),
     path('', include('home.urls')),   # 👈 include ALL urls from the home apppath('portal/staff/', include('staff_portal.urls')),
     path('portal/staff/', include('staff_portal.urls')),
     path("portal/staff/suppliers/", include("suppliers.urls")),
