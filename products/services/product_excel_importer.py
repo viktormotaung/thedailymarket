@@ -14,20 +14,11 @@ from suppliers.models import Supplier
 # ======================================================
 
 def _vat_included(val):
-    """
-    Excel: Yes = VAT INCLUDED
-           No  = VAT EXCLUDED
-    """
     return str(val).strip().lower() in ("yes", "true", "1")
 
 
 def _is_active(val):
-    """
-    Excel: Yes = Active
-           No  = Inactive
-    """
     return str(val).strip().lower() in ("yes", "true", "1")
-
 
 
 def _dec(val):
@@ -37,16 +28,12 @@ def _dec(val):
         return Decimal("0")
 
 
-def generate_supplier_code(name: str) -> str:
-    """
-    Generates a unique supplier code from supplier name.
-    Example: 'Jumbo Wholesale' → 'JUMBOWHOLE'
-    """
+def generate_supplier_code(name: str, db="default") -> str:
     base = re.sub(r"[^A-Z0-9]", "", name.upper())[:10] or "SUPPLIER"
     code = base
     counter = 1
 
-    while Supplier.objects.filter(code=code).exists():
+    while Supplier.objects.using(db).filter(code=code).exists():
         counter += 1
         code = f"{base[:7]}{counter}"
 
@@ -57,13 +44,9 @@ def generate_supplier_code(name: str) -> str:
 # MAIN IMPORTER
 # ======================================================
 
-def import_products_from_excel(file):
+def import_products_from_excel(file, db="default"):
     """
-    EXPECTED EXCEL STRUCTURE
-
-    Row 1: Group headers (Cost / Wholesale / Retail) → IGNORED
-    Row 2: Actual column headers
-    Row 3+: Data
+    DB-AWARE IMPORTER
     """
 
     # ======================================================
@@ -81,10 +64,10 @@ def import_products_from_excel(file):
         raise ValidationError("STEP 1: Excel must contain at least 3 rows")
 
     # ======================================================
-    # STEP 2 — HEADER POSITIONS (FIXED)
+    # STEP 2 — HEADERS
     # ======================================================
-    HEADER_ROW = 1   # Excel row 2
-    DATA_START = 2   # Excel row 3+
+    HEADER_ROW = 1
+    DATA_START = 2
 
     headers = rows[HEADER_ROW]
     if not headers:
@@ -130,20 +113,19 @@ def import_products_from_excel(file):
     updated = 0
 
     # ======================================================
-    # STEP 3 — PROCESS ROWS (PER-ROW TRANSACTION)
+    # STEP 3 — PROCESS ROWS
     # ======================================================
-
     for excel_row, row in enumerate(rows[DATA_START:], start=DATA_START + 1):
 
         if not row or not row[COL["product_no"]]:
             continue
 
         try:
-            with transaction.atomic():
+            with transaction.atomic(using=db):
 
-                # --------------------------------------------------
-                # STEP 4 — READ DATA
-                # --------------------------------------------------
+                # -----------------------------
+                # READ DATA
+                # -----------------------------
                 category_name = str(row[COL["category"]]).strip()
                 subcategory_name = str(row[COL["subcategory"]]).strip()
                 product_name = str(row[COL["product"]]).strip()
@@ -165,23 +147,23 @@ def import_products_from_excel(file):
                 retail_margin = _dec(row[COL["retail_margin"]])
                 is_active = _is_active(row[COL["is_active"]])
 
-                # --------------------------------------------------
-                # STEP 5 — CATEGORY
-                # --------------------------------------------------
-                parent_cat, _ = Category.objects.get_or_create(
+                # -----------------------------
+                # CATEGORY
+                # -----------------------------
+                parent_cat, _ = Category.objects.using(db).get_or_create(
                     name=category_name,
                     parent=None,
                 )
 
-                sub_cat, _ = Category.objects.get_or_create(
+                sub_cat, _ = Category.objects.using(db).get_or_create(
                     name=subcategory_name,
                     parent=parent_cat,
                 )
 
-                # --------------------------------------------------
-                # STEP 6 — PRODUCT
-                # --------------------------------------------------
-                product, was_created = Product.objects.update_or_create(
+                # -----------------------------
+                # PRODUCT
+                # -----------------------------
+                product, was_created = Product.objects.using(db).update_or_create(
                     product_no=product_no,
                     defaults={
                         "name": product_name,
@@ -195,23 +177,24 @@ def import_products_from_excel(file):
                 created += int(was_created)
                 updated += int(not was_created)
 
-                # --------------------------------------------------
-                # STEP 7 — SUPPLIER
-                # --------------------------------------------------
-                supplier = Supplier.objects.filter(name=supplier_name).first()
+                # -----------------------------
+                # SUPPLIER
+                # -----------------------------
+                supplier = Supplier.objects.using(db).filter(name=supplier_name).first()
+
                 if not supplier:
-                    supplier = Supplier.objects.create(
+                    supplier = Supplier.objects.using(db).create(
                         name=supplier_name,
-                        code=generate_supplier_code(supplier_name),
+                        code=generate_supplier_code(supplier_name, db),
                         is_active=True,
                     )
 
                 supplier.categories.add(parent_cat)
 
-                # --------------------------------------------------
-                # STEP 8 — PRICING
-                # --------------------------------------------------
-                pricing, _ = ProductPricing.objects.update_or_create(
+                # -----------------------------
+                # PRICING
+                # -----------------------------
+                pricing, _ = ProductPricing.objects.using(db).update_or_create(
                     product=product,
                     supplier=supplier,
                     defaults={
@@ -223,18 +206,12 @@ def import_products_from_excel(file):
                     },
                 )
 
-                pricing.save()
+                pricing.save(using=db)
 
         except Exception as e:
-            raise ValidationError(
-                f"Excel row {excel_row}: {e}"
-            )
+            raise ValidationError(f"Excel row {excel_row}: {e}")
 
-    # ======================================================
-    # STEP 9 — SUCCESS
-    # ======================================================
     return {
         "created": created,
         "updated": updated,
     }
-    

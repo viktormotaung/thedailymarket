@@ -234,31 +234,49 @@ class ActiveMembershipManager(models.Manager):
         return super().get_queryset().filter(is_active=True)
 
 
+
+
 class FunderMember(models.Model):
     funder = models.ForeignKey(
-        Funder,
+        "credit.Funder",
         on_delete=models.CASCADE,
         related_name="memberships",
+        null=True,
+        blank=True,
     )
+
+    # ✅ BACK TO CLEAN FK
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="funder_memberships",
     )
-    role = models.CharField(max_length=16, choices=ROLE_CHOICES, default="VIEWER")
+
+    ROLE_CHOICES = [
+        ("OWNER", "Owner"),
+        ("ADMIN", "Admin"),
+        ("VIEWER", "Viewer"),
+    ]
+
+    role = models.CharField(
+        max_length=16,
+        choices=ROLE_CHOICES,
+        default="VIEWER",
+    )
+
     is_active = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     objects = models.Manager()
-    active = ActiveMembershipManager()
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
                 fields=["funder", "user"],
                 name="uniq_funder_user",
+                condition=models.Q(funder__isnull=False),
             ),
         ]
         indexes = [
@@ -268,9 +286,8 @@ class FunderMember(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user} → {self.funder} ({self.role})"
-
-
+        return f"{self.user} → {self.funder or 'No Funder'} ({self.role})"
+    
 # ============================================================
 # FUNDER ALLOCATION (capital reserved per client)
 # ============================================================

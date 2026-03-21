@@ -349,8 +349,9 @@ class Client(models.Model):
         ClientCompliance = apps.get_model("clients", "ClientCompliance")
         ClientComplianceDocument = apps.get_model("clients", "ClientComplianceDocument")
 
-        # 1) Ensure compliance row exists
-        compliance, _ = ClientCompliance.objects.get_or_create(
+        db = self._state.db or "default"
+
+        compliance, _ = ClientCompliance.objects.using(db).get_or_create(
             client=self,
             defaults={
                 "registration_identifier": self.registration_identifier or "",
@@ -394,7 +395,9 @@ class Client(models.Model):
         this client has exactly one related row.
         """
         CreditAccount = apps.get_model("credit", "CreditAccount")
-        ca, _ = CreditAccount.objects.get_or_create(client=self)
+        db = self._state.db or "default"
+
+        ca, _ = CreditAccount.objects.using(db).get_or_create(client=self)
         # Mirror funder down if present
         if getattr(self, "funder_id", None) is not None and ca.funder_id != self.funder_id:
             ca.funder_id = self.funder_id

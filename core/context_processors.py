@@ -54,10 +54,15 @@ def platform_access(request):
     # -----------------------
     # LENDER LOGIC
     # -----------------------
-    can_lender_portal = FunderMember.objects.filter(
-        user=user,
-        is_active=True
-    ).exists()
+    can_lender_portal = (
+        FunderMember.objects.using("default")
+        .filter(user=user, is_active=True)
+        .exists()
+        or
+        FunderMember.objects.using("dummy")
+        .filter(user=user, is_active=True)
+        .exists()
+    )
 
     # -----------------------
     # LOGISTICS LOGIC (DriverProfile ✅)

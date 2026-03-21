@@ -41,65 +41,83 @@ def _ensure_membership(request, funder: Funder) -> bool:
     )
 
 
-def _get_db_for_funder(funder, default_memberships, dummy_memberships):
-    """Determine which DB this funder belongs to."""
-    if any(m.funder.id == funder.id for m in dummy_memberships):
-        return "dummy"
-    return "default"
-
-
 @login_required
 def funder_dashboard(request):
-    # 🔹 STEP 1 — GET MEMBERSHIPS FROM BOTH DBS
-    default_memberships = (
+
+    print("\n================ START DASHBOARD ================\n")
+
+    # 🔹 STEP 1 — GET MEMBERSHIPS (WITH DB CONTEXT)
+    default_memberships = list(
         FunderMember.objects.using("default")
         .filter(user=request.user, is_active=True)
         .select_related("funder")
     )
 
-    dummy_memberships = (
+    dummy_memberships = list(
         FunderMember.objects.using("dummy")
         .filter(user=request.user, is_active=True)
         .select_related("funder")
     )
 
-    memberships = list(default_memberships) + list(dummy_memberships)
+    memberships = (
+        [(m, "dummy") for m in dummy_memberships] +
+        [(m, "default") for m in default_memberships]
+    )
+
+    print("===== MEMBERSHIPS =====")
+    for m, db in memberships:
+        print(f"Funder: {m.funder.name} | ID: {m.funder.id} | DB: {db}")
+    print("========================\n")
 
     if not memberships:
         return redirect(reverse("staff-dashboard"))
 
-    has_default = default_memberships.exists()
-    has_dummy = dummy_memberships.exists()
+    has_default = len(default_memberships) > 0
+    has_dummy = len(dummy_memberships) > 0
 
-    # 🔹 STEP 2 — SELECT FUNDER
+    # 🔹 STEP 2 — SELECT MEMBERSHIP
     qs_funder_id = request.GET.get("funder")
 
-    all_funders = [m.funder for m in memberships]
+    selected = None
 
     if qs_funder_id:
-        funder = next((f for f in all_funders if str(f.id) == qs_funder_id), None)
-        if not funder:
-            funder = all_funders[0]
+        selected = next(
+            ((m, db) for m, db in memberships if str(m.funder.id) == qs_funder_id),
+            None
+        )
+
+    if selected:
+        membership, db = selected
     else:
-        funder = all_funders[0]
+        membership, db = memberships[0]
 
-    # 🔹 STEP 3 — DETERMINE DB
-    db = _get_db_for_funder(funder, default_memberships, dummy_memberships)
+    funder = membership.funder
 
-    # 🔹 OPTIONAL: COMBINED MODE
+    print("===== SELECTED =====")
+    print(f"Selected Funder: {funder.name}")
+    print(f"Selected Funder ID: {funder.id}")
+    print(f"Selected DB: {db}")
+    print(f"Funder object DB origin: {funder._state.db}")
+    print("====================\n")
+
+    # 🔹 OPTIONAL MODE
     combined_mode = request.GET.get("mode") == "combined" and has_default and has_dummy
 
-    # 🔹 STEP 4 — ALLOCATIONS
+    # 🔹 STEP 3 — ALLOCATIONS
+    print("===== ALLOCATION QUERY =====")
+    print(f"Using DB: {db}")
+    print("============================\n")
+
     if combined_mode:
         allocations_default = (
             FunderAllocation.objects.using("default")
-            .filter(funder=funder)
+            .filter(funder__id=funder.id)
             .select_related("client")
         )
 
         allocations_dummy = (
             FunderAllocation.objects.using("dummy")
-            .filter(funder=funder)
+            .filter(funder__id=funder.id)
             .select_related("client")
         )
 
@@ -111,28 +129,31 @@ def funder_dashboard(request):
     else:
         allocations = (
             FunderAllocation.objects.using(db)
-            .filter(funder=funder)
+            .filter(funder__id=funder.id)  # ✅ FIXED HERE
             .select_related("client")
             .order_by("client__name")
         )
 
         total_alloc = allocations.aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
 
-    # 🔹 STEP 5 — WEEKLY DATA
+    print(f"Allocations count: {len(allocations)}")
+    print(f"Total Alloc: {total_alloc}\n")
+
+    # 🔹 STEP 4 — WEEKLY DATA
     today = date.today()
     four_weeks_ago = today - timedelta(weeks=4)
 
     if combined_mode:
         latest_week_default = (
             FunderWeekSummary.objects.using("default")
-            .filter(funder=funder)
+            .filter(funder__id=funder.id)
             .order_by("-week_start")
             .first()
         )
 
         latest_week_dummy = (
             FunderWeekSummary.objects.using("dummy")
-            .filter(funder=funder)
+            .filter(funder__id=funder.id)
             .order_by("-week_start")
             .first()
         )
@@ -141,7 +162,7 @@ def funder_dashboard(request):
 
         recent_default = list(
             FunderWeekSummary.objects.using("default")
-            .filter(funder=funder, week_start__gte=four_weeks_ago)
+            .filter(funder__id=funder.id, week_start__gte=four_weeks_ago)
             .values(
                 "week_start",
                 "visible_utilization_total",
@@ -152,7 +173,7 @@ def funder_dashboard(request):
 
         recent_dummy = list(
             FunderWeekSummary.objects.using("dummy")
-            .filter(funder=funder, week_start__gte=four_weeks_ago)
+            .filter(funder__id=funder.id, week_start__gte=four_weeks_ago)
             .values(
                 "week_start",
                 "visible_utilization_total",
@@ -169,14 +190,14 @@ def funder_dashboard(request):
     else:
         latest_week = (
             FunderWeekSummary.objects.using(db)
-            .filter(funder=funder)
+            .filter(funder__id=funder.id)  # ✅ FIXED
             .order_by("-week_start")
             .first()
         )
 
         recent_weeks = list(
             FunderWeekSummary.objects.using(db)
-            .filter(funder=funder, week_start__gte=four_weeks_ago)
+            .filter(funder__id=funder.id, week_start__gte=four_weeks_ago)  # ✅ FIXED
             .order_by("week_start")
             .values(
                 "week_start",
@@ -185,6 +206,13 @@ def funder_dashboard(request):
                 "weekly_return",
             )
         )
+
+    print("===== FUNDER VALUES =====")
+    print(f"Balance: {getattr(funder, 'balance', 'NO FIELD')}")
+    print(f"Allocatable: {getattr(funder, 'allocatable_balance', 'NO FIELD')}")
+    print("==========================\n")
+
+    print("================ END DASHBOARD ================\n")
 
     # 🔹 FINAL CONTEXT
     ctx = {

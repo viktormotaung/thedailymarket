@@ -152,7 +152,7 @@ class Order(models.Model):
 
         if not creating:
             try:
-                old = Order.objects.get(pk=self.pk)
+                old = Order.objects.using(self._state.db).get(pk=self.pk)
                 old_status = old.status
                 before_snapshot = old._audit_snapshot()
             except Order.DoesNotExist:
@@ -180,7 +180,7 @@ class Order(models.Model):
             def delayed_auto_approve(order_id):
                 time.sleep(2)
                 try:
-                    order = Order.objects.get(pk=order_id)
+                    order = Order.objects.using(self._state.db).get(pk=order_id)
 
                     # Safety checks
                     if (
@@ -218,7 +218,7 @@ class Order(models.Model):
                 raise ValidationError("Order must contain at least one item before approval.")
 
             # Log approval FIRST
-            OrderAudit.objects.create(
+            OrderAudit.objects.using(self._state.db).create(
                 order=self,
                 action=OrderAudit.APPROVED,
                 performed_by=self.approved_by or self.created_by,
@@ -278,7 +278,7 @@ class Order(models.Model):
                     self.status = "credit_blocked"
                     self.save(update_fields=["status", "updated_at"])
 
-                    OrderAudit.objects.create(
+                    OrderAudit.objects.using(self._state.db).create(
                         order=self,
                         action=OrderAudit.CREDIT_BLOCKED,
                         performed_by=self.approved_by or self.created_by,
@@ -301,6 +301,7 @@ class Order(models.Model):
 
             if not hasattr(self, "invoice"):
                 print("[DEBUG] Creating invoice now...")
+                Invoice.objects.using(self._state.db)
                 Invoice.create_for_order(self)
                 print("[DEBUG] Invoice created.")
             else:
@@ -311,7 +312,7 @@ class Order(models.Model):
         # -------------------------------------------------
         print(f"[DEBUG] Final audit action: {action}")
 
-        OrderAudit.objects.create(
+        OrderAudit.objects.using(self._state.db).create(
             order=self,
             action=action,
             performed_by=self.approved_by or self.reviewed_by or self.created_by,

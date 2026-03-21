@@ -178,13 +178,22 @@ class ProductAdmin(admin.ModelAdmin):
         return custom_urls + urls
 
     # ✅ UPLOAD VIEW
+    # ✅ UPLOAD VIEW
     def import_excel(self, request):
+
+        # 🔥 FORCE DB BASED ON ADMIN SITE
+        if request.path.startswith("/dummy-admin/"):
+            request._db = "dummy"
+        else:
+            request._db = "default"
+
         if request.method == "POST":
             form = ProductExcelUploadForm(request.POST, request.FILES)
             if form.is_valid():
                 try:
                     result = import_products_from_excel(
-                        form.cleaned_data["excel_file"]
+                        form.cleaned_data["excel_file"],
+                        db=request._db   # ✅ THIS IS THE FIX
                     )
                     messages.success(
                         request,

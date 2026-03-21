@@ -70,7 +70,7 @@ INSTALLED_APPS = [
     'sales',
     "consumers",
     "logistics",
-    "core",
+    'core.apps.CoreConfig',
     "django_extensions",
     "payments",
 
@@ -126,6 +126,8 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'seshibo_site.wsgi.application'
+
+DATABASE_ROUTERS = ['seshibo_site.db_router.MultiDBRouter']
 
 # ---------------------------
 # DATABASE

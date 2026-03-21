@@ -67,15 +67,7 @@
 
         <!-- Right: Actions -->
         <div class="col-4 d-flex justify-content-end align-items-center gap-2">
-          {% if memberships and memberships|length > 1 %}
-            <select id="funderSwitch" class="form-select form-select-sm w-auto">
-              {% for m in memberships %}
-                <option value="{{ m.funder.id }}" {% if m.funder.id == funder.id %}selected{% endif %}>
-                  {{ m.funder.name }}
-                </option>
-              {% endfor %}
-            </select>
-          {% endif %}
+          
           <button
             type="button"
             class="btn btn-outline-light btn-sm"

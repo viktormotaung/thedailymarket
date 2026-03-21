@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.db.models import Sum
 from django.utils.html import format_html
+from django.contrib.auth import get_user_model
 from credit.models import bypass_ledger
 from .models import (
     Funder,
@@ -13,6 +14,8 @@ from .models import (
     CreditEntry,
     FunderWeekSummary,
 )
+from django import forms
+from django.contrib.auth import get_user_model
 
 # ============================================================
 # INLINES
@@ -30,6 +33,21 @@ class FunderAllocationInline(admin.TabularInline):
     extra = 0
     autocomplete_fields = ("client",)
     readonly_fields = ("created_at", "updated_at")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        from clients.models import Client
+
+        if db_field.name == "client":
+            print("\n===== CLIENT FK DEBUG =====")
+
+            qs = Client.objects.using("dummy").all()
+
+            print("Queryset DB:", qs.db)
+            print("Clients:", list(qs.values_list("id", "name"))[:5])
+
+            kwargs["queryset"] = qs
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 class CreditEntryInline(admin.TabularInline):
@@ -102,14 +120,73 @@ class FunderAdmin(admin.ModelAdmin):
 # ============================================================
 # FUNDER MEMBER ADMIN
 # ============================================================
+class FunderMemberAdminForm(forms.ModelForm):
+    class Meta:
+        model = FunderMember
+        fields = "__all__"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        User = get_user_model()
+
+        # 🔥 FORCE USER FIELD TO USE DEFAULT DB
+        self.fields["user"].queryset = User.objects.using("default").all()
+
+    def clean_user(self):
+        user = self.cleaned_data.get("user")
+
+        # 🔥 RE-FETCH USER FROM DEFAULT DB (CRITICAL FIX)
+        if user:
+            User = get_user_model()
+            return User.objects.using("default").get(pk=user.pk)
+
+        return user
+    
 @admin.register(FunderMember)
 class FunderMemberAdmin(admin.ModelAdmin):
-    list_display = ("funder", "user", "role", "is_active")
-    list_filter = ("role", "is_active")
-    search_fields = ("funder__name", "user__username", "user__email")
-    autocomplete_fields = ("funder", "user")
 
+    form = FunderMemberAdminForm  # 🔥 ADD THIS LINE
+
+    list_display = ("funder", "user", "role", "is_active")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        if db_field.name == "user":
+            print("\n===== FK FIELD DEBUG =====")
+            print("Setting queryset to DEFAULT DB")
+
+            qs = User.objects.using("default").all()
+
+            print("Queryset DB:", qs.db)
+            print("Users in queryset:", list(qs.values_list("id", "username"))[:5])
+
+            kwargs["queryset"] = qs
+            kwargs["to_field_name"] = "id"
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        field = super().formfield_for_dbfield(db_field, request, **kwargs)
+
+        if db_field.name == "user":
+            print("\n===== DBFIELD DEBUG =====")
+            print("Original queryset DB:", field.queryset.db)
+
+            field.queryset = field.queryset.using("default")
+
+            print("UPDATED queryset DB:", field.queryset.db)
+
+        return field
+
+    def save_model(self, request, obj, form, change):
+        print("\n===== SAVE DEBUG =====")
+        print("Selected user:", obj.user)
+        print("User ID:", obj.user.id)
+
+        super().save_model(request, obj, form, change)
 
 # ============================================================
 # FUNDER ALLOCATION ADMIN
@@ -121,6 +198,14 @@ class FunderAllocationAdmin(admin.ModelAdmin):
     search_fields = ("funder__name", "client__name")
     autocomplete_fields = ("funder", "client")
     readonly_fields = ("created_at", "updated_at")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        from clients.models import Client
+
+        if db_field.name == "client":
+            kwargs["queryset"] = Client.objects.using("dummy").all()
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 # ============================================================
@@ -238,7 +323,9 @@ class CreditEntryAdmin(admin.ModelAdmin):
     readonly_fields = [f.name for f in CreditEntry._meta.fields]
 
     def has_add_permission(self, request):
-        return False
+        if request.path.startswith("/dummy-admin/"):
+            return False
+        return super().has_add_permission(request)
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
