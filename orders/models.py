@@ -177,12 +177,12 @@ class Order(models.Model):
 
             print("[DEBUG] Scheduling WEB auto-approval in 2 seconds")
 
-            def delayed_auto_approve(order_id):
+    
+            def delayed_auto_approve(order_id, db):
                 time.sleep(2)
                 try:
-                    order = Order.objects.using(self._state.db).get(pk=order_id)
+                    order = Order.objects.using(db).get(pk=order_id)
 
-                    # Safety checks
                     if (
                         order.channel == "WEB"
                         and order.status == "pending"
@@ -200,7 +200,7 @@ class Order(models.Model):
             transaction.on_commit(
                 lambda: threading.Thread(
                     target=delayed_auto_approve,
-                    args=(self.pk,),
+                    args=(self.pk, self._state.db),  # ✅ comma added
                     daemon=True
                 ).start()
             )
@@ -243,12 +243,15 @@ class Order(models.Model):
             return
 
         # -------------------------------------------------
-        # FINANCIAL GATE (only entering awaiting_payment)
+        # FINANCIAL GATE (STATE-BASED + BULLETPROOF)
         # -------------------------------------------------
-        if old_status != "awaiting_payment" and self.status == "awaiting_payment":
+        if self.status == "awaiting_payment":
 
             print(f"[DEBUG] ENTERING FINANCIAL GATE for Order {self.pk}")
 
+            db = self._state.db or "default"
+
+            # ✅ Always recalc totals safely
             self.recalc_totals(save=True)
             print(f"[DEBUG] Totals recalculated → Grand Total: {self.grand_total_inc}")
 
@@ -258,6 +261,9 @@ class Order(models.Model):
 
             print(f"[DEBUG] Credit status: {credit_status}")
 
+            # =================================================
+            # CREDIT CHECK
+            # =================================================
             if credit_status == "ACTIVE" and credit_account:
 
                 total = self.grand_total_inc or Decimal("0.00")
@@ -276,9 +282,9 @@ class Order(models.Model):
                     print("[DEBUG] CREDIT BLOCKED")
 
                     self.status = "credit_blocked"
-                    self.save(update_fields=["status", "updated_at"])
+                    super().save(update_fields=["status", "updated_at"])
 
-                    OrderAudit.objects.using(self._state.db).create(
+                    OrderAudit.objects.using(db).create(
                         order=self,
                         action=OrderAudit.CREDIT_BLOCKED,
                         performed_by=self.approved_by or self.created_by,
@@ -295,41 +301,68 @@ class Order(models.Model):
                     )
 
                     print("================ ORDER SAVE END (BLOCKED) ================\n")
-                    return
+                    return  # 🚨 stop execution if blocked
 
-            print(f"[DEBUG] Invoice exists? {hasattr(self, 'invoice')}")
+            # =================================================
+            # 🔥 BULLETPROOF INVOICE CREATION (CORRECT POSITION)
+            # =================================================
+            from invoices.models import Invoice
 
-            if not hasattr(self, "invoice"):
+            invoice_exists = Invoice.objects.using(db).filter(order=self).exists()
+
+            print(f"[DEBUG] Invoice exists? {invoice_exists}")
+
+            if not invoice_exists:
                 print("[DEBUG] Creating invoice now...")
-                Invoice.objects.using(self._state.db)
-                Invoice.create_for_order(self)
+
+                Invoice.create_for_order(self)  # ✅ DB-safe internally
+
                 print("[DEBUG] Invoice created.")
             else:
-                print("[DEBUG] Invoice already exists.")
+                print("[DEBUG] Invoice already exists — updating invoice...")
 
-        # -------------------------------------------------
-        # FINAL AUDIT
-        # -------------------------------------------------
-        print(f"[DEBUG] Final audit action: {action}")
+                invoice = Invoice.objects.using(db).get(order=self)
 
-        OrderAudit.objects.using(self._state.db).create(
-            order=self,
-            action=action,
-            performed_by=self.approved_by or self.reviewed_by or self.created_by,
-            status_before=old_status or "",
-            status_after=self.status,
-            amount_before=(
-                Decimal(before_snapshot.get("grand_total_inc", "0.00"))
-                if before_snapshot
-                else None
-            ),
-            amount_after=self.grand_total_inc,
-            snapshot_before=before_snapshot,
-            snapshot_after=self._audit_snapshot(),
-            description="Automatic system audit entry",
-        )
+                # Recalculate invoice properly
+                invoice.calculate_totals()
 
-        print("================ ORDER SAVE END ================\n")
+                invoice.save(using=db, update_fields=[
+                    "order_total_inc",
+                    "amount_due",
+                    "deposit_required",
+                    "credit_used",
+                    "due_date",
+                    "updated_at",
+                ])
+
+                # 🔥 VERY IMPORTANT (keeps system consistent)
+                invoice.ensure_invoice_out_txn()
+                invoice.ensure_credit_after_deposit()
+
+                print("[DEBUG] Invoice updated.")
+
+            # -------------------------------------------------
+            # FINAL AUDIT (ALWAYS RUNS)
+            # -------------------------------------------------
+            print(f"[DEBUG] Final audit action: {action}")
+
+            OrderAudit.objects.using(db).create(
+                order=self,
+                action=action,
+                performed_by=self.approved_by or self.reviewed_by or self.created_by,
+                status_before=old_status or "",
+                status_after=self.status,
+                amount_before=(
+                    Decimal(before_snapshot.get("grand_total_inc", "0.00"))
+                    if before_snapshot else None
+                ),
+                amount_after=self.grand_total_inc,
+                snapshot_before=before_snapshot,
+                snapshot_after=self._audit_snapshot(),
+                description="Automatic system audit entry",
+            )
+
+            print("================ ORDER SAVE END ================\n")
             
         
 class OrderAudit(models.Model):

@@ -479,164 +479,251 @@
 
             <!-- Header -->
             <div class="text-center mb-4">
-                <h2 class="fw-semibold mb-1">Edit Funder</h2>
-            
+            <h2 class="fw-semibold mb-1">Edit Funder</h2>
             </div>
 
             <form method="post">
-                {% csrf_token %}
+            {% csrf_token %}
 
-                <!-- ================= FUNDER DETAILS ================= -->
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-header bg-light fw-semibold">
-                        Funder Details
-                    </div>
+            <!-- 🔥 GLOBAL ERROR SUMMARY -->
+            {% if form.errors or member_formset.errors or allocation_formset.errors %}
+                <div class="alert alert-danger">
 
-                    <div class="card-body">
+                <strong>We couldn’t save this funder:</strong>
 
-                        <div class="row g-3">
+                <ul class="mt-2 mb-0 ps-3">
 
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Funder Name</label>
-                                {{ form.name }}
-                            </div>
+                    <!-- FUND FORM ERRORS -->
+                    {% for field in form %}
+                    {% for error in field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                    {% endfor %}
+                    {% endfor %}
 
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Weekly Rate (%)</label>
-                                {{ form.weekly_rate_pct }}
-                            </div>
+                    {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
 
-                        </div>
+                    <!-- MEMBER FORMSET ERRORS -->
+                    {% for f in member_formset %}
+                    {% for field in f %}
+                        {% for error in field.errors %}
+                        <li><strong>Member {{ field.label }}:</strong> {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% endfor %}
 
-                    </div>
-                </div>
+                    {% for error in member_formset.non_form_errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
 
+                    <!-- ALLOCATION FORMSET ERRORS -->
+                    {% for f in allocation_formset %}
+                    {% for field in f %}
+                        {% for error in field.errors %}
+                        <li><strong>Allocation {{ field.label }}:</strong> {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% endfor %}
 
-                <!-- ================= MEMBERS ================= -->
-                <div class="card mb-4 shadow-sm">
+                    {% for error in allocation_formset.non_form_errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
 
-                    <div class="card-header bg-light fw-semibold">
-                        Funder Members
-                    </div>
-
-                    <div class="card-body">
-
-                        {{ member_formset.management_form }}
-
-                        <table class="table table-sm align-middle">
-                            <thead>
-                                <tr>
-                                    <th>User</th>
-                                    <th>Role</th>
-                                    <th>Active</th>
-                                    <th>Delete</th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-                                {% for form in member_formset %}
-                                <tr>
-                                    <td>{{ form.user }}</td>
-                                    <td>{{ form.role }}</td>
-                                    <td>{{ form.is_active }}</td>
-                                    <td>{{ form.DELETE }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-
-                    </div>
+                </ul>
 
                 </div>
+            {% endif %}
 
+            <!-- ================= FUNDER DETAILS ================= -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light fw-semibold">
+                Funder Details
+                </div>
 
-                <!-- ================= ALLOCATIONS ================= -->
-                <div class="card mb-4 shadow-sm">
+                <div class="card-body">
+                <div class="row g-3">
 
-                    <div class="card-header bg-light fw-semibold">
-                        Client Allocations
+                    <div class="col-md-6">
+                    <label class="form-label fw-semibold">Funder Name</label>
+                    {{ form.name }}
+                    {% for e in form.name.errors %}
+                        <div class="invalid-feedback d-block">{{ e }}</div>
+                    {% endfor %}
                     </div>
 
-                    <div class="card-body">
-
-                        <!-- Capital Summary -->
-                        <div class="row mb-4">
-
-                            <div class="col-md-4">
-                                <small class="text-muted">Total Capital</small>
-                                <div class="fw-semibold">
-                                    R{{ funder.balance|floatformat:2|intcomma }}
-                                </div>
-                            </div>
-
-                            <div class="col-md-4">
-                                <small class="text-muted">Allocated Capital</small>
-                                <div class="fw-semibold">
-                                    R{{ allocated_total|floatformat:2|intcomma }}
-                                </div>
-                            </div>
-
-                            <div class="col-md-4">
-                                <small class="text-muted">Available for Allocation</small>
-                                <div class="fw-semibold text-success">
-                                    R{{ available_for_allocation|floatformat:2|intcomma }}
-                                </div>
-                            </div>
-
-                        </div>
-
-                        {{ allocation_formset.management_form }}
-
-                        <table class="table table-sm align-middle">
-
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width:50%">Client</th>
-                                    <th style="width:30%">Allocated Amount</th>
-                                    <th style="width:20%">Delete</th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-
-                                {% for form in allocation_formset %}
-
-                                <tr>
-                                    <td>{{ form.client }}</td>
-                                    <td>{{ form.amount }}</td>
-                                    <td>{{ form.DELETE }}</td>
-                                </tr>
-
-                                {% endfor %}
-
-                            </tbody>
-
-                        </table>
-
+                    <div class="col-md-6">
+                    <label class="form-label fw-semibold">Weekly Rate (%)</label>
+                    {{ form.weekly_rate_pct }}
+                    {% for e in form.weekly_rate_pct.errors %}
+                        <div class="invalid-feedback d-block">{{ e }}</div>
+                    {% endfor %}
                     </div>
 
                 </div>
+                </div>
+            </div>
 
 
-                <!-- ================= ACTIONS ================= -->
-                <div class="d-flex justify-content-between">
+            <!-- ================= MEMBERS ================= -->
+            <div class="card mb-4 shadow-sm">
 
-                    <a href="{% url 'funder-view' funder.id %}" class="btn btn-outline-secondary">
-                        Cancel
-                    </a>
+                <div class="card-header bg-light fw-semibold">
+                Funder Members
+                </div>
 
-                    <button type="submit" class="btn btn-success">
-                        Save Changes
-                    </button>
+                <div class="card-body">
+
+                {{ member_formset.management_form }}
+
+                {% if member_formset.non_form_errors %}
+                    <div class="alert alert-danger">
+                    {{ member_formset.non_form_errors }}
+                    </div>
+                {% endif %}
+
+                <table class="table table-sm align-middle">
+                    <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Active</th>
+                        <th>Delete</th>
+                    </tr>
+                    </thead>
+
+                    <tbody>
+                    {% for form in member_formset %}
+                    <tr>
+
+                        <td>
+                        {{ form.user }}
+                        {% for e in form.user.errors %}
+                            <div class="invalid-feedback d-block">{{ e }}</div>
+                        {% endfor %}
+                        </td>
+
+                        <td>
+                        {{ form.role }}
+                        {% for e in form.role.errors %}
+                            <div class="invalid-feedback d-block">{{ e }}</div>
+                        {% endfor %}
+                        </td>
+
+                        <td>{{ form.is_active }}</td>
+                        <td>{{ form.DELETE }}</td>
+
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
 
                 </div>
 
-                </form>
+            </div>
 
-           
+
+            <!-- ================= ALLOCATIONS ================= -->
+            <div class="card mb-4 shadow-sm">
+
+                <div class="card-header bg-light fw-semibold">
+                Allocate Funder Capital to Clients
+                </div>
+
+                <div class="card-body">
+
+                <!-- Capital Summary -->
+                <div class="row mb-4">
+
+                    <div class="col-md-4">
+                    <small class="text-muted">Total Capital</small>
+                    <div class="fw-semibold">
+                        R{{ funder.balance|floatformat:2|intcomma }}
+                    </div>
+                    </div>
+
+                    <div class="col-md-4">
+                    <small class="text-muted">Allocated Capital</small>
+                    <div class="fw-semibold">
+                        R{{ allocated_total|floatformat:2|intcomma }}
+                    </div>
+                    </div>
+
+                    <div class="col-md-4">
+                    <small class="text-muted">Available for Allocation</small>
+                    <div class="fw-semibold text-success">
+                        R{{ available_for_allocation|floatformat:2|intcomma }}
+                    </div>
+                    </div>
+
+                </div>
+
+                {{ allocation_formset.management_form }}
+
+                {% if allocation_formset.non_form_errors %}
+                    <div class="alert alert-danger">
+                    {{ allocation_formset.non_form_errors }}
+                    </div>
+                {% endif %}
+
+                <table class="table table-sm align-middle">
+
+                    <thead class="table-light">
+                    <tr>
+                        <th style="width:50%">Client</th>
+                        <th style="width:30%">Allocated Amount</th>
+                        <th style="width:20%">Delete</th>
+                    </tr>
+                    </thead>
+
+                    <tbody>
+                    {% for form in allocation_formset %}
+                    <tr>
+
+                        <td>
+                        {{ form.client }}
+                        {% for e in form.client.errors %}
+                            <div class="invalid-feedback d-block">{{ e }}</div>
+                        {% endfor %}
+                        </td>
+
+                        <td>
+                        {{ form.amount }}
+                        {% for e in form.amount.errors %}
+                            <div class="invalid-feedback d-block">{{ e }}</div>
+                        {% endfor %}
+                        </td>
+
+                        <td>{{ form.DELETE }}</td>
+
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+
+                </table>
+
+                </div>
+
+            </div>
+
+
+            <!-- ================= ACTIONS ================= -->
+            <div class="d-flex justify-content-between">
+
+                <a href="{% url 'funder-view' funder.id %}" class="btn btn-outline-secondary">
+                Cancel
+                </a>
+
+                <button type="submit" class="btn btn-success">
+                Save Changes
+                </button>
+
+            </div>
+
+            </form>
+
         </div>
         </main>
-
         <!-- SWITCH PLATFORM MODAL -->
         <div class="modal fade"
             id="switchPlatformModal"

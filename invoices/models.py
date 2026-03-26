@@ -180,31 +180,41 @@ class Invoice(models.Model):
             base_date = self.invoice_date or localdate()
             self.due_date = base_date + timedelta(days=term_days)
 
+    
     @classmethod
     def create_for_order(cls, order: Order) -> "Invoice":
-        """
-        Create or update the invoice for an approved order and keep the 'invoice' Transaction
-        in sync. Do NOT post credit yet; credit is only posted once the deposit is fully paid.
-        """
+        db = order._state.db  # 🔥 KEY LINE
+
         if hasattr(order, "invoice"):
             inv: "Invoice" = order.invoice
+
             inv.calculate_totals()
-            inv.save(update_fields=[
-                "order_total_inc", "amount_due", "deposit_required",
-                "credit_used", "due_date", "updated_at",
-            ])
+            inv.save(
+                using=db,
+                update_fields=[
+                    "order_total_inc",
+                    "amount_due",
+                    "deposit_required",
+                    "credit_used",
+                    "due_date",
+                    "updated_at",
+                ],
+            )
+
             inv.ensure_invoice_out_txn()
-            # Gate credit posting behind deposit being fully paid:
             inv.ensure_credit_after_deposit()
             return inv
 
-        with transaction.atomic():
+        with transaction.atomic(using=db):  # 🔥 IMPORTANT
             invoice = cls(order=order, client=order.client)
+
             invoice.calculate_totals()
-            invoice.save()
+
+            invoice.save(using=db)  # 🔥 IMPORTANT
+
             invoice.ensure_invoice_out_txn()
-            # Gate credit posting behind deposit being fully paid:
             invoice.ensure_credit_after_deposit()
+
             return invoice
 
     # ---------- Credit release gating ----------
@@ -237,16 +247,14 @@ class Invoice(models.Model):
     # ---------- Transaction helpers (lazy imports to avoid circulars) ----------
 
     def ensure_invoice_out_txn(self):
-        """
-        Ensure exactly one 'invoice' transaction exists for this invoice,
-        with the current invoice total. If it exists, keep the amount in sync.
-        """
-        from transactions.models import Transaction  # lazy import
+        from transactions.models import Transaction
+
+        db = self._state.db  # 🔥
 
         if not self.pk:
-            self.save()
+            self.save(using=db)
 
-        txn, created = Transaction.objects.get_or_create(
+        txn, created = Transaction.objects.using(db).get_or_create(
             invoice=self,
             transaction_type="invoice",
             defaults={
@@ -256,20 +264,22 @@ class Invoice(models.Model):
                 "note": "Invoice issued",
             },
         )
+
         if not created and txn.amount != self.order_total_inc:
             txn.amount = self.order_total_inc
-            txn.save(update_fields=["amount"])
+            txn.save(using=db, update_fields=["amount"])
+
         return txn
+    
+
 
     def ensure_credit_issue_txn(self):
-        """
-        Ensure one cash-in Transaction(type='credit_issue') exists equal to credit_used,
-        BUT ONLY when can_release_credit() is True. Otherwise, ensure none exist.
-        """
-        from transactions.models import Transaction  # lazy import
+        from transactions.models import Transaction
+
+        db = self._state.db  # 🔥 IMPORTANT
 
         if not self.pk:
-            self.save()
+            self.save(using=db)
 
         if not self.can_release_credit():
             self.remove_credit_issue_txn()
@@ -280,10 +290,11 @@ class Invoice(models.Model):
             self.remove_credit_issue_txn()
             return None
 
-        tx = Transaction.objects.filter(
+        tx = Transaction.objects.using(db).filter(
             invoice=self,
             transaction_type="credit_issue",
         ).first()
+
         if tx:
             changed = False
             if r2(tx.amount) != target:
@@ -296,10 +307,10 @@ class Invoice(models.Model):
                 tx.note = "Funder covered credit portion"
                 changed = True
             if changed:
-                tx.save(update_fields=["amount", "reference", "note"])
+                tx.save(using=db, update_fields=["amount", "reference", "note"])
             return tx
 
-        return Transaction.objects.create(
+        return Transaction.objects.using(db).create(
             client=self.client,
             invoice=self,
             transaction_type="credit_issue",
@@ -307,12 +318,17 @@ class Invoice(models.Model):
             reference=f"INV-{self.id} credit funded",
             note="Funder covered credit portion",
         )
-
+    
     def remove_credit_issue_txn(self):
-        """Delete any existing 'credit_issue' transaction for this invoice."""
-        from transactions.models import Transaction  # lazy import
+        from transactions.models import Transaction
 
-        q = Transaction.objects.filter(invoice=self, transaction_type="credit_issue")
+        db = self._state.db
+
+        q = Transaction.objects.using(db).filter(
+            invoice=self,
+            transaction_type="credit_issue"
+        )
+
         for tx in q.order_by("-created_at", "-id"):
             tx.delete()
 
@@ -337,8 +353,12 @@ class Invoice(models.Model):
             return None
 
         entry = (
-            CreditEntry.objects
-            .filter(invoice=self, kind=CreditEntry.USAGE, credit_account__client=self.client)
+            CreditEntry.objects.using(self._state.db)
+            .filter(
+                invoice=self,
+                kind=CreditEntry.USAGE,
+                credit_account__client=self.client
+            )
             .order_by("-posted_at", "-id")
             .first()
         )
@@ -356,11 +376,15 @@ class Invoice(models.Model):
             invoice=self,
             reference=f"INV-{self.id} credit usage",
             note="Credit portion of invoice (released after deposit paid)",
+            using=self._state.db
         )
 
     def remove_credit_usage_entry(self):
-        """Delete any USAGE ledger entries tied to this invoice (signals reverse the account)."""
-        for ce in self.credit_entries.filter(kind=CreditEntry.USAGE).order_by("-posted_at", "-id"):
+        db = self._state.db
+
+        for ce in self.credit_entries.using(db).filter(
+            kind=CreditEntry.USAGE
+        ).order_by("-posted_at", "-id"):
             ce.delete()
 
     
@@ -405,7 +429,7 @@ class Invoice(models.Model):
         # Ensure the invoice-out row exists first
         self.ensure_invoice_out_txn()
 
-        Transaction.objects.create(
+        Transaction.objects.using(self._state.db).create(
             client=self.client,
             invoice=self,
             transaction_type="payment",
@@ -496,6 +520,7 @@ class Invoice(models.Model):
             reference=reference or f"INV-{self.id} credit repayment",
             note=note,
             when=when,
+            using=self._state.db  # 🔥 ADD THIS
         )
 
     # --- status helpers (cash deposit dimension) ---
@@ -586,7 +611,7 @@ def ensure_order_progress_after_payment(sender, instance, **kwargs):
         print(f"📦 Signal moving order {order.id} to AT_WAREHOUSE")
 
         order.status = "at_warehouse"
-        order.save(update_fields=["status", "updated_at"])
+        order.save(using=order._state.db, update_fields=["status", "updated_at"])
 
 @receiver(post_save, sender=CreditEntry)
 def update_credit_next_due(sender, instance, **kwargs):
@@ -954,7 +979,7 @@ def create_or_update_commission_entry_for_invoice(invoice: Invoice) -> Commissio
 
     # 5) Create / update entry.
     #    We do NOT pass amounts here – save() will recompute them.
-    ce, _ = CommissionEntry.objects.update_or_create(
+    ce, _ = CommissionEntry.objects.using(invoice._state.db).update_or_create(
         invoice=invoice,
         defaults={
             "rep": rep,

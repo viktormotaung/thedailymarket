@@ -1,6 +1,7 @@
 # credit/models.py
 from __future__ import annotations
-
+from django.db.models import Sum, Q
+from django.db.models.functions import Coalesce
 from decimal import Decimal
 from typing import Dict, Tuple, Optional
 from django.dispatch import receiver
@@ -39,74 +40,92 @@ def monday_of(d: date) -> date:
 
 def update_funder_week_summary(entry):
     """
-    Update the weekly funder summary when credit is used.
-    Applies the capital cap rule.
+    Recalculate weekly funder summary (idempotent & multi-DB safe).
+
+    Always derives values from CreditEntry (source of truth),
+    preventing double counting and ensuring correctness.
     """
 
     from decimal import Decimal
+    from datetime import timedelta
+    from django.db.models import Sum
+    from django.db.models.functions import Coalesce
 
+    # --------------------------------------------------
+    # Resolve funder
+    # --------------------------------------------------
     ca = entry.credit_account
     funder = ca.funder
 
-    # If the credit account has no funder, nothing to calculate
     if not funder:
         return
 
-    # Determine week start (Monday)
-    week_start = monday_of(entry.posted_at.date())
+    db = entry._state.db or "default"
 
-    # Get or create the weekly summary
-    summary, created = FunderWeekSummary.objects.get_or_create(
+    # --------------------------------------------------
+    # Determine week range
+    # --------------------------------------------------
+    week_start = monday_of(entry.posted_at.date())
+    week_end = week_start + timedelta(days=7)
+
+    # --------------------------------------------------
+    # 🔥 RECOMPUTE FROM LEDGER (SOURCE OF TRUTH)
+    # --------------------------------------------------
+    total_usage = (
+        CreditEntry.objects.using(db)
+        .filter(
+            credit_account__funder=funder,
+            kind=CreditEntry.USAGE,
+            posted_at__gte=week_start,
+            posted_at__lt=week_end,
+        )
+        .aggregate(total=Coalesce(Sum("amount"), Decimal("0.00")))["total"]
+    )
+
+    total_usage = r2(total_usage)
+
+    # --------------------------------------------------
+    # Capital cap (allocation constraint)
+    # --------------------------------------------------
+    allocated_capital = funder.total_allocated()
+
+    visible_utilization = min(total_usage, allocated_capital)
+
+    # --------------------------------------------------
+    # Weekly return calculation
+    # --------------------------------------------------
+    existing = (
+        FunderWeekSummary.objects.using(db)
+        .filter(funder=funder, week_start=week_start)
+        .only("weekly_rate_pct_snapshot")
+        .first()
+    )
+
+    weekly_rate = (
+        existing.weekly_rate_pct_snapshot
+        if existing
+        else funder.weekly_rate_pct
+    )
+
+    weekly_return = r2(
+        visible_utilization * (weekly_rate / Decimal("100"))
+    )
+
+    # --------------------------------------------------
+    # Save (idempotent)
+    # --------------------------------------------------
+    FunderWeekSummary.objects.using(db).update_or_create(
         funder=funder,
         week_start=week_start,
         defaults={
-            "raw_weekly_usage": Decimal("0.00"),
-            "visible_utilization_total": Decimal("0.00"),
-            "weekly_rate_pct_snapshot": funder.weekly_rate_pct,
-            "weekly_return": Decimal("0.00"),
-        }
+            "raw_weekly_usage": total_usage,
+            "visible_utilization_total": visible_utilization,
+            "weekly_rate_pct_snapshot": weekly_rate,
+            "weekly_return": weekly_return,
+        },
     )
 
-    # --------------------------------------------------
-    # 1. Increase raw weekly usage
-    # --------------------------------------------------
 
-    summary.raw_weekly_usage = r2(summary.raw_weekly_usage + entry.amount)
-
-    # --------------------------------------------------
-    # 2. Determine total capital allocated to funder
-    # --------------------------------------------------
-
-    allocated_capital = funder.total_allocated()
-
-    # --------------------------------------------------
-    # 3. Apply capital cap rule
-    # --------------------------------------------------
-
-    summary.visible_utilization_total = min(
-        summary.raw_weekly_usage,
-        allocated_capital
-    )
-
-    # --------------------------------------------------
-    # 4. Calculate weekly return
-    # --------------------------------------------------
-
-    summary.weekly_return = r2(
-        summary.visible_utilization_total *
-        (summary.weekly_rate_pct_snapshot / Decimal("100"))
-    )
-
-    # --------------------------------------------------
-    # 5. Save
-    # --------------------------------------------------
-
-    summary.save(update_fields=[
-        "raw_weekly_usage",
-        "visible_utilization_total",
-        "weekly_return",
-        "updated_at",
-    ])
 
 from contextlib import contextmanager
 import threading
@@ -182,12 +201,16 @@ class Funder(models.Model):
     # Allocation helpers
     # ---------------------------
 
-    def total_allocated(self) -> Decimal:
-        return r2(
-            self.allocations.aggregate(
-                s=Coalesce(Sum("amount"), Decimal("0.00"))
-            )["s"]
+    def allocation_for(self, client: Client) -> Decimal:
+        db = self._state.db or "default"
+
+        amt = (
+            self.allocations.using(db)
+            .filter(client=client)
+            .values_list("amount", flat=True)
+            .first()
         )
+        return r2(amt or Decimal("0.00"))
 
     @property
     def allocatable_balance(self) -> Decimal:
@@ -201,6 +224,15 @@ class Funder(models.Model):
             .first()
         )
         return r2(amt or Decimal("0.00"))
+    
+    def total_allocated(self):
+        db = self._state.db or "default"
+
+        return r2(
+            self.allocations.using(db).aggregate(
+                s=Coalesce(Sum("amount"), Decimal("0.00"))
+            )["s"]
+        )
 
     # ---------------------------
     # Membership helpers
@@ -294,12 +326,12 @@ class FunderMember(models.Model):
 
 class FunderAllocation(models.Model):
     funder = models.ForeignKey(
-        Funder,
+        "credit.Funder",
         on_delete=models.CASCADE,
         related_name="allocations",
     )
     client = models.ForeignKey(
-        Client,
+        "clients.Client",
         on_delete=models.CASCADE,
         related_name="funder_allocations",
     )
@@ -319,23 +351,71 @@ class FunderAllocation(models.Model):
     def __str__(self):
         return f"{self.funder.name} → {self.client} · R{self.amount:.2f}"
 
+    # --------------------------------------------------
+    # VALIDATION
+    # --------------------------------------------------
     def clean(self):
-        """Prevent over-allocation beyond funder balance."""
+        db = self._state.db or "default"
+
         others = (
-            FunderAllocation.objects
+            FunderAllocation.objects.using(db)
             .filter(funder=self.funder)
             .exclude(pk=self.pk)
             .aggregate(s=Coalesce(Sum("amount"), Decimal("0.00")))["s"]
         )
-        proposed = r2((others or Decimal("0.00")) + r2(self.amount))
-        if proposed > r2(self.funder.balance):
+
+        proposed = (others or Decimal("0.00")) + self.amount
+
+        if proposed > self.funder.balance:
             raise ValidationError(
                 "Allocation exceeds available funder balance."
             )
 
+    # --------------------------------------------------
+    # APPLY TO CREDIT ACCOUNT (CORE LOGIC)
+    # --------------------------------------------------
+    def apply_to_credit_account(self):
+        db = self._state.db or "default"
+
+        from credit.models import CreditAccount
+
+        ca, _ = CreditAccount.objects.using(db).get_or_create(
+            client=self.client
+        )
+
+        # ---------------------------------------------
+        # 1. Link funder
+        # ---------------------------------------------
+        if ca.funder != self.funder:
+            ca.funder = self.funder
+            ca.save(update_fields=["funder", "updated_at"])
+
+        # ---------------------------------------------
+        # 2. 🔥 ALWAYS use ledger system
+        # ---------------------------------------------
+        ca.set_limit(
+            new_limit=self.amount,
+            authorised_by=None,
+            note=f"Auto allocation from funder {self.funder.name}",
+        )
+
+    # --------------------------------------------------
+    # SAVE (ENTRY POINT)
+    # --------------------------------------------------
+    @transaction.atomic
     def save(self, *args, **kwargs):
+        db = kwargs.pop("using", None) or self._state.db or "default"
+
         self.full_clean()
+
         super().save(*args, **kwargs)
+
+        # 🔥 Ensure correct DB context
+        self._state.db = db
+
+        # 🔥 Apply allocation AFTER save
+        self.apply_to_credit_account()
+
 
 
 # ============================================================
@@ -383,7 +463,9 @@ class FunderMovement(models.Model):
         creating = self.pk is None
         previous = None
         if not creating:
-            previous = FunderMovement.objects.get(pk=self.pk)
+            db = self._state.db or "default"
+
+            previous = FunderMovement.objects.using(db).get(pk=self.pk)
 
         super().save(*args, **kwargs)
 
@@ -402,6 +484,7 @@ class FunderMovement(models.Model):
 # ============================================================
 # CREDIT ACCOUNT (per client)
 # ============================================================
+
 
 class CreditAccount(models.Model):
     TERM_CHOICES = [
@@ -431,12 +514,13 @@ class CreditAccount(models.Model):
         related_name="credit_accounts",
     )
 
+    # ---------------------------
     # Commercial terms
+    # ---------------------------
     payment_term = models.CharField(
         max_length=3,
         choices=TERM_CHOICES,
         default="0D",
-        help_text="How long the client has to settle credit purchases.",
     )
 
     credit_deposit_pct = models.DecimalField(
@@ -444,26 +528,24 @@ class CreditAccount(models.Model):
         decimal_places=2,
         choices=DEPOSIT_CHOICES,
         default=Decimal("100.00"),
-        help_text="Deposit required when using credit.",
     )
 
-    # Running totals (mutated ONLY by ledger in Part 3)
+    # ---------------------------
+    # Ledger-controlled fields
+    # ---------------------------
     credit_limit = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         default=Decimal("0.00"),
     )
+
     credit_used = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         default=Decimal("0.00"),
     )
 
-    next_due_date = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Next repayment due date (optional).",
-    )
+    next_due_date = models.DateField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -474,29 +556,46 @@ class CreditAccount(models.Model):
             models.Index(fields=["funder"]),
         ]
 
-    def __str__(self) -> str:
-        return (
-            f"{self.client} · "
-            f"Limit R{self.credit_limit:.2f} · "
-            f"Used R{self.credit_used:.2f}"
-        )
+    def __str__(self):
+        return f"{self.client} · Limit R{self.credit_limit:.2f} · Used R{self.credit_used:.2f}"
 
-    # ---------------------------
-    # Derived values
-    # ---------------------------
-
+    # =====================================================
+    # DERIVED VALUES
+    # =====================================================
     @property
-    def credit_available(self) -> Decimal:
+    def credit_available(self):
         return r2(self.credit_limit - self.credit_used)
 
     @property
-    def outstanding(self) -> Decimal:
+    def outstanding(self):
         return r2(self.credit_used)
 
-    # ---------------------------
-    # Limit control (AUDIT ONLY)
-    # ---------------------------
+    # =====================================================
+    # VALIDATION (🔥 FIXED)
+    # =====================================================
+    def clean(self):
+        super().clean()
 
+        if not self.client:
+            return
+
+        db = self._state.db or "default"
+
+        exists = (
+            CreditAccount.objects.using(db)
+            .filter(client=self.client)
+            .exclude(pk=self.pk)
+            .exists()
+        )
+
+        if exists:
+            raise ValidationError({
+                "client": "Credit account with this client already exists."
+            })
+
+    # =====================================================
+    # LIMIT CONTROL (AUDIT ONLY)
+    # =====================================================
     @transaction.atomic
     def set_limit(
         self,
@@ -505,17 +604,15 @@ class CreditAccount(models.Model):
         authorised_by=None,
         note: str = "",
     ):
-        """
-        NEVER mutate credit_limit directly.
-        This creates a CreditLog which later emits ledger entries.
-        """
         prev = r2(self.credit_limit)
         new = r2(new_limit)
 
         if prev == new:
             return
 
-        CreditLog.objects.create(
+        db = self._state.db or "default"
+
+        CreditLog.objects.using(db).create(
             credit_account=self,
             previous_limit=prev,
             new_limit=new,
@@ -523,21 +620,39 @@ class CreditAccount(models.Model):
             authorised_by=authorised_by,
             note=note,
         )
-    
+
+    # =====================================================
+    # LEDGER-BASED RECALCULATION
+    # =====================================================
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
 
-        last_entry = self.entries.order_by("-id").first()
+        db = self._state.db or "default"
 
-        if last_entry:
-            new_used = r2(self.credit_limit - last_entry.balance)
-        else:
-            new_used = Decimal("0.00")
+        totals = self.entries.using(db).aggregate(
+            usage=Coalesce(
+                Sum("amount", filter=models.Q(kind=CreditEntry.USAGE)),
+                Decimal("0.00"),
+            ),
+            repayment=Coalesce(
+                Sum("amount", filter=models.Q(kind=CreditEntry.REPAYMENT)),
+                Decimal("0.00"),
+            ),
+            writeoff=Coalesce(
+                Sum("amount", filter=models.Q(kind=CreditEntry.WRITEOFF)),
+                Decimal("0.00"),
+            ),
+        )
+
+        new_used = r2(
+            (totals["usage"] or Decimal("0.00"))
+            - (totals["repayment"] or Decimal("0.00"))
+            - (totals["writeoff"] or Decimal("0.00"))
+        )
 
         if new_used != self.credit_used:
             self.credit_used = new_used
             models.Model.save(self, update_fields=["credit_used", "updated_at"])
-
 
 # ============================================================
 # CREDIT LOG (limit audit trail)
@@ -590,12 +705,9 @@ class CreditLog(models.Model):
     # ---------------------------
 
     def clean(self):
-        """
-        Enforce allocation caps BEFORE saving.
-        """
         delta = r2(self.new_limit - self.previous_limit)
         if delta <= 0:
-            return  # decreases always allowed
+            return
 
         ca = self.credit_account
         if not ca.funder:
@@ -603,8 +715,10 @@ class CreditLog(models.Model):
                 "Cannot increase credit limit without assigning a funder."
             )
 
+        db = self._state.db or "default"
+
         allocated = (
-            FunderAllocation.objects
+            FunderAllocation.objects.using(db)
             .filter(client=ca.client)
             .aggregate(
                 s=Coalesce(Sum("amount"), Decimal("0.00"))
@@ -620,19 +734,29 @@ class CreditLog(models.Model):
     @transaction.atomic
     def save(self, *args, **kwargs):
         is_create = self.pk is None
+
+        # Validate first
         self.full_clean()
+
+        # Save the log
         super().save(*args, **kwargs)
 
         if not is_create:
             return
 
+        # Calculate change
         delta = r2(self.new_limit - self.previous_limit)
         if delta == 0:
             return
 
-        # Create ledger entry
-        CreditEntry.objects.create(
-            credit_account=self.credit_account,
+        # 🔥 Always resolve DB AFTER save
+        db = self._state.db or "default"
+
+        ca = self.credit_account
+
+        # ✅ Create ONE ledger entry (correct DB)
+        CreditEntry.objects.using(db).create(
+            credit_account=ca,
             kind=(
                 CreditEntry.ISSUE
                 if delta > 0
@@ -644,21 +768,8 @@ class CreditLog(models.Model):
         )
 
         # ✅ Update actual account limit
-        ca = self.credit_account
         ca.credit_limit = self.new_limit
         ca.save(update_fields=["credit_limit", "updated_at"])
-
-        CreditEntry.objects.create(
-            credit_account=ca,
-            kind=(
-                CreditEntry.ISSUE
-                if delta > 0
-                else CreditEntry.LIMIT_DECREASE
-            ),
-            amount=abs(delta),
-            reference=f"CREDIT-LIMIT-{self.pk}",
-            note=self.note,
-        )
 
 # ============================================================
 # CREDIT ENTRY (LEDGER — SINGLE SOURCE OF TRUTH)
@@ -748,18 +859,13 @@ class CreditEntry(models.Model):
         )
 
     @classmethod
-    def check_50pct_rule(cls, client: Client) -> Tuple[bool, Optional[str]]:
-        """
-        Rule:
-        - Find last invoice that used credit
-        - Find last USAGE entry
-        - Next credit movement must be REPAYMENT
-        - That repayment must be >= 50% of the usage
-        """
+    def check_50pct_rule(cls, client: Client, using="default") -> Tuple[bool, Optional[str]]:
         from invoices.models import Invoice
 
+        db = using or "default"
+
         last_invoice = (
-            Invoice.objects
+            Invoice.objects.using(db)
             .filter(client=client, credit_used__gt=0)
             .order_by("-created_at", "-id")
             .first()
@@ -768,10 +874,10 @@ class CreditEntry(models.Model):
         if not last_invoice:
             return True, None
 
-        ca, _ = CreditAccount.objects.get_or_create(client=client)
+        ca, _ = CreditAccount.objects.using(db).get_or_create(client=client)
 
         last_usage = (
-            cls.objects
+            cls.objects.using(db)
             .filter(credit_account=ca, kind=cls.USAGE)
             .order_by("-posted_at", "-id")
             .first()
@@ -784,7 +890,7 @@ class CreditEntry(models.Model):
             return False, "Invoice and credit ledger mismatch."
 
         repayment = (
-            cls.objects
+            cls.objects.using(db)
             .filter(
                 credit_account=ca,
                 kind=cls.REPAYMENT,
@@ -806,6 +912,7 @@ class CreditEntry(models.Model):
     # Convenience creators
     # ---------------------------
 
+
     @classmethod
     def record_usage(
         cls,
@@ -816,15 +923,18 @@ class CreditEntry(models.Model):
         reference: str = "",
         note: str = "",
         created_by=None,
+        using=None,  # ✅ ADD THIS
     ) -> "CreditEntry":
 
-        ca, _ = CreditAccount.objects.get_or_create(client=client)
+        db = using or "default"
+
+        ca, _ = CreditAccount.objects.using(db).get_or_create(client=client)
 
         amount = r2(amount)
 
         # Get latest ledger balance (available credit)
         last_entry = (
-            ca.entries
+            ca.entries.using(db)
             .order_by("-id")
             .first()
         )
@@ -847,7 +957,7 @@ class CreditEntry(models.Model):
         #
         # Since you allowed negative balance, we are not blocking it.
 
-        return cls.objects.create(
+        return cls.objects.using(db).create(
             credit_account=ca,
             kind=cls.USAGE,
             amount=amount,
@@ -864,17 +974,23 @@ class CreditEntry(models.Model):
         *,
         client: Client,
         amount: Decimal,
-        transaction=None,
+        invoice=None,
+        transaction=None,  # ✅ ADD THIS
         reference: str = "",
         note: str = "",
         created_by=None,
+        using=None,
     ) -> "CreditEntry":
-        ca, _ = CreditAccount.objects.get_or_create(client=client)
-        ca.refresh_from_db()
-        return cls.objects.create(
+
+        db = using or "default"
+
+        ca, _ = CreditAccount.objects.using(db).get_or_create(client=client)
+
+        return cls.objects.using(db).create(
             credit_account=ca,
             kind=cls.REPAYMENT,
             amount=r2(amount),
+            invoice=invoice,
             transaction=transaction,
             reference=reference,
             note=note,
@@ -885,8 +1001,10 @@ class CreditEntry(models.Model):
         is_create = self.pk is None
 
         if is_create:
+            db = self._state.db or "default"
+
             last_entry = (
-                CreditEntry.objects
+                CreditEntry.objects.using(db)
                 .filter(credit_account=self.credit_account)
                 .order_by("-id")
                 .first()
@@ -922,7 +1040,18 @@ class CreditEntry(models.Model):
 
 
 
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
+
+@receiver(post_delete, sender=CreditEntry)
+def update_summary_on_delete(sender, instance, **kwargs):
+    update_funder_week_summary(instance)
+
+@receiver(post_save, sender=CreditEntry)
+def update_summary_on_save(sender, instance, created, **kwargs):
+    if instance.kind == CreditEntry.USAGE:
+        update_funder_week_summary(instance)
 
 
 # ============================================================

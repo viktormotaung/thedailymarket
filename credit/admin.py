@@ -4,6 +4,7 @@ from django.db.models import Sum
 from django.utils.html import format_html
 from django.contrib.auth import get_user_model
 from credit.models import bypass_ledger
+from clients.models import Client
 from .models import (
     Funder,
     FunderMember,
@@ -199,13 +200,52 @@ class FunderAllocationAdmin(admin.ModelAdmin):
     autocomplete_fields = ("funder", "client")
     readonly_fields = ("created_at", "updated_at")
 
+    # --------------------------------------------------
+    # 🔥 DETECT DB
+    # --------------------------------------------------
+    def _db(self, request):
+        return "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+    # --------------------------------------------------
+    # 🔥 FIX FK QUERYSETS
+    # --------------------------------------------------
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        from clients.models import Client
+        db = self._db(request)
 
         if db_field.name == "client":
-            kwargs["queryset"] = Client.objects.using("dummy").all()
+            from clients.models import Client
+            kwargs["queryset"] = Client.objects.using(db).all()
+
+        if db_field.name == "funder":
+            from credit.models import Funder
+            kwargs["queryset"] = Funder.objects.using(db).all()
 
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    # --------------------------------------------------
+    # 🔥 CRITICAL FIX: SAVE USING CORRECT DB
+    # --------------------------------------------------
+    def save_model(self, request, obj, form, change):
+        db = self._db(request)
+        obj.save(using=db)
+
+    # --------------------------------------------------
+    # 🔥 CRITICAL FIX: FORM VALIDATION DB
+    # --------------------------------------------------
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        db = self._db(request)
+
+        # Force queryset again at form level
+        if "client" in form.base_fields:
+            from clients.models import Client
+            form.base_fields["client"].queryset = Client.objects.using(db).all()
+
+        if "funder" in form.base_fields:
+            from credit.models import Funder
+            form.base_fields["funder"].queryset = Funder.objects.using(db).all()
+
+        return form
 
 
 # ============================================================
@@ -236,6 +276,7 @@ class FunderMovementAdmin(admin.ModelAdmin):
 
 @admin.register(CreditAccount)
 class CreditAccountAdmin(admin.ModelAdmin):
+
     list_display = (
         "client",
         "funder",
@@ -244,6 +285,7 @@ class CreditAccountAdmin(admin.ModelAdmin):
         "credit_available_display",
         "payment_term",
     )
+
     list_filter = ("payment_term",)
     search_fields = ("client__name",)
     autocomplete_fields = ("client", "funder")
@@ -275,8 +317,47 @@ class CreditAccountAdmin(admin.ModelAdmin):
         }),
     )
 
+    # --------------------------------------------------
+    # 🔒 LOCK CLIENT AFTER CREATION (CRITICAL FIX)
+    # --------------------------------------------------
+    def get_readonly_fields(self, request, obj=None):
+        ro = list(self.readonly_fields)
+
+        # If editing existing record → lock client
+        if obj:
+            ro.append("client")
+
+        return ro
+
+    # --------------------------------------------------
+    # 🔥 MULTI-DB SAFE FK HANDLING
+    # --------------------------------------------------
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+        # Detect admin DB
+        if request.path.startswith("/dummy-admin/"):
+            db = "dummy"
+        else:
+            db = "default"
+
+        # Apply correct DB queryset
+        if db_field.name == "client":
+            from clients.models import Client
+            field.queryset = Client.objects.using(db).all()
+
+        if db_field.name == "funder":
+            from credit.models import Funder
+            field.queryset = Funder.objects.using(db).all()
+
+        return field
+
+    # --------------------------------------------------
+    # DISPLAY HELPERS
+    # --------------------------------------------------
     def credit_available_display(self, obj):
         return obj.credit_available
+
     credit_available_display.short_description = "Available Credit"
 
 
@@ -312,16 +393,34 @@ class CreditEntryAdmin(admin.ModelAdmin):
         "amount",
         "balance",
     )
+
     list_filter = ("kind", "posted_at")
+
     search_fields = (
         "reference",
         "note",
         "credit_account__client__name",
     )
+
     autocomplete_fields = ("credit_account", "invoice", "transaction")
 
-    readonly_fields = [f.name for f in CreditEntry._meta.fields]
+    # 🔥 ONLY lock critical ledger fields (allow posted_at to be edited)
+    readonly_fields = (
+        "credit_account",
+        "kind",
+        "amount",
+        "balance",
+        "created_at",
+        "created_by",
+        "invoice",
+        "transaction",
+        "reference",
+        "note",
+    )
 
+    # --------------------------------------------------
+    # PERMISSIONS
+    # --------------------------------------------------
     def has_add_permission(self, request):
         if request.path.startswith("/dummy-admin/"):
             return False
@@ -329,7 +428,10 @@ class CreditEntryAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
-    
+
+    # --------------------------------------------------
+    # SAFE DELETE (BYPASS LEDGER)
+    # --------------------------------------------------
     def delete_model(self, request, obj):
         with bypass_ledger():
             super().delete_model(request, obj)
@@ -338,7 +440,27 @@ class CreditEntryAdmin(admin.ModelAdmin):
         with bypass_ledger():
             super().delete_queryset(request, queryset)
 
+    # --------------------------------------------------
+    # OPTIONAL: RESTRICT EDITING TO SUPERUSERS ONLY
+    # (Highly recommended for financial integrity)
+    # --------------------------------------------------
+    def has_change_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        return super().has_change_permission(request, obj)
 
+    # --------------------------------------------------
+    # OPTIONAL: WARNING MESSAGE WHEN EDITING posted_at
+    # --------------------------------------------------
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        from django.contrib import messages
+
+        messages.warning(
+            request,
+            "⚠ Changing 'posted_at' will affect historical weekly summaries."
+        )
+
+        return super().change_view(request, object_id, form_url, extra_context)
 
 
 # ============================================================

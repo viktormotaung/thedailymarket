@@ -148,9 +148,11 @@ class PickingBatch(models.Model):
     def save(self, *args, **kwargs):
         old_status = None
         if self.pk:
+            db = self._state.db or "default"
+
             old_status = (
                 type(self)
-                .objects
+                .objects.using(db)
                 .filter(pk=self.pk)
                 .values_list("status", flat=True)
                 .first()
@@ -171,12 +173,10 @@ class PickingBatch(models.Model):
     # IMPORTANT: used by Transactions
     # -------------------------------------------------
     def add_order(self, order):
-        """
-        Idempotently add an order's items to this batch.
-        REQUIRED by transactions logic.
-        """
-        for oi in order.items.select_related("product", "category"):
-            PickingItem.objects.get_or_create(
+        db = self._state.db or "default"
+
+        for oi in order.items.using(db).select_related("product", "category"):
+            PickingItem.objects.using(db).get_or_create(
                 batch=self,
                 order=order,
                 order_item=oi,
@@ -197,13 +197,15 @@ class PickingBatch(models.Model):
         DeliveryStopItem = apps.get_model("deliveries", "DeliveryStopItem")
         Order = apps.get_model("orders", "Order")
 
+        db = self._state.db or "default"   # ✅ CRITICAL
+
         target_date = _delivery_date_for(self.service_date, self.wave)
         depot_label, depot_lat, depot_lng = DEPOT_PREFERENCE[0]
 
-        with transaction.atomic():
+        with transaction.atomic(using=db):
 
             # 1️⃣ Create / reuse delivery run
-            run, _ = DeliveryRun.objects.get_or_create(
+            run, _ = DeliveryRun.objects.using(db).get_or_create(
                 service_date=target_date,
                 name=self.name or f"{target_date.isoformat()} Run",
                 defaults={
@@ -215,22 +217,25 @@ class PickingBatch(models.Model):
                 },
             )
 
-            next_seq = (run.stops.aggregate(m=Max("sequence"))["m"] or 0) + 1
+            next_seq = (
+                run.stops.using(db).aggregate(m=Max("sequence"))["m"] or 0
+            ) + 1
 
-            # -------------------------------------------------
+            # -----------------------------
             # 2️⃣ SUPPLIER STOPS
-            # -------------------------------------------------
+            # -----------------------------
             supplier_ids = (
                 self.items
+                .using(db)
                 .exclude(supplier__isnull=True)
                 .values_list("supplier_id", flat=True)
                 .distinct()
             )
 
             for sid in supplier_ids:
-                supplier = Supplier.objects.get(id=sid)
+                supplier = Supplier.objects.using(db).get(id=sid)
 
-                stop, created = DeliveryStop.objects.get_or_create(
+                stop, created = DeliveryStop.objects.using(db).get_or_create(
                     run=run,
                     supplier=supplier,
                     stop_type="SUPPLIER",
@@ -252,15 +257,15 @@ class PickingBatch(models.Model):
                 if created:
                     next_seq += 1
 
-            # -------------------------------------------------
+            # -----------------------------
             # 3️⃣ CUSTOMER STOPS
-            # -------------------------------------------------
+            # -----------------------------
             order_ids = list(
-                self.items.values_list("order_id", flat=True).distinct()
+                self.items.using(db).values_list("order_id", flat=True).distinct()
             )
 
             existing_orders = set(
-                run.stops
+                run.stops.using(db)
                 .filter(order_id__in=order_ids)
                 .values_list("order_id", flat=True)
             )
@@ -269,7 +274,7 @@ class PickingBatch(models.Model):
                 if oid in existing_orders:
                     continue
 
-                stop, created = DeliveryStop.objects.get_or_create(
+                stop, created = DeliveryStop.objects.using(db).get_or_create(
                     run=run,
                     order_id=oid,
                     defaults={
@@ -283,7 +288,7 @@ class PickingBatch(models.Model):
                     next_seq += 1
 
                     stop.snapshot_from_order()
-                    stop.save(update_fields=[
+                    stop.save(using=db, update_fields=[
                         "customer_name", "phone", "email",
                         "address_line1", "address_line2",
                         "suburb", "city", "province",
@@ -291,9 +296,10 @@ class PickingBatch(models.Model):
                         "lat", "lng", "updated_at",
                     ])
 
-                    for pi in self.items.filter(order_id=oid):
+                    for pi in self.items.using(db).filter(order_id=oid):
                         planned = pi.picked_qty or pi.expected_qty or Decimal("0.00")
-                        DeliveryStopItem.objects.get_or_create(
+
+                        DeliveryStopItem.objects.using(db).get_or_create(
                             stop=stop,
                             order_item_id=pi.order_item_id,
                             defaults={
@@ -306,11 +312,11 @@ class PickingBatch(models.Model):
                             },
                         )
 
-            # -------------------------------------------------
-            # 4️⃣ RETURN TO DEPOT (FINAL STOP) ✅
-            # -------------------------------------------------
-            if not run.stops.filter(stop_type="RETURN").exists():
-                DeliveryStop.objects.create(
+            # -----------------------------
+            # 4️⃣ RETURN STOP
+            # -----------------------------
+            if not run.stops.using(db).filter(stop_type="RETURN").exists():
+                DeliveryStop.objects.using(db).create(
                     run=run,
                     stop_type="RETURN",
                     status="assigned",
@@ -322,10 +328,10 @@ class PickingBatch(models.Model):
                     service_min=0,
                 )
 
-            # -------------------------------------------------
-            # 5️⃣ Update orders + aggregates
-            # -------------------------------------------------
-            Order.objects.filter(id__in=order_ids).exclude(
+            # -----------------------------
+            # 5️⃣ Update orders
+            # -----------------------------
+            Order.objects.using(db).filter(id__in=order_ids).exclude(
                 status__in=[
                     "out_for_delivery",
                     "complete",
@@ -339,13 +345,14 @@ class PickingBatch(models.Model):
     # -------------------------------------------------
     # Wave helper
     # -------------------------------------------------
+
     @classmethod
-    def get_or_create_wave(cls, *, service_date, wave: str):
+    def get_or_create_wave(cls, *, service_date, wave: str, db="default"):
         assert wave in ("AM", "PM")
 
         base_name = f"{service_date.isoformat()} {wave}"
 
-        open_qs = cls.objects.filter(
+        open_qs = cls.objects.using(db).filter(
             service_date=service_date,
             status__in=["draft", "in_progress"],
             name__startswith=base_name,
@@ -356,17 +363,18 @@ class PickingBatch(models.Model):
 
         name = base_name
         suffix = 1
-        while cls.objects.filter(service_date=service_date, name=name).exists():
+
+        while cls.objects.using(db).filter(service_date=service_date, name=name).exists():
             suffix += 1
             name = f"{base_name} #{suffix}"
 
-        batch = cls.objects.create(
+        batch = cls.objects.using(db).create(
             service_date=service_date,
             name=name,
             status="draft",
         )
-        return batch, True
 
+        return batch, True
 
 
 class PickingItem(models.Model):
@@ -503,9 +511,11 @@ class PickingItem(models.Model):
         # UPDATE: restore immutable snapshot fields
         # --------------------------------------------
         if not is_create:
+            db = self._state.db or "default"
+
             original = (
                 type(self)
-                .objects
+                .objects.using(db)
                 .filter(pk=self.pk)
                 .values(
                     "supplier_id",
@@ -530,8 +540,11 @@ class PickingItem(models.Model):
 
         product = self.order_item.product
 
+        db = self._state.db or "default"
+
         pricing_qs = (
             product.pricing_rows
+            .using(db)
             .filter(is_active=True)
             .select_related("supplier")
         )
@@ -719,13 +732,15 @@ class DeliveryRun(models.Model):
     # RATE APPLICATION
     # ============================
     def apply_delivery_rates(self, save=True):
+        db = self._state.db or "default"
+
         if not self.vehicle:
             return
 
         if self.vehicle.is_internal:
-            rate = InternalDeliveryRate.objects.filter(is_active=True).first()
+            rate = InternalDeliveryRate.objects.using(db).filter(is_active=True).first()
         else:
-            rate = ExternalDeliveryRate.objects.filter(is_active=True).first()
+            rate = ExternalDeliveryRate.objects.using(db).filter(is_active=True).first()
 
         if not rate:
             raise ValidationError("No active delivery rate found.")
@@ -809,24 +824,21 @@ class DeliveryRun(models.Model):
 
 
     def recalc_aggregates(self, save=False):
-        """
-        Recalculate aggregates derived from stops / deliveries.
-        Safe, idempotent, and domain-correct.
-        """
+        db = self._state.db or "default"
 
         qs = getattr(self, "stops", None)
+
         if qs is not None:
-            agg = qs.aggregate(
+            agg = qs.using(db).aggregate(
                 stop_count=Count("id"),
                 total_distance=Sum("distance_km"),
-                total_drive_min=Sum("drive_min"),  # ✅ FIXED
+                total_drive_min=Sum("drive_min"),
             )
 
             self.stop_count = agg["stop_count"] or 0
             self.total_distance_km = agg["total_distance"] or Decimal("0.00")
             self.total_drive_min = agg["total_drive_min"] or 0
 
-        # Costs depend on distance
         self.calculate_total_costs()
 
         if save:

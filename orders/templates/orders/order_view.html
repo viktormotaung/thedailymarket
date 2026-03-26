@@ -541,7 +541,7 @@
 
         <!-- View Delivery Note -->
 
-        {% if delivery_stop and delivery_stop.status in ["delivered","failed","cancelled"] %}
+        {% if delivery_stop and delivery_stop.status == "delivered" or delivery_stop.status == "failed" or delivery_stop.status == "cancelled" %}
         <a href="{% url 'delivery-note-view' delivery_stop.id %}" class="btn btn-outline-success">
         View Delivery Note
         </a>

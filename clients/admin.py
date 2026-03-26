@@ -97,7 +97,7 @@ class ClientAdmin(admin.ModelAdmin):
                 ("price_type",),
                 ("account_type", "credit_status"),
                 ("account_manager", "funder"),
-                ("is_dummy",), 
+                ("is_dummy",),
             )
         }),
         ("Identity", {
@@ -141,9 +141,32 @@ class ClientAdmin(admin.ModelAdmin):
         }),
     )
 
-    # ---------------------------
+    # ==================================================
+    # 🔥 MULTI-DB FIX (THIS IS THE REAL SOLUTION)
+    # ==================================================
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+
+        if request.path.startswith("/dummy-admin/"):
+            return qs.using("dummy")
+
+        return qs.using("default")
+
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(
+            request, queryset, search_term
+        )
+
+        if request.path.startswith("/dummy-admin/"):
+            queryset = queryset.using("dummy")
+        else:
+            queryset = queryset.using("default")
+
+        return queryset, use_distinct
+
+    # ==================================================
     # Helpers
-    # ---------------------------
+    # ==================================================
     @admin.display(description="Name / Org")
     def display_name(self, obj: Client):
         return obj.organization or obj.name
@@ -159,7 +182,6 @@ class ClientAdmin(admin.ModelAdmin):
             '<a href="{}" target="_blank" rel="noopener">Open map</a>',
             url
         )
-
 
 # ============================================================
 # CLIENT COMPLIANCE

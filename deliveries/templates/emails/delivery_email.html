@@ -1,0 +1,22 @@
+<h2>Delivery Completed</h2>
+
+<p>Hello {{ recipient_name }},</p>
+
+<p>Your delivery for <strong>Order #{{ order.id }}</strong> has been completed.</p>
+
+<p><strong>Recipient:</strong> {{ stop.recipient_name }}</p>
+<p><strong>ID:</strong> {{ stop.recipient_id_no }}</p>
+<p><strong>Time:</strong> {{ stop.ended_at }}</p>
+
+<h4>Items Delivered</h4>
+<ul>
+    {% for item in items %}
+        <li>{{ item.product }} — {{ item.quantity }}</li>
+    {% endfor %}
+</ul>
+
+{% if stop.delivery_notes %}
+<p><strong>Notes:</strong> {{ stop.delivery_notes }}</p>
+{% endif %}
+
+<p>Thank you,<br>The Daily Market</p>

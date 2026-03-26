@@ -346,6 +346,13 @@ class Product(models.Model):
             super().save(*args, **kwargs)
 
     def __str__(self) -> str:
+        # Try get primary pricing
+        pr = self.pricing_rows.filter(is_primary=True, is_active=True).first()
+
+        if pr:
+            price_inc = pr.retail_price_inc  # or wholesale_price_inc depending on your use case
+            return f"{self.sku} · {self.name} (R {price_inc:.2f})"
+
         return f"{self.sku} · {self.name}"
 
 # ---------- ProductPricing -----------------------------------------------------

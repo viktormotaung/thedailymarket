@@ -43,8 +43,8 @@ class BusinessBalance(models.Model):
         verbose_name_plural = "Business balances"
 
     @classmethod
-    def get_seshibo(cls, *, for_update: bool = False) -> "BusinessBalance":
-        qs = cls.objects
+    def get_seshibo(cls, *, using="default", for_update=False):
+        qs = cls.objects.using(using)
         if for_update:
             qs = qs.select_for_update()
         obj, _ = qs.get_or_create(name="Seshibo Daily Market")
@@ -88,9 +88,10 @@ class ClientBalance(models.Model):
         verbose_name = "Client balance"
         verbose_name_plural = "Client balances"
 
+
     @classmethod
-    def get_for_client(cls, client_id: int, *, for_update: bool = False) -> "ClientBalance":
-        qs = cls.objects
+    def get_for_client(cls, client_id: int, *, using="default", for_update=False):
+        qs = cls.objects.using(using)
         if for_update:
             qs = qs.select_for_update()
         obj, _ = qs.get_or_create(client_id=client_id)
@@ -184,29 +185,46 @@ class Transaction(models.Model):
         return None
 
     def _sync_credit_entry_after_save(self, *, old_type):
+        """
+        Ensure CreditEntry is created in the SAME DB as this Transaction.
+        Fully multi-DB safe.
+        """
+
+        db = self._state.db or "default"
+
         CreditEntry = apps.get_model("credit", "CreditEntry")
         CreditAccount = apps.get_model("credit", "CreditAccount")
 
+        # 🔹 Determine credit entry type
         kind = self._creditentry_kind(self.transaction_type)
         if not kind:
             return
 
-        ca, _ = CreditAccount.objects.get_or_create(client_id=self.client_id)
+        # 🔹 Ensure CreditAccount exists in SAME DB
+        ca, _ = CreditAccount.objects.using(db).get_or_create(
+            client_id=self.client_id
+        )
 
-        ce = CreditEntry.objects.create(
+        # 🔹 Create CreditEntry in SAME DB
+        ce = CreditEntry.objects.using(db).create(
             credit_account=ca,
             kind=kind,
             amount=_r2(self.amount),
             posted_at=self.created_at,
             invoice_id=self.invoice_id or None,
-            transaction=self,  # TEMPORARY link
+            transaction=self,  # temporary link
             note=self.note or f"Auto from transaction {self.id}",
         )
 
-        # 🔑 If this is a credit repayment, detach and remove the transaction
+        # 🔑 Special handling: credit repayment
         if self.transaction_type == "credit_repayment":
+            # detach link
             ce.transaction = None
-            ce.save(update_fields=["transaction"])
+            ce.save(using=db, update_fields=["transaction"])
+
+            # OPTIONAL (recommended): delete transaction silently
+            # so it doesn't affect balances
+            self._delete_self_silently()
 
             
 
@@ -220,21 +238,37 @@ class Transaction(models.Model):
           - deleting CreditEntry
         Used ONLY for credit_repayment.
         """
-        super(Transaction, self).delete()
+        db = self._state.db or "default"
+        super(Transaction, self).delete(using=db)
 
     def _delete_credit_entry(self) -> None:
         CreditEntry = apps.get_model("credit", "CreditEntry")
-        CreditEntry.objects.filter(transaction=self).delete()
+        db = self._state.db or "default"
+
+        CreditEntry.objects.using(db).filter(transaction=self).delete()
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
     def _current_db_values(self):
+        """
+        Fetch existing DB values for this transaction
+        from the SAME database the instance belongs to.
+        """
+
         if not self.pk:
             return None, None, None
+
+        db = self._state.db or "default"
+
         try:
-            row = Transaction.objects.only("transaction_type", "amount", "client_id").get(pk=self.pk)
+            row = (
+                Transaction.objects.using(db)
+                .only("transaction_type", "amount", "client_id")
+                .get(pk=self.pk)
+            )
             return row.transaction_type, row.amount, row.client_id
+
         except Transaction.DoesNotExist:
             return None, None, None
 
@@ -256,8 +290,10 @@ class Transaction(models.Model):
         old_signed = BusinessBalance.signed_amount(old_type, old_amount)
         business_delta = new_signed - old_signed
 
-        bb = BusinessBalance.get_seshibo(for_update=True)
-        cb = ClientBalance.get_for_client(self.client_id, for_update=True)
+        db = self._state.db or "default"
+
+        bb = BusinessBalance.get_seshibo(using=db, for_update=True)
+        cb = ClientBalance.get_for_client(self.client_id, using=db, for_update=True)
 
         self.balance = bb.balance + business_delta
         self.client_balance = cb.balance + new_signed
@@ -283,9 +319,9 @@ class Transaction(models.Model):
             return
 
         cur_signed = BusinessBalance.signed_amount(self.transaction_type, self.amount)
-
-        bb = BusinessBalance.get_seshibo(for_update=True)
-        cb = ClientBalance.get_for_client(self.client_id, for_update=True)
+        db = self._state.db or "default"
+        bb = BusinessBalance.get_seshibo(using=db, for_update=True)
+        cb = ClientBalance.get_for_client(self.client_id, using=db, for_update=True)
 
         super().delete(*args, **kwargs)
 
@@ -299,13 +335,17 @@ class Transaction(models.Model):
     # ----- invoice sync helper -----
     def _sync_invoice_totals_and_status(self, *, inv_override=None) -> None:
         Invoice = apps.get_model("invoices", "Invoice")
-        inv = inv_override or Invoice.objects.filter(pk=self.invoice_id).first()
+        db = self._state.db or "default"
+
+        inv = inv_override or Invoice.objects.using(db).filter(pk=self.invoice_id).first()
         if not inv:
             return
 
         total_in = (
-            inv.transactions
-            .filter(transaction_type__in=INVOICE_PAYMENT_TYPES)
+            Transaction.objects.using(db).filter(
+                invoice_id=inv.id,
+                transaction_type__in=INVOICE_PAYMENT_TYPES
+            )
             .aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
         )
         inv.deposit_paid = _r2(total_in)
@@ -336,7 +376,11 @@ class Transaction(models.Model):
             wave = "AM" if local_dt.hour < 12 else "PM"
             service_date = local_dt.date()
 
-            batch, _ = PickingBatch.get_or_create_wave(service_date=service_date, wave=wave)
+            batch, _ = PickingBatch.get_or_create_wave(
+                service_date=service_date,
+                wave=wave,
+                db=db
+            )
             batch.add_order(inv.order)  # idempotent per (batch, order_item)
 
         # === Option A: realize or remove credit artefacts here ===
@@ -344,7 +388,7 @@ class Transaction(models.Model):
         # (ensure_credit_after_deposit will create/update/remove credit_issue txn + usage entry).
         try:
             inv.ensure_credit_after_deposit()
-        except Exception:
-            # fail-open: do not block transactions on credit realization hiccups
-            pass
+        except Exception as e:
+            print("❌ CREDIT SYNC ERROR:", e, "DB:", db, "TX:", self.id)
+            raise
 

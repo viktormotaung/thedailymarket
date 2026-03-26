@@ -12,6 +12,14 @@ from .models import Transaction, BusinessBalance
 # -------------------
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+
+        if request.path.startswith("/dummy-admin"):
+            return qs.using("dummy")
+
+        return qs.using("default")
     list_display = (
         "created_at",
         "client",
@@ -51,6 +59,14 @@ class TransactionAdmin(admin.ModelAdmin):
         }),
     )
 
+    def save_model(self, request, obj, form, change):
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+        obj.save(using=db)
+
+    def delete_model(self, request, obj):
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+        obj.delete(using=db)
+
 # ------------------------
 # Business Balance Admin
 # ------------------------
@@ -63,7 +79,8 @@ class BusinessBalanceAdmin(admin.ModelAdmin):
 
     # Enforce singleton and protect from deletion
     def has_add_permission(self, request):
-        return not BusinessBalance.objects.exists()
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+        return not BusinessBalance.objects.using(db).exists()
 
     def has_delete_permission(self, request, obj=None):
         return False
@@ -74,39 +91,38 @@ class BusinessBalanceAdmin(admin.ModelAdmin):
         if "delete_selected" in actions:
             del actions["delete_selected"]
         return actions
-
+    
     @admin.action(description="Rebuild from Transactions (totals & balance)")
     def rebuild_from_transactions(self, request, queryset):
-        """
-        Recomputes total_in, total_out, and balance from ALL transactions.
-        Safe even if multiple rows are selected; only the singleton row is updated.
-        """
-        # Allow selecting 0 or 1 row; we’ll use the singleton inside the transaction.
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
         credit_types = getattr(BusinessBalance, "CREDIT_TYPES",
-                               {"payment", "credit_issue", "credit_repayment", "refund"})
+                            {"payment", "credit_issue", "credit_repayment", "refund"})
         debit_types = getattr(BusinessBalance, "DEBIT_TYPES",
-                              {"invoice", "credit_usage", "adjustment"})
+                            {"invoice", "credit_usage", "adjustment"})
 
-        with db_transaction.atomic():
-            # Sum credits
+        with db_transaction.atomic(using=db):
+
             credit_total = (
-                Transaction.objects.filter(transaction_type__in=credit_types)
+                Transaction.objects.using(db)
+                .filter(transaction_type__in=credit_types)
                 .aggregate(s=Sum("amount"))["s"]
                 or Decimal("0.00")
             )
 
-            # Sum debits
             debit_total = (
-                Transaction.objects.filter(transaction_type__in=debit_types)
+                Transaction.objects.using(db)
+                .filter(transaction_type__in=debit_types)
                 .aggregate(s=Sum("amount"))["s"]
                 or Decimal("0.00")
             )
 
-            bb = BusinessBalance.get_seshibo(for_update=True)
+            bb = BusinessBalance.objects.using(db).select_for_update().first()
+
             bb.total_in = credit_total
             bb.total_out = debit_total
             bb.balance = credit_total - debit_total
-            bb.save()
+            bb.save(using=db)
 
         self.message_user(
             request,
@@ -114,20 +130,14 @@ class BusinessBalanceAdmin(admin.ModelAdmin):
             level=messages.SUCCESS,
         )
 
-    @admin.action(description="Recompute Transaction Snapshots (writes each Transaction.balance)")
+    @admin.action(description="Recompute Transaction Snapshots")
     def recompute_transaction_snapshots(self, request, queryset):
-        """
-        Walks all transactions in chronological order and recomputes each row's
-        post-transaction 'balance' snapshot from scratch, starting at 0.00.
-        This is helpful after historical edits/imports.
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
 
-        If your business starts with a non-zero opening balance, you can adjust
-        'running' below to that opening value.
-        """
         credit_types = getattr(BusinessBalance, "CREDIT_TYPES",
-                               {"payment", "credit_issue", "credit_repayment", "refund"})
+                            {"payment", "credit_issue", "credit_repayment", "refund"})
         debit_types = getattr(BusinessBalance, "DEBIT_TYPES",
-                              {"invoice", "credit_usage", "adjustment"})
+                            {"invoice", "credit_usage", "adjustment"})
 
         def signed_amount(t_type, amount):
             if t_type in credit_types:
@@ -137,25 +147,47 @@ class BusinessBalanceAdmin(admin.ModelAdmin):
             return Decimal("0.00")
 
         updated = 0
-        with db_transaction.atomic():
-            # Lock the singleton to avoid concurrent writes while we rebuild snapshots
-            bb = BusinessBalance.get_seshibo(for_update=True)
 
-            running = Decimal("0.00")  # adjust if you have an opening balance
-            txns = Transaction.objects.all().order_by("created_at", "id").only(
-                "id", "transaction_type", "amount"
+        with db_transaction.atomic(using=db):
+
+            bb = BusinessBalance.objects.using(db).select_for_update().first()
+
+            running = Decimal("0.00")
+
+            txns = (
+                Transaction.objects.using(db)
+                .all()
+                .order_by("created_at", "id")
+                .only("id", "transaction_type", "amount")
             )
 
-            # Update each transaction's snapshot in a single pass
             buffer = []
+
             for t in txns:
                 running += signed_amount(t.transaction_type, t.amount)
                 buffer.append(Transaction(id=t.id, balance=running))
                 updated += 1
 
-            # Bulk update in chunks for efficiency
             BATCH = 1000
             for i in range(0, len(buffer), BATCH):
-                Transaction.objects.bulk_update(buffer[i:i+BATCH], ["balance"])
+                Transaction.objects.using(db).bulk_update(
+                    buffer[i:i+BATCH], ["balance"]
+                )
 
-            # After snapshots, also refresh the BusinessBalance totals & balance
+            # refresh BusinessBalance
+            bb.total_in = sum(
+                t.amount for t in txns if t.transaction_type in credit_types
+            )
+            bb.total_out = sum(
+                t.amount for t in txns if t.transaction_type in debit_types
+            )
+            bb.balance = bb.total_in - bb.total_out
+            bb.save(using=db)
+
+        self.message_user(
+            request,
+            f"Recomputed {updated} transaction snapshots.",
+            level=messages.SUCCESS,
+        )
+
+   

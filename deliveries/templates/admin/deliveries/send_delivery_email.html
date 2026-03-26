@@ -1,0 +1,27 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div style="max-width: 500px; margin: 40px auto;">
+
+    <h2>Send Delivery Email (Stop #{{ stop.id }})</h2>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div style="margin-bottom: 15px;">
+            <label>Recipient Name</label>
+            <input type="text" name="name" class="vTextField" required>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label>Recipient Email</label>
+            <input type="email" name="email" class="vTextField" required>
+        </div>
+
+        <button type="submit" class="default">Send Email</button>
+
+        <a href="../change/" class="button">Cancel</a>
+    </form>
+
+</div>
+{% endblock %}

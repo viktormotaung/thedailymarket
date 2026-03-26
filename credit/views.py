@@ -804,9 +804,10 @@ def funder_view(request, funder_id):
         .order_by("-created_at")
     )
 
+    # ✅ FIXED HERE
     members = (
-        FunderMember.active
-        .filter(funder=funder)
+        FunderMember.objects
+        .filter(funder=funder, is_active=True)
         .select_related("user")
         .order_by("role", "user__username")
     )
@@ -830,26 +831,23 @@ def funder_view(request, funder_id):
     # OVERALL FUND PERFORMANCE
     # ---------------------------
 
-    # Total capital ever funded (TOPUPS only)
     overall_funded = movements.filter(
         kind=FunderMovement.TOPUP
     ).aggregate(
         s=Coalesce(Sum("amount"), Decimal("0.00"))
     )["s"]
 
-    # Total returns earned (from weekly summaries)
     overall_returns = week_summaries.aggregate(
         s=Coalesce(Sum("weekly_return"), Decimal("0.00"))
     )["s"]
 
-    # Return percentage (safe division)
     if overall_funded > 0:
         overall_return_pct = (overall_returns / overall_funded) * Decimal("100.00")
     else:
         overall_return_pct = Decimal("0.00")
 
     # ---------------------------
-    # FUND DURATION (weeks + days)
+    # FUND DURATION
     # ---------------------------
     delta_days = (now().date() - funder.created_at.date()).days
     weeks = delta_days // 7
@@ -872,7 +870,7 @@ def funder_view(request, funder_id):
         "total_allocated": total_allocated,
         "available": available,
 
-        # Overall performance KPIs
+        # Performance
         "overall_funded": overall_funded,
         "overall_returns": overall_returns,
         "overall_return_pct": overall_return_pct,
@@ -882,8 +880,6 @@ def funder_view(request, funder_id):
     }
 
     return render(request, "credit/funder_view.html", context)
-
-
 
 @login_required
 def add_funder(request):
@@ -911,7 +907,6 @@ def add_funder(request):
 @login_required
 def funder_edit(request, funder_id):
 
-
     funder = get_object_or_404(Funder, id=funder_id)
 
     if request.method == "POST":
@@ -928,28 +923,55 @@ def funder_edit(request, funder_id):
             instance=funder
         )
 
-        if (
-            form.is_valid()
-            and member_formset.is_valid()
-            and allocation_formset.is_valid()
-        ):
-            form.save()
-            member_formset.save()
-            allocation_formset.save()
+        # ---------------------------
+        # VALIDATION
+        # ---------------------------
+        form_valid = form.is_valid()
+        member_valid = member_formset.is_valid()
+        allocation_valid = allocation_formset.is_valid()
 
-            return redirect("funder-view", funder_id=funder.id)
+        # 🔍 DEBUG (remove later if needed)
+        print("\n=== FUNDER EDIT DEBUG ===")
+        print("FORM VALID:", form_valid, form.errors)
+        print("MEMBER FORMSET VALID:", member_valid, member_formset.errors)
+        print("ALLOCATION FORMSET VALID:", allocation_valid, allocation_formset.errors)
+        print("=========================\n")
+
+        # ---------------------------
+        # SAVE (ATOMIC)
+        # ---------------------------
+        if form_valid and member_valid and allocation_valid:
+            try:
+                with transaction.atomic():
+
+                    form.save()
+                    member_formset.save()
+                    allocation_formset.save()
+
+                messages.success(request, "Funder updated successfully.")
+
+                return redirect("funder-view", funder_id=funder.id)
+
+            except Exception as e:
+                print("❌ SAVE ERROR:", str(e))
+
+                messages.error(
+                    request,
+                    "Something went wrong while saving. Please try again."
+                )
+
+        else:
+            messages.error(
+                request,
+                "Please fix the errors below. Some data was not saved."
+            )
 
     else:
-
         form = FunderForm(instance=funder)
         member_formset = FunderMemberFormSet(instance=funder)
         allocation_formset = FunderAllocationFormSet(instance=funder)
 
-
     # ================= CAPITAL CALCULATIONS =================
-
-    from django.db.models import Sum
-    from decimal import Decimal
 
     allocated_total = (
         funder.allocations
@@ -958,11 +980,10 @@ def funder_edit(request, funder_id):
     )
 
     available_for_allocation = funder.balance - allocated_total
-    
 
-    available_for_allocation = funder.balance - allocated_total
-
-
+    # ---------------------------
+    # RENDER
+    # ---------------------------
     return render(
         request,
         "credit/funder_edit.html",
@@ -977,7 +998,6 @@ def funder_edit(request, funder_id):
             "available_for_allocation": available_for_allocation,
         },
     )
-
 
 @login_required
 def funder_add_movement(request, funder_id):

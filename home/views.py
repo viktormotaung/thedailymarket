@@ -536,6 +536,7 @@ def wholesale_assist(request):
         "week_labels": week_labels,
     })
 
+
 def home(request):
     suppliers = Supplier.objects.filter(
         is_active=True,
@@ -554,6 +555,7 @@ def home(request):
             "hero_slides": hero_slides,
         }
     )
+
 
 def logout_view(request):
     logout(request)
@@ -1347,14 +1349,18 @@ def _user_can_access_order(user, order: Order) -> bool:
 def about(request):
     return render(request, "home/about.html")
 
+
 def trade_assist(request):
     return render(request, "home/trade_assist.html")
+
 
 def grill(request):
     return render(request, "home/grill.html")
 
+
 def retail(request):
     return render(request, "home/retail.html")
+
 
 def wholesale(request):
     return render(request, "home/wholesale.html")
@@ -1363,8 +1369,10 @@ def wholesale(request):
 def contact(request):
     return render(request, "home/contact.html")
 
+
 def trade_application(request):
     return render(request, "home/trade_application.html")
+
 
 def become_supplier(request):
     if request.method == "POST":
@@ -1390,6 +1398,7 @@ def become_supplier(request):
 
 def _money(x):
     return Decimal(str(x or "0"))
+
 
 # ---------------------------------------------------------------------
 # Helpers
@@ -2279,7 +2288,7 @@ def register_profile(request: HttpRequest) -> HttpResponse:
     - Send welcome email
     - Redirect to success page
     """
-    
+
     def _blank_ctx():
         return {
             "user_form": RegisterUserForm(prefix="user"),
@@ -2308,7 +2317,7 @@ def register_profile(request: HttpRequest) -> HttpResponse:
         or ""
     ).strip()
 
-    # Case-insensitive duplicate check
+    # Case-insensitive duplicate check (UX layer)
     if candidate_email:
         exists = (
             User.objects.filter(username__iexact=candidate_email).exists()
@@ -2317,7 +2326,7 @@ def register_profile(request: HttpRequest) -> HttpResponse:
         if exists:
             user_form.add_error(
                 "email",
-                "An account with this email already exists. Please use another email.",
+                "A user with this email address already exists."
             )
             user_ok = False
     else:
@@ -2344,11 +2353,27 @@ def register_profile(request: HttpRequest) -> HttpResponse:
         user = user_form.save(commit=False)
         user.username = candidate_email.lower()
         user.email = candidate_email
-        user.save()
+
+        try:
+            user.save()
+        except IntegrityError:
+            # 🔥 DB-level protection (prevents crash)
+            user_form.add_error(
+                "email",
+                "A user with this email address already exists."
+            )
+            return render(
+                request,
+                "home/register_profile.html",
+                {
+                    "user_form": user_form,
+                    "client_form": client_form,
+                },
+            )
 
         # ---- 2) CLIENT (MINIMAL) ----
         client = client_form.save(commit=False)
-        client.status = "PENDING"  
+        client.status = "PENDING"
         client.account_manager = None
         client.save()
 
@@ -2534,10 +2559,11 @@ def profile(request):
         is_filled(client.postal_code),
     ])
 
+    # ✅ FIXED HERE
     business_compliance_complete = all([
         is_filled(client.price_type),
         is_filled(client.estimated_weekly_spend),
-        is_filled(client.vat_number) or is_filled(client.company_reg_number),
+        is_filled(client.vat_number) or is_filled(client.registration_identifier),
     ])
 
     business_profile_complete = all([
@@ -2591,7 +2617,7 @@ def profile(request):
         "business_form": business_form,
         "personal_form": personal_form,
 
-        # 🔑 CRITICAL CONTEXT (used by JS elsewhere)
+        # 🔑 CRITICAL CONTEXT
         "client": client,
         "customer_profile": customer_profile,
 
@@ -2608,8 +2634,6 @@ def profile(request):
         "profile_completion_percent": profile_completion_percent,
         "show_profile_complete_popup": show_profile_complete_popup,
     })
-
-
 
 
 def _generate_4digit_otp() -> str:

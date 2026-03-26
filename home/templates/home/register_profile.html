@@ -52,17 +52,31 @@
             {% if user_form.errors or client_form.errors %}
               <div class="alert alert-danger">
                 <strong>We couldn’t create your account.</strong>
+
                 <ul class="mt-2 mb-0 ps-3">
-                  {% for f, errs in user_form.errors.items %}
-                    {% for e in errs %}
-                      <li>{{ e }}</li>
+
+                  <!-- USER FORM ERRORS -->
+                  {% for field in user_form %}
+                    {% for error in field.errors %}
+                      <li><strong>{{ field.label }}:</strong> {{ error }}</li>
                     {% endfor %}
                   {% endfor %}
-                  {% for f, errs in client_form.errors.items %}
-                    {% for e in errs %}
-                      <li>{{ e }}</li>
+
+                  {% for error in user_form.non_field_errors %}
+                    <li>{{ error }}</li>
+                  {% endfor %}
+
+                  <!-- CLIENT FORM ERRORS -->
+                  {% for field in client_form %}
+                    {% for error in field.errors %}
+                      <li><strong>{{ field.label }}:</strong> {{ error }}</li>
                     {% endfor %}
                   {% endfor %}
+
+                  {% for error in client_form.non_field_errors %}
+                    <li>{{ error }}</li>
+                  {% endfor %}
+
                 </ul>
               </div>
             {% endif %}
@@ -74,7 +88,7 @@
               <label class="form-label">First name</label>
               {{ user_form.first_name }}
               {% for e in user_form.first_name.errors %}
-                <div class="field-error">{{ e }}</div>
+                <div class="invalid-feedback d-block">{{ e }}</div>
               {% endfor %}
             </div>
 
@@ -82,7 +96,7 @@
               <label class="form-label">Last name</label>
               {{ user_form.last_name }}
               {% for e in user_form.last_name.errors %}
-                <div class="field-error">{{ e }}</div>
+                <div class="invalid-feedback d-block">{{ e }}</div>
               {% endfor %}
             </div>
 
@@ -90,7 +104,7 @@
               <label class="form-label">Email address</label>
               {{ user_form.email }}
               {% for e in user_form.email.errors %}
-                <div class="field-error">{{ e }}</div>
+                <div class="invalid-feedback d-block">{{ e }}</div>
               {% endfor %}
             </div>
 
@@ -98,7 +112,7 @@
               <label class="form-label">Password</label>
               {{ user_form.password1 }}
               {% for e in user_form.password1.errors %}
-                <div class="field-error">{{ e }}</div>
+                <div class="invalid-feedback d-block">{{ e }}</div>
               {% endfor %}
             </div>
 
@@ -106,7 +120,7 @@
               <label class="form-label">Confirm password</label>
               {{ user_form.password2 }}
               {% for e in user_form.password2.errors %}
-                <div class="field-error">{{ e }}</div>
+                <div class="invalid-feedback d-block">{{ e }}</div>
               {% endfor %}
             </div>
 
@@ -119,7 +133,7 @@
               <label class="form-label">Business / Account name</label>
               {{ client_form.name }}
               {% for e in client_form.name.errors %}
-                <div class="field-error">{{ e }}</div>
+                <div class="invalid-feedback d-block">{{ e }}</div>
               {% endfor %}
             </div>
 
@@ -127,15 +141,24 @@
               <label class="form-label">Trading name (optional)</label>
               {{ client_form.organization }}
               {% for e in client_form.organization.errors %}
-                <div class="field-error">{{ e }}</div>
+                <div class="invalid-feedback d-block">{{ e }}</div>
+              {% endfor %}
+            </div>
+
+            <!-- ✅ ADDED ENTITY TYPE -->
+            <div class="mb-3">
+              <label class="form-label">Entity type</label>
+              {{ client_form.entity_type }}
+              {% for e in client_form.entity_type.errors %}
+                <div class="invalid-feedback d-block">{{ e }}</div>
               {% endfor %}
             </div>
 
             <div class="mb-3">
               <label class="form-label">Registration number (optional)</label>
-              {{ client_form.company_reg_number }}
-              {% for e in client_form.company_reg_number.errors %}
-                <div class="field-error">{{ e }}</div>
+              {{ client_form.registration_identifier }}
+              {% for e in client_form.registration_identifier.errors %}
+                <div class="invalid-feedback d-block">{{ e }}</div>
               {% endfor %}
             </div>
 
@@ -143,7 +166,7 @@
               <label class="form-label">Client type</label>
               {{ client_form.client_type }}
               {% for e in client_form.client_type.errors %}
-                <div class="field-error">{{ e }}</div>
+                <div class="invalid-feedback d-block">{{ e }}</div>
               {% endfor %}
             </div>
 
@@ -160,7 +183,6 @@
 
           </form>
         </div>
-      </div>
 
       <div class="text-center mt-4 footer">
         © {% now "Y" %} The Daily Market

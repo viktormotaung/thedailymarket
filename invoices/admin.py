@@ -1,7 +1,9 @@
 # invoices/admin.py
-
-from django.contrib import admin
+from django.urls import path
+from django.contrib import admin, messages
 from django.utils.html import format_html
+from django.db import transaction
+from django.shortcuts import render, redirect
 
 from .models import (
     Invoice,
@@ -13,6 +15,35 @@ from .models import (
     MonthlyTarget,
     MonthlyTargetAllocation,
 )
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.conf import settings
+
+# =========================================================
+# EMAIL FUNCTION
+# =========================================================
+def send_invoice_email(invoice, recipient_email, recipient_name):
+    subject = f"Invoice INV-{invoice.id} · The Daily Market"
+
+    html_content = render_to_string(
+        "emails/invoice_email.html",
+        {
+            "invoice": invoice,
+            "client": invoice.client,
+            "recipient_name": recipient_name,
+            "support_email": getattr(settings, "DEFAULT_FROM_EMAIL", ""),
+        },
+    )
+
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body="Please view your invoice.",
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[recipient_email],
+    )
+
+    email.attach_alternative(html_content, "text/html")
+    email.send()
 
 
 # =========================================================
@@ -20,6 +51,20 @@ from .models import (
 # =========================================================
 @admin.register(Invoice)
 class InvoiceAdmin(admin.ModelAdmin):
+
+    # --------------------------------------------------
+    # MULTI DB
+    # --------------------------------------------------
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.using("dummy") if request.path.startswith("/dummy-admin") else qs.using("default")
+
+    def _db(self, request):
+        return "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+    # --------------------------------------------------
+    # DISPLAY
+    # --------------------------------------------------
     list_display = [
         "id",
         "client_name",
@@ -56,6 +101,8 @@ class InvoiceAdmin(admin.ModelAdmin):
         "deposit_required",
         "credit_used",
         "amount_due",
+        "client",
+        "order",
     ]
 
     fieldsets = (
@@ -97,13 +144,21 @@ class InvoiceAdmin(admin.ModelAdmin):
     ordering = ["-invoice_date", "-id"]
     date_hierarchy = "invoice_date"
 
+    # --------------------------------------------------
+    # SAVE
+    # --------------------------------------------------
+    def save_model(self, request, obj, form, change):
+        with transaction.atomic(using=self._db(request)):
+            obj.save(using=self._db(request))
+
+    # --------------------------------------------------
+    # HELPERS
+    # --------------------------------------------------
     def client_name(self, obj):
         return obj.client.name
-    client_name.short_description = "Client"
 
     def order_id(self, obj):
         return f"#{obj.order.id}" if obj.order else "—"
-    order_id.short_description = "Order"
 
     def status_colored(self, obj):
         color = {
@@ -112,16 +167,79 @@ class InvoiceAdmin(admin.ModelAdmin):
             "unpaid": "red",
             "overdue": "darkred",
         }.get(obj.status, "black")
+
         return format_html(
-            '<b style="color: {};">{}</b>', color, obj.get_status_display()
+            '<b style="color: {};">{}</b>',
+            color,
+            obj.get_status_display()
         )
-    status_colored.short_description = "Status"
 
     def order_total_display(self, obj):
         return f"R{obj.order_total_inc:.2f}"
-    order_total_display.short_description = "Order Total"
 
+    # --------------------------------------------------
+    # DELETE
+    # --------------------------------------------------
+    def delete_model(self, request, obj):
+        obj.delete(using=self._db(request))
 
+    # ==================================================
+    # 🔥 CUSTOM SEND EMAIL VIEW (WITH INPUT FORM)
+    # ==================================================
+    def get_urls(self):
+        urls = super().get_urls()
+
+        custom_urls = [
+            path(
+                "<int:invoice_id>/send-email/",
+                self.admin_site.admin_view(self.send_invoice_view),
+                name="invoice-send-email",
+            ),
+        ]
+
+        return custom_urls + urls
+
+    def send_invoice_view(self, request, invoice_id):
+        db = self._db(request)
+
+        invoice = Invoice.objects.using(db).select_related("client", "order").get(pk=invoice_id)
+
+        if request.method == "POST":
+            email = request.POST.get("email")
+            name = request.POST.get("name")
+
+            if not email or not name:
+                messages.error(request, "Both name and email are required.")
+                return redirect(request.path)
+
+            try:
+                send_invoice_email(invoice, email, name)
+
+                self.message_user(
+                    request,
+                    f"Invoice sent to {email}",
+                    level=messages.SUCCESS
+                )
+
+                return redirect(f"../../{invoice.id}/change/")
+
+            except Exception as e:
+                self.message_user(
+                    request,
+                    f"Failed to send: {str(e)}",
+                    level=messages.ERROR
+                )
+
+                return redirect(request.path)
+
+        return render(
+            request,
+            "admin/invoices/send_invoice.html",
+            {
+                "invoice": invoice,
+            },
+        )
+    
 # =========================================================
 # Utilization Segment Admin
 # =========================================================

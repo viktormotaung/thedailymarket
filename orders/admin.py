@@ -29,6 +29,7 @@ class OrderItemInline(admin.TabularInline):
         "line_vat_amount_display",
         "line_total_inc_display",
     )
+
     readonly_fields = (
         "sku", "product_name", "uom",
         "line_total_excl_display",
@@ -36,6 +37,56 @@ class OrderItemInline(admin.TabularInline):
         "line_total_inc_display",
     )
 
+    # --------------------------------------------------
+    # 🔥 MULTI-DB FIX (CRITICAL)
+    # --------------------------------------------------
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+
+        if request.path.startswith("/dummy-admin"):
+            return qs.using("dummy")
+
+        return qs.using("default")
+
+    # --------------------------------------------------
+    # 🔥 FK + PRODUCT LABEL CUSTOMIZATION
+    # --------------------------------------------------
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+        # Category queryset
+        if db_field.name == "category":
+            from products.models import Category
+            field.queryset = Category.objects.using(db).all()
+
+        # Product queryset + label customization
+        if db_field.name == "product":
+            from products.models import Product
+
+            qs = Product.objects.using(db).all()
+            field.queryset = qs
+
+            # 🔥 Custom label with price (INC VAT)
+            def label(obj):
+                try:
+                    pr = obj.pricing_rows.filter(is_primary=True, is_active=True).first()
+
+                    if pr:
+                        return f"{obj.sku} · {obj.name} (R {pr.retail_price_inc:.2f})"
+
+                    return f"{obj.sku} · {obj.name}"
+                except Exception:
+                    return f"{obj.sku} · {obj.name}"
+
+            field.label_from_instance = label
+
+        return field
+
+    # --------------------------------------------------
+    # DISPLAY HELPERS
+    # --------------------------------------------------
     @admin.display(description="Line Total (Excl)")
     def line_total_excl_display(self, obj: OrderItem):
         try:
@@ -82,10 +133,29 @@ class OrderAuditInline(admin.TabularInline):
 # ---------- order admin ----------
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+
+        if request.path.startswith("/dummy-admin"):
+            return qs.using("dummy")
+
+        return qs.using("default")
+
+    # --------------------------------------------------
+    # 🔥 MAKE CLIENT READ-ONLY AFTER CREATION
+    # --------------------------------------------------
+    def get_readonly_fields(self, request, obj=None):
+        ro = list(self.readonly_fields)
+
+        # If editing existing order → lock client
+        if obj:
+            ro.append("client")
+
+        return ro
+
     # date_hierarchy removed – MySQL-safe
     inlines = [OrderItemInline, OrderAuditInline]
-
 
     list_display = (
         "id",
@@ -98,12 +168,14 @@ class OrderAdmin(admin.ModelAdmin):
         "submitted_at",
         "approved_at",
     )
+
     list_filter = (
         "status",
         "channel",
         ("submitted_at", admin.DateFieldListFilter),
         ("approved_at", admin.DateFieldListFilter),
     )
+
     search_fields = (
         "id",
         "client__name",
@@ -111,6 +183,7 @@ class OrderAdmin(admin.ModelAdmin):
         "client__email",
         "client__phone",
     )
+
     autocomplete_fields = ("client", "created_by")
 
     readonly_fields = (
@@ -130,7 +203,7 @@ class OrderAdmin(admin.ModelAdmin):
                 ("client", "created_by"),
                 ("status", "channel"),
                 "customer_notes",
-                "notes",  # internal notes per your model
+                "notes",
                 ("order_date",),
             )
         }),
@@ -147,10 +220,12 @@ class OrderAdmin(admin.ModelAdmin):
                 "grand_total_inc",
                 ("submitted_at", "reviewed_at", "approved_at", "updated_at"),
             )
-        }), 
+        }),
     )
 
-    # currency displays
+    # --------------------------------------------------
+    # DISPLAY HELPERS
+    # --------------------------------------------------
     @admin.display(description="Subtotal (Excl)")
     def subtotal_excl_display(self, obj: Order):
         return money(obj.subtotal_excl)
@@ -170,16 +245,35 @@ class OrderAdmin(admin.ModelAdmin):
         except Exception:
             return "—"
 
-    # recalc totals whenever header or inlines change
+    # --------------------------------------------------
+    # SAVE LOGIC (MULTI-DB SAFE)
+    # --------------------------------------------------
     def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
-        obj.recalc_totals(save=True)
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+        with transaction.atomic(using=db):
+            obj.save(using=db)
+            obj.recalc_totals(save=True)
 
     def save_related(self, request, form, formsets, change):
-        super().save_related(request, form, formsets, change)
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+        for formset in formsets:
+            instances = formset.save(commit=False)
+
+            for obj in instances:
+                obj.save(using=db)
+
+            for obj in formset.deleted_objects:
+                obj.delete(using=db)
+
+            formset.save_m2m()
+
         form.instance.recalc_totals(save=True)
 
-    # bulk actions
+    # --------------------------------------------------
+    # ACTIONS
+    # --------------------------------------------------
     actions = [
         "action_recalc_totals",
         "action_mark_warehouse",
@@ -192,43 +286,86 @@ class OrderAdmin(admin.ModelAdmin):
 
     @admin.action(description="Recalculate totals for selected orders")
     def action_recalc_totals(self, request, queryset):
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
         n = 0
-        for o in queryset:
+        for o in queryset.using(db):
             o.recalc_totals(save=True)
             n += 1
+
         self.message_user(request, f"Recalculated totals for {n} order(s).", level=messages.SUCCESS)
 
     @admin.action(description="Mark selected as Warehouse")
     def action_mark_warehouse(self, request, queryset):
-        updated = queryset.update(status="warehouse")
-        self.message_user(request, f"Updated {updated} order(s) to Warehouse.", level=messages.SUCCESS)
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+        count = 0
+        for obj in queryset.using(db):
+            obj.status = "warehouse"
+            obj.save(using=db)
+            count += 1
+
+        self.message_user(request, f"Updated {count} order(s) to Warehouse.", level=messages.SUCCESS)
 
     @admin.action(description="Mark selected as Packaging")
     def action_mark_packaging(self, request, queryset):
-        updated = queryset.update(status="packaging")
-        self.message_user(request, f"Updated {updated} order(s) to Packaging.", level=messages.SUCCESS)
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+        count = 0
+        for obj in queryset.using(db):
+            obj.status = "packaging"
+            obj.save(using=db)
+            count += 1
+
+        self.message_user(request, f"Updated {count} order(s) to Packaging.", level=messages.SUCCESS)
 
     @admin.action(description="Mark selected as Ready for Delivery")
     def action_mark_ready_for_delivery(self, request, queryset):
-        updated = queryset.update(status="ready_for_delivery")
-        self.message_user(request, f"Updated {updated} order(s) to Ready for Delivery.", level=messages.SUCCESS)
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+        count = 0
+        for obj in queryset.using(db):
+            obj.status = "ready_for_delivery"
+            obj.save(using=db)
+            count += 1
+
+        self.message_user(request, f"Updated {count} order(s) to Ready for Delivery.", level=messages.SUCCESS)
 
     @admin.action(description="Mark selected as Out for Delivery")
     def action_mark_out_for_delivery(self, request, queryset):
-        updated = queryset.update(status="out_for_delivery")
-        self.message_user(request, f"Updated {updated} order(s) to Out for Delivery.", level=messages.SUCCESS)
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+        count = 0
+        for obj in queryset.using(db):
+            obj.status = "out_for_delivery"
+            obj.save(using=db)
+            count += 1
+
+        self.message_user(request, f"Updated {count} order(s) to Out for Delivery.", level=messages.SUCCESS)
 
     @admin.action(description="Mark selected as Complete")
     def action_mark_complete(self, request, queryset):
-        updated = queryset.update(status="complete")
-        self.message_user(request, f"Updated {updated} order(s) to Complete.", level=messages.SUCCESS)
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+        count = 0
+        for obj in queryset.using(db):
+            obj.status = "complete"
+            obj.save(using=db)
+            count += 1
+
+        self.message_user(request, f"Updated {count} order(s) to Complete.", level=messages.SUCCESS)
 
     @admin.action(description="Mark selected as Cancelled")
     def action_mark_cancelled(self, request, queryset):
-        updated = queryset.update(status="cancelled")
-        self.message_user(request, f"Updated {updated} order(s) to Cancelled.", level=messages.SUCCESS)
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
 
+        count = 0
+        for obj in queryset.using(db):
+            obj.status = "cancelled"
+            obj.save(using=db)
+            count += 1
 
+        self.message_user(request, f"Updated {count} order(s) to Cancelled.", level=messages.SUCCESS)
 # (optional) register items for direct browsing
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):

@@ -305,17 +305,37 @@ def order_create(request):
 def order_edit(request, pk):
     """
     Edit an order and its items.
+    Only allows edits for specific statuses.
     """
+
     order = get_object_or_404(
         Order.objects.select_related("client").prefetch_related("items__product", "items__category"),
         pk=pk,
     )
+
+    # ✅ Allowed statuses
+    ALLOWED_STATUSES = {
+        "pending",
+        "approved",
+        "awaiting_payment",
+        "credit_blocked",
+    }
+
+    # 🚫 Block editing if not allowed (GET protection)
+    if order.status not in ALLOWED_STATUSES:
+        messages.error(request, "Order cannot be updated currently.")
+        return redirect("order-view", pk=order.id)
 
     if request.method == "POST":
         form = OrderForm(request.POST, instance=order)
         formset = OrderItemFormSet(request.POST, instance=order, prefix="items")
 
         if form.is_valid() and formset.is_valid():
+
+            # 🔒 Double-check (POST protection)
+            if order.status not in ALLOWED_STATUSES:
+                messages.error(request, "Order cannot be updated currently.")
+                return redirect("order-view", pk=order.id)
 
             order = form.save()
 
@@ -332,6 +352,7 @@ def order_edit(request, pk):
 
             messages.success(request, f"Order #{order.id} updated.")
             return redirect("order-view", pk=order.id)
+
     else:
         form = OrderForm(instance=order)
         formset = OrderItemFormSet(instance=order, prefix="items")
