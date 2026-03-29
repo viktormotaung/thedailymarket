@@ -657,7 +657,7 @@ def staff_login(request):
             "modal_title": "Not authorized",
             "modal_message": (
                 "Your account isn’t enabled for staff, lender, sales, or logistics access. "
-                "Please contact support@seshibodailymarket.co.za."
+                "Please contact support@thedailymarket.co.za."
             ),
         })
         return render(request, "home/staff_login.html", ctx)
@@ -676,7 +676,7 @@ def staff_login(request):
                 "modal_title": "Profile not linked",
                 "modal_message": (
                     "Your account does not have a staff profile linked. "
-                    "Please contact support@seshibodailymarket.co.za."
+                    "Please contact support@thedailymarket.co.za."
                 ),
             })
             return render(request, "home/staff_login.html", ctx)
@@ -693,7 +693,7 @@ def staff_login(request):
                 ctx.update({
                     "show_modal": True,
                     "modal_title": "Profile inactive",
-                    "modal_message": "Your profile is not active. Please contact support@seshibodailymarket.co.za.",
+                    "modal_message": "Your profile is not active. Please contact support@thedailymarket.co.za.",
                 })
             return render(request, "home/staff_login.html", ctx)
 
@@ -872,7 +872,7 @@ class ClientLoginView(View):
                 "show_modal": True,
                 "modal_kind": "no_profile",
                 "modal_title": "Profile not linked",
-                "modal_message": "Your account does not have a customer profile linked. Please contact support@seshibodailymarket.co.za.",
+                "modal_message": "Your account does not have a customer profile linked. Please contact support@thedailymarket.co.za.",
             })
             return render(request, self.template_name, ctx)
 
@@ -890,7 +890,7 @@ class ClientLoginView(View):
                     "show_modal": True,
                     "modal_kind": "status_inactive",
                     "modal_title": "Profile inactive",
-                    "modal_message": "Your profile is not active. Please contact support@seshibodailymarket.co.za.",
+                    "modal_message": "Your profile is not active. Please contact support@thedailymarket.co.za.",
                 })
             return render(request, self.template_name, ctx)
 

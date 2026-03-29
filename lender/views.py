@@ -11,6 +11,9 @@ from django.views.decorators.csrf import csrf_exempt
 from credit.models import (
     Funder, FunderAllocation, FunderWeekSummary, FunderMember, FunderMovement
 )
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 def _movement_kind(value: str) -> str:
     """
@@ -46,36 +49,75 @@ def funder_dashboard(request):
 
     print("\n================ START DASHBOARD ================\n")
 
-    # 🔹 STEP 1 — GET MEMBERSHIPS (WITH DB CONTEXT)
+    # 🔹 STEP 0 — MAP USER ACROSS DBS
+
+    dummy_user = User.objects.using("dummy").filter(
+        username__iexact=request.user.username
+    ).first()
+
+    print("===== USER MAPPING =====")
+    print(f"Default User: {request.user.username} | ID: {request.user.id}")
+    print(f"Dummy User ID: {getattr(dummy_user, 'id', None)}")
+    print("========================\n")
+
+    # 🔍 EXTRA DEBUG (CRITICAL)
+    print("===== DUMMY USER CHECK =====")
+    all_dummy_users = list(
+        User.objects.using("dummy")
+        .filter(username__iexact=request.user.username)
+        .values("id", "username")
+    )
+    print("Dummy users found:", all_dummy_users)
+    print("============================\n")
+
+    # 🔹 STEP 1 — GET MEMBERSHIPS
+
+    dummy_memberships = []
+
+    if dummy_user:
+        dummy_memberships = list(
+            FunderMember.objects.using("dummy")
+            .filter(user=dummy_user, is_active=True)
+            .select_related("funder")
+        )
+
+        print("===== DUMMY MEMBERSHIPS =====")
+        for m in dummy_memberships:
+            print(f"[DUMMY] Funder: {m.funder.name} | ID: {m.funder.id}")
+        print("==============================\n")
+    else:
+        print("❌ No dummy user found\n")
+
     default_memberships = list(
         FunderMember.objects.using("default")
         .filter(user=request.user, is_active=True)
         .select_related("funder")
     )
 
-    dummy_memberships = list(
-        FunderMember.objects.using("dummy")
-        .filter(user=request.user, is_active=True)
-        .select_related("funder")
-    )
+    print("===== DEFAULT MEMBERSHIPS =====")
+    for m in default_memberships:
+        print(f"[DEFAULT] Funder: {m.funder.name} | ID: {m.funder.id}")
+    print("===============================\n")
 
-    memberships = (
-        [(m, "dummy") for m in dummy_memberships] +
-        [(m, "default") for m in default_memberships]
-    )
+    # 🔥 PRIORITY: DUMMY FIRST
+    if dummy_memberships:
+        memberships = [(m, "dummy") for m in dummy_memberships]
+        print("👉 USING DUMMY DB")
+    else:
+        memberships = [(m, "default") for m in default_memberships]
+        print("👉 USING DEFAULT DB")
 
-    print("===== MEMBERSHIPS =====")
+    print("===== FINAL MEMBERSHIPS =====")
     for m, db in memberships:
         print(f"Funder: {m.funder.name} | ID: {m.funder.id} | DB: {db}")
-    print("========================\n")
+    print("=============================\n")
 
     if not memberships:
+        print("❌ NO MEMBERSHIPS FOUND — REDIRECTING\n")
         return redirect(reverse("staff-dashboard"))
 
-    has_default = len(default_memberships) > 0
-    has_dummy = len(dummy_memberships) > 0
-
     # 🔹 STEP 2 — SELECT MEMBERSHIP
+
     qs_funder_id = request.GET.get("funder")
 
     selected = None
@@ -100,112 +142,47 @@ def funder_dashboard(request):
     print(f"Funder object DB origin: {funder._state.db}")
     print("====================\n")
 
-    # 🔹 OPTIONAL MODE
-    combined_mode = request.GET.get("mode") == "combined" and has_default and has_dummy
-
     # 🔹 STEP 3 — ALLOCATIONS
+
     print("===== ALLOCATION QUERY =====")
     print(f"Using DB: {db}")
     print("============================\n")
 
-    if combined_mode:
-        allocations_default = (
-            FunderAllocation.objects.using("default")
-            .filter(funder__id=funder.id)
-            .select_related("client")
-        )
+    allocations = (
+        FunderAllocation.objects.using(db)
+        .filter(funder__id=funder.id)
+        .select_related("client")
+        .order_by("client__name")
+    )
 
-        allocations_dummy = (
-            FunderAllocation.objects.using("dummy")
-            .filter(funder__id=funder.id)
-            .select_related("client")
-        )
+    total_alloc = allocations.aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
 
-        allocations = list(allocations_default) + list(allocations_dummy)
-        allocations = sorted(allocations, key=lambda x: x.client.name)
-
-        total_alloc = sum(a.amount for a in allocations)
-
-    else:
-        allocations = (
-            FunderAllocation.objects.using(db)
-            .filter(funder__id=funder.id)  # ✅ FIXED HERE
-            .select_related("client")
-            .order_by("client__name")
-        )
-
-        total_alloc = allocations.aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
-
-    print(f"Allocations count: {len(allocations)}")
+    print(f"Allocations count: {allocations.count()}")
     print(f"Total Alloc: {total_alloc}\n")
 
     # 🔹 STEP 4 — WEEKLY DATA
+
     today = date.today()
     four_weeks_ago = today - timedelta(weeks=4)
 
-    if combined_mode:
-        latest_week_default = (
-            FunderWeekSummary.objects.using("default")
-            .filter(funder__id=funder.id)
-            .order_by("-week_start")
-            .first()
-        )
+    latest_week = (
+        FunderWeekSummary.objects.using(db)
+        .filter(funder__id=funder.id)
+        .order_by("-week_start")
+        .first()
+    )
 
-        latest_week_dummy = (
-            FunderWeekSummary.objects.using("dummy")
-            .filter(funder__id=funder.id)
-            .order_by("-week_start")
-            .first()
+    recent_weeks = list(
+        FunderWeekSummary.objects.using(db)
+        .filter(funder__id=funder.id, week_start__gte=four_weeks_ago)
+        .order_by("week_start")
+        .values(
+            "week_start",
+            "visible_utilization_total",
+            "weekly_rate_pct_snapshot",
+            "weekly_return",
         )
-
-        latest_week = latest_week_default or latest_week_dummy
-
-        recent_default = list(
-            FunderWeekSummary.objects.using("default")
-            .filter(funder__id=funder.id, week_start__gte=four_weeks_ago)
-            .values(
-                "week_start",
-                "visible_utilization_total",
-                "weekly_rate_pct_snapshot",
-                "weekly_return",
-            )
-        )
-
-        recent_dummy = list(
-            FunderWeekSummary.objects.using("dummy")
-            .filter(funder__id=funder.id, week_start__gte=four_weeks_ago)
-            .values(
-                "week_start",
-                "visible_utilization_total",
-                "weekly_rate_pct_snapshot",
-                "weekly_return",
-            )
-        )
-
-        recent_weeks = sorted(
-            recent_default + recent_dummy,
-            key=lambda x: x["week_start"]
-        )
-
-    else:
-        latest_week = (
-            FunderWeekSummary.objects.using(db)
-            .filter(funder__id=funder.id)  # ✅ FIXED
-            .order_by("-week_start")
-            .first()
-        )
-
-        recent_weeks = list(
-            FunderWeekSummary.objects.using(db)
-            .filter(funder__id=funder.id, week_start__gte=four_weeks_ago)  # ✅ FIXED
-            .order_by("week_start")
-            .values(
-                "week_start",
-                "visible_utilization_total",
-                "weekly_rate_pct_snapshot",
-                "weekly_return",
-            )
-        )
+    )
 
     print("===== FUNDER VALUES =====")
     print(f"Balance: {getattr(funder, 'balance', 'NO FIELD')}")
@@ -215,6 +192,7 @@ def funder_dashboard(request):
     print("================ END DASHBOARD ================\n")
 
     # 🔹 FINAL CONTEXT
+
     ctx = {
         "funder": funder,
         "allocations": allocations,
@@ -223,10 +201,14 @@ def funder_dashboard(request):
         "latest_week": latest_week,
         "memberships": memberships,
         "recent_weeks": recent_weeks,
-        "mode": "combined" if combined_mode else db,
+        "mode": db,
     }
 
     return render(request, "lender/dashboard.html", ctx)
+
+
+
+
 
 @login_required
 def top_up(request):
