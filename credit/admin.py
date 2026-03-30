@@ -406,28 +406,35 @@ class CreditEntryAdmin(admin.ModelAdmin):
 
     # 🔥 ONLY lock critical ledger fields (allow posted_at to be edited)
     readonly_fields = (
-        "credit_account",
-        "kind",
-        "amount",
         "balance",
         "created_at",
         "created_by",
-        "invoice",
-        "transaction",
-        "reference",
-        "note",
     )
 
     # --------------------------------------------------
     # PERMISSIONS
     # --------------------------------------------------
     def has_add_permission(self, request):
-        if request.path.startswith("/dummy-admin/"):
-            return False
-        return super().has_add_permission(request)
+        return request.user.is_superuser
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
+
+    # --------------------------------------------------
+    # 🔥 CORRECT SAVE (FIXED)
+    # --------------------------------------------------
+    def save_model(self, request, obj, form, change):
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+        if not obj.pk:
+            obj.created_by = request.user
+
+        # ✅ Let Django handle normal save flow
+        super().save_model(request, obj, form, change)
+
+        # ✅ Ensure object is saved in correct DB
+        if obj._state.db != db:
+            obj.save(using=db)
 
     # --------------------------------------------------
     # SAFE DELETE (BYPASS LEDGER)
@@ -442,7 +449,6 @@ class CreditEntryAdmin(admin.ModelAdmin):
 
     # --------------------------------------------------
     # OPTIONAL: RESTRICT EDITING TO SUPERUSERS ONLY
-    # (Highly recommended for financial integrity)
     # --------------------------------------------------
     def has_change_permission(self, request, obj=None):
         if request.user.is_superuser:
@@ -461,8 +467,9 @@ class CreditEntryAdmin(admin.ModelAdmin):
         )
 
         return super().change_view(request, object_id, form_url, extra_context)
+    
 
-
+    
 # ============================================================
 # FUNDER WEEK SUMMARY ADMIN (REPORTING)
 # ============================================================

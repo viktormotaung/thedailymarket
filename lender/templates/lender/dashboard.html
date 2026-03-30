@@ -103,22 +103,25 @@
         
                 <!-- Actions -->
                 <div class="mt-3 d-flex flex-wrap gap-2">
-                  
+  
                   <a
                     href="{% url 'top-up' %}?funder={{ funder.id }}&kind=topup"
                     class="btn btn-success btn-sm"
-                    title="Create a top-up movement for this funder"
+                    title="Temporarily disabled"
+                    onclick="return false;"
+                    style="pointer-events: none; cursor: not-allowed;"
                   >
-                    
                   </a>
-        
+
                   <a
                     href="{% url 'withdraw' %}?funder={{ funder.id }}&kind=payout"
                     class="btn btn-outline-danger btn-sm"
-                    title="Create a withdrawal/payout movement for this funder"
+                    title="Temporarily disabled"
+                    onclick="return false;"
+                    style="pointer-events: none; cursor: not-allowed;"
                   >
-                    
                   </a>
+
                 </div>
               </div>
         
