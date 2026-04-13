@@ -81,6 +81,10 @@ urlpatterns = [
     path("commission/", views.commission, name="sales-commission"),
     path("commission/<int:pk>/", views.commission_view, name="sales-commission-view"),
     path("commission/email-statement/", views.send_commission_statement_email, name="email-commission-statement"),
+    path("targets/", views.target_list, name="sales-target-list"),
+    path("targets/add/", views.add_target, name="sales-add-target"),
+    path("supervisors/<int:user_id>/", views.supervisor_detail, name="supervisor-detail"),
+    path("reps/<int:user_id>/", views.rep_detail, name="rep-detail"),
 
     path("tickets/", views.tickets, name="sales-tickets"),
     path("tickets/<int:pk>/view/", views.view_ticket, name="view-ticket"),

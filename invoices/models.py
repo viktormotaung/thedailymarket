@@ -20,6 +20,7 @@ from orders.models import Order
 from credit.models import CreditEntry
 from django.db.models.signals import post_save, post_delete
 from django.db.models.functions import Coalesce
+from datetime import date
 
 
 def r2(x: Decimal | None) -> Decimal:
@@ -28,6 +29,23 @@ def r2(x: Decimal | None) -> Decimal:
         return Decimal("0.00")
     return Decimal(x).quantize(Decimal("0.01"))
 
+# 🇿🇦 South Africa Public Holidays (example for 2026)
+PUBLIC_HOLIDAYS = {
+    2026: [
+        date(2026, 1, 1),   # New Year's Day
+        date(2026, 3, 21),  # Human Rights Day
+        date(2026, 4, 3),   # Good Friday
+        date(2026, 4, 6),   # Family Day
+        date(2026, 4, 27),  # Freedom Day
+        date(2026, 5, 1),   # Workers' Day
+        date(2026, 6, 16),  # Youth Day
+        date(2026, 8, 9),   # Women's Day
+        date(2026, 9, 24),  # Heritage Day
+        date(2026, 12, 16), # Day of Reconciliation
+        date(2026, 12, 25), # Christmas Day
+        date(2026, 12, 26), # Day of Goodwill
+    ]
+}
 
 # ====================================================================
 # Invoice
@@ -585,6 +603,8 @@ class Invoice(models.Model):
 
         super().delete(*args, **kwargs)
 
+
+
 @receiver(post_save, sender=Invoice)
 def ensure_order_progress_after_payment(sender, instance, **kwargs):
 
@@ -613,6 +633,8 @@ def ensure_order_progress_after_payment(sender, instance, **kwargs):
         order.status = "at_warehouse"
         order.save(using=order._state.db, update_fields=["status", "updated_at"])
 
+
+
 @receiver(post_save, sender=CreditEntry)
 def update_credit_next_due(sender, instance, **kwargs):
     ca = instance.credit_account
@@ -629,6 +651,7 @@ def update_credit_next_due(sender, instance, **kwargs):
     ca.save(update_fields=["credit_used", "next_due_date"])
 
 
+
 @receiver(post_delete, sender=CreditEntry)
 def reverse_credit_next_due(sender, instance, **kwargs):
     ca = instance.credit_account
@@ -642,6 +665,8 @@ def reverse_credit_next_due(sender, instance, **kwargs):
         ca.next_due_date = None
 
     ca.save(update_fields=["credit_used", "next_due_date"])
+
+
 
 # ====================================================================
 # Daily overdue summary
@@ -1174,10 +1199,31 @@ class MonthlyTarget(models.Model):
 
     def get_total_days(self):
         return calendar.monthrange(self.year, self.get_month_number())[1]
+    
+    def get_total_working_days(self):
+        month_number = self.get_month_number()
+        total_days = calendar.monthrange(self.year, month_number)[1]
+
+        holidays = PUBLIC_HOLIDAYS.get(self.year)
+
+        if holidays is None:
+            raise ValueError(f"No public holidays configured for year {self.year}")
+
+        working_days = 0
+
+        for day in range(1, total_days + 1):
+            current_date = date(self.year, month_number, day)
+
+            # Monday–Friday AND not a public holiday
+            if current_date.weekday() < 5 and current_date not in holidays:
+                working_days += 1
+
+        return working_days
 
     def get_daily_target(self):
-        total_days = self.get_total_days()
-        return (self.monthly_target / Decimal(total_days)).quantize(Decimal("0.01"))
+        working_days = self.get_total_working_days()
+
+        return (self.monthly_target / Decimal(working_days)).quantize(Decimal("0.01"))
 
     def validate_allocations(self):
         total = sum(a.percentage for a in self.allocations.all())
@@ -1255,11 +1301,11 @@ class MonthlyTarget(models.Model):
         """
 
         month_number = self.get_month_number()
-        total_days = self.get_total_days()
+        total_days = self.get_total_working_days()
         daily_master_target = self.get_daily_target()
 
         first_day = date(self.year, month_number, 1)
-        last_day = date(self.year, month_number, total_days)
+        last_day = date(self.year, month_number, self.get_total_days())
 
         breakdown = {}
 

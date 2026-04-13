@@ -20,6 +20,15 @@ from django.db.models import (
     Sum, Count, F, Q, Value, DecimalField, IntegerField, ExpressionWrapper
 )
 import json
+from invoices.forms import MonthlyTargetForm
+
+from datetime import date
+import calendar
+
+from profiles.models import SalesRepProfile
+from invoices.models import CommissionEntry, Invoice, MonthlyTarget
+
+
 from invoices.models import MonthlyTarget
 from collections import OrderedDict
 from django.db.models import Count, Sum
@@ -39,6 +48,20 @@ from clients.forms import ClientEditForm
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from .forms import SalesJobApplicationForm
+from datetime import date
+from decimal import Decimal
+import calendar
+
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model
+from django.db.models import Sum
+from django.shortcuts import render
+from django.utils.timezone import localdate
+
+from invoices.models import CommissionEntry, MonthlyTarget
+from profiles.models import SalesRepProfile
+
+User = get_user_model()
 User = get_user_model()
 DAY_OPTIONS = [7, 14, 30, 60]
 
@@ -1038,6 +1061,8 @@ def clients(request):
         "statuses": statuses,
     })
     
+
+
 def view_client(request, pk):
     # ---------------------------
     # Core client
@@ -1184,6 +1209,8 @@ def view_client(request, pk):
         context
     )
 
+
+
 def edit_client(request, pk):
     # Fetch client with related objects efficiently
     client = get_object_or_404(
@@ -1289,6 +1316,8 @@ def send_email_active_to_inactive(client, user):
     )
     msg.attach_alternative(html_body, "text/html")
     msg.send(fail_silently=False)
+
+
 
 def send_email_inactive_to_active(client, user):
     subject = "The Daily Market – Your account is now active"
@@ -1618,6 +1647,8 @@ def view_order(request, pk):
         "invoice": invoice,
     })
 
+
+
 @login_required
 def delete_order(request, pk):
     """
@@ -1803,6 +1834,8 @@ def view_invoice(request, pk):
         },
     )
 
+
+
 def prev_year_month(year, month, offset=1):
     """
     Return (year, month) offset months before the given year/month.
@@ -1818,211 +1851,751 @@ def prev_year_month(year, month, offset=1):
 
 
 
+
+
 @login_required
 def commission(request):
 
+    # =========================
+    # DATE / FILTERS
+    # =========================
     today = localdate()
-    current_year = today.year
-    current_month = today.month
-    current_month_name = today.strftime("%B")
 
-    selected_area = request.GET.get("area")
+    selected_month = int(request.GET.get("month", today.month))
+    selected_year = int(request.GET.get("year", today.year))
 
-    first_day = date(current_year, current_month, 1)
+    first_day = date(selected_year, selected_month, 1)
     last_day = date(
-        current_year,
-        current_month,
-        calendar.monthrange(current_year, current_month)[1],
+        selected_year,
+        selected_month,
+        calendar.monthrange(selected_year, selected_month)[1],
     )
 
-    # --------------------------------------------------
-    # BASE QUERY (COST-BASED UTILIZATION)
-    # --------------------------------------------------
+    # Previous month (for trend)
+    prev_month = selected_month - 1 or 12
+    prev_year = selected_year if selected_month != 1 else selected_year - 1
+
+    prev_first_day = date(prev_year, prev_month, 1)
+    prev_last_day = date(
+        prev_year,
+        prev_month,
+        calendar.monthrange(prev_year, prev_month)[1],
+    )
+
+    # =========================
+    # BASE QUERYSETS
+    # =========================
     base_qs = CommissionEntry.objects.select_related(
         "invoice",
         "invoice__client",
-        "invoice__segment",
         "rep",
-        "supervisor",
     ).filter(
         invoice__status="paid",
         invoice__paid_date__gte=first_day,
         invoice__paid_date__lte=last_day,
     )
 
-    if selected_area:
-        base_qs = base_qs.filter(
-            invoice__client__area=selected_area
-        )
+    prev_qs = CommissionEntry.objects.select_related(
+        "invoice",
+        "invoice__client",
+        "rep",
+    ).filter(
+        invoice__status="paid",
+        invoice__paid_date__gte=prev_first_day,
+        invoice__paid_date__lte=prev_last_day,
+    )
 
-    # --------------------------------------------------
-    # AREA UTILIZATION (COST BASED)
-    # --------------------------------------------------
-    utilization_total = (
+    # =========================
+    # UTILIZATION
+    # =========================
+    actual_utilization = (
         base_qs.aggregate(t=Sum("cost_total"))["t"]
         or Decimal("0.00")
     )
 
-    # --------------------------------------------------
-    # TARGET LOOKUP
-    # --------------------------------------------------
-    monthly_target = None
-    target_value = Decimal("0.00")
-    achievement_pct = Decimal("0.00")
-    quarter = None
+    # =========================
+    # TARGET
+    # =========================
+    monthly_target_obj = MonthlyTarget.objects.filter(
+        year=selected_year,
+        month=calendar.month_abbr[selected_month].upper(),
+    ).first()
 
-    if selected_area:
-        monthly_target = MonthlyTarget.objects.filter(
-            year=current_year,
-            month=today.strftime("%b").upper(),
-            area=selected_area,
-        ).first()
-
-    if monthly_target:
-        target_value = monthly_target.monthly_target
-        quarter = monthly_target.quarter
-
-        if target_value > 0:
-            achievement_pct = (
-                (utilization_total / target_value) * Decimal("100")
-            ).quantize(Decimal("0.01"))
-
-    # --------------------------------------------------
-    # WEEKLY BREAKDOWN
-    # --------------------------------------------------
-    weekly_data = []
-
-    if monthly_target:
-        weekly_allocations = monthly_target.get_weekly_breakdown()
-
-        for week_key, allocated_value in weekly_allocations.items():
-
-            week_actual = (
-                base_qs.filter(invoice__paid_date__week=week_key)
-                .aggregate(t=Sum("cost_total"))["t"]
-                or Decimal("0.00")
-            )
-
-            pct = (
-                (week_actual / allocated_value) * Decimal("100")
-                if allocated_value > 0 else Decimal("0.00")
-            )
-
-            weekly_data.append({
-                "week": week_key,
-                "allocated": allocated_value,
-                "actual": week_actual,
-                "pct": pct.quantize(Decimal("0.01")),
-            })
-
-    # --------------------------------------------------
-    # SEGMENT BREAKDOWN
-    # --------------------------------------------------
-    segment_data = []
-
-    segment_breakdown = (
-        base_qs.values("invoice__segment__name")
-        .annotate(total=Sum("cost_total"))
+    monthly_target = (
+        monthly_target_obj.monthly_target
+        if monthly_target_obj else Decimal("0.00")
     )
 
-    for row in segment_breakdown:
-        segment_value = row["total"] or Decimal("0.00")
-        actual_pct = (
-            (segment_value / utilization_total) * Decimal("100")
-            if utilization_total > 0 else Decimal("0.00")
+    achievement_pct = (
+        (actual_utilization / monthly_target) * Decimal("100")
+        if monthly_target > 0 else Decimal("0.00")
+    )
+
+    # =========================
+    # WORKING DAYS
+    # =========================
+    working_days = (
+        monthly_target_obj.get_total_working_days()
+        if monthly_target_obj else 0
+    )
+
+    days_passed = 0
+    for d in range(1, today.day + 1):
+        current = date(selected_year, selected_month, d)
+        if current.weekday() < 5:
+            days_passed += 1
+
+    days_remaining = max(working_days - days_passed, 0)
+
+    # =========================
+    # DAILY TARGET
+    # =========================
+    daily_target = (
+        monthly_target / Decimal(working_days)
+        if working_days > 0 else Decimal("0.00")
+    )
+
+    # =========================
+    # TARGET REMAINING
+    # =========================
+    target_remaining = monthly_target - actual_utilization
+
+    required_per_day = (
+        target_remaining / Decimal(days_remaining)
+        if days_remaining > 0 else Decimal("0.00")
+    )
+
+    # =========================
+    # TODAY
+    # =========================
+    today_actual = (
+        CommissionEntry.objects.filter(
+            invoice__status="paid",
+            invoice__paid_date=today,
+        ).aggregate(t=Sum("cost_total"))["t"]
+        or Decimal("0.00")
+    )
+
+    today_target = daily_target
+    today_gap = today_actual - today_target
+
+    # =========================
+    # SUPERVISOR SUMMARY (FIXED)
+    # =========================
+    supervisor_summary = []
+
+    supervisor_ids = SalesRepProfile.objects.exclude(
+        supervisor=None
+    ).values_list("supervisor", flat=True).distinct()
+
+    for sup_id in supervisor_ids:
+
+        supervisor = User.objects.get(id=sup_id)
+
+        team_reps = SalesRepProfile.objects.filter(supervisor=supervisor)
+        rep_ids = team_reps.values_list("user_id", flat=True)
+
+        sup_qs = base_qs.filter(rep__id__in=rep_ids)
+
+        sup_total = (
+            sup_qs.aggregate(t=Sum("cost_total"))["t"]
+            or Decimal("0.00")
         )
 
-        segment_data.append({
-            "name": row["invoice__segment__name"] or "Unassigned",
-            "value": segment_value,
-            "actual_pct": actual_pct.quantize(Decimal("0.01")),
+        daily_avg = (
+            sup_total / Decimal(working_days)
+            if working_days > 0 else Decimal("0.00")
+        )
+
+        percent = (
+            (sup_total / monthly_target) * Decimal("100")
+            if monthly_target > 0 else Decimal("0.00")
+        )
+
+        supervisor_summary.append({
+            "user_id": supervisor.id,   # ✅ ADD THIS
+            "first_name": supervisor.first_name,
+            "last_name": supervisor.last_name,
+            "area": "",
+            "daily_avg": daily_avg,
+            "percent": percent,
         })
 
-    # --------------------------------------------------
-    # SUPERVISOR COMMISSION LOGIC
-    # --------------------------------------------------
-    unit_values = {
-        "Q1": Decimal("1000"),
-        "Q2": Decimal("1300"),
-        "Q3": Decimal("1600"),
-        "Q4": Decimal("2000"),
-    }
-
-    unit_value = unit_values.get(quarter, Decimal("0.00"))
-
-    capped_pct = min(achievement_pct, Decimal("130"))
-
-    units_earned = int(capped_pct // Decimal("10"))
-
-    performance_commission = units_earned * unit_value
-
-    # Placeholder management score
-    management_score = Decimal("85")  # Replace later with real scoring
-    management_max = Decimal("5000")
-
-    management_commission = (
-        (management_score / Decimal("100")) * management_max
-    ).quantize(Decimal("0.01"))
-
-    supervisor_total_commission = (
-        performance_commission + management_commission
-    )
-
-    # --------------------------------------------------
-    # REP SUMMARY TABLE
-    # --------------------------------------------------
+    # =========================
+    # REP SUMMARY + TREND (FIXED)
+    # =========================
     rep_summary = []
 
-    reps = base_qs.values("rep__id", "rep__first_name", "rep__last_name").distinct()
+    reps = SalesRepProfile.objects.filter(
+        status="active"
+    ).select_related("user")
 
     for rep in reps:
 
-        rep_id = rep["rep__id"]
+        rep_id = rep.user.id
 
-        rep_qs = base_qs.filter(rep__id=rep_id)
-
-        rep_utilization = (
-            rep_qs.aggregate(t=Sum("cost_total"))["t"]
+        current_total = (
+            base_qs.filter(rep__id=rep_id)
+            .aggregate(t=Sum("cost_total"))["t"]
             or Decimal("0.00")
         )
 
-        rep_commission = (
-            rep_qs.aggregate(t=Sum("rep_amount"))["t"]
+        prev_total = (
+            prev_qs.filter(rep__id=rep_id)
+            .aggregate(t=Sum("cost_total"))["t"]
             or Decimal("0.00")
         )
+
+        current_avg = (
+            current_total / Decimal(working_days)
+            if working_days > 0 else Decimal("0.00")
+        )
+
+        prev_avg = (
+            prev_total / Decimal(working_days)
+            if working_days > 0 else Decimal("0.00")
+        )
+
+        if prev_avg == 0:
+            trend = "flat"
+            trend_percent = Decimal("0.00")
+        else:
+            diff = current_avg - prev_avg
+            trend_percent = (diff / prev_avg) * Decimal("100")
+
+            if diff > 0:
+                trend = "up"
+            elif diff < 0:
+                trend = "down"
+            else:
+                trend = "flat"
 
         rep_summary.append({
-            "name": f"{rep['rep__first_name']} {rep['rep__last_name']}",
-            "utilization": rep_utilization,
-            "commission": rep_commission,
+            "user_id": rep.user.id,   # 🔥 THIS IS THE FIX
+            "first_name": rep.user.first_name,
+            "last_name": rep.user.last_name,
+            "area": "",
+            "daily_avg": current_avg,
+            "trend": trend,
+            "trend_percent": trend_percent,
         })
 
-    # --------------------------------------------------
-    # CONTEXT
-    # --------------------------------------------------
-    context = {
-        "selected_area": selected_area,
-        "current_month_name": current_month_name,
-        "current_year": current_year,
+    # =========================
+    # MONTH FILTER OPTIONS
+    # =========================
+    months = [
+        {"value": i, "label": calendar.month_name[i]}
+        for i in range(1, 13)
+    ]
 
-        "utilization_total": utilization_total,
-        "target_value": target_value,
+    years = list(range(today.year - 2, today.year + 2))
+
+    # =========================
+    # CONTEXT
+    # =========================
+    context = {
+        "selected_month": selected_month,
+        "selected_year": selected_year,
+        "months": months,
+        "years": years,
+
+        "monthly_target": monthly_target,
+        "actual_utilization": actual_utilization,
         "achievement_pct": achievement_pct,
 
-        "weekly_data": weekly_data,
-        "segment_data": segment_data,
+        "working_days": working_days,
+        "days_passed": days_passed,
+        "days_remaining": days_remaining,
 
-        "units_earned": units_earned,
-        "unit_value": unit_value,
-        "performance_commission": performance_commission,
-        "management_score": management_score,
-        "management_commission": management_commission,
-        "supervisor_total_commission": supervisor_total_commission,
+        "daily_target": daily_target,
+        "target_remaining": target_remaining,
+        "required_per_day": required_per_day,
 
+        "today_target": today_target,
+        "today_gap": today_gap,
+
+        "supervisor_summary": supervisor_summary,
         "rep_summary": rep_summary,
     }
 
     return render(request, "commission/commission.html", context)
+
+
+@login_required
+def supervisor_detail(request, user_id):
+
+    # =========================
+    # GET SUPERVISOR
+    # =========================
+    supervisor = get_object_or_404(User, id=user_id)
+
+    reps = SalesRepProfile.objects.filter(
+        supervisor=supervisor
+    ).select_related("user")
+
+    rep_ids = reps.values_list("user_id", flat=True)
+
+    today = localdate()
+
+    # =========================
+    # FILTER (DATE RANGE FIRST)
+    # =========================
+    date_from = request.GET.get("date_from")
+    date_to = request.GET.get("date_to")
+
+    if date_from and date_to:
+        first_day = date.fromisoformat(date_from)
+        last_day = date.fromisoformat(date_to)
+
+        selected_month = first_day.month
+        selected_year = first_day.year
+    else:
+        selected_month = int(request.GET.get("month", today.month))
+        selected_year = int(request.GET.get("year", today.year))
+
+        first_day = date(selected_year, selected_month, 1)
+        last_day = date(
+            selected_year,
+            selected_month,
+            calendar.monthrange(selected_year, selected_month)[1],
+        )
+
+        date_from = first_day
+        date_to = last_day
+
+    # =========================
+    # PREVIOUS PERIOD (TREND)
+    # =========================
+    prev_month = selected_month - 1 or 12
+    prev_year = selected_year if selected_month != 1 else selected_year - 1
+
+    prev_first_day = date(prev_year, prev_month, 1)
+    prev_last_day = date(
+        prev_year,
+        prev_month,
+        calendar.monthrange(prev_year, prev_month)[1],
+    )
+
+    # =========================
+    # QUERYSETS
+    # =========================
+    current_qs = CommissionEntry.objects.filter(
+        rep__id__in=rep_ids,
+        invoice__status="paid",
+        invoice__paid_date__range=[first_day, last_day],
+    )
+
+    prev_qs = CommissionEntry.objects.filter(
+        rep__id__in=rep_ids,
+        invoice__status="paid",
+        invoice__paid_date__range=[prev_first_day, prev_last_day],
+    )
+
+    # =========================
+    # TEAM UTILIZATION
+    # =========================
+    team_total = current_qs.aggregate(t=Sum("cost_total"))["t"] or Decimal("0.00")
+    prev_total = prev_qs.aggregate(t=Sum("cost_total"))["t"] or Decimal("0.00")
+
+    # =========================
+    # TARGET
+    # =========================
+    monthly_target_obj = MonthlyTarget.objects.filter(
+        year=selected_year,
+        month=calendar.month_abbr[selected_month].upper(),
+    ).first()
+
+    monthly_target = (
+        monthly_target_obj.monthly_target
+        if monthly_target_obj else Decimal("0.00")
+    )
+
+    # =========================
+    # WORKING DAYS
+    # =========================
+    working_days = (
+        monthly_target_obj.get_total_working_days()
+        if monthly_target_obj else 0
+    )
+
+    # Days passed (respect period)
+    days_passed = 0
+    current_date = first_day
+
+    while current_date <= min(today, last_day):
+        if current_date.weekday() < 5:
+            days_passed += 1
+        current_date += timedelta(days=1)
+
+    days_remaining = max(working_days - days_passed, 0)
+
+    # =========================
+    # DAILY AVERAGES
+    # =========================
+    team_avg = (
+        team_total / Decimal(working_days)
+        if working_days > 0 else Decimal("0.00")
+    )
+
+    prev_avg = (
+        prev_total / Decimal(working_days)
+        if working_days > 0 else Decimal("0.00")
+    )
+
+    # =========================
+    # ACHIEVEMENT
+    # =========================
+    achievement_pct = (
+        (team_total / monthly_target) * Decimal("100")
+        if monthly_target > 0 else Decimal("0.00")
+    )
+
+    # =========================
+    # TREND
+    # =========================
+    if prev_avg == 0:
+        trend = "flat"
+        trend_percent = Decimal("0.00")
+    else:
+        diff = team_avg - prev_avg
+        trend_percent = (diff / prev_avg) * Decimal("100")
+
+        if diff > 0:
+            trend = "up"
+        elif diff < 0:
+            trend = "down"
+        else:
+            trend = "flat"
+
+    # =========================
+    # TARGET TRACKING
+    # =========================
+    target_remaining = monthly_target - team_total
+
+    required_per_day = (
+        target_remaining / Decimal(days_remaining)
+        if days_remaining > 0 else Decimal("0.00")
+    )
+
+    # =========================
+    # TEAM SIZE
+    # =========================
+    team_size = reps.count()
+
+    # =========================
+    # TEAM BREAKDOWN
+    # =========================
+    team_reps = []
+
+    for rep in reps:
+        rep_id = rep.user.id
+
+        rep_total = (
+            current_qs.filter(rep__id=rep_id)
+            .aggregate(t=Sum("cost_total"))["t"]
+            or Decimal("0.00")
+        )
+
+        rep_prev_total = (
+            prev_qs.filter(rep__id=rep_id)
+            .aggregate(t=Sum("cost_total"))["t"]
+            or Decimal("0.00")
+        )
+
+        rep_avg = (
+            rep_total / Decimal(working_days)
+            if working_days > 0 else Decimal("0.00")
+        )
+
+        rep_prev_avg = (
+            rep_prev_total / Decimal(working_days)
+            if working_days > 0 else Decimal("0.00")
+        )
+
+        if rep_prev_avg == 0:
+            rep_trend = "flat"
+            rep_trend_percent = Decimal("0.00")
+        else:
+            diff = rep_avg - rep_prev_avg
+            rep_trend_percent = (diff / rep_prev_avg) * Decimal("100")
+
+            if diff > 0:
+                rep_trend = "up"
+            elif diff < 0:
+                rep_trend = "down"
+            else:
+                rep_trend = "flat"
+
+        team_reps.append({
+            "user_id": rep.user.id,
+            "first_name": rep.user.first_name,
+            "last_name": rep.user.last_name,
+            "daily_avg": rep_avg,
+            "total": rep_total,
+            "trend": rep_trend,
+            "trend_percent": rep_trend_percent,
+        })
+
+    # =========================
+    # TEAM INVOICES
+    # =========================
+    invoice_entries = CommissionEntry.objects.filter(
+        rep__id__in=rep_ids,
+        invoice__status="paid",
+        invoice__paid_date__range=[first_day, last_day],
+    ).select_related("invoice", "invoice__client", "rep")
+
+    # =========================
+    # CONTEXT
+    # =========================
+    context = {
+        "supervisor": supervisor,
+
+        "date_from": date_from,
+        "date_to": date_to,
+
+        "selected_month": selected_month,
+        "selected_year": selected_year,
+        "selected_month_name": calendar.month_name[selected_month],
+
+        "team_total": team_total,
+        "team_avg": team_avg,
+        "achievement_pct": achievement_pct,
+
+        "working_days": working_days,
+        "days_passed": days_passed,
+        "days_remaining": days_remaining,
+
+        "prev_avg": prev_avg,
+        "trend": trend,
+        "trend_percent": trend_percent,
+
+        "target_remaining": target_remaining,
+        "required_per_day": required_per_day,
+
+        "team_size": team_size,
+        "team_reps": team_reps,
+        "invoice_entries": invoice_entries,
+
+        "invoices": invoices,
+    }
+
+    return render(request, "commission/supervisor_detail.html", context)
+
+
+
+@login_required
+def rep_detail(request, user_id):
+
+    # =========================
+    # GET REP
+    # =========================
+    rep = get_object_or_404(
+        SalesRepProfile.objects.select_related("user"),
+        user__id=user_id
+    )
+
+    today = localdate()
+
+    # =========================
+    # FILTER (DATE RANGE FIRST)
+    # =========================
+    date_from = request.GET.get("date_from")
+    date_to = request.GET.get("date_to")
+
+    if date_from and date_to:
+        first_day = date.fromisoformat(date_from)
+        last_day = date.fromisoformat(date_to)
+
+        selected_month = first_day.month
+        selected_year = first_day.year
+
+    else:
+        selected_month = int(request.GET.get("month", today.month))
+        selected_year = int(request.GET.get("year", today.year))
+
+        first_day = date(selected_year, selected_month, 1)
+        last_day = date(
+            selected_year,
+            selected_month,
+            calendar.monthrange(selected_year, selected_month)[1],
+        )
+
+        date_from = first_day
+        date_to = last_day
+
+    # =========================
+    # PREVIOUS PERIOD (TREND)
+    # =========================
+    prev_month = selected_month - 1 or 12
+    prev_year = selected_year if selected_month != 1 else selected_year - 1
+
+    prev_first_day = date(prev_year, prev_month, 1)
+    prev_last_day = date(
+        prev_year,
+        prev_month,
+        calendar.monthrange(prev_year, prev_month)[1],
+    )
+
+    # =========================
+    # QUERYSETS
+    # =========================
+    current_qs = CommissionEntry.objects.filter(
+        rep__id=user_id,
+        invoice__status="paid",
+        invoice__paid_date__range=[first_day, last_day],
+    )
+
+    prev_qs = CommissionEntry.objects.filter(
+        rep__id=user_id,
+        invoice__status="paid",
+        invoice__paid_date__range=[prev_first_day, prev_last_day],
+    )
+
+    # =========================
+    # UTILIZATION
+    # =========================
+    current_total = current_qs.aggregate(t=Sum("cost_total"))["t"] or Decimal("0.00")
+    prev_total = prev_qs.aggregate(t=Sum("cost_total"))["t"] or Decimal("0.00")
+
+    # =========================
+    # TARGET
+    # =========================
+    monthly_target_obj = MonthlyTarget.objects.filter(
+        year=selected_year,
+        month=calendar.month_abbr[selected_month].upper(),
+    ).first()
+
+    monthly_target = (
+        monthly_target_obj.monthly_target
+        if monthly_target_obj else Decimal("0.00")
+    )
+
+    # =========================
+    # WORKING DAYS
+    # =========================
+    working_days = (
+        monthly_target_obj.get_total_working_days()
+        if monthly_target_obj else 0
+    )
+
+    # IMPORTANT: respect selected period
+    days_passed = 0
+    for d in range(1, today.day + 1):
+        try:
+            current_date = date(selected_year, selected_month, d)
+            if current_date.weekday() < 5:
+                days_passed += 1
+        except:
+            pass
+
+    days_remaining = max(working_days - days_passed, 0)
+
+    # =========================
+    # DAILY AVERAGES
+    # =========================
+    current_avg = (
+        current_total / Decimal(working_days)
+        if working_days > 0 else Decimal("0.00")
+    )
+
+    prev_avg = (
+        prev_total / Decimal(working_days)
+        if working_days > 0 else Decimal("0.00")
+    )
+
+    # =========================
+    # ACHIEVEMENT
+    # =========================
+    achievement_pct = (
+        (current_total / monthly_target) * Decimal("100")
+        if monthly_target > 0 else Decimal("0.00")
+    )
+
+    # =========================
+    # TREND
+    # =========================
+    if prev_avg == 0:
+        trend = "flat"
+        trend_percent = Decimal("0.00")
+    else:
+        diff = current_avg - prev_avg
+        trend_percent = (diff / prev_avg) * Decimal("100")
+
+        if diff > 0:
+            trend = "up"
+        elif diff < 0:
+            trend = "down"
+        else:
+            trend = "flat"
+
+    # =========================
+    # TARGET TRACKING
+    # =========================
+    target_remaining = monthly_target - current_total
+
+    required_per_day = (
+        target_remaining / Decimal(days_remaining)
+        if days_remaining > 0 else Decimal("0.00")
+    )
+
+    # =========================
+    # INVOICES (🔥 KEY PART)
+    # =========================
+    invoices = Invoice.objects.filter(
+        client__account_manager=rep.user,
+        created_at__date__range=[first_day, last_day]
+    ).select_related("client").order_by("-created_at")
+
+    # =========================
+    # FILTER OPTIONS
+    # =========================
+    months = [
+        {"value": i, "label": calendar.month_name[i]}
+        for i in range(1, 13)
+    ]
+
+    years = list(range(today.year - 2, today.year + 2))
+
+    # =========================
+    # CONTEXT
+    # =========================
+    context = {
+        "rep": rep,
+
+        # FILTERS
+        "selected_month": selected_month,
+        "selected_year": selected_year,
+        "selected_month_name": calendar.month_name[selected_month],
+        "months": months,
+        "years": years,
+
+        "date_from": date_from,
+        "date_to": date_to,
+
+        # PERFORMANCE
+        "current_total": current_total,
+        "monthly_target": monthly_target,
+        "achievement_pct": achievement_pct,
+
+        "working_days": working_days,
+        "days_passed": days_passed,
+        "days_remaining": days_remaining,
+
+        "current_avg": current_avg,
+        "prev_avg": prev_avg,
+
+        "trend": trend,
+        "trend_percent": trend_percent,
+
+        "target_remaining": target_remaining,
+        "required_per_day": required_per_day,
+
+        # INVOICES
+        "invoices": invoices,
+    }
+
+    return render(request, "commission/rep_detail.html", context)
 
 
 @login_required
@@ -2088,6 +2661,8 @@ def commission_view(request, pk):
         "commission/commission_view.html",
         context,
     )
+
+
 
 @login_required
 def send_commission_statement_email(request):
@@ -2194,6 +2769,8 @@ def _parse_date_local(date_str: str):
         return timezone.make_aware(start_naive), timezone.make_aware(end_naive)
     except Exception:
         return None, None
+
+
 
 @login_required
 def tickets(request):
@@ -2333,7 +2910,35 @@ def tickets(request):
     return render(request, "tickets/tickets.html", ctx)
 
 
+@login_required
+def target_list(request):
+    targets = (
+        MonthlyTarget.objects
+        .all()
+        .order_by("-year", "-month")
+    )
 
+    return render(request, "commission/targets.html", {
+        "targets": targets
+    })
+
+
+@login_required
+def add_target(request):
+
+    targets = MonthlyTarget.objects.all().order_by("-year", "-month")
+
+    if request.method == "POST":
+        form = MonthlyTargetForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect("sales:sales-target-list")
+    else:
+        form = MonthlyTargetForm()
+
+    return render(request, "commission/add_target.html", {
+        "form": form
+    })
 
 
 # --- Optional quick actions (wire to buttons/links if needed) ---

@@ -127,20 +127,38 @@
 
   <main class="content container-fluid">
 
-    <!-- ===================== -->
-    <!-- CENTERED HEADER -->
-    <!-- ===================== -->
-    <div class="text-center mb-4">
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
 
-      <h3 class="mb-1">Performance Dashboard</h3>
+    <!-- LEFT: TITLE -->
+    <div>
+        <h3 class="mb-1">
+        {{ rep.user.first_name }} {{ rep.user.last_name }}
+        </h3>
 
-      <small class="text-muted d-block">
-        Welcome, {{ request.user.first_name }} {{ request.user.last_name }}
-      </small>
+        <small class="text-muted">
+        {% if date_from and date_to %}
+            {{ date_from|date:"d M Y" }} → {{ date_to|date:"d M Y" }}
+        {% else %}
+            {{ selected_month_name }} {{ selected_year }} Performance
+        {% endif %}
+        </small>
+    </div>
 
-      <a href="{% url 'sales:sales-target-list' %}" class="btn btn-outline-dark btn-sm">
-        Targets
-      </a>
+    <!-- RIGHT: FILTER -->
+    <form method="get" class="d-flex gap-2 align-items-center">
+
+        <input type="date" name="date_from" class="form-control form-control-sm"
+            value="{{ date_from|date:'Y-m-d' }}">
+
+        <input type="date" name="date_to" class="form-control form-control-sm"
+            value="{{ date_to|date:'Y-m-d' }}">
+
+        <button type="submit" class="btn btn-primary btn-sm">
+        Apply
+        </button>
+
+    </form>
 
     </div>
 
@@ -148,368 +166,215 @@
     <!-- ===================== -->
     <!-- MAIN CARD -->
     <!-- ===================== -->
+    <div class="card p-4 mb-4">
+
+    <!-- ===================== -->
+    <!-- ROW 1: OVERVIEW -->
+    <!-- ===================== -->
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-3">
+        <div class="card card-compact h-100">
+            <small class="text-muted">Monthly Total</small>
+            <h4>R{{ current_total|floatformat:0 }}</h4>
+        </div>
+        </div>
+
+        <div class="col-md-3">
+        <div class="card card-compact h-100">
+            <small class="text-muted">Daily Average</small>
+            <h4>R{{ current_avg|floatformat:0 }}</h4>
+        </div>
+        </div>
+
+        <div class="col-md-3">
+        <div class="card card-compact h-100">
+            <small class="text-muted">Achievement</small>
+            <h4>{{ achievement_pct|floatformat:0 }}%</h4>
+            <div class="progress mt-2" style="height:6px;">
+            <div class="progress-bar" style="width: {{ achievement_pct|floatformat:0 }}%;"></div>
+            </div>
+        </div>
+        </div>
+
+        <div class="col-md-3">
+        <div class="card card-compact h-100">
+            <small class="text-muted">Trend</small>
+            <h4>
+            {% if trend == "up" %}
+                <span class="text-success">▲ +{{ trend_percent|floatformat:0 }}%</span>
+            {% elif trend == "down" %}
+                <span class="text-danger">▼ {{ trend_percent|floatformat:0 }}%</span>
+            {% else %}
+                <span class="text-muted">▬ 0%</span>
+            {% endif %}
+            </h4>
+        </div>
+        </div>
+
+    </div>
+
+
+    <!-- ===================== -->
+    <!-- ROW 2: CONTROL -->
+    <!-- ===================== -->
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-3">
+        <div class="card card-compact h-100">
+            <small class="text-muted">Working Days</small>
+            <h4>{{ working_days }}</h4>
+        </div>
+        </div>
+
+        <div class="col-md-3">
+        <div class="card card-compact h-100">
+            <small class="text-muted">Days Passed</small>
+            <h4>{{ days_passed }}</h4>
+        </div>
+        </div>
+
+        <div class="col-md-3">
+        <div class="card card-compact h-100">
+            <small class="text-muted">Days Remaining</small>
+            <h4>{{ days_remaining }}</h4>
+        </div>
+        </div>
+
+        <div class="col-md-3">
+        <div class="card card-compact border-danger h-100">
+            <small class="text-muted">Required Per Day</small>
+            <h4 class="text-danger">
+            R{{ required_per_day|floatformat:0 }}
+            </h4>
+        </div>
+        </div>
+
+    </div>
+
+
+    <!-- ===================== -->
+    <!-- ROW 3: PERFORMANCE -->
+    <!-- ===================== -->
+    <div class="row g-3">
+
+        <div class="col-md-4">
+        <div class="card card-compact h-100">
+            <small class="text-muted">Target Remaining</small>
+            <h4>R{{ target_remaining|floatformat:0 }}</h4>
+        </div>
+        </div>
+
+        <div class="col-md-4">
+        <div class="card card-compact h-100">
+            <small class="text-muted">Previous Avg</small>
+            <h4>R{{ prev_avg|floatformat:0 }}</h4>
+        </div>
+        </div>
+
+        <div class="col-md-4">
+        <div class="card card-compact h-100 border-warning">
+            <small class="text-muted">Status</small>
+            <h4 class="text-warning">
+            {% if achievement_pct >= 100 %}
+                On Target
+            {% elif achievement_pct >= 75 %}
+                Slightly Behind
+            {% else %}
+                Needs Attention
+            {% endif %}
+            </h4>
+        </div>
+        </div>
+
+    </div>
+
+    </div>
+
+    <!-- ===================== -->
+    <!-- INVOICE TABLE CARD -->
+    <!-- ===================== -->
     <div class="card p-4">
 
-      <!-- ===================== -->
-      <!-- FILTER INSIDE CARD -->
-      <!-- ===================== -->
-      <div class="d-flex justify-content-end mb-4">
-
-        <form method="get" class="d-flex gap-2 align-items-center">
-
-          <select name="month" class="form-select form-select-sm">
-            {% for m in months %}
-              <option value="{{ m.value }}" {% if m.value == selected_month %}selected{% endif %}>
-                {{ m.label }}
-              </option>
-            {% endfor %}
-          </select>
-
-          <select name="year" class="form-select form-select-sm">
-            {% for y in years %}
-              <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>
-                {{ y }}
-              </option>
-            {% endfor %}
-          </select>
-
-          <button class="btn btn-primary btn-sm">Apply</button>
-
-        </form>
-
-      </div>
-
-
-      <!-- ===================== -->
-      <!-- ROW 1: OVERVIEW -->
-      <!-- ===================== -->
-      <div class="row g-3 mb-4 align-items-stretch">
-
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Monthly Target</small>
-            <h4 class="mb-0">R{{ monthly_target|default:0|floatformat:0 }}</h4>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Actual Utilization</small>
-            <h4 class="mb-0">R{{ actual_utilization|default:0|floatformat:0 }}</h4>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Achievement</small>
-            <h4 class="mb-0">{{ achievement_pct|default:0 }}%</h4>
-            <div class="progress mt-2" style="height:6px;">
-              <div class="progress-bar" style="width: {{ achievement_pct|default:0 }}%;"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Daily Target</small>
-            <h4 class="mb-0">R{{ daily_target|default:0|floatformat:0 }}</h4>
-          </div>
-        </div>
-
-      </div>
-
-
-      <!-- ===================== -->
-      <!-- ROW 2: CONTROL -->
-      <!-- ===================== -->
-      <div class="row g-3 mb-4 align-items-stretch">
-
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Working Days</small>
-            <h4 class="mb-0">{{ working_days }}</h4>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Days Passed</small>
-            <h4 class="mb-0">{{ days_passed }}</h4>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Days Remaining</small>
-            <h4 class="mb-0">{{ days_remaining }}</h4>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between border-danger">
-            <small class="text-muted">Required Per Day</small>
-            <h4 class="mb-0 text-danger">
-              R{{ required_per_day|default:0|floatformat:0 }}
-            </h4>
-          </div>
-        </div>
-
-      </div>
-
-
-      <!-- ===================== -->
-      <!-- ROW 3: PERFORMANCE -->
-      <!-- ===================== -->
-      <div class="row g-3 align-items-stretch">
-
-        <div class="col-md-4">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Target Remaining</small>
-            <h4 class="mb-0">
-              R{{ target_remaining|default:0|floatformat:0 }}
-            </h4>
-          </div>
-        </div>
-
-        <div class="col-md-4">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Today Target</small>
-            <h4 class="mb-0">
-              R{{ today_target|default:0|floatformat:0 }}
-            </h4>
-          </div>
-        </div>
-
-        <div class="col-md-4">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between border-warning">
-            <small class="text-muted">Today Gap</small>
-            <h4 class="mb-0 text-warning">
-              R{{ today_gap|default:0|floatformat:0 }}
-            </h4>
-          </div>
-        </div>
-
-      </div>
-
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Invoices</h5>
+        <small class="text-muted">Latest activity</small>
     </div>
 
-    
-    <!-- ===================== -->
-    <!-- TEAM PERFORMANCE -->
-    <!-- ===================== -->
-    <div class="mt-4">
+    <!-- TABLE -->
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
 
-      <!-- ===================== -->
-      <!-- SUPERVISORS -->
-      <!-- ===================== -->
-      <div class="card p-4 mb-4">
+        <thead>
+            <tr>
+            <th>#</th>
+            <th>Client</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Date</th>
+            </tr>
+        </thead>
 
-        <!-- HEADER -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="mb-0">Supervisors</h5>
+        <tbody>
+            {% for inv in invoices %}
+            <tr>
 
-          <form method="get" class="d-flex gap-2">
+            <!-- INVOICE ID -->
+            <td>
+                #{{ inv.id }}
+            </td>
 
-            <select name="supervisor" class="form-select form-select-sm">
-              <option value="">All</option>
-              {% for s in supervisors %}
-                <option value="{{ s.id }}" {% if s.id == selected_supervisor %}selected{% endif %}>
-                  {{ s.name }}
-                </option>
-              {% endfor %}
-            </select>
+            <!-- CLIENT -->
+            <td>
+                {{ inv.client.name }}
+            </td>
 
-            <select name="month" class="form-select form-select-sm">
-              {% for m in months %}
-                <option value="{{ m.value }}" {% if m.value == selected_month %}selected{% endif %}>
-                  {{ m.label }}
-                </option>
-              {% endfor %}
-            </select>
+            <!-- AMOUNT -->
+            <td>
+                R{{ inv.order_total_inc|floatformat:0 }}
+            </td>
 
-            <button class="btn btn-sm btn-primary">Apply</button>
-
-          </form>
-        </div>
-
-        <!-- TABLE -->
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-
-            <thead>
-              <tr>
-                <th>Supervisor</th>
-                <th>Area</th>
-                <th>Daily Avg</th>
-                <th>% of Monthly Target</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {% for s in supervisor_summary %}
-              <tr 
-                style="cursor:pointer;"
-                {% if s.user_id %}
-                onclick="window.location.href='{% url 'sales:supervisor-detail' s.user_id %}'"
+            <!-- STATUS -->
+            <td>
+                {% if inv.status == "paid" %}
+                <span class="badge bg-success">Paid</span>
+                {% elif inv.status == "partial" %}
+                <span class="badge bg-warning text-dark">Partial</span>
+                {% elif inv.status == "overdue" %}
+                <span class="badge bg-danger">Overdue</span>
+                {% else %}
+                <span class="badge bg-secondary">Unpaid</span>
                 {% endif %}
-              >
+            </td>
 
-                <!-- NAME -->
-                <td>
-                  {{ s.first_name }} {{ s.last_name }}
-                </td>
+            <!-- DATE -->
+            <td>
+                {% if inv.date %}
+                {{ inv.date|date:"d M Y" }}
+                {% else %}
+                —
+                {% endif %}
+            </td>
 
-                <!-- AREA -->
-                <td>
-                  {{ s.area }}
-                </td>
+            
 
-                <!-- DAILY AVERAGE -->
-                <td>
-                  R{{ s.daily_avg|floatformat:0 }}
-                </td>
+            </tr>
+            {% empty %}
+            <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+                No invoices found for this rep
+            </td>
+            </tr>
+            {% endfor %}
+        </tbody>
 
-                <!-- % OF TARGET -->
-                <td>
-                  <span 
-                    class="
-                      {% if s.percent >= 100 %}
-                        text-success
-                      {% elif s.percent >= 80 %}
-                        text-warning
-                      {% else %}
-                        text-danger
-                      {% endif %}
-                      fw-semibold
-                    "
-                  >
-                    {{ s.percent|floatformat:0 }}%
-                  </span>
-                </td>
-
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="4" class="text-center text-muted py-4">
-                  No supervisor data available
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-
-          </table>
-        </div>
-
-      </div>
-
-
-      <!-- ===================== -->
-      <!-- REPS -->
-      <!-- ===================== -->
-      <div class="card p-4">
-
-        <!-- HEADER -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="mb-0">Reps / Agents</h5>
-
-          <form method="get" class="d-flex gap-2">
-
-            <select name="rep" class="form-select form-select-sm">
-              <option value="">All</option>
-              {% for r in reps %}
-                <option value="{{ r.id }}" {% if r.id == selected_rep %}selected{% endif %}>
-                  {{ r.name }}
-                </option>
-              {% endfor %}
-            </select>
-
-            <select name="month" class="form-select form-select-sm">
-              {% for m in months %}
-                <option value="{{ m.value }}" {% if m.value == selected_month %}selected{% endif %}>
-                  {{ m.label }}
-                </option>
-              {% endfor %}
-            </select>
-
-            <button class="btn btn-sm btn-primary">Apply</button>
-
-          </form>
-        </div>
-
-        <!-- TABLE -->
-        <!-- TABLE -->
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-
-            <thead>
-              <tr>
-                <th>Rep</th>
-                <th>Area</th>
-                <th>Daily Avg</th>
-                <th>Trend</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {% for r in rep_summary %}
-              <tr style="cursor:pointer;">
-
-                <!-- NAME -->
-                <td>
-                  {% if r.user_id %}
-                    <a href="{% url 'sales:rep-detail' r.user_id %}" class="text-decoration-none text-dark">
-                      {{ r.first_name }} {{ r.last_name }}
-                    </a>
-                  {% else %}
-                    {{ r.first_name }} {{ r.last_name }}
-                  {% endif %}
-                </td>
-
-                <!-- AREA -->
-                <td>
-                  {{ r.area|default:"—" }}
-                </td>
-
-                <!-- DAILY AVERAGE -->
-                <td>
-                  R{{ r.daily_avg|floatformat:0 }}
-                </td>
-
-                <!-- TREND -->
-                <td>
-                  {% if r.trend == "up" %}
-                    <span class="text-success fw-semibold">
-                      ▲ +{{ r.trend_percent|floatformat:0 }}%
-                    </span>
-
-                  {% elif r.trend == "down" %}
-                    <span class="text-danger fw-semibold">
-                      ▼ {{ r.trend_percent|floatformat:0 }}%
-                    </span>
-
-                  {% else %}
-                    <span class="text-muted fw-semibold">
-                      ▬ 0%
-                    </span>
-                  {% endif %}
-                </td>
-
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="4" class="text-center text-muted py-4">
-                  No rep data available
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-
-          </table>
-        </div>
-
-      </div>
+        </table>
+    </div>
 
     </div>
+   
+
 
   </main>
 
