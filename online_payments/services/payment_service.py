@@ -43,7 +43,19 @@ class PaymentService:
         }
 
         # Build hash string (order matters!)
-        hash_string = "".join(data.values())
+        hash_string = (
+            data["SiteCode"] +
+            data["CountryCode"] +
+            data["CurrencyCode"] +
+            data["Amount"] +
+            data["TransactionReference"] +
+            data["BankReference"] +
+            data["CancelUrl"] +
+            data["ErrorUrl"] +
+            data["SuccessUrl"] +
+            data["NotifyUrl"] +
+            data["IsTest"]
+        )
         from .ozow import generate_ozow_hash
         data["HashCheck"] = generate_ozow_hash(hash_string)
 
