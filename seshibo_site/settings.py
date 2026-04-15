@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',
     "django_extensions",
     "payments",
+    "online_payments",
 
     # third party
     'django_celery_beat',

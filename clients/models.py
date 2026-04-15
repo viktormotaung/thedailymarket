@@ -70,6 +70,8 @@ GAUTENG_CITY_CHOICES = [
 ]
 
 
+
+
 class Client(models.Model):
     # ---- Ownership ----
     account_manager = models.ForeignKey(

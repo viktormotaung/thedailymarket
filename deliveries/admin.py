@@ -15,6 +15,31 @@ from .models import (
     ExternalDeliveryRate,
 )
 
+
+def send_delivery_email(stop, recipient_email, recipient_name):
+    subject = f"Delivery Confirmation · Order #{stop.order.id}"
+
+    html_content = render_to_string(
+        "emails/delivery_email.html",
+        {
+            "stop": stop,
+            "order": stop.order,
+            "recipient_name": recipient_name,
+            "items": stop.order.items.all(),
+        },
+    )
+
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body="Your delivery has been completed.",
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[recipient_email],
+    )
+
+    email.attach_alternative(html_content, "text/html")
+    email.send()
+
+
 # =====================================
 # VEHICLES (FLEET)
 # =====================================

@@ -35,9 +35,61 @@
     .helptext { font-size: .85rem; color: #6c757d; }
     .errorlist, .text-danger.small { margin: .25rem 0 0; padding-left: 0; color: #dc3545; }
 
+    .form-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .form-control,
+    .form-select {
+      width: 100%;
+      height: 44px;
+      font-size: 0.95rem;
+      border-radius: 8px;
+    }
+
+    .card h6 {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    @media (min-width: 992px) {
+      body { display: block; overflow-x: hidden; }
+
+      .sidebar-desktop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: var(--sidebar-w);
+        overflow-y: auto;
+        z-index: 1020;
+      }
+
+      .content {
+        margin-left: var(--sidebar-w);
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        max-width: 100%;
+      }
+    }
+
+    /* GLOBAL FIXES */
+    .row {
+      margin-left: 0;
+      margin-right: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     /* ---------- Desktop (≥ 992px): fixed sidebar, only content scrolls ---------- */
     @media (min-width: 992px) {
-      body { display: block; overflow: hidden; }
+      body { display: block; overflow-x: hidden; }
       .sidebar-desktop {
         position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-w);
         overflow-y: auto; z-index: 1020;
@@ -230,201 +282,265 @@
     </div>
   </aside>
 
-  <!-- MAIN CONTENT -->
-  <main class="content">
 
-    <!-- ================= HEADER ================= -->
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+  <main class="content px-4">
+
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
-        <h2 class="m-0">Edit Client</h2>
-        <div class="text-muted">
+        <h3 class="fw-semibold mb-1">Edit Client</h3>
+        <small class="text-muted">
           {{ client.client_number }} · {{ client.name }}
-          {% if client.organization %} ({{ client.organization }}){% endif %}
-        </div>
+        </small>
       </div>
+
       <div class="d-flex gap-2">
-        <a href="{% url 'client-view' client.id %}" class="btn btn-outline-secondary">Cancel</a>
-        <a href="{% url 'staff-clients' %}" class="btn btn-outline-secondary">Back to Clients</a>
+        <a href="{% url 'client-view' client.id %}" class="btn btn-light border">Cancel</a>
+        <button form="clientForm" class="btn btn-success px-4 fw-semibold">Save</button>
       </div>
     </div>
 
-    <!-- ================= ERROR SUMMARY ================= -->
     {% if form.errors %}
-      <div class="alert alert-danger mt-3">
-        <strong>Please fix the errors highlighted below.</strong>
-      </div>
+      <div class="alert alert-danger">Please fix the errors below</div>
     {% endif %}
 
-    <form method="post" class="mt-3" novalidate>
+    <form method="post" id="clientForm">
       {% csrf_token %}
 
-      {% if form.non_field_errors %}
-        <div class="alert alert-danger">
-          {{ form.non_field_errors }}
-        </div>
-      {% endif %}
+      <div class="row g-4">
 
-      <div class="row g-3">
+        <!-- ================= IDENTITY ================= -->
+        <div class="col-12">
+          <div class="card p-4 shadow-sm">
+            <h6 class="mb-4">Identity & Ownership</h6>
 
-        <!-- ================= Identity & Ownership ================= -->
-        <div class="col-lg-6">
-          <div class="card">
-            <div class="card-header"><strong>Identity & Ownership</strong></div>
-            <div class="card-body">
+            <div class="row g-4">
 
-              <div class="mb-3">
-                <label class="form-label">Client Number</label>
-                <input class="form-control" value="{{ client.client_number }}" readonly>
+              <!-- ROW 1 -->
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Client Number</label>
+                  <input class="form-control bg-light" value="{{ client.client_number }}" readonly>
+                </div>
               </div>
 
-              {{ form.entity_type.label_tag }} {{ form.entity_type }} {{ form.entity_type.errors }}
-              {{ form.registration_identifier.label_tag }} {{ form.registration_identifier }} {{ form.registration_identifier.errors }}
-              {{ form.name.label_tag }} {{ form.name }} {{ form.name.errors }}
-              {{ form.organization.label_tag }} {{ form.organization }} {{ form.organization.errors }}
-              {{ form.client_type.label_tag }} {{ form.client_type }} {{ form.client_type.errors }}
-              {{ form.client_size_tier.label_tag }} {{ form.client_size_tier }} {{ form.client_size_tier.errors }}
-              {{ form.area.label_tag }} {{ form.area }} {{ form.area.errors }}
+              <div class="col-md-3">
+                <div class="mb-3">
+                  {{ form.entity_type.label_tag }}
+                  {{ form.entity_type }}
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="mb-3">
+                  {{ form.registration_identifier.label_tag }}
+                  {{ form.registration_identifier }}
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="mb-3">
+                  {{ form.area.label_tag }}
+                  {{ form.area }}
+                </div>
+              </div>
+
+              <!-- ROW 2 -->
+              <div class="col-md-6">
+                <div class="mb-3">
+                  {{ form.name.label_tag }}
+                  {{ form.name }}
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <div class="mb-3">
+                  {{ form.organization.label_tag }}
+                  {{ form.organization }}
+                </div>
+              </div>
 
             </div>
           </div>
         </div>
 
-        <!-- ================= Contact ================= -->
-        <div class="col-lg-6">
-          <div class="card">
-            <div class="card-header"><strong>Contact</strong></div>
-            <div class="card-body">
-              {{ form.contact_person.label_tag }} {{ form.contact_person }} {{ form.contact_person.errors }}
-              {{ form.email.label_tag }} {{ form.email }} {{ form.email.errors }}
-              {{ form.phone.label_tag }} {{ form.phone }} {{ form.phone.errors }}
-              {{ form.whatsapp.label_tag }} {{ form.whatsapp }} {{ form.whatsapp.errors }}
-            </div>
-          </div>
-        </div>
-
-        <!-- ================= Business Address ================= -->
-        <div class="col-lg-6">
-          <div class="card">
-            <div class="card-header"><strong>Business Address</strong></div>
-            <div class="card-body">
-              {{ form.address_line1.label_tag }} {{ form.address_line1 }} {{ form.address_line1.errors }}
-              {{ form.address_line2.label_tag }} {{ form.address_line2 }} {{ form.address_line2.errors }}
-              {{ form.suburb.label_tag }} {{ form.suburb }} {{ form.suburb.errors }}
-              {{ form.city.label_tag }} {{ form.city }} {{ form.city.errors }}
-              {{ form.province.label_tag }} {{ form.province }} {{ form.province.errors }}
-              {{ form.postal_code.label_tag }} {{ form.postal_code }} {{ form.postal_code.errors }}
-              {{ form.country.label_tag }} {{ form.country }} {{ form.country.errors }}
-            </div>
-          </div>
-        </div>
-
-        <!-- ================= Delivery Address ================= -->
-        <div class="col-lg-6">
-          <div class="card">
-            <div class="card-header"><strong>Delivery Address</strong></div>
-            <div class="card-body">
-              {{ form.delivery_address_line1.label_tag }} {{ form.delivery_address_line1 }} {{ form.delivery_address_line1.errors }}
-              {{ form.delivery_address_line2.label_tag }} {{ form.delivery_address_line2 }} {{ form.delivery_address_line2.errors }}
-              {{ form.delivery_suburb.label_tag }} {{ form.delivery_suburb }} {{ form.delivery_suburb.errors }}
-              {{ form.delivery_city.label_tag }} {{ form.delivery_city }} {{ form.delivery_city.errors }}
-              {{ form.delivery_province.label_tag }} {{ form.delivery_province }} {{ form.delivery_province.errors }}
-              {{ form.delivery_postal_code.label_tag }} {{ form.delivery_postal_code }} {{ form.delivery_postal_code.errors }}
-              {{ form.delivery_country.label_tag }} {{ form.delivery_country }} {{ form.delivery_country.errors }}
-              <hr>
-
-              {{ form.preferred_delivery_slot_1.label_tag }} 
-              {{ form.preferred_delivery_slot_1 }} 
-              {{ form.preferred_delivery_slot_1.errors }}
-
-              {{ form.preferred_delivery_slot_2.label_tag }} 
-              {{ form.preferred_delivery_slot_2 }} 
-              {{ form.preferred_delivery_slot_2.errors }}
-
-              {{ form.preferred_delivery_slot_3.label_tag }} 
-              {{ form.preferred_delivery_slot_3 }} 
-              {{ form.preferred_delivery_slot_3.errors }}
-            </div>
-          </div>
-        </div>
-
-        <!-- ================= Delivery Geo ================= -->
-        <div class="col-lg-6">
-          <div class="card">
-            <div class="card-header"><strong>Delivery Location (Geo)</strong></div>
-            <div class="card-body">
-              {{ form.delivery_lat.label_tag }} {{ form.delivery_lat }} {{ form.delivery_lat.errors }}
-              {{ form.delivery_lng.label_tag }} {{ form.delivery_lng }} {{ form.delivery_lng.errors }}
-            </div>
-          </div>
-        </div>
-
-        <!-- ================= Commercial ================= -->
-        <div class="col-lg-6">
-          <div class="card">
-            <div class="card-header"><strong>Commercial</strong></div>
-            <div class="card-body">
-              {{ form.price_type.label_tag }} {{ form.price_type }} {{ form.price_type.errors }}
-              {{ form.estimated_weekly_spend.label_tag }} {{ form.estimated_weekly_spend }} {{ form.estimated_weekly_spend.errors }}
-            </div>
-          </div>
-        </div>
-
-        <!-- ================= Status & Credit ================= -->
-        <div class="col-lg-6">
-          <div class="card">
-            <div class="card-header"><strong>Status & Credit</strong></div>
-            <div class="card-body">
-              {{ form.status.label_tag }} {{ form.status }} {{ form.status.errors }}
-              {{ form.account_type.label_tag }} {{ form.account_type }} {{ form.account_type.errors }}
-              {{ form.credit_status.label_tag }} {{ form.credit_status }} {{ form.credit_status.errors }}
-            </div>
-          </div>
-        </div>
-
-        <!-- ================= Categories ================= -->
-        <div class="col-lg-6">
-          <div class="card">
-            <div class="card-header"><strong>Categories</strong></div>
-            <div class="card-body">
-              {{ form.categories.label_tag }}
-              {{ form.categories }}
-              {{ form.categories.errors }}
-            </div>
-          </div>
-        </div>
-
-        <!-- ================= Compliance ================= -->
-        <div class="col-lg-6">
-          <div class="card">
-            <div class="card-header"><strong>Compliance</strong></div>
-            <div class="card-body">
-              {{ form.vat_number.label_tag }} {{ form.vat_number }} {{ form.vat_number.errors }}
-            </div>
-          </div>
-        </div>
-
-        <!-- ================= Notes ================= -->
+        <!-- ================= CONTACT ================= -->
         <div class="col-12">
-          <div class="card">
-            <div class="card-header"><strong>Notes</strong></div>
-            <div class="card-body">
-              {{ form.notes }} {{ form.notes.errors }}
+          <div class="card p-4 shadow-sm">
+            <h6 class="mb-4">Contact</h6>
+
+            <div class="row g-4">
+
+              <div class="col-md-3">
+                <div class="mb-3">
+                  {{ form.contact_person.label_tag }}
+                  {{ form.contact_person }}
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="mb-3">
+                  {{ form.email.label_tag }}
+                  {{ form.email }}
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="mb-3">
+                  {{ form.phone.label_tag }}
+                  {{ form.phone }}
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="mb-3">
+                  {{ form.whatsapp.label_tag }}
+                  {{ form.whatsapp }}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= LOCATION ================= -->
+        <div class="col-12">
+          <div class="card p-4 shadow-sm">
+            <h6 class="mb-4">Location</h6>
+
+            <div class="row g-4">
+
+              <!-- BUSINESS -->
+              <div class="col-md-6">
+                <h6 class="text-muted mb-3">Business Address</h6>
+
+                <div class="mb-3">
+                  {{ form.address_line1.label_tag }}
+                  {{ form.address_line1 }}
+                </div>
+
+                <div class="mb-3">
+                  {{ form.address_line2.label_tag }}
+                  {{ form.address_line2 }}
+                </div>
+
+                <div class="mb-3">
+                  {{ form.suburb.label_tag }}
+                  {{ form.suburb }}
+                </div>
+
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    {{ form.city.label_tag }}
+                    {{ form.city }}
+                  </div>
+                  <div class="col-md-6">
+                    {{ form.province.label_tag }}
+                    {{ form.province }}
+                  </div>
+                </div>
+
+                <div class="mt-3">
+                  {{ form.postal_code.label_tag }}
+                  {{ form.postal_code }}
+                </div>
+              </div>
+
+              <!-- DELIVERY -->
+              <div class="col-md-6">
+                <h6 class="text-muted mb-3">Delivery Address</h6>
+
+                <div class="form-check mb-3">
+                  <input type="checkbox" id="sameAsBusinessAddress" class="form-check-input">
+                  <label class="form-check-label">Same as business address</label>
+                </div>
+
+                <div class="mb-3">
+                  {{ form.delivery_address_line1.label_tag }}
+                  {{ form.delivery_address_line1 }}
+                </div>
+
+                <div class="mb-3">
+                  {{ form.delivery_address_line2.label_tag }}
+                  {{ form.delivery_address_line2 }}
+                </div>
+
+                <div class="mb-3">
+                  {{ form.delivery_suburb.label_tag }}
+                  {{ form.delivery_suburb }}
+                </div>
+
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    {{ form.delivery_city.label_tag }}
+                    {{ form.delivery_city }}
+                  </div>
+                  <div class="col-md-6">
+                    {{ form.delivery_province.label_tag }}
+                    {{ form.delivery_province }}
+                  </div>
+                </div>
+
+                <div class="mt-3">
+                  {{ form.delivery_postal_code.label_tag }}
+                  {{ form.delivery_postal_code }}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= DELIVERY ================= -->
+        <div class="col-12">
+          <div class="card p-4 shadow-sm">
+            <h6 class="mb-4">Delivery Preferences</h6>
+
+            <div class="row g-4">
+
+              <div class="col-md-4">
+                <div class="mb-3">
+                  {{ form.preferred_delivery_slot_1.label_tag }}
+                  {{ form.preferred_delivery_slot_1 }}
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <div class="mb-3">
+                  {{ form.preferred_delivery_slot_2.label_tag }}
+                  {{ form.preferred_delivery_slot_2 }}
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <div class="mb-3">
+                  {{ form.preferred_delivery_slot_3.label_tag }}
+                  {{ form.preferred_delivery_slot_3 }}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= NOTES ================= -->
+        <div class="col-12">
+          <div class="card p-4 shadow-sm">
+            <h6 class="mb-4">Notes</h6>
+
+            <div class="mb-3">
+              {{ form.notes.label_tag }}
+              {{ form.notes }}
             </div>
           </div>
         </div>
 
       </div>
-
-      
-
-      <!-- ================= ACTIONS ================= -->
-      <div class="d-flex justify-content-end mt-3 gap-2">
-        <a href="{% url 'client-view' client.id %}" class="btn btn-outline-secondary">Cancel</a>
-        <button type="submit" class="btn btn-primary">Save Changes</button>
-      </div>
-
     </form>
+
   </main>
+
+
 
 
   <script>
@@ -453,7 +569,6 @@
         if (copyValues) {
           target.value = source.value;
           target.setAttribute("readonly", true);
-          target.setAttribute("disabled", true);
         } else {
           target.removeAttribute("readonly");
           target.removeAttribute("disabled");

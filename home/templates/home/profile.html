@@ -575,7 +575,7 @@
                           data-bs-target="#bp-address"
                           role="tab">
                     Address & Delivery
-                    {% if business_address_complete %}
+                    {% if business_address_complete and business_delivery_complete %}
                       <span class="text-success ms-1">✔</span>
                     {% else %}
                       <span class="text-warning ms-1">✖</span>
@@ -628,6 +628,12 @@
                         {{ business_form.client_size_tier.label_tag }}
                         {{ business_form.client_size_tier }}
                       </div>
+
+                      <!-- 🔥 NEW: AREA -->
+                      <div class="col-md-6">
+                        {{ business_form.area.label_tag }}
+                        {{ business_form.area }}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -657,11 +663,6 @@
                         {{ business_form.whatsapp.label_tag }}
                         {{ business_form.whatsapp }}
                       </div>
-
-                      <div class="col-12">
-                        {{ business_form.categories.label_tag }}
-                        {{ business_form.categories }}
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -670,7 +671,7 @@
                 <div class="tab-pane fade" id="bp-address" role="tabpanel">
                   <div class="card border-0 shadow-sm p-4 mb-4">
 
-                    <!-- ================= BUSINESS ADDRESS ================= -->
+                    <!-- BUSINESS ADDRESS -->
                     <h6 class="fw-semibold mb-4">Business Address</h6>
 
                     <div class="row g-3 mb-4">
@@ -707,26 +708,18 @@
 
                     <hr class="my-4">
 
-                    <!-- ================= DELIVERY ADDRESS ================= -->
+                    <!-- DELIVERY ADDRESS -->
                     <h6 class="fw-semibold mb-3">Delivery Address</h6>
 
-                    <!-- Same as business checkbox -->
                     <div class="form-check mb-3">
-                      <input class="form-check-input"
-                            type="checkbox"
-                            id="sameAsBusinessAddress">
-                      <label class="form-check-label fw-semibold"
-                            for="sameAsBusinessAddress">
+                      <input class="form-check-input" type="checkbox" id="sameAsBusinessAddress">
+                      <label class="form-check-label fw-semibold">
                         Delivery address is the same as business address
                       </label>
                     </div>
 
-                    <p class="text-muted small mb-4">
-                      If different from your business address, please provide your delivery address below.
-                      A representative will confirm the exact delivery location during site verification.
-                    </p>
-
                     <div class="row g-3">
+
                       <div class="col-12">
                         {{ business_form.delivery_address_line1.label_tag }}
                         {{ business_form.delivery_address_line1 }}
@@ -753,20 +746,44 @@
                       </div>
 
                       <div class="col-md-6">
+                        {{ business_form.delivery_country.label_tag }}
+                        {{ business_form.delivery_country }}
+                      </div>
+
+                      <div class="col-md-6">
                         {{ business_form.delivery_postal_code.label_tag }}
                         {{ business_form.delivery_postal_code }}
                       </div>
 
-                      <!-- Lat/Lng intentionally hidden -->
                       {{ business_form.delivery_lat.as_hidden }}
                       {{ business_form.delivery_lng.as_hidden }}
+
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- 🔥 DELIVERY SLOTS -->
+                    <h6 class="fw-semibold mb-3">Delivery Preferences</h6>
+
+                    <div class="row g-3">
+                      <div class="col-md-4">
+                        {{ business_form.preferred_delivery_slot_1.label_tag }}
+                        {{ business_form.preferred_delivery_slot_1 }}
+                      </div>
+
+                      <div class="col-md-4">
+                        {{ business_form.preferred_delivery_slot_2.label_tag }}
+                        {{ business_form.preferred_delivery_slot_2 }}
+                      </div>
+
+                      <div class="col-md-4">
+                        {{ business_form.preferred_delivery_slot_3.label_tag }}
+                        {{ business_form.preferred_delivery_slot_3 }}
+                      </div>
                     </div>
 
                   </div>
                 </div>
-
-
-
 
                 <!-- ===== Compliance ===== -->
                 <div class="tab-pane fade" id="bp-compliance" role="tabpanel">
@@ -780,8 +797,8 @@
                       </div>
 
                       <div class="col-md-6">
-                        {{ business_form.company_reg_number.label_tag }}
-                        {{ business_form.company_reg_number }}
+                        {{ business_form.registration_identifier.label_tag }}
+                        {{ business_form.registration_identifier }}
                       </div>
 
                       <div class="col-md-6">
@@ -799,7 +816,7 @@
 
               </div>
 
-              <!-- ===== Save Button ===== -->
+              <!-- SAVE BUTTON -->
               <div class="text-end">
                 <button type="submit" class="btn btn-primary">
                   Save Business Profile

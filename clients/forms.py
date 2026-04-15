@@ -778,6 +778,39 @@ class ClientBusinessForm(forms.ModelForm):
         label="Delivery City",
     )
 
+    # ----------------------------
+    # NEW: DELIVERY PROVINCE + COUNTRY
+    # ----------------------------
+    delivery_country = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs=_bs()),
+        label="Delivery Country",
+    )
+
+    # ----------------------------
+    # NEW: DELIVERY SLOTS
+    # ----------------------------
+    preferred_delivery_slot_1 = forms.ChoiceField(
+        choices=Client.DELIVERY_SLOT_CHOICES,
+        required=False,
+        widget=forms.Select(attrs=_bs("form-select")),
+        label="Preferred Delivery Slot (1st)",
+    )
+
+    preferred_delivery_slot_2 = forms.ChoiceField(
+        choices=Client.DELIVERY_SLOT_CHOICES,
+        required=False,
+        widget=forms.Select(attrs=_bs("form-select")),
+        label="Preferred Delivery Slot (2nd)",
+    )
+
+    preferred_delivery_slot_3 = forms.ChoiceField(
+        choices=Client.DELIVERY_SLOT_CHOICES,
+        required=False,
+        widget=forms.Select(attrs=_bs("form-select")),
+        label="Preferred Delivery Slot (3rd)",
+    )
+
     class Meta:
         model = Client
         fields = [
@@ -791,6 +824,7 @@ class ClientBusinessForm(forms.ModelForm):
             "whatsapp",
             "client_type",
             "client_size_tier",
+            "area",  # 🔥 NEW
 
             # --- Business Address ---
             "address_line1",
@@ -806,9 +840,15 @@ class ClientBusinessForm(forms.ModelForm):
             "delivery_suburb",
             "delivery_city",
             "delivery_province",
+            "delivery_country",  # 🔥 NEW
             "delivery_postal_code",
             "delivery_lat",
             "delivery_lng",
+
+            # --- Delivery Preferences ---
+            "preferred_delivery_slot_1",  # 🔥 NEW
+            "preferred_delivery_slot_2",  # 🔥 NEW
+            "preferred_delivery_slot_3",  # 🔥 NEW
 
             # --- Compliance / Commercial ---
             "vat_number",
@@ -843,6 +883,7 @@ class ClientBusinessForm(forms.ModelForm):
             "client_type": forms.Select(attrs=_bs("form-select")),
             "client_size_tier": forms.Select(attrs=_bs("form-select")),
             "price_type": forms.Select(attrs=_bs("form-select")),
+            "area": forms.Select(attrs=_bs("form-select")),  # 🔥 NEW
 
             # Numbers
             "estimated_weekly_spend": forms.NumberInput(
@@ -860,6 +901,10 @@ class ClientBusinessForm(forms.ModelForm):
         self.fields["email"].widget.attrs.setdefault("placeholder", "name@example.com")
         self.fields["phone"].widget.attrs.setdefault("placeholder", "+27 82 123 4567")
         self.fields["whatsapp"].widget.attrs.setdefault("placeholder", "+27 82 123 4567")
+
+        # Default delivery country
+        if not self.instance.pk:
+            self.fields["delivery_country"].initial = "South Africa"
 
     # ----------------------------
     # VALIDATION

@@ -2484,9 +2484,6 @@ def profile(request):
     # =================================================
     client = resolve_client_for_user(user, request=request)
 
-    # -------------------------------------------------
-    # SAFETY: client must always exist for this view
-    # -------------------------------------------------
     if client is None:
         messages.error(request, "Unable to load business profile.")
         return redirect("home")
@@ -2496,31 +2493,46 @@ def profile(request):
     # =================================================
 
     # ---- User Profile ----
-    user_form = UserProfileForm(instance=user)
+    user_form = UserProfileForm(
+        request.POST or None,
+        instance=user
+    )
+
     if request.method == "POST" and request.POST.get("form_type") == "user_profile":
-        user_form = UserProfileForm(request.POST, instance=user)
         if user_form.is_valid():
             user_form.save()
             messages.success(request, "User profile updated successfully.")
             return redirect("profile")
+        else:
+            print(user_form.errors)
 
     # ---- Business Profile ----
-    business_form = ClientBusinessForm(instance=client)
+    business_form = ClientBusinessForm(
+        request.POST or None,
+        instance=client
+    )
+
     if request.method == "POST" and request.POST.get("form_type") == "business_profile":
-        business_form = ClientBusinessForm(request.POST, instance=client)
         if business_form.is_valid():
             business_form.save()
             messages.success(request, "Business profile updated successfully.")
             return redirect("profile")
+        else:
+            print(business_form.errors)
 
     # ---- Personal Profile ----
-    personal_form = PersonalProfileForm(instance=customer_profile)
+    personal_form = PersonalProfileForm(
+        request.POST or None,
+        instance=customer_profile
+    )
+
     if request.method == "POST" and request.POST.get("form_type") == "personal_profile":
-        personal_form = PersonalProfileForm(request.POST, instance=customer_profile)
         if personal_form.is_valid():
             personal_form.save()
             messages.success(request, "Personal profile updated successfully.")
             return redirect("profile")
+        else:
+            print(personal_form.errors)
 
     # =================================================
     # PROFILE COMPLETENESS HELPERS
@@ -2542,8 +2554,8 @@ def profile(request):
     ])
 
     # ================= BUSINESS =================
-    business_overview_complete = True
 
+    # Contact
     business_contact_complete = all([
         is_filled(client.name),
         is_filled(client.contact_person),
@@ -2551,6 +2563,7 @@ def profile(request):
         is_filled(client.phone),
     ])
 
+    # Address
     business_address_complete = all([
         is_filled(client.address_line1),
         is_filled(client.suburb),
@@ -2559,17 +2572,34 @@ def profile(request):
         is_filled(client.postal_code),
     ])
 
-    # ✅ FIXED HERE
+    # Delivery (🔥 NEW)
+    business_delivery_complete = all([
+        is_filled(client.delivery_address_line1),
+        is_filled(client.delivery_city),
+        is_filled(client.delivery_province),
+        is_filled(client.delivery_country),
+        is_filled(client.preferred_delivery_slot_1),
+    ])
+
+    # Compliance
     business_compliance_complete = all([
         is_filled(client.price_type),
         is_filled(client.estimated_weekly_spend),
         is_filled(client.vat_number) or is_filled(client.registration_identifier),
     ])
 
+    # Overview (🔥 NEW)
+    business_overview_complete = all([
+        is_filled(client.area),
+    ])
+
+    # Full business profile
     business_profile_complete = all([
         business_contact_complete,
         business_address_complete,
+        business_delivery_complete,
         business_compliance_complete,
+        business_overview_complete,
     ])
 
     # =================================================
@@ -2580,6 +2610,7 @@ def profile(request):
         personal_profile_complete,
         business_contact_complete,
         business_address_complete,
+        business_delivery_complete,
         business_compliance_complete,
         business_overview_complete,
         business_profile_complete,
@@ -2617,23 +2648,23 @@ def profile(request):
         "business_form": business_form,
         "personal_form": personal_form,
 
-        # 🔑 CRITICAL CONTEXT
         "client": client,
         "customer_profile": customer_profile,
 
-        # Completion flags
         "user_profile_complete": user_profile_complete,
         "personal_profile_complete": personal_profile_complete,
         "business_profile_complete": business_profile_complete,
 
-        "business_overview_complete": business_overview_complete,
         "business_contact_complete": business_contact_complete,
         "business_address_complete": business_address_complete,
+        "business_delivery_complete": business_delivery_complete,  # 🔥 NEW
         "business_compliance_complete": business_compliance_complete,
+        "business_overview_complete": business_overview_complete,
 
         "profile_completion_percent": profile_completion_percent,
         "show_profile_complete_popup": show_profile_complete_popup,
     })
+
 
 
 def _generate_4digit_otp() -> str:

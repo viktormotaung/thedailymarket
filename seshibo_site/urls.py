@@ -24,6 +24,7 @@ urlpatterns = [
     path("portal/staff/logistics/", include("logistics.urls")),
     path("portal/staff/payments/", include("payments.urls")),
     path("payments/", include("payments.urls")),
+    path("payments/", include("online_payments.urls")),
     
 ]
 
