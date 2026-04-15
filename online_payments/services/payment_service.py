@@ -13,7 +13,7 @@ class PaymentService:
 
         payment = Payment.objects.create(
             reference=reference,
-            amount=invoice.total_amount,
+            amount=invoice.amount_due,
             client=invoice.client,
             invoice=invoice,
             created_by=request.user,
