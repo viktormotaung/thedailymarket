@@ -1,7 +1,10 @@
 import uuid
+from decimal import Decimal
 from django.conf import settings
-from django.urls import reverse
+from urllib.parse import urlencode
+
 from online_payments.models import Payment
+from online_payments.services.ozow import generate_ozow_hash
 
 
 class PaymentService:
@@ -13,52 +16,62 @@ class PaymentService:
 
         payment = Payment.objects.create(
             reference=reference,
-            amount=invoice.amount_due,
+            amount=invoice.amount_due or Decimal("0.00"),
             client=invoice.client,
             invoice=invoice,
-            created_by=request.user,
+            created_by=request.user if request.user.is_authenticated else None,
         )
 
-        payment_url = PaymentService.generate_ozow_link(payment, request)
+        payment_url = PaymentService.generate_ozow_link(payment)
 
         return payment, payment_url
 
     @staticmethod
-    def generate_ozow_link(payment, request):
+    def generate_ozow_link(payment):
 
-        base_url = settings.OZOW_PAYMENT_URL
+        base_url = settings.OZOW_PAYMENT_URL.strip()
 
+        # ✅ STRICT FORMAT (VERY IMPORTANT)
         data = {
-            "SiteCode": settings.OZOW_SITE_CODE,
-            "CountryCode": settings.OZOW_COUNTRY_CODE,
-            "CurrencyCode": settings.OZOW_CURRENCY_CODE,
-            "Amount": str(payment.amount),
+            "SiteCode": settings.OZOW_SITE_CODE.strip(),
+            "CountryCode": settings.OZOW_COUNTRY_CODE.strip(),
+            "CurrencyCode": settings.OZOW_CURRENCY_CODE.strip(),
+            "Amount": f"{payment.amount:.2f}",  # ✅ MUST be 2 decimal places
             "TransactionReference": payment.reference,
             "BankReference": payment.reference,
-            "CancelUrl": settings.OZOW_CANCEL_URL,
-            "ErrorUrl": settings.OZOW_ERROR_URL,
-            "SuccessUrl": settings.OZOW_SUCCESS_URL,
-            "NotifyUrl": settings.OZOW_NOTIFY_URL,
-            "IsTest": "true" if settings.OZOW_IS_TEST else "false",
+            "CancelUrl": settings.OZOW_CANCEL_URL.strip(),
+            "ErrorUrl": settings.OZOW_ERROR_URL.strip(),
+            "SuccessUrl": settings.OZOW_SUCCESS_URL.strip(),
+            "NotifyUrl": settings.OZOW_NOTIFY_URL.strip(),
+            "IsTest": "True" if settings.OZOW_IS_TEST else "False",  # ✅ CASE FIXED
         }
 
-        # Build hash string (order matters!)
+        # 🔐 HASH STRING (ORDER IS CRITICAL)
         hash_string = (
-            data["SiteCode"] +
-            data["CountryCode"] +
-            data["CurrencyCode"] +
-            data["Amount"] +
-            data["TransactionReference"] +
-            data["BankReference"] +
-            data["CancelUrl"] +
-            data["ErrorUrl"] +
-            data["SuccessUrl"] +
-            data["NotifyUrl"] +
-            data["IsTest"]
+            data["SiteCode"]
+            + data["CountryCode"]
+            + data["CurrencyCode"]
+            + data["Amount"]
+            + data["TransactionReference"]
+            + data["BankReference"]
+            + data["CancelUrl"]
+            + data["ErrorUrl"]
+            + data["SuccessUrl"]
+            + data["NotifyUrl"]
+            + data["IsTest"]
         )
-        from .ozow import generate_ozow_hash
+
+        # 🔐 GENERATE HASH
         data["HashCheck"] = generate_ozow_hash(hash_string)
 
-        # Build URL
-        query = "&".join([f"{k}={v}" for k, v in data.items()])
+        # 🧪 DEBUG (REMOVE LATER)
+        print("====== OZOW DEBUG ======")
+        print("DATA:", data)
+        print("HASH STRING:", hash_string)
+        print("HASH:", data["HashCheck"])
+        print("========================")
+
+        # ✅ SAFE URL BUILDING
+        query = urlencode(data)
+
         return f"{base_url}?{query}"
