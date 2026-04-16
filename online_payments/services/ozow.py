@@ -7,40 +7,33 @@ def generate_ozow_hash(hash_string):
     return hashlib.sha512(final_string.encode("utf-8")).hexdigest()
 
 def verify_ozow_hash(post_data):
-    # 🔥 Ozow CALLBACK uses "Hash", not "HashCheck"
     received_hash = (post_data.get("Hash") or "").lower()
 
-    # 🔥 Correct fields for CALLBACK (no BankReference)
-    required_fields = [
-        "SiteCode",
-        "TransactionId",
-        "TransactionReference",
-        "Amount",
-        "Status",
-    ]
+    # Helper to safely get values
+    def get(key):
+        return (post_data.get(key) or [""])[0]
 
-    # Validate required fields
-    for field in required_fields:
-        if field not in post_data:
-            print(f"Missing field in Ozow callback: {field}")
-            return False
-
-    # 🔥 Correct hash string order
     hash_string = (
-        post_data["SiteCode"]
-        + post_data["TransactionId"]
-        + post_data["TransactionReference"]
-        + post_data["Amount"]
-        + post_data["Status"]
+        get("SiteCode")
+        + get("TransactionId")
+        + get("TransactionReference")
+        + get("Amount")
+        + get("Status")
+        + get("Optional1")
+        + get("Optional2")
+        + get("Optional3")
+        + get("Optional4")
+        + get("Optional5")
+        + get("CurrencyCode")
+        + get("IsTest")
     )
 
-    # Use your existing hash generator
     calculated_hash = generate_ozow_hash(hash_string)
 
-    print("=== OZOW CALLBACK DEBUG ===")
+    print("=== OZOW CALLBACK FINAL DEBUG ===")
     print("HASH STRING:", hash_string)
     print("CALCULATED:", calculated_hash)
     print("RECEIVED:", received_hash)
-    print("===========================")
+    print("================================")
 
     return calculated_hash == received_hash

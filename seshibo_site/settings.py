@@ -319,3 +319,5 @@ OZOW_CANCEL_URL = "https://www.thedailymarket.co.za/payment/cancel/"
 OZOW_ERROR_URL = "https://www.thedailymarket.co.za/payment/error/"
 OZOW_SUCCESS_URL = "https://www.thedailymarket.co.za/payment/success/"
 OZOW_NOTIFY_URL = "https://www.thedailymarket.co.za/payments/ozow/notify/"
+
+OZOW_API_URL = "https://stagingapi.ozow.com" if OZOW_IS_TEST else "https://api.ozow.com"
