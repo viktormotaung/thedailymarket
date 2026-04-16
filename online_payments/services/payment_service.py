@@ -31,22 +31,24 @@ class PaymentService:
         # ✅ ONLY include fields required for modal flow
         data = {
             "SiteCode": settings.OZOW_SITE_CODE.strip(),
-            "Amount": f"{payment.amount:.2f}",  # MUST be 2 decimal places
-            "Currency": settings.OZOW_CURRENCY_CODE.strip(),  # "ZAR"
+            "CountryCode": settings.OZOW_COUNTRY_CODE.strip(),   # ZA
+            "CurrencyCode": settings.OZOW_CURRENCY_CODE.strip(), # ZAR
+            "Amount": f"{payment.amount:.2f}",
             "TransactionReference": payment.reference,
             "BankReference": payment.reference,
             "CancelUrl": settings.OZOW_CANCEL_URL.strip(),
             "ErrorUrl": settings.OZOW_ERROR_URL.strip(),
             "SuccessUrl": settings.OZOW_SUCCESS_URL.strip(),
             "NotifyUrl": settings.OZOW_NOTIFY_URL.strip(),
-            "IsTest": "true" if settings.OZOW_IS_TEST else "False",
+            "IsTest": "true" if settings.OZOW_IS_TEST else "false",
         }
 
         # 🔐 CORRECT HASH ORDER (MODAL FLOW)
         hash_string = (
             data["SiteCode"]
+            + data["CountryCode"]
+            + data["CurrencyCode"]
             + data["Amount"]
-            + data["Currency"]
             + data["TransactionReference"]
             + data["BankReference"]
             + data["CancelUrl"]
