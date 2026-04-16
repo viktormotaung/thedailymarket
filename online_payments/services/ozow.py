@@ -3,9 +3,8 @@ from django.conf import settings
 
 
 def generate_ozow_hash(hash_string):
-    final_string = hash_string + settings.OZOW_PRIVATE_KEY.strip()
-    return hashlib.sha512(final_string.encode("utf-8")).hexdigest().lower()
-
+    final_string = (hash_string + settings.OZOW_PRIVATE_KEY.strip()).lower()
+    return hashlib.sha512(final_string.encode("utf-8")).hexdigest()
 
 def verify_ozow_hash(post_data: dict) -> bool:
     received_hash = (post_data.get("HashCheck") or "").lower()
