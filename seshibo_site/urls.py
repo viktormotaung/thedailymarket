@@ -3,6 +3,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf.urls.static import static
 from core.dummy_admin import dummy_admin_site
+from online_payments import views as payment_views
 
 
 urlpatterns = [
@@ -25,6 +26,13 @@ urlpatterns = [
     path("portal/staff/payments/", include("payments.urls")),
     path("payments/", include("payments.urls")),
     path("payments/", include("online_payments.urls")),
+    path("payment/success/", payment_views.payment_success, name="payment_success"),
+    path("payment/cancel/", payment_views.payment_cancel, name="payment_cancel"),
+    path("payment/error/", payment_views.payment_error, name="payment_error"),
+
+    
+
+
     
 ]
 
