@@ -2,7 +2,6 @@ from django.db import models
 from django.conf import settings
 from decimal import Decimal
 
-
 class Payment(models.Model):
 
     STATUS_CHOICES = [
@@ -31,11 +30,26 @@ class Payment(models.Model):
     paid_at = models.DateTimeField(null=True, blank=True)
 
     def save(self, *args, **kwargs):
+        should_apply_invoice_payment = False
+
+        if self.pk:
+            old = Payment.objects.filter(pk=self.pk).first()
+            if old and old.status != "success" and self.status == "success":
+                should_apply_invoice_payment = True
+        else:
+            if self.status == "success":
+                should_apply_invoice_payment = True
+
         super().save(*args, **kwargs)
 
-        # Auto-update invoice when payment succeeds
-        if self.status == "success" and self.invoice:
-            self.invoice.mark_paid()
+        # Trigger the same invoice payment flow when this payment becomes successful
+        if should_apply_invoice_payment and self.invoice:
+            self.invoice.record_payment(
+                amount=self.amount,
+                reference=self.reference,
+                note=f"{self.provider.upper()} payment received",
+                when=self.paid_at,
+            )
 
     def __str__(self):
         return f"{self.reference} - {self.amount} - {self.status}"
