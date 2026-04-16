@@ -39,7 +39,7 @@ class PaymentService:
             "ErrorUrl": settings.OZOW_ERROR_URL.strip(),
             "SuccessUrl": settings.OZOW_SUCCESS_URL.strip(),
             "NotifyUrl": settings.OZOW_NOTIFY_URL.strip(),
-            "IsTest": "True" if settings.OZOW_IS_TEST else "False",
+            "IsTest": "true" if settings.OZOW_IS_TEST else "False",
         }
 
         # 🔐 CORRECT HASH ORDER (MODAL FLOW)
