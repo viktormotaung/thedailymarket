@@ -1,7 +1,6 @@
 import uuid
 from decimal import Decimal
 from django.conf import settings
-from urllib.parse import urlencode
 
 from online_payments.models import Payment
 from online_payments.services.ozow import generate_ozow_hash
@@ -22,31 +21,28 @@ class PaymentService:
             created_by=request.user if request.user.is_authenticated else None,
         )
 
-        payment_url = PaymentService.generate_ozow_link(payment)
+        ozow_data = PaymentService.generate_ozow_data(payment)
 
-        return payment, payment_url
+        return payment, ozow_data
 
     @staticmethod
-    def generate_ozow_link(payment):
+    def generate_ozow_data(payment):
 
-        base_url = settings.OZOW_PAYMENT_URL.strip()
-
-        # ✅ STRICT FORMAT (VERY IMPORTANT)
         data = {
             "SiteCode": settings.OZOW_SITE_CODE.strip(),
             "CountryCode": settings.OZOW_COUNTRY_CODE.strip(),
             "CurrencyCode": settings.OZOW_CURRENCY_CODE.strip(),
-            "Amount": f"{payment.amount:.2f}",  # ✅ MUST be 2 decimal places
+            "Amount": f"{payment.amount:.2f}",
             "TransactionReference": payment.reference,
             "BankReference": payment.reference,
             "CancelUrl": settings.OZOW_CANCEL_URL.strip(),
             "ErrorUrl": settings.OZOW_ERROR_URL.strip(),
             "SuccessUrl": settings.OZOW_SUCCESS_URL.strip(),
             "NotifyUrl": settings.OZOW_NOTIFY_URL.strip(),
-            "IsTest": "True" if settings.OZOW_IS_TEST else "False",  # ✅ CASE FIXED
+            "IsTest": "True" if settings.OZOW_IS_TEST else "False",
         }
 
-        # 🔐 HASH STRING (ORDER IS CRITICAL)
+        # 🔐 HASH (STRICT ORDER)
         hash_string = (
             data["SiteCode"]
             + data["CountryCode"]
@@ -61,17 +57,6 @@ class PaymentService:
             + data["IsTest"]
         )
 
-        # 🔐 GENERATE HASH
         data["HashCheck"] = generate_ozow_hash(hash_string)
 
-        # 🧪 DEBUG (REMOVE LATER)
-        print("====== OZOW DEBUG ======")
-        print("DATA:", data)
-        print("HASH STRING:", hash_string)
-        print("HASH:", data["HashCheck"])
-        print("========================")
-
-        # ✅ SAFE URL BUILDING
-        query = urlencode(data)
-
-        return f"{base_url}?{query}"
+        return data

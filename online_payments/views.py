@@ -7,15 +7,25 @@ from invoices.models import Invoice
 from .models import Payment
 from online_payments.services.payment_service import PaymentService
 from online_payments.services.ozow import verify_ozow_hash
+from django.shortcuts import render, get_object_or_404
+from online_payments.services.payment_service import PaymentService
+from invoices.models import Invoice
 
 
 def start_payment(request, invoice_id):
 
     invoice = get_object_or_404(Invoice, id=invoice_id)
 
-    payment, payment_url = PaymentService.create_payment(invoice, request)
+    payment, ozow_data = PaymentService.create_payment(invoice, request)
 
-    return redirect(payment_url)
+    return render(
+        request,
+        "online_payments/payment_modal.html",
+        {
+            "ozow_data": ozow_data,
+            "payment": payment,
+        },
+    )
 
 
 @csrf_exempt

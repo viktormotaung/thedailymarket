@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pay Invoice</title>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Ozow SDK -->
+    <script src="https://static-content.ozow.com/scripts/js/v2/ozow-integration-2.0.min.js"></script>
+</head>
+
+<body style="font-family: Arial; text-align: center; padding-top: 100px;">
+
+    <h2>Processing Payment...</h2>
+    <p>Please wait while we open the payment window.</p>
+
+    <button id="payUsingOzow" style="display:none;">Pay</button>
+    <button id="cancelOzowPayment" style="display:none;">Cancel</button>
+
+    <script>
+        const ozow = new Ozow();
+
+        const paymentUrl = "https://pay.ozow.com/";
+
+        const postData = {{ ozow_data|safe }};
+
+        // 🚀 AUTO LAUNCH MODAL
+        window.onload = function () {
+            ozow.createPaymentModal(paymentUrl, postData);
+        };
+
+        // Optional cancel handler
+        document.getElementById('cancelOzowPayment').onclick = () =>
+            ozow.cancelFramePayment();
+
+        // Optional event listener
+        window.addEventListener('message', (e) => {
+            if (e.data?.event === 'ozowHideModal') {
+                console.log("Payment modal closed");
+            }
+        });
+    </script>
+
+</body>
+</html>
