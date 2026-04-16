@@ -7,8 +7,10 @@ def generate_ozow_hash(hash_string):
     return hashlib.sha512(final_string.encode("utf-8")).hexdigest()
 
 def verify_ozow_hash(post_data):
+    # 🔥 Ozow CALLBACK uses "Hash", not "HashCheck"
     received_hash = (post_data.get("Hash") or "").lower()
 
+    # 🔥 Correct fields for CALLBACK (no BankReference)
     required_fields = [
         "SiteCode",
         "TransactionId",
@@ -17,11 +19,13 @@ def verify_ozow_hash(post_data):
         "Status",
     ]
 
+    # Validate required fields
     for field in required_fields:
         if field not in post_data:
             print(f"Missing field in Ozow callback: {field}")
             return False
 
+    # 🔥 Correct hash string order
     hash_string = (
         post_data["SiteCode"]
         + post_data["TransactionId"]
@@ -30,6 +34,7 @@ def verify_ozow_hash(post_data):
         + post_data["Status"]
     )
 
+    # Use your existing hash generator
     calculated_hash = generate_ozow_hash(hash_string)
 
     print("=== OZOW CALLBACK DEBUG ===")
