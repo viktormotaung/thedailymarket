@@ -2,8 +2,10 @@ import hashlib
 from django.conf import settings
 
 
-def generate_ozow_hash(data: str) -> str:
-    return hashlib.sha512((data + settings.OZOW_PRIVATE_KEY).encode()).hexdigest()
+def generate_ozow_hash(hash_string):
+    final_string = hash_string + settings.OZOW_PRIVATE_KEY.strip()
+
+    return hashlib.sha512(final_string.encode("utf-8")).hexdigest().lower()
 
 
 def verify_ozow_hash(post_data: dict) -> bool:
