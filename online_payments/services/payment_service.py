@@ -28,11 +28,11 @@ class PaymentService:
     @staticmethod
     def generate_ozow_data(payment):
 
+        # ✅ ONLY include fields required for modal flow
         data = {
             "SiteCode": settings.OZOW_SITE_CODE.strip(),
-            "CountryCode": settings.OZOW_COUNTRY_CODE.strip(),
-            "CurrencyCode": settings.OZOW_CURRENCY_CODE.strip(),
-            "Amount": f"{payment.amount:.2f}",
+            "Amount": f"{payment.amount:.2f}",  # MUST be 2 decimal places
+            "Currency": settings.OZOW_CURRENCY_CODE.strip(),  # "ZAR"
             "TransactionReference": payment.reference,
             "BankReference": payment.reference,
             "CancelUrl": settings.OZOW_CANCEL_URL.strip(),
@@ -42,12 +42,11 @@ class PaymentService:
             "IsTest": "True" if settings.OZOW_IS_TEST else "False",
         }
 
-        # 🔐 HASH (STRICT ORDER)
+        # 🔐 CORRECT HASH ORDER (MODAL FLOW)
         hash_string = (
             data["SiteCode"]
-            + data["CountryCode"]
-            + data["CurrencyCode"]
             + data["Amount"]
+            + data["Currency"]
             + data["TransactionReference"]
             + data["BankReference"]
             + data["CancelUrl"]
@@ -57,6 +56,14 @@ class PaymentService:
             + data["IsTest"]
         )
 
+        # 🔐 GENERATE HASH
         data["HashCheck"] = generate_ozow_hash(hash_string)
+
+        # 🧪 DEBUG (VERY IMPORTANT — REMOVE LATER)
+        print("========== OZOW DEBUG ==========")
+        print("DATA:", data)
+        print("HASH STRING:", hash_string)
+        print("HASH:", data["HashCheck"])
+        print("================================")
 
         return data
