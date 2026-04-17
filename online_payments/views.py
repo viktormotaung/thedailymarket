@@ -19,7 +19,7 @@ def start_payment(request, invoice_id):
 
     invoice = get_object_or_404(Invoice, id=invoice_id)
 
-    # 🔴 Prevent duplicate / invalid payments
+    # Prevent duplicate / invalid payments
     if invoice.amount_due <= 0:
         return HttpResponse("Invoice already paid", status=400)
 
@@ -43,7 +43,9 @@ def ozow_notify(request):
 
     logger.info(f"Ozow notify received: {request.POST}")
 
-    print("Skipping notify hash validation for now")
+    if not verify_ozow_hash(request.POST):
+        logger.warning("Invalid Ozow hash received")
+        return HttpResponse("Invalid hash", status=400)
 
     reference = request.POST.get("TransactionReference")
     status = request.POST.get("Status")
@@ -57,17 +59,12 @@ def ozow_notify(request):
             return HttpResponse("Already processed")
 
         if status and status.lower() == "complete":
-
             payment.status = "success"
             payment.ozow_transaction_id = transaction_id
             payment.paid_at = now()
             payment.save()
 
             logger.info(f"Payment {payment.reference} marked successful.")
-
-            if payment.invoice:
-                payment.invoice.mark_paid()
-                logger.info(f"Invoice {payment.invoice.id} marked paid.")
 
         else:
             payment.status = "failed"

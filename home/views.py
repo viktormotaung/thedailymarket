@@ -2117,33 +2117,66 @@ logger = logging.getLogger(__name__)
 
 @csrf_exempt
 def payfast_itn(request):
+    if request.method != "POST":
+        return HttpResponse("Invalid request method", status=405)
+
     data = request.POST.dict()
 
     # 1) Verify signature
     signature = data.pop("signature", None)
 
-    def generate_signature(data, passphrase=None):
+    def generate_signature(payload, passphrase=None):
         pairs = []
-        for key in sorted(data.keys()):
-            pairs.append(f"{key}={data[key]}")
-        payload = "&".join(pairs)
-        if passphrase:
-            payload += f"&passphrase={passphrase}"
-        return hashlib.md5(payload.encode("utf-8")).hexdigest()
+        for key in sorted(payload.keys()):
+            value = payload[key]
+            if value is None:
+                continue
+            pairs.append(f"{key}={value}")
+        signing_string = "&".join(pairs)
 
-    expected = generate_signature(data, settings.PAYFAST_PASSPHRASE)
-    if signature != expected:
+        if passphrase:
+            signing_string += f"&passphrase={passphrase}"
+
+        return hashlib.md5(signing_string.encode("utf-8")).hexdigest()
+
+    expected_signature = generate_signature(data, settings.PAYFAST_PASSPHRASE)
+
+    if signature != expected_signature:
         return HttpResponse("Invalid signature", status=400)
 
-    # 2) Confirm payment
-    if data.get("payment_status") == "COMPLETE":
-        invoice_id = data.get("m_payment_id").replace("INV-", "")
-        invoice = Invoice.objects.get(pk=invoice_id)
+    # 2) Only process completed payments
+    if data.get("payment_status") != "COMPLETE":
+        return HttpResponse("Ignored", status=200)
 
-        invoice.mark_paid(
-            amount=data.get("amount_gross"),
-            payment_reference=data.get("pf_payment_id")
-        )
+    # 3) Resolve invoice
+    invoice_ref = (data.get("m_payment_id") or "").strip()
+
+    if not invoice_ref.startswith("INV-"):
+        return HttpResponse("Invalid invoice reference", status=400)
+
+    invoice_id = invoice_ref.replace("INV-", "", 1)
+
+    try:
+        invoice = Invoice.objects.get(pk=invoice_id)
+    except Invoice.DoesNotExist:
+        return HttpResponse("Invoice not found", status=404)
+
+    # 4) Parse amount safely
+    try:
+        amount = Decimal(str(data.get("amount_gross", "0.00")))
+    except (InvalidOperation, TypeError, ValueError):
+        return HttpResponse("Invalid amount", status=400)
+
+    # 5) Prevent duplicate processing if already fully paid
+    if invoice.status == "paid":
+        return HttpResponse("Already processed", status=200)
+
+    # 6) Trigger the normal invoice payment flow
+    invoice.record_payment(
+        amount=amount,
+        reference=data.get("pf_payment_id", "") or f"PF-{invoice.id}",
+        note="PayFast payment received",
+    )
 
     return HttpResponse("OK")
 

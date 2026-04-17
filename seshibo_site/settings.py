@@ -313,7 +313,7 @@ OZOW_CURRENCY_CODE = "ZAR"
 
 OZOW_PAYMENT_URL = "https://pay.ozow.com"
 
-OZOW_IS_TEST = True
+OZOW_IS_TEST = False
 
 OZOW_CANCEL_URL = "https://www.thedailymarket.co.za/payment/cancel/"
 OZOW_ERROR_URL = "https://www.thedailymarket.co.za/payment/error/"
