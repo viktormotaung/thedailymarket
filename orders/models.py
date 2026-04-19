@@ -245,7 +245,7 @@ class Order(models.Model):
         # -------------------------------------------------
         # FINANCIAL GATE (STATE-BASED + BULLETPROOF)
         # -------------------------------------------------
-        if self.status == "awaiting_payment":
+        if self.status in ["pending", "approved", "awaiting_payment"]:
 
             print(f"[DEBUG] ENTERING FINANCIAL GATE for Order {self.pk}")
 
@@ -264,7 +264,7 @@ class Order(models.Model):
             # =================================================
             # CREDIT CHECK
             # =================================================
-            if credit_status == "ACTIVE" and credit_account:
+            if self.status == "awaiting_payment" and credit_status == "ACTIVE" and credit_account:
 
                 total = self.grand_total_inc or Decimal("0.00")
                 deposit_pct = Decimal(str(getattr(credit_account, "credit_deposit_pct", 100) or 100))

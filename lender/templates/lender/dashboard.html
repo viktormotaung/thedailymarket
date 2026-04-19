@@ -7,73 +7,329 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Funder · {{ funder.name }}</title>
 
-  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
   <style>
-    :root{ --brand:#0b5c39; --brand-dark:#094c30; --muted:#6c757d; }
-    /* Nav */
-    .navbar { background: var(--brand); }
-    .navbar .navbar-brand, .navbar .nav-link, .navbar .btn-outline-light { color:#fff !important; }
-    .navbar .btn-outline-light { border-color: rgba(255,255,255,.6); }
-    .navbar .btn-outline-light:hover { background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.9); color:#fff; }
-    /* Layout */
-    .page-wrap{ min-height: 100svh; display:flex; flex-direction:column; }
-    main{ flex:1 0 auto; padding:24px 0; }
-    footer{ flex-shrink:0; background:#0b5c39; color:#fff; border-top: 1px solid rgba(255,255,255,.15); }
+    :root{
+      --brand:#0b5c39;
+      --brand-dark:#094c30;
+      --muted:#6c757d;
+      --soft:#f8f9fa;
+      --line:#e9ecef;
+      --bg:#fcfcfc;
+    }
+
+    body{
+      background:var(--bg);
+    }
+
+    .navbar{
+      background:var(--brand);
+    }
+
+    .navbar .navbar-brand,
+    .navbar .nav-link,
+    .navbar .btn-outline-light{
+      color:#fff !important;
+    }
+
+    .navbar .btn-outline-light{
+      border-color:rgba(255,255,255,.6);
+    }
+
+    .navbar .btn-outline-light:hover{
+      background:rgba(255,255,255,.15);
+      border-color:rgba(255,255,255,.9);
+      color:#fff;
+    }
+
+    .page-wrap{
+      min-height:100svh;
+      display:flex;
+      flex-direction:column;
+    }
+
+    main{
+      flex:1 0 auto;
+      padding:18px 0 24px;
+    }
+
+    footer{
+      flex-shrink:0;
+      background:var(--brand);
+      color:#fff;
+      border-top:1px solid rgba(255,255,255,.15);
+    }
+
     footer a{ color:#fff; }
     footer a:hover{ color:#d4f3e3; text-decoration:underline; }
-    /* Cards */
-    .card{ border-radius: 1rem; }
-    .metric{ font-size: clamp(1.25rem, 1.2rem + 0.5vw, 1.75rem); font-weight: 700; }
-    .muted{ color: var(--muted); }
-    .pill {
-      display:inline-flex; align-items:center; gap:.5rem;
-      background:#f8f9fa; border:1px solid #e9ecef; border-radius: 999px; padding:.35rem .75rem;
-      font-size:.875rem;
+
+    .centered{
+      max-width:1200px;
+      margin:0 auto;
     }
-    .week-card .title { font-weight:600; }
-    .centered{ max-width: 1100px; margin: 0 auto; }
+
+    .card{
+      border-radius:1rem;
+      border:1px solid var(--line);
+      overflow:hidden;
+    }
+
+    .metric{
+      font-size:clamp(1.2rem, 1.05rem + 0.8vw, 1.85rem);
+      font-weight:700;
+      line-height:1.1;
+    }
+
+    .muted{
+      color:var(--muted);
+    }
+
+    .mini-note{
+      font-size:.8rem;
+      color:var(--muted);
+    }
+
+    .section-subtle{
+      font-size:.875rem;
+      color:var(--muted);
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      background:var(--soft);
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:.35rem .75rem;
+      font-size:.82rem;
+      line-height:1.1;
+    }
+
     .progress-sm{ height:.5rem; }
-    .table thead th { white-space: nowrap; }
-    .hover-row tbody tr:hover { background:#fafafa; }
+
+    .table thead th{
+      white-space:nowrap;
+    }
+
+    .hover-row tbody tr:hover{
+      background:#fafafa;
+    }
+
+    .week-card .title,
+    .profit-card .title,
+    .mobile-stack-card .title{
+      font-weight:600;
+    }
+
+    .status-badge{
+      font-size:.75rem;
+      padding:.35rem .6rem;
+      border-radius:999px;
+      display:inline-block;
+      border:1px solid transparent;
+    }
+
+    .status-pending{
+      background:#fff3cd;
+      color:#856404;
+      border-color:#ffe69c;
+    }
+
+    .status-reinvested{
+      background:#d1e7dd;
+      color:#0f5132;
+      border-color:#badbcc;
+    }
+
+    .status-paid{
+      background:#cff4fc;
+      color:#055160;
+      border-color:#b6effb;
+    }
+
+    .status-cancelled{
+      background:#f8d7da;
+      color:#842029;
+      border-color:#f5c2c7;
+    }
+
+    .desktop-only{
+      display:block;
+    }
+
+    .mobile-only{
+      display:none;
+    }
+
+    .mobile-stack{
+      display:grid;
+      gap:.75rem;
+    }
+
+    .mobile-stack-card{
+      border:1px solid var(--line);
+      border-radius:1rem;
+      background:#fff;
+      padding:.9rem;
+    }
+
+    .mobile-row{
+      display:flex;
+      justify-content:space-between;
+      gap:1rem;
+      margin-top:.35rem;
+      font-size:.92rem;
+    }
+
+    .mobile-row .label{
+      color:var(--muted);
+      flex:0 0 auto;
+    }
+
+    .mobile-row .value{
+      text-align:right;
+      font-weight:500;
+      flex:1 1 auto;
+    }
+
+    .kpi-icon{
+      opacity:.9;
+    }
+
+    .section-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:1rem;
+    }
+
+    .tight-card .card-body{
+      padding:1rem;
+    }
+
+    .brand-btn{
+      background:var(--brand);
+      color:#fff;
+      border:none;
+    }
+
+    .brand-btn:hover{
+      background:var(--brand-dark);
+      color:#fff;
+    }
+
+    @media (max-width: 991.98px){
+      .desktop-only{
+        display:none !important;
+      }
+
+      .mobile-only{
+        display:block !important;
+      }
+
+      .centered{
+        max-width:100%;
+      }
+
+      main{
+        padding:14px 0 20px;
+      }
+
+      .card-header{
+        padding:.85rem 1rem;
+      }
+
+      .card-body{
+        padding:1rem;
+      }
+
+      .metric{
+        font-size:1.45rem;
+      }
+
+      .section-header{
+        align-items:flex-start;
+        flex-direction:column;
+        gap:.25rem;
+      }
+
+      .top-brand-title{
+        font-size:1rem;
+      }
+
+      .top-brand-subtitle{
+        font-size:.75rem;
+      }
+    }
+
+    @media (max-width: 767.98px){
+      .navbar .row{
+        row-gap:.5rem;
+      }
+
+      .navbar .col-4{
+        width:100%;
+        max-width:100%;
+        flex:0 0 100%;
+      }
+
+      .navbar .col-4.text-center{
+        order:1;
+      }
+
+      .navbar .col-4.d-flex:first-child{
+        order:0;
+        justify-content:center !important;
+      }
+
+      .navbar .col-4.d-flex.justify-content-end{
+        order:2;
+        justify-content:center !important;
+      }
+
+      .top-actions{
+        flex-wrap:wrap;
+        justify-content:center;
+      }
+
+      .metric{
+        font-size:1.35rem;
+      }
+
+      .mobile-stack-card{
+        padding:.85rem;
+      }
+    }
   </style>
 </head>
 <body>
 <div class="page-wrap">
-<!-- Right: Actions -->
 
-
-  <!-- Top Navbar -->
   <nav class="navbar">
     <div class="container-fluid">
       <div class="row w-100 align-items-center">
-        <!-- Left: Brand -->
         <div class="col-4 d-flex">
           <a class="navbar-brand d-inline-flex align-items-center gap-2" href="{% url 'funder-dashboard' %}">
             <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
           </a>
         </div>
 
-        <!-- Center: Title -->
         <div class="col-4 text-center">
-          <div class="h5 mb-0 text-white">Funder Dashboard</div>
+          <div class="h5 mb-0 text-white top-brand-title">Funder Dashboard</div>
           {% if funder %}
-            <div class="small text-white-50">Viewing: {{ funder.name }}</div>
+            <div class="small text-white-50 top-brand-subtitle">Viewing: {{ funder.name }}</div>
           {% endif %}
         </div>
 
-        <!-- Right: Actions -->
-        <div class="col-4 d-flex justify-content-end align-items-center gap-2">
-          
+        <div class="col-4 d-flex justify-content-end align-items-center gap-2 top-actions">
           <button
             type="button"
             class="btn btn-outline-light btn-sm"
             data-bs-toggle="modal"
             data-bs-target="#switchPlatformModal"
-
           >
             <i class="bi bi-grid"></i> Switch Platform
           </button>
@@ -87,30 +343,28 @@
     </div>
   </nav>
 
-  <!-- Main -->
   <main>
     <div class="container centered">
 
-      <!-- KPIs -->
+      <!-- KPI ROW -->
       <div class="row g-3">
-        <div class="col-12 col-lg-4">
-          <div class="card shadow-sm h-100">
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="card shadow-sm h-100 tight-card">
             <div class="card-body d-flex justify-content-between align-items-start">
               <div>
-                <div class="muted">Funder Balance</div>
-                <div class="metric">R{{ funder.balance|floatformat:2|intcomma }}</div>
-                <div class="small text-muted mt-1">Live after top-ups & payouts.</div>
-        
-                <!-- Actions -->
+                <div class="muted">Balance</div>
+                <div class="metric">R{{ funder.balance|default:0|floatformat:2|intcomma }}</div>
+                <div class="mini-note mt-1">Live balance</div>
+
                 <div class="mt-3 d-flex flex-wrap gap-2">
-  
                   <a
                     href="{% url 'top-up' %}?funder={{ funder.id }}&kind=topup"
                     class="btn btn-success btn-sm"
                     title="Temporarily disabled"
                     onclick="return false;"
-                    style="pointer-events: none; cursor: not-allowed;"
+                    style="pointer-events:none; cursor:not-allowed;"
                   >
+                    <i class="bi bi-plus-circle"></i>
                   </a>
 
                   <a
@@ -118,66 +372,66 @@
                     class="btn btn-outline-danger btn-sm"
                     title="Temporarily disabled"
                     onclick="return false;"
-                    style="pointer-events: none; cursor: not-allowed;"
+                    style="pointer-events:none; cursor:not-allowed;"
                   >
+                    <i class="bi bi-dash-circle"></i>
                   </a>
-
                 </div>
               </div>
-        
-              <i class="bi bi-wallet2 fs-2 text-secondary"></i>
+
+              <i class="bi bi-wallet2 fs-2 text-secondary kpi-icon"></i>
             </div>
           </div>
         </div>
-        
 
-        <div class="col-12 col-lg-4">
-          <div class="card shadow-sm h-100">
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="card shadow-sm h-100 tight-card">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
-                  <div class="muted">Allocated to Clients</div>
-                  <div class="metric">R{{ total_alloc|floatformat:2|intcomma }}</div>
+                  <div class="muted">Allocated</div>
+                  <div class="metric">R{{ total_alloc|default:0|floatformat:2|intcomma }}</div>
                 </div>
-                <i class="bi bi-people fs-2 text-secondary"></i>
+                <i class="bi bi-people fs-2 text-secondary kpi-icon"></i>
               </div>
 
-              <!-- Allocation vs Balance progress -->
               <div class="mt-3">
-                {% with bal=funder.balance|floatformat:2|floatformat:"2" %}
-                  {% if funder.balance and funder.balance > 0 %}
-                    {% comment %} width set by JS using data attributes {% endcomment %}
-                    <div class="d-flex justify-content-between small">
-                      <span class="text-muted">Allocation as % of balance</span>
-                      <span class="text-muted" id="allocPctLabel">—</span>
+                {% if funder.balance and funder.balance > 0 %}
+                  <div class="d-flex justify-content-between small">
+                    <span class="text-muted">Of balance</span>
+                    <span class="text-muted" id="allocPctLabel">—</span>
+                  </div>
+                  <div class="progress progress-sm">
+                    <div class="progress-bar bg-success"
+                         id="allocPctBar"
+                         role="progressbar"
+                         style="width:0%"
+                         aria-valuemin="0"
+                         aria-valuemax="100"
+                         data-amount="{{ total_alloc|default:'0' }}"
+                         data-total="{{ funder.balance|default:'0' }}">
                     </div>
-                    <div class="progress progress-sm">
-                      <div class="progress-bar bg-success" id="allocPctBar"
-                           role="progressbar"
-                           style="width:0%"
-                           aria-valuemin="0" aria-valuemax="100"
-                           data-amount="{{ total_alloc }}"
-                           data-total="{{ funder.balance }}"></div>
-                    </div>
-                  {% else %}
-                    <div class="small text-muted mt-2">No balance available to compare.</div>
-                  {% endif %}
-                {% endwith %}
+                  </div>
+                {% else %}
+                  <div class="small text-muted mt-2">No balance comparison.</div>
+                {% endif %}
               </div>
 
               <div class="mt-2">
-                <span class="badge text-bg-success">Allocatable: R{{ allocatable|floatformat:2|intcomma }}</span>
+                <span class="badge text-bg-success">
+                  Allocatable: R{{ allocatable|default:0|floatformat:2|intcomma }}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="col-12 col-lg-4">
-          <div class="card shadow-sm h-100">
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="card shadow-sm h-100 tight-card">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
-                  <div class="muted">Latest Week Return</div>
+                  <div class="muted">Latest Return</div>
                   <div class="metric text-success">
                     {% if latest_week %}
                       R{{ latest_week.weekly_return|floatformat:2|intcomma }}
@@ -186,26 +440,28 @@
                     {% endif %}
                   </div>
                 </div>
-                <i class="bi bi-graph-up-arrow fs-2 text-secondary"></i>
+                <i class="bi bi-graph-up-arrow fs-2 text-secondary kpi-icon"></i>
               </div>
 
               {% if latest_week %}
-                <!-- Utilization vs Total Alloc progress -->
                 <div class="mt-3">
                   <div class="d-flex justify-content-between small">
-                    <span class="text-muted">Utilization vs total allocation</span>
+                    <span class="text-muted">Utilization</span>
                     <span class="text-muted" id="utilPctLabel">—</span>
                   </div>
                   <div class="progress progress-sm">
-                    <div class="progress-bar bg-info" id="utilPctBar"
+                    <div class="progress-bar bg-info"
+                         id="utilPctBar"
                          role="progressbar"
                          style="width:0%"
-                         aria-valuemin="0" aria-valuemax="100"
-                         data-amount="{{ latest_week.visible_utilization_total }}"
-                         data-total="{{ total_alloc|default:'0' }}"></div>
+                         aria-valuemin="0"
+                         aria-valuemax="100"
+                         data-amount="{{ latest_week.visible_utilization_total|default:'0' }}"
+                         data-total="{{ total_alloc|default:'0' }}">
+                    </div>
                   </div>
                   <div class="small text-muted mt-2">
-                    Week of {{ latest_week.week_start }} · Rate {{ latest_week.weekly_rate_pct_snapshot|floatformat:2 }}%
+                    {{ latest_week.week_start }} · {{ latest_week.weekly_rate_pct_snapshot|floatformat:2 }}%
                   </div>
                 </div>
               {% else %}
@@ -214,27 +470,57 @@
             </div>
           </div>
         </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="card shadow-sm h-100 tight-card">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="muted">Profit Mode</div>
+                  <div class="metric">
+                    {{ funder.get_profit_mode_display|default:funder.profit_mode|default:"—" }}
+                  </div>
+                </div>
+                <i class="bi bi-arrow-repeat fs-2 text-secondary kpi-icon"></i>
+              </div>
+
+              <div class="mt-3 d-flex flex-column gap-2">
+                <span class="pill">
+                  <i class="bi bi-calendar-week"></i>
+                  {{ funder.get_profit_frequency_display|default:funder.profit_frequency|default:"—" }}
+                </span>
+
+                
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- 4-Week Snapshot (cards instead of chart) -->
+      <!-- PROFIT SUMMARY -->
+      
+      <!-- LAST 4 WEEKS -->
       <div class="row g-3 mt-1">
         <div class="col-12">
           <div class="card shadow-sm">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header section-header">
               <strong>Last 4 Weeks</strong>
-              <span class="small text-muted">Quick snapshot</span>
+              <span class="section-subtle">Weekly summary</span>
             </div>
             <div class="card-body">
               {% if recent_weeks %}
                 <div class="row g-3">
                   {% for w in recent_weeks %}
-                  <div class="col-12 col-md-6 col-lg-3">
+                  <div class="col-12 col-sm-6 col-xl-3">
                     <div class="border rounded-4 p-3 week-card h-100">
                       <div class="title">{{ w.week_start }}</div>
-                      <div class="mt-2 small muted">Utilization (R)</div>
+
+                      <div class="mt-2 small muted">Utilization</div>
                       <div class="fw-semibold">R{{ w.visible_utilization_total|floatformat:2|intcomma }}</div>
-                      <div class="mt-2 small muted">Return (R)</div>
+
+                      <div class="mt-2 small muted">Return</div>
                       <div class="text-success fw-semibold">R{{ w.weekly_return|floatformat:2|intcomma }}</div>
+
                       <div class="mt-2">
                         <span class="pill">
                           <i class="bi bi-percent"></i>
@@ -253,22 +539,225 @@
         </div>
       </div>
 
-      <!-- Allocations Table (with tiny progress bars per row) -->
+      <!-- RECENT PROFITS -->
       <div class="row g-3 mt-1">
         <div class="col-12">
           <div class="card shadow-sm">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <strong>Client Allocations</strong>
-              <span class="small text-muted">R{{ total_alloc|floatformat:2|intcomma }} total</span>
+            <div class="card-header section-header">
+              <strong>Recent Profit Entries</strong>
+              <span class="section-subtle">Recent weekly profits</span>
             </div>
-            <div class="card-body p-0">
+
+            <!-- Desktop -->
+            <div class="card-body p-0 desktop-only">
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0 hover-row">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Period</th>
+                      <th class="text-end">Amount</th>
+                      <th>Source</th>
+                      <th>Status</th>
+                      <th>Processed</th>
+                      <th>Reference</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% if recent_profits %}
+                      {% for p in recent_profits %}
+                        <tr>
+                          <td>{{ p.period_start }} → {{ p.period_end }}</td>
+                          <td class="text-end">R{{ p.amount|floatformat:2|intcomma }}</td>
+                          <td>{{ p.get_source_type_display|default:p.source_type }}</td>
+                          <td>
+                            {% if p.status == "PENDING" %}
+                              <span class="status-badge status-pending">Pending</span>
+                            {% elif p.status == "REINVESTED" %}
+                              <span class="status-badge status-reinvested">Reinvested</span>
+                            {% elif p.status == "PAID_OUT" %}
+                              <span class="status-badge status-paid">Paid Out</span>
+                            {% else %}
+                              <span class="status-badge status-cancelled">{{ p.status }}</span>
+                            {% endif %}
+                          </td>
+                          <td>
+                            {% if p.processed_at %}
+                              {{ p.processed_at|date:"Y-m-d H:i" }}
+                            {% else %}
+                              <span class="text-muted">—</span>
+                            {% endif %}
+                          </td>
+                          <td>{{ p.reference|default:"—" }}</td>
+                        </tr>
+                      {% endfor %}
+                    {% else %}
+                      <tr>
+                        <td colspan="6" class="text-center text-muted py-4">No profit entries available yet.</td>
+                      </tr>
+                    {% endif %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Mobile -->
+            <div class="card-body mobile-only">
+              {% if recent_profits %}
+                <div class="mobile-stack">
+                  {% for p in recent_profits %}
+                    <div class="mobile-stack-card">
+                      <div class="title">{{ p.period_start }} → {{ p.period_end }}</div>
+
+                      <div class="mobile-row">
+                        <span class="label">Amount</span>
+                        <span class="value">R{{ p.amount|floatformat:2|intcomma }}</span>
+                      </div>
+
+                      <div class="mobile-row">
+                        <span class="label">Source</span>
+                        <span class="value">{{ p.get_source_type_display|default:p.source_type }}</span>
+                      </div>
+
+                      <div class="mobile-row">
+                        <span class="label">Status</span>
+                        <span class="value">
+                          {% if p.status == "PENDING" %}
+                            <span class="status-badge status-pending">Pending</span>
+                          {% elif p.status == "REINVESTED" %}
+                            <span class="status-badge status-reinvested">Reinvested</span>
+                          {% elif p.status == "PAID_OUT" %}
+                            <span class="status-badge status-paid">Paid Out</span>
+                          {% else %}
+                            <span class="status-badge status-cancelled">{{ p.status }}</span>
+                          {% endif %}
+                        </span>
+                      </div>
+
+                      <div class="mobile-row">
+                        <span class="label">Processed</span>
+                        <span class="value">
+                          {% if p.processed_at %}
+                            {{ p.processed_at|date:"Y-m-d H:i" }}
+                          {% else %}
+                            —
+                          {% endif %}
+                        </span>
+                      </div>
+
+                      <div class="mobile-row">
+                        <span class="label">Reference</span>
+                        <span class="value">{{ p.reference|default:"—" }}</span>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="text-center text-muted py-3">No profit entries available yet.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECENT MOVEMENTS -->
+      <div class="row g-3 mt-1">
+        <div class="col-12">
+          <div class="card shadow-sm">
+            <div class="card-header section-header">
+              <strong>Recent Movements</strong>
+              <span class="section-subtle">Top-ups, payouts, reinvestments</span>
+            </div>
+
+            <!-- Desktop -->
+            <div class="card-body p-0 desktop-only">
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0 hover-row">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Date</th>
+                      <th>Kind</th>
+                      <th class="text-end">Amount</th>
+                      <th>Reference</th>
+                      <th class="text-end">Linked Profits</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% if recent_movements %}
+                      {% for m in recent_movements %}
+                        <tr>
+                          <td>{{ m.created_at|date:"Y-m-d H:i" }}</td>
+                          <td>{{ m.get_kind_display|default:m.kind }}</td>
+                          <td class="text-end">R{{ m.amount|floatformat:2|intcomma }}</td>
+                          <td>{{ m.reference|default:"—" }}</td>
+                          <td class="text-end">{{ m.linked_profits_count|default:0 }}</td>
+                        </tr>
+                      {% endfor %}
+                    {% else %}
+                      <tr>
+                        <td colspan="5" class="text-center text-muted py-4">No movements available yet.</td>
+                      </tr>
+                    {% endif %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Mobile -->
+            <div class="card-body mobile-only">
+              {% if recent_movements %}
+                <div class="mobile-stack">
+                  {% for m in recent_movements %}
+                    <div class="mobile-stack-card">
+                      <div class="title">{{ m.get_kind_display|default:m.kind }}</div>
+
+                      <div class="mobile-row">
+                        <span class="label">Date</span>
+                        <span class="value">{{ m.created_at|date:"Y-m-d H:i" }}</span>
+                      </div>
+
+                      <div class="mobile-row">
+                        <span class="label">Amount</span>
+                        <span class="value">R{{ m.amount|floatformat:2|intcomma }}</span>
+                      </div>
+
+                      <div class="mobile-row">
+                        <span class="label">Reference</span>
+                        <span class="value">{{ m.reference|default:"—" }}</span>
+                      </div>
+
+                      <div class="mobile-row">
+                        <span class="label">Linked</span>
+                        <span class="value">{{ m.linked_profits_count|default:0 }}</span>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="text-center text-muted py-3">No movements available yet.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLIENT ALLOCATIONS -->
+      <div class="row g-3 mt-1">
+        <div class="col-12">
+          <div class="card shadow-sm">
+            <div class="card-header section-header">
+              <strong>Client Allocations</strong>
+              <span class="section-subtle">R{{ total_alloc|default:0|floatformat:2|intcomma }} total</span>
+            </div>
+
+            <!-- Desktop -->
+            <div class="card-body p-0 desktop-only">
               <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0 hover-row">
                   <thead class="table-light">
                     <tr>
                       <th>Client</th>
-                      <th class="text-end">Allocation (R)</th>
-                      <th style="width:260px;">Share of total</th>
+                      <th class="text-end">Allocation</th>
+                      <th style="width:260px;">Share</th>
                       <th class="text-end">Notes</th>
                     </tr>
                   </thead>
@@ -287,10 +776,13 @@
                           </div>
                           <div class="progress progress-sm">
                             <div class="progress-bar bg-secondary alloc-row-bar"
-                                 role="progressbar" style="width:0%"
-                                 aria-valuemin="0" aria-valuemax="100"
+                                 role="progressbar"
+                                 style="width:0%"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100"
                                  data-amount="{{ a.amount }}"
-                                 data-total="{{ total_alloc|default:'0' }}"></div>
+                                 data-total="{{ total_alloc|default:'0' }}">
+                            </div>
                           </div>
                         </td>
                         <td class="text-end text-muted">—</td>
@@ -305,8 +797,48 @@
                 </table>
               </div>
             </div>
+
+            <!-- Mobile -->
+            <div class="card-body mobile-only">
+              {% if allocations %}
+                <div class="mobile-stack">
+                  {% for a in allocations %}
+                    <div class="mobile-stack-card">
+                      <div class="title">{{ a.client.name }}</div>
+
+                      <div class="mobile-row">
+                        <span class="label">Allocation</span>
+                        <span class="value">R{{ a.amount|floatformat:2|intcomma }}</span>
+                      </div>
+
+                      <div class="mt-2">
+                        <div class="d-flex justify-content-between small">
+                          <span class="text-muted">Share</span>
+                          <span class="text-muted alloc-row-label"
+                                data-amount="{{ a.amount }}"
+                                data-total="{{ total_alloc|default:'0' }}">—</span>
+                        </div>
+                        <div class="progress progress-sm mt-1">
+                          <div class="progress-bar bg-secondary alloc-row-bar"
+                               role="progressbar"
+                               style="width:0%"
+                               aria-valuemin="0"
+                               aria-valuemax="100"
+                               data-amount="{{ a.amount }}"
+                               data-total="{{ total_alloc|default:'0' }}">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="text-center text-muted py-3">No allocations yet.</div>
+              {% endif %}
+            </div>
+
             <div class="card-footer small text-muted">
-              Manage allocations in the admin under <em>Credit → Funders</em>.
+              Manage allocations in admin under <em>Credit → Funders</em>.
             </div>
           </div>
         </div>
@@ -315,7 +847,6 @@
     </div>
   </main>
 
-  <!-- SWITCH PLATFORM MODAL -->
   <div class="modal fade"
       id="switchPlatformModal"
       tabindex="-1"
@@ -340,8 +871,6 @@
           <p class="mb-3 text-muted">Choose a platform to continue:</p>
 
           <div class="d-grid gap-2">
-
-            <!-- Main Staff Portal -->
             <a
               href="{% url 'staff-dashboard' %}"
               class="btn btn-outline-primary{% if not can_staff_portal %} disabled{% endif %}"
@@ -350,7 +879,6 @@
               Main Staff Portal
             </a>
 
-            <!-- Funder Portal -->
             <a
               href="{% url 'funder-dashboard' %}"
               class="btn btn-outline-primary{% if not can_lender_portal %} disabled{% endif %}"
@@ -359,7 +887,6 @@
               Funder Portal
             </a>
 
-            <!-- Sales Portal -->
             <a
               href="{% url 'sales:sales-dashboard' %}"
               class="btn btn-outline-primary{% if not can_sales_portal %} disabled{% endif %}"
@@ -368,7 +895,6 @@
               Sales Portal
             </a>
 
-            <!-- Logistics Portal -->
             <a
               href="{% url 'logistics:logistics-dashboard' %}"
               class="btn btn-outline-primary{% if not can_logistics_portal %} disabled{% endif %}"
@@ -376,7 +902,6 @@
             >
               Logistics Portal
             </a>
-
           </div>
         </div>
 
@@ -390,7 +915,6 @@
     </div>
   </div>
 
-  <!-- Footer -->
   <footer class="py-2">
     <div class="container text-center small">
       <div>© {% now "Y" %} Seshibo Daily Market · All rights reserved.</div>
@@ -402,16 +926,14 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  // Simple helper to safely compute percent
   function pct(amount, total) {
     amount = parseFloat(amount || 0);
-    total  = parseFloat(total  || 0);
+    total  = parseFloat(total || 0);
     if (!total || total <= 0) return 0;
     const p = (amount / total) * 100;
     return Math.max(0, Math.min(100, p));
   }
 
-  // Allocation vs Balance
   (function(){
     const bar = document.getElementById('allocPctBar');
     const lbl = document.getElementById('allocPctLabel');
@@ -422,7 +944,6 @@
     }
   })();
 
-  // Utilization vs Total Allocation
   (function(){
     const bar = document.getElementById('utilPctBar');
     const lbl = document.getElementById('utilPctLabel');
@@ -433,9 +954,8 @@
     }
   })();
 
-  // Per-row allocation share bars
   (function(){
-    const bars  = document.querySelectorAll('.alloc-row-bar');
+    const bars = document.querySelectorAll('.alloc-row-bar');
     const labels = document.querySelectorAll('.alloc-row-label');
     bars.forEach((b, idx) => {
       const p = pct(b.dataset.amount, b.dataset.total);
@@ -444,7 +964,6 @@
     });
   })();
 
-  // Quick funder switch without form submit
   (function(){
     const sel = document.getElementById('funderSwitch');
     if (sel) {

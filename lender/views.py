@@ -49,8 +49,11 @@ def funder_dashboard(request):
 
     print("\n================ START DASHBOARD ================\n")
 
-    # 🔹 STEP 0 — MAP USER ACROSS DBS
+    from django.db.models import Sum, Count
+    from django.db.models.functions import Coalesce
+    from credit.models import FunderProfit
 
+    # 🔹 STEP 0 — MAP USER ACROSS DBS
     dummy_user = User.objects.using("dummy").filter(
         username__iexact=request.user.username
     ).first()
@@ -60,7 +63,7 @@ def funder_dashboard(request):
     print(f"Dummy User ID: {getattr(dummy_user, 'id', None)}")
     print("========================\n")
 
-    # 🔍 EXTRA DEBUG (CRITICAL)
+    # 🔍 EXTRA DEBUG
     print("===== DUMMY USER CHECK =====")
     all_dummy_users = list(
         User.objects.using("dummy")
@@ -71,7 +74,6 @@ def funder_dashboard(request):
     print("============================\n")
 
     # 🔹 STEP 1 — GET MEMBERSHIPS
-
     dummy_memberships = []
 
     if dummy_user:
@@ -108,8 +110,8 @@ def funder_dashboard(request):
         print("👉 USING DEFAULT DB")
 
     print("===== FINAL MEMBERSHIPS =====")
-    for m, db in memberships:
-        print(f"Funder: {m.funder.name} | ID: {m.funder.id} | DB: {db}")
+    for m, membership_db in memberships:
+        print(f"Funder: {m.funder.name} | ID: {m.funder.id} | DB: {membership_db}")
     print("=============================\n")
 
     if not memberships:
@@ -117,14 +119,12 @@ def funder_dashboard(request):
         return redirect(reverse("staff-dashboard"))
 
     # 🔹 STEP 2 — SELECT MEMBERSHIP
-
     qs_funder_id = request.GET.get("funder")
-
     selected = None
 
     if qs_funder_id:
         selected = next(
-            ((m, db) for m, db in memberships if str(m.funder.id) == qs_funder_id),
+            ((m, membership_db) for m, membership_db in memberships if str(m.funder.id) == qs_funder_id),
             None
         )
 
@@ -143,7 +143,6 @@ def funder_dashboard(request):
     print("====================\n")
 
     # 🔹 STEP 3 — ALLOCATIONS
-
     print("===== ALLOCATION QUERY =====")
     print(f"Using DB: {db}")
     print("============================\n")
@@ -155,15 +154,17 @@ def funder_dashboard(request):
         .order_by("client__name")
     )
 
-    total_alloc = allocations.aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
+    total_alloc = allocations.aggregate(
+        s=Coalesce(Sum("amount"), Decimal("0.00"))
+    )["s"] or Decimal("0.00")
 
     print(f"Allocations count: {allocations.count()}")
     print(f"Total Alloc: {total_alloc}\n")
 
     # 🔹 STEP 4 — WEEKLY DATA
-
     today = date.today()
     four_weeks_ago = today - timedelta(weeks=4)
+    month_start = today.replace(day=1)
 
     latest_week = (
         FunderWeekSummary.objects.using(db)
@@ -184,15 +185,64 @@ def funder_dashboard(request):
         )
     )
 
+    # 🔹 STEP 5 — PROFIT DATA
+    recent_profits = (
+        FunderProfit.objects.using(db)
+        .filter(funder__id=funder.id)
+        .select_related("week_summary")
+        .order_by("-period_start", "-created_at")[:10]
+    )
+
+    pending_profit_total = (
+        FunderProfit.objects.using(db)
+        .filter(funder__id=funder.id, status="PENDING")
+        .aggregate(total=Coalesce(Sum("amount"), Decimal("0.00")))["total"]
+        or Decimal("0.00")
+    )
+
+    reinvested_this_month = (
+        FunderProfit.objects.using(db)
+        .filter(
+            funder__id=funder.id,
+            status="REINVESTED",
+            processed_at__date__gte=month_start,
+            processed_at__date__lte=today,
+        )
+        .aggregate(total=Coalesce(Sum("amount"), Decimal("0.00")))["total"]
+        or Decimal("0.00")
+    )
+
+    paid_out_this_month = (
+        FunderProfit.objects.using(db)
+        .filter(
+            funder__id=funder.id,
+            status="PAID_OUT",
+            processed_at__date__gte=month_start,
+            processed_at__date__lte=today,
+        )
+        .aggregate(total=Coalesce(Sum("amount"), Decimal("0.00")))["total"]
+        or Decimal("0.00")
+    )
+
+    # 🔹 STEP 6 — MOVEMENT DATA
+    recent_movements = (
+        FunderMovement.objects.using(db)
+        .filter(funder__id=funder.id)
+        .annotate(linked_profits_count=Count("profit_links", distinct=True))
+        .order_by("-created_at", "-id")[:10]
+    )
+
     print("===== FUNDER VALUES =====")
     print(f"Balance: {getattr(funder, 'balance', 'NO FIELD')}")
     print(f"Allocatable: {getattr(funder, 'allocatable_balance', 'NO FIELD')}")
+    print(f"Pending Profit Total: {pending_profit_total}")
+    print(f"Reinvested This Month: {reinvested_this_month}")
+    print(f"Paid Out This Month: {paid_out_this_month}")
     print("==========================\n")
 
     print("================ END DASHBOARD ================\n")
 
     # 🔹 FINAL CONTEXT
-
     ctx = {
         "funder": funder,
         "allocations": allocations,
@@ -201,12 +251,15 @@ def funder_dashboard(request):
         "latest_week": latest_week,
         "memberships": memberships,
         "recent_weeks": recent_weeks,
+        "recent_profits": recent_profits,
+        "recent_movements": recent_movements,
+        "pending_profit_total": pending_profit_total,
+        "reinvested_this_month": reinvested_this_month,
+        "paid_out_this_month": paid_out_this_month,
         "mode": db,
     }
 
     return render(request, "lender/dashboard.html", ctx)
-
-
 
 
 

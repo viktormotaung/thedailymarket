@@ -148,6 +148,17 @@ def is_bypassing_ledger():
 # ============================================================
 
 class Funder(models.Model):
+    PROFIT_MODE_CHOICES = [
+        ("PAYOUT", "Payout"),
+        ("REINVEST", "Reinvest"),
+    ]
+
+    PROFIT_FREQUENCY_CHOICES = [
+        ("WEEKLY", "Weekly"),
+        ("MONTHLY", "Monthly"),
+        ("MANUAL", "Manual"),
+    ]
+
     name = models.CharField(max_length=120, unique=True)
 
     weekly_rate_pct = models.DecimalField(
@@ -174,6 +185,20 @@ class Funder(models.Model):
         through="FunderAllocation",
         related_name="funders",
         blank=True,
+    )
+
+    profit_mode = models.CharField(
+        max_length=12,
+        choices=PROFIT_MODE_CHOICES,
+        default="PAYOUT",
+        help_text="Determines whether profit is paid out or added back into the funder balance.",
+    )
+
+    profit_frequency = models.CharField(
+        max_length=12,
+        choices=PROFIT_FREQUENCY_CHOICES,
+        default="WEEKLY",
+        help_text="How often this funder expects profit processing.",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -438,6 +463,14 @@ class FunderMovement(models.Model):
         on_delete=models.CASCADE,
         related_name="movements",
     )
+
+    profit_links = models.ManyToManyField(
+        "credit.FunderProfit",
+        blank=True,
+        related_name="movements",
+        help_text="Optional profit entries linked to this movement.",
+    )
+
     kind = models.CharField(max_length=20, choices=KIND_CHOICES)
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     reference = models.CharField(max_length=120, blank=True)
@@ -464,7 +497,6 @@ class FunderMovement(models.Model):
         previous = None
         if not creating:
             db = self._state.db or "default"
-
             previous = FunderMovement.objects.using(db).get(pk=self.pk)
 
         super().save(*args, **kwargs)
@@ -480,6 +512,7 @@ class FunderMovement(models.Model):
     def delete(self, *args, **kwargs):
         self.funder.apply_delta(-self.signed_amount())
         super().delete(*args, **kwargs)
+
 
 # ============================================================
 # CREDIT ACCOUNT (per client)
@@ -1083,7 +1116,6 @@ class FunderWeekSummary(models.Model):
         help_text="Total credit usage recorded this week before applying the funder cap.",
     )
 
-
     visible_utilization_total = models.DecimalField(
         max_digits=14,
         decimal_places=2,
@@ -1120,3 +1152,251 @@ class FunderWeekSummary(models.Model):
             f"{self.week_start} · {self.funder.name} · "
             f"Return R{self.weekly_return:.2f}"
         )
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        db = self._state.db or "default"
+        period_end = self.week_start + timedelta(days=6)
+
+        profit = (
+            FunderProfit.objects.using(db)
+            .filter(week_summary=self)
+            .first()
+        )
+
+        if not profit:
+            FunderProfit.objects.using(db).create(
+                funder=self.funder,
+                week_summary=self,
+                source_type="WEEKLY",
+                period_start=self.week_start,
+                period_end=period_end,
+                amount=self.weekly_return,
+                status="PENDING",
+                reference=f"WEEK-{self.week_start}",
+                note=f"Auto-created from weekly summary for {self.week_start}",
+            )
+            return
+
+        if profit.status == "PENDING":
+            profit.funder = self.funder
+            profit.source_type = "WEEKLY"
+            profit.period_start = self.week_start
+            profit.period_end = period_end
+            profit.amount = self.weekly_return
+            profit.save(
+                using=db,
+                update_fields=[
+                    "funder",
+                    "source_type",
+                    "period_start",
+                    "period_end",
+                    "amount",
+                    "updated_at",
+                ],
+            )
+
+
+class FunderProfit(models.Model):
+    STATUS_CHOICES = [
+        ("PENDING", "Pending"),
+        ("PAID_OUT", "Paid Out"),
+        ("REINVESTED", "Reinvested"),
+        ("CANCELLED", "Cancelled"),
+    ]
+
+    SOURCE_CHOICES = [
+        ("WEEKLY", "Weekly Summary"),
+        ("MONTHLY", "Monthly Summary"),
+        ("MANUAL", "Manual"),
+    ]
+
+    funder = models.ForeignKey(
+        Funder,
+        on_delete=models.CASCADE,
+        related_name="profits",
+    )
+
+    week_summary = models.ForeignKey(
+        "credit.FunderWeekSummary",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="profit_entries",
+        help_text="Optional link to the weekly summary that generated this profit.",
+    )
+
+    source_type = models.CharField(
+        max_length=12,
+        choices=SOURCE_CHOICES,
+        default="WEEKLY",
+    )
+
+    period_start = models.DateField()
+    period_end = models.DateField()
+
+    amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Profit amount for the selected period.",
+    )
+
+    status = models.CharField(
+        max_length=12,
+        choices=STATUS_CHOICES,
+        default="PENDING",
+    )
+
+    processed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this profit was paid out or reinvested.",
+    )
+
+    reference = models.CharField(
+        max_length=120,
+        blank=True,
+    )
+
+    note = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-period_start", "-created_at"]
+        indexes = [
+            models.Index(fields=["funder", "status"]),
+            models.Index(fields=["funder", "period_start", "period_end"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.funder.name} · {self.period_start} to {self.period_end} · "
+            f"R{self.amount:.2f} · {self.status}"
+        )
+
+    def clean(self):
+        super().clean()
+
+        if self.period_end < self.period_start:
+            raise ValidationError({
+                "period_end": "Period end cannot be before period start."
+            })
+
+        if self.source_type == "WEEKLY" and not self.week_summary:
+            raise ValidationError({
+                "week_summary": "Weekly profit entries must be linked to a weekly summary."
+            })
+
+        if self.week_summary and self.week_summary.funder_id != self.funder_id:
+            raise ValidationError({
+                "week_summary": "Weekly summary funder must match the profit funder."
+            })
+
+    @classmethod
+    @transaction.atomic
+    def process_monthly_reinvestment(cls, *, using="default", run_date=None):
+        """
+        Process MONTHLY + REINVEST funders for the previous full calendar month.
+
+        Steps:
+        1. Find funders set to REINVEST + MONTHLY.
+        2. Find their weekly profit rows for the previous month that are still
+           PENDING and not yet linked to any movement.
+        3. Sum those profits.
+        4. Create one TOPUP movement for the total.
+        5. Link those profits to the movement.
+        6. Mark those profits as REINVESTED.
+        """
+
+        db = using or "default"
+        today = run_date or now().date()
+
+        # --------------------------------------------------
+        # Previous full calendar month
+        # --------------------------------------------------
+        first_day_this_month = today.replace(day=1)
+        last_day_prev_month = first_day_this_month - timedelta(days=1)
+        month_start = last_day_prev_month.replace(day=1)
+        month_end = last_day_prev_month
+
+        processed_funders = 0
+        processed_profits = 0
+        processed_total = Decimal("0.00")
+
+        funders = Funder.objects.using(db).filter(
+            profit_mode="REINVEST",
+            profit_frequency="MONTHLY",
+        )
+
+        for funder in funders:
+            profits_qs = (
+                cls.objects.using(db)
+                .filter(
+                    funder=funder,
+                    source_type="WEEKLY",
+                    status="PENDING",
+                    period_start__gte=month_start,
+                    period_end__lte=month_end,
+                    movements__isnull=True,
+                )
+                .distinct()
+                .order_by("period_start", "id")
+            )
+
+            if not profits_qs.exists():
+                continue
+
+            total_profit = profits_qs.aggregate(
+                total=Coalesce(Sum("amount"), Decimal("0.00"))
+            )["total"] or Decimal("0.00")
+
+            total_profit = r2(total_profit)
+
+            if total_profit <= Decimal("0.00"):
+                continue
+
+            reference = f"PROFIT REINVEST {month_start.strftime('%Y-%m')}"
+            note = (
+                f"Monthly reinvestment of weekly profits for "
+                f"{month_start.strftime('%B %Y')}"
+            )
+
+            movement = FunderMovement.objects.using(db).create(
+                funder=funder,
+                kind=FunderMovement.TOPUP,
+                amount=total_profit,
+                reference=reference,
+                note=note,
+            )
+
+            profit_ids = list(profits_qs.values_list("id", flat=True))
+            movement.profit_links.set(profit_ids)
+
+            processed_at = now()
+
+            profits_qs.update(
+                status="REINVESTED",
+                processed_at=processed_at,
+                updated_at=processed_at,
+            )
+
+            processed_funders += 1
+            processed_profits += len(profit_ids)
+            processed_total = r2(processed_total + total_profit)
+
+        return {
+            "month_start": month_start,
+            "month_end": month_end,
+            "funders_processed": processed_funders,
+            "profits_processed": processed_profits,
+            "total_reinvested": processed_total,
+        }
+
+
+    
+      

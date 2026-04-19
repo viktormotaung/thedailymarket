@@ -175,9 +175,10 @@ class Invoice(models.Model):
         UtilizationSegment = apps.get_model("invoices", "UtilizationSegment")
 
         cycle_days = term_days if term_days > 0 else 1
+        db = self._state.db or self.order._state.db or "default"
 
         self.segment = (
-            UtilizationSegment.objects
+            UtilizationSegment.objects.using(db)
             .filter(cycle_days=cycle_days, is_active=True)
             .first()
         )

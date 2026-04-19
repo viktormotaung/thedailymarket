@@ -14,9 +14,15 @@ from .models import (
     CreditLog,
     CreditEntry,
     FunderWeekSummary,
+    FunderProfit,
 )
 from django import forms
-from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.urls import path
+from django.http import HttpResponseRedirect
+from django.template.response import TemplateResponse
+from django.contrib import messages
 
 # ============================================================
 # INLINES
@@ -74,6 +80,20 @@ class CreditLogInline(admin.TabularInline):
     can_delete = False
 
 
+class FunderProfitInline(admin.TabularInline):
+    model = FunderProfit
+    extra = 0
+    fields = (
+        "period_start",
+        "period_end",
+        "source_type",
+        "amount",
+        "status",
+        "processed_at",
+    )
+    readonly_fields = ("created_at", "updated_at")
+    show_change_link = True
+
 # ============================================================
 # FUNDER ADMIN
 # ============================================================
@@ -87,6 +107,8 @@ class FunderAdmin(admin.ModelAdmin):
         "total_allocated_display",
         "allocatable_balance",
         "weekly_rate_pct",
+        "profit_mode",
+        "profit_frequency",
     )
     search_fields = ("name",)
     ordering = ("name",)
@@ -95,15 +117,24 @@ class FunderAdmin(admin.ModelAdmin):
     inlines = (
         FunderMemberInline,
         FunderAllocationInline,
+        FunderProfitInline,
     )
 
     list_filter = (
-        "is_dummy",  # 👈 ADD THIS
+        "is_dummy",
+        "profit_mode",
+        "profit_frequency",
     )
 
     fieldsets = (
         (None, {
-            "fields": ("name", "is_dummy", "weekly_rate_pct"),
+            "fields": (
+                "name",
+                "is_dummy",
+                "weekly_rate_pct",
+                "profit_mode",
+                "profit_frequency",
+            ),
         }),
         ("Financials (System Controlled)", {
             "fields": ("balance",),
@@ -254,20 +285,56 @@ class FunderAllocationAdmin(admin.ModelAdmin):
 
 @admin.register(FunderMovement)
 class FunderMovementAdmin(admin.ModelAdmin):
-    list_display = ("created_at", "funder", "kind", "amount", "reference")
-    list_filter = ("kind", "created_at")
+    list_display = (
+        "created_at",
+        "funder",
+        "kind",
+        "amount",
+        "reference",
+        "linked_profits_count",
+    )
+
+    list_filter = ("kind", "created_at", "funder")
+
     search_fields = ("reference", "note", "funder__name")
-    autocomplete_fields = ("funder",)
+
+    autocomplete_fields = (
+        "funder",
+        "profit_links",
+    )
+
     readonly_fields = ("created_at",)
 
     fieldsets = (
         (None, {
-            "fields": ("funder", "kind", "amount", "reference", "note"),
+            "fields": (
+                "funder",
+                "kind",
+                "amount",
+                "reference",
+                "note",
+                "profit_links",
+            ),
         }),
         ("System", {
             "fields": ("created_at",),
         }),
     )
+
+    # 🔒 Lock profit_links after creation
+    def get_readonly_fields(self, request, obj=None):
+        ro = list(self.readonly_fields)
+
+        if obj:
+            ro.append("profit_links")
+
+        return ro
+
+    # Display helper
+    def linked_profits_count(self, obj):
+        return obj.profit_links.count()
+
+    linked_profits_count.short_description = "Linked Profits"
 
 
 # ============================================================
@@ -510,3 +577,201 @@ class FunderWeekSummaryAdmin(admin.ModelAdmin):
     ordering = ("-week_start", "-created_at")
 
     date_hierarchy = "week_start"
+
+
+@admin.register(FunderProfit)
+class FunderProfitAdmin(admin.ModelAdmin):
+    list_display = (
+        "funder",
+        "period_start",
+        "period_end",
+        "source_type",
+        "amount",
+        "status",
+        "processed_at",
+        "created_at",
+    )
+
+    list_filter = (
+        "status",
+        "source_type",
+        "funder",
+        "period_start",
+    )
+
+    search_fields = (
+        "funder__name",
+        "reference",
+        "note",
+    )
+
+    autocomplete_fields = (
+        "funder",
+        "week_summary",
+    )
+
+    readonly_fields = (
+        "funder",
+        "week_summary",
+        "created_at",
+        "updated_at",
+    )
+
+    fieldsets = (
+        (None, {
+            "fields": (
+                "funder",
+                "week_summary",
+                "source_type",
+                "period_start",
+                "period_end",
+                "amount",
+                "status",
+            ),
+        }),
+        ("Processing", {
+            "fields": (
+                "processed_at",
+                "reference",
+                "note",
+            ),
+        }),
+        ("System", {
+            "fields": (
+                "created_at",
+                "updated_at",
+            ),
+        }),
+    )
+
+    ordering = ("-period_start", "-created_at")
+
+    change_list_template = "admin/credit/funderprofit/change_list.html"
+
+    actions = [
+        "reinvest_selected_profits",
+        "payout_selected_profits",
+    ]
+
+    # -------------------------------------------------
+    # DB DETECTION
+    # -------------------------------------------------
+    def _db(self, request):
+        return "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+    # -------------------------------------------------
+    # CUSTOM URLS
+    # -------------------------------------------------
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "process-monthly/",
+                self.admin_site.admin_view(self.process_monthly_view),
+                name="credit_funderprofit_process_monthly",
+            ),
+            path(
+                "process-weekly/",
+                self.admin_site.admin_view(self.process_weekly_view),
+                name="credit_funderprofit_process_weekly",
+            ),
+        ]
+        return custom_urls + urls
+
+    # -------------------------------------------------
+    # CHANGE LIST EXTRA CONTEXT
+    # -------------------------------------------------
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["show_profit_buttons"] = True
+        return super().changelist_view(request, extra_context=extra_context)
+
+    # -------------------------------------------------
+    # TOP BUTTON HANDLERS
+    # -------------------------------------------------
+    def process_monthly_view(self, request):
+        db = self._db(request)
+
+        result = FunderProfit.process_monthly_reinvestment(using=db)
+
+        self.message_user(
+            request,
+            (
+                f"Monthly reinvestment complete | "
+                f"DB: {db} | "
+                f"Funders processed: {result['funders_processed']} | "
+                f"Profits processed: {result['profits_processed']} | "
+                f"Total reinvested: R{result['total_reinvested']}"
+            ),
+            level=messages.SUCCESS,
+        )
+
+        return HttpResponseRedirect("../")
+
+    def process_weekly_view(self, request):
+        db = self._db(request)
+
+        # 🔥 Replace this once your weekly function is added
+        self.message_user(
+            request,
+            f"Weekly processing function not yet connected. DB detected: {db}",
+            level=messages.WARNING,
+        )
+
+        return HttpResponseRedirect("../")
+
+    # -------------------------------------------------
+    # ACTIONS
+    # -------------------------------------------------
+    @admin.action(description="Reinvest selected profits")
+    def reinvest_selected_profits(self, request, queryset):
+        success = 0
+
+        for profit in queryset:
+            if profit.status != "PENDING":
+                continue
+
+            db = profit._state.db or "default"
+
+            with transaction.atomic(using=db):
+                profit.funder.apply_delta(profit.amount)
+
+                profit.status = "REINVESTED"
+                profit.processed_at = now()
+                profit.save(
+                    using=db,
+                    update_fields=["status", "processed_at", "updated_at"]
+                )
+
+                success += 1
+
+        self.message_user(
+            request,
+            f"{success} profit(s) reinvested successfully."
+        )
+
+    @admin.action(description="Mark selected profits as paid out")
+    def payout_selected_profits(self, request, queryset):
+        success = 0
+
+        for profit in queryset:
+            if profit.status != "PENDING":
+                continue
+
+            db = profit._state.db or "default"
+
+            with transaction.atomic(using=db):
+                profit.status = "PAID_OUT"
+                profit.processed_at = now()
+                profit.save(
+                    using=db,
+                    update_fields=["status", "processed_at", "updated_at"]
+                )
+
+                success += 1
+
+        self.message_user(
+            request,
+            f"{success} profit(s) marked as paid out."
+        )
+
