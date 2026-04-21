@@ -166,29 +166,32 @@ def create_oneapi_transaction(payment: Payment):
         if not payment.institution_id:
             raise OzowOneAPIPaymentError("Institution is required for Pay By Bank.")
 
-        payload = {
-            "paymentId": payment.oneapi_payment_id,
-            "request": {
-                "paymentType": "ozowredirect",
-                "details": {
-                    "institutionId": payment.institution_id,
-                },
+        request_payload = {
+            "paymentType": "ozowredirect",
+            "details": {
+                "institutionId": payment.institution_id,
             },
         }
 
     elif payment.payment_method == "payshap":
-        payload = {
-            "paymentId": payment.oneapi_payment_id,
-            "request": {
-                "paymentType": "payshap",
-                "details": {},
-            },
+        request_payload = {
+            "paymentType": "payshap",
+            "details": {},
         }
 
     else:
         raise OzowOneAPIPaymentError(
             f"Unsupported payment_method: {payment.payment_method}"
         )
+
+    payload = {
+        "data": {
+            "attributes": {
+                "paymentId": payment.oneapi_payment_id,
+                "request": request_payload,
+            }
+        }
+    }
 
     print("=== ONEAPI CREATE TRANSACTION DEBUG ===")
     print("URL:", url)
