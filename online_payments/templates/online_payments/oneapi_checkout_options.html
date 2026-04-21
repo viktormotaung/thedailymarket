@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Choose Payment Method</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; }
+        .card { border: 1px solid #ddd; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+        h1, h2, h3 { margin-top: 0; }
+        .bank-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+        .bank-item { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+        button { padding: 10px 16px; border: 0; border-radius: 6px; cursor: pointer; }
+        .primary { background: #0a5c39; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Choose Payment Method</h1>
+    <p><strong>Invoice:</strong> {{ invoice.id }}</p>
+    <p><strong>Amount Due:</strong> R{{ invoice.amount_due }}</p>
+
+    {% if pay_by_bank %}
+    <div class="card">
+        <h2>Pay By Bank</h2>
+        <div class="bank-list">
+            {% for bank in pay_by_bank.institutions %}
+                {% if bank.available %}
+                <div class="bank-item">
+                    <h3>{{ bank.friendlyName }}</h3>
+                    <form method="post" action="{% url 'online_payments:oneapi_start_payment' invoice.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="payment_method" value="ozowredirect">
+                        <input type="hidden" name="institution_id" value="{{ bank.id }}">
+                        <input type="hidden" name="institution_name" value="{{ bank.friendlyName }}">
+                        <button type="submit" class="primary">Pay with {{ bank.friendlyName }}</button>
+                    </form>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if payshap %}
+    <div class="card">
+        <h2>Payshap</h2>
+        <p>Use Payshap through Ozow OneAPI.</p>
+        <form method="post" action="{% url 'online_payments:oneapi_start_payment' invoice.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="payment_method" value="payshap">
+            <input type="hidden" name="institution_id" value="{{ payshap.institution.id }}">
+            <input type="hidden" name="institution_name" value="{{ payshap.institution.friendlyName }}">
+            <button type="submit" class="primary">Pay with Payshap</button>
+        </form>
+    </div>
+    {% endif %}
+</body>
+</html>

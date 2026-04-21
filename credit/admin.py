@@ -303,7 +303,7 @@ class FunderMovementAdmin(admin.ModelAdmin):
         "profit_links",
     )
 
-    readonly_fields = ("created_at",)
+    readonly_fields = ()
 
     fieldsets = (
         (None, {

@@ -29,6 +29,7 @@ urlpatterns = [
     path("payment/success/", payment_views.payment_success, name="payment_success"),
     path("payment/cancel/", payment_views.payment_cancel, name="payment_cancel"),
     path("payment/error/", payment_views.payment_error, name="payment_error"),
+    path("payments/", include("online_payments.urls")),
 
     
 

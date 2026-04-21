@@ -321,3 +321,37 @@ OZOW_SUCCESS_URL = "https://www.thedailymarket.co.za/payment/success/"
 OZOW_NOTIFY_URL = "https://www.thedailymarket.co.za/payments/ozow/notify/"
 
 OZOW_API_URL = "https://stagingapi.ozow.com" if OZOW_IS_TEST else "https://api.ozow.com"
+
+# ===============================
+# OZOW ONEAPI SETTINGS
+# ===============================
+
+OZOW_ONEAPI_USE_STAGING = False
+
+OZOW_ONEAPI_BASE_URL = (
+    "https://stagingone.ozow.com"
+    if OZOW_ONEAPI_USE_STAGING
+    else "https://one.ozow.com"
+)
+
+OZOW_ONEAPI_TOKEN_URL = f"{OZOW_ONEAPI_BASE_URL}/v1/token"
+
+OZOW_ONEAPI_CLIENT_ID = "2vgnd4bjen9iesohut8487emmr"
+OZOW_ONEAPI_CLIENT_SECRET = "1vnogvdskharfkeseg0rujqr1m0npfiho6sdclqbvrpvlq10l89"
+OZOW_ONEAPI_SCOPE = "payments webhooks refunds"
+
+OZOW_ONEAPI_SITE_CODE = OZOW_SITE_CODE
+OZOW_ONEAPI_REGION = "ZA"
+OZOW_ONEAPI_CURRENCY = "ZAR"
+
+OZOW_ONEAPI_RETURN_URL = "https://www.thedailymarket.co.za/payments/oneapi/return/"
+OZOW_ONEAPI_NOTIFY_URL = "https://www.thedailymarket.co.za/payments/oneapi/webhook/"
+
+# 30 minute expiry window for payment links
+OZOW_ONEAPI_EXPIRE_MINUTES = 30
+
+# Optional for later webhook verification hardening
+OZOW_ONEAPI_WEBHOOK_ID = ""
+OZOW_ONEAPI_WEBHOOK_SECRET = ""
+
+

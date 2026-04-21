@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from decimal import Decimal
 
+
 class Payment(models.Model):
 
     STATUS_CHOICES = [
@@ -11,19 +12,30 @@ class Payment(models.Model):
     ]
 
     PROVIDER_CHOICES = [
-        ("ozow", "Ozow"),
+        ("ozow_oneapi", "Ozow OneAPI"),
+    ]
+
+    METHOD_CHOICES = [
+        ("ozowredirect", "Pay By Bank"),
+        ("payshap", "Payshap"),
     ]
 
     reference = models.CharField(max_length=100, unique=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
-    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES, default="ozow")
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES, default="ozow_oneapi")
+
+    payment_method = models.CharField(max_length=50, choices=METHOD_CHOICES, blank=True, null=True)
+    institution_id = models.CharField(max_length=255, blank=True, null=True)
+    institution_name = models.CharField(max_length=255, blank=True, null=True)
+
+    oneapi_payment_id = models.CharField(max_length=255, blank=True, null=True)
+    oneapi_transaction_id = models.CharField(max_length=255, blank=True, null=True)
+    idempotency_key = models.CharField(max_length=255, blank=True, null=True)
 
     client = models.ForeignKey("clients.Client", on_delete=models.SET_NULL, null=True, blank=True)
     invoice = models.ForeignKey("invoices.Invoice", on_delete=models.SET_NULL, null=True, blank=True)
-
-    ozow_transaction_id = models.CharField(max_length=255, blank=True, null=True)
 
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -42,12 +54,11 @@ class Payment(models.Model):
 
         super().save(*args, **kwargs)
 
-        # Trigger the same invoice payment flow when this payment becomes successful
         if should_apply_invoice_payment and self.invoice:
             self.invoice.record_payment(
                 amount=self.amount,
                 reference=self.reference,
-                note=f"{self.provider.upper()} payment received",
+                note=f"{self.provider} payment received",
                 when=self.paid_at,
             )
 
