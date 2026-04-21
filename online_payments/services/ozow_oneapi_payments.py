@@ -167,20 +167,22 @@ def create_oneapi_transaction(payment: Payment):
             raise OzowOneAPIPaymentError("Institution is required for Pay By Bank.")
 
         payload = {
-            "paymentDetail": {
+            "paymentId": payment.oneapi_payment_id,
+            "request": {
                 "paymentType": "ozowredirect",
                 "details": {
                     "institutionId": payment.institution_id,
                 },
-            }
+            },
         }
 
     elif payment.payment_method == "payshap":
         payload = {
-            "paymentDetail": {
+            "paymentId": payment.oneapi_payment_id,
+            "request": {
                 "paymentType": "payshap",
-                "details": {}
-            }
+                "details": {},
+            },
         }
 
     else:
