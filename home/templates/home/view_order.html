@@ -570,9 +570,9 @@
 
                 {% elif invoice.amount_due > 0 %}
 
-                <a href="{% url 'online_payments:start-payment' invoice.id %}" 
+                <a href="{% url 'online_payments:oneapi_checkout_options' invoice.id %}" 
                   class="btn btn-success">
-                  Pay via Instant EFT
+                  Pay Now
                 </a>
 
                 {% endif %}
