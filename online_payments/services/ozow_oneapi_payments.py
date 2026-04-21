@@ -185,12 +185,8 @@ def create_oneapi_transaction(payment: Payment):
         )
 
     payload = {
-        "data": {
-            "attributes": {
-                "paymentId": payment.oneapi_payment_id,
-                "request": request_payload,
-            }
-        }
+        "paymentId": payment.oneapi_payment_id,
+        "request": request_payload,
     }
 
     print("=== ONEAPI CREATE TRANSACTION DEBUG ===")
@@ -222,12 +218,24 @@ def create_oneapi_transaction(payment: Payment):
 
     data = response.json()
 
-    transaction = data.get("transaction", {})
-    payment.oneapi_transaction_id = transaction.get("id")
-    payment.save(update_fields=["oneapi_transaction_id"])
+    transaction = (
+        data.get("transaction")
+        or data.get("data", {}).get("transaction")
+        or {}
+    )
+
+    transaction_id = transaction.get("id") or data.get("id")
+    if transaction_id:
+        payment.oneapi_transaction_id = transaction_id
+        payment.save(update_fields=["oneapi_transaction_id"])
 
     redirect_url = None
-    required_actions = data.get("requiredActionOptions", []) or []
+
+    required_actions = (
+        data.get("requiredActionOptions")
+        or data.get("data", {}).get("requiredActionOptions")
+        or []
+    )
 
     for action in required_actions:
         if action.get("action") == "redirect" and action.get("uri"):
@@ -235,10 +243,14 @@ def create_oneapi_transaction(payment: Payment):
             break
 
     if not redirect_url:
+        redirect_url = (
+            data.get("redirectUrl")
+            or data.get("data", {}).get("redirectUrl")
+        )
+
+    if not redirect_url:
         raise OzowOneAPIPaymentError(
             f"Ozow did not return a redirect action. Transaction response: {data}"
         )
 
     return data, redirect_url
-
-
