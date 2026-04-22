@@ -12,14 +12,11 @@
         :root {
             --brand: #0b5c39;
             --brand-dark: #094c30;
-            --bg: #f4f7f5;
-            --card: #ffffff;
+            --bg: #eef3f0;
             --text: #1f2937;
             --muted: #6b7280;
-            --border: #dbe5df;
-            --danger: #b42318;
-            --shadow: 0 20px 60px rgba(11, 92, 57, 0.12);
-            --radius: 22px;
+            --white: #ffffff;
+            --border: #d9e2dc;
         }
 
         * {
@@ -27,14 +24,13 @@
         }
 
         html, body {
-            min-height: 100%;
             margin: 0;
             padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             font-family: Arial, Helvetica, sans-serif;
-            background:
-                radial-gradient(circle at top left, rgba(11,92,57,0.08), transparent 28%),
-                radial-gradient(circle at bottom right, rgba(11,92,57,0.08), transparent 24%),
-                var(--bg);
+            background: var(--bg);
             color: var(--text);
         }
 
@@ -42,142 +38,74 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 24px;
         }
 
-        .shell {
+        .wrap {
             width: 100%;
-            max-width: 560px;
+            max-width: 420px;
+            padding: 20px;
+            text-align: center;
         }
 
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            overflow: hidden;
-        }
-
-        .card-header {
-            padding: 22px 24px;
+        .logo-bar {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 18px;
+            border-radius: 20px;
             background: linear-gradient(135deg, var(--brand), var(--brand-dark));
-            color: #fff;
-        }
-
-        .brand-row {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-        }
-
-        .brand-title {
-            font-size: 1.35rem;
+            justify-content: center;
+            color: var(--white);
+            font-size: 28px;
             font-weight: 700;
-            margin: 0;
+            box-shadow: 0 12px 28px rgba(11, 92, 57, 0.18);
         }
 
-        .brand-subtitle {
-            margin: 6px 0 0;
-            font-size: 0.95rem;
-            opacity: 0.92;
+        .title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0 0 10px;
         }
 
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: #fff;
-            font-size: 0.88rem;
-            font-weight: 600;
-            padding: 9px 12px;
-            border-radius: 999px;
-            white-space: nowrap;
+        .subtitle {
+            margin: 0 auto 22px;
+            color: var(--muted);
+            font-size: 0.97rem;
+            line-height: 1.55;
+            max-width: 360px;
         }
 
-        .card-body {
-            padding: 28px 24px 24px;
-        }
-
-        .status-wrap {
-            text-align: center;
-            margin-bottom: 22px;
-        }
-
-        .spinner {
-            width: 62px;
-            height: 62px;
-            margin: 0 auto 18px;
+        .loader {
+            width: 54px;
+            height: 54px;
+            margin: 0 auto 20px;
             border-radius: 50%;
-            border: 5px solid #d9e7df;
+            border: 4px solid #d8e4dd;
             border-top-color: var(--brand);
-            animation: spin 0.9s linear infinite;
+            animation: spin 0.85s linear infinite;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
 
-        .title {
-            font-size: 1.45rem;
-            font-weight: 700;
-            margin: 0 0 8px;
-            color: var(--text);
-        }
-
-        .subtitle {
-            margin: 0 auto;
-            max-width: 420px;
-            color: var(--muted);
-            font-size: 0.98rem;
-            line-height: 1.55;
-        }
-
-        .info-box {
-            margin-top: 24px;
-            background: #f8fbf9;
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 16px 16px 14px;
-        }
-
-        .info-title {
-            margin: 0 0 8px;
-            font-size: 0.96rem;
-            font-weight: 700;
-            color: var(--text);
-        }
-
-        .info-list {
-            margin: 0;
-            padding-left: 18px;
-            color: var(--muted);
-            font-size: 0.94rem;
-            line-height: 1.6;
-        }
-
         .actions {
             display: flex;
-            flex-wrap: wrap;
+            flex-direction: column;
             gap: 12px;
-            justify-content: center;
-            margin-top: 24px;
+            margin-top: 10px;
         }
 
         .btn {
-            appearance: none;
             border: none;
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 0.95rem;
+            font-weight: 700;
             cursor: pointer;
             text-decoration: none;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 0.95rem;
-            padding: 13px 18px;
-            min-width: 170px;
-            transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
-            text-align: center;
+            transition: 0.15s ease;
         }
 
         .btn:hover {
@@ -186,7 +114,7 @@
 
         .btn-primary {
             background: var(--brand);
-            color: #fff;
+            color: var(--white);
         }
 
         .btn-primary:hover {
@@ -194,145 +122,82 @@
         }
 
         .btn-secondary {
-            background: #eef4f0;
+            background: var(--white);
             color: var(--text);
             border: 1px solid var(--border);
-        }
-
-        .btn-secondary:hover {
-            background: #e5efe9;
-        }
-
-        .btn-danger {
-            background: #fff1f1;
-            color: var(--danger);
-            border: 1px solid #f3c5c5;
-        }
-
-        .btn-danger:hover {
-            background: #ffe7e7;
-        }
-
-        .helper {
-            margin-top: 18px;
-            text-align: center;
-            color: var(--muted);
-            font-size: 0.9rem;
-        }
-
-        .helper strong {
-            color: var(--text);
         }
 
         .hidden {
             display: none !important;
         }
 
-        .error-box {
-            margin-top: 18px;
-            background: #fff4f4;
-            border: 1px solid #f1c2c2;
-            color: #8a1c1c;
-            padding: 14px 16px;
-            border-radius: 14px;
-            font-size: 0.93rem;
+        .note {
+            margin-top: 16px;
+            font-size: 0.86rem;
+            color: var(--muted);
             line-height: 1.5;
         }
 
-        .footer-note {
-            margin-top: 18px;
-            text-align: center;
-            font-size: 0.84rem;
-            color: var(--muted);
+        .error-box {
+            margin-top: 16px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: #fff4f4;
+            border: 1px solid #f0caca;
+            color: #9b1c1c;
+            font-size: 0.9rem;
+            line-height: 1.5;
         }
 
-        @media (max-width: 640px) {
-            body {
-                padding: 14px;
+        @media (max-width: 480px) {
+            .wrap {
+                max-width: 100%;
+                padding: 16px;
             }
 
-            .card-header,
-            .card-body {
-                padding-left: 18px;
-                padding-right: 18px;
+            .title {
+                font-size: 1.28rem;
             }
 
-            .brand-row {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .btn {
-                width: 100%;
-                min-width: 0;
-            }
-
-            .actions {
-                flex-direction: column;
+            .subtitle {
+                font-size: 0.92rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="shell">
-        <div class="card">
-            <div class="card-header">
-                <div class="brand-row">
-                    <div>
-                        <h1 class="brand-title">The Daily Market</h1>
-                        <p class="brand-subtitle">Secure checkout powered by Ozow</p>
-                    </div>
-                    <div class="badge">Instant EFT</div>
-                </div>
-            </div>
+    <div class="wrap">
+        <div class="logo-bar">TDM</div>
+        <div class="loader" id="loader"></div>
 
-            <div class="card-body">
-                <div class="status-wrap">
-                    <div class="spinner" id="spinner"></div>
-                    <h2 class="title" id="mainTitle">Opening secure payment window…</h2>
-                    <p class="subtitle" id="mainSubtitle">
-                        Please wait while we connect you to Ozow. If the payment window does not open automatically,
-                        use the button below to launch it manually.
-                    </p>
-                </div>
+        <h1 class="title" id="mainTitle">Opening secure payment window…</h1>
+        <p class="subtitle" id="mainSubtitle">
+            Please wait while we launch Ozow. If the payment window does not appear,
+            use the button below to open it manually.
+        </p>
 
-                <div class="info-box">
-                    <p class="info-title">Before you continue</p>
-                    <ul class="info-list">
-                        <li>Do not refresh or close this page while the payment window is opening.</li>
-                        <li>Once your bank confirms payment, your invoice will update in the system.</li>
-                        <li>If the modal is blocked, click <strong>Open Payment Window</strong>.</li>
-                    </ul>
-                </div>
-
-                <div id="errorBox" class="error-box hidden">
-                    We could not open the Ozow payment window automatically. Please click
-                    <strong>Open Payment Window</strong> below and try again.
-                </div>
-
-                <div class="actions">
-                    <button id="payUsingOzow" class="btn btn-primary hidden" type="button">
-                        Open Payment Window
-                    </button>
-
-                    <button id="cancelOzowPayment" class="btn btn-danger hidden" type="button">
-                        Cancel Payment Window
-                    </button>
-
-                    <a href="javascript:history.back()" class="btn btn-secondary">
-                        Go Back
-                    </a>
-                </div>
-
-                <p class="helper">
-                    If nothing happens after a few seconds, use the manual launch button.
-                </p>
-
-                <p class="footer-note">
-                    Secure payments are processed by Ozow. The Daily Market does not store your banking credentials.
-                </p>
-            </div>
+        <div id="errorBox" class="error-box hidden">
+            We could not launch the Ozow window automatically. Please click
+            <strong>Open Payment Window</strong>.
         </div>
+
+        <div class="actions">
+            <button id="payUsingOzow" class="btn btn-primary hidden" type="button">
+                Open Payment Window
+            </button>
+
+            <button id="cancelOzowPayment" class="btn btn-secondary hidden" type="button">
+                Close Payment Window
+            </button>
+
+            <a href="javascript:history.back()" class="btn btn-secondary">
+                Go Back
+            </a>
+        </div>
+
+        <p class="note">
+            Secure payments are processed by Ozow. Do not refresh this page while payment is in progress.
+        </p>
     </div>
 
     <script>
@@ -343,73 +208,74 @@
         const payBtn = document.getElementById("payUsingOzow");
         const cancelBtn = document.getElementById("cancelOzowPayment");
         const errorBox = document.getElementById("errorBox");
-        const spinner = document.getElementById("spinner");
+        const loader = document.getElementById("loader");
         const title = document.getElementById("mainTitle");
         const subtitle = document.getElementById("mainSubtitle");
 
-        let modalOpened = false;
+        let modalLaunched = false;
 
-        function showManualOptions(showError = false) {
-            payBtn.classList.remove("hidden");
+        function updateReadyState() {
+            title.textContent = "Secure payment window opened";
+            subtitle.textContent = "Complete your payment in the Ozow window. Keep this page open until you are finished.";
             cancelBtn.classList.remove("hidden");
-
-            if (showError) {
-                errorBox.classList.remove("hidden");
-                spinner.classList.add("hidden");
-                title.textContent = "We need your action to continue";
-                subtitle.textContent = "The payment window did not launch automatically. Please open it manually below.";
-            }
+            payBtn.classList.remove("hidden");
         }
 
-        function launchOzowModal() {
+        function showManualLaunch() {
+            loader.classList.add("hidden");
+            errorBox.classList.remove("hidden");
+            payBtn.classList.remove("hidden");
+            cancelBtn.classList.add("hidden");
+            title.textContent = "Manual action needed";
+            subtitle.textContent = "The payment window did not open automatically. Please launch it manually below.";
+        }
+
+        function launchOzow() {
             try {
                 ozow.createPaymentModal(paymentUrl, postData);
-                modalOpened = true;
-                cancelBtn.classList.remove("hidden");
-
-                title.textContent = "Secure payment window launched";
-                subtitle.textContent = "Complete the payment in the Ozow window. Do not close this page until you are done.";
-            } catch (error) {
-                console.error("Ozow modal launch failed:", error);
-                showManualOptions(true);
+                modalLaunched = true;
+                errorBox.classList.add("hidden");
+                updateReadyState();
+            } catch (err) {
+                console.error("Ozow launch error:", err);
+                showManualLaunch();
             }
         }
 
         window.onload = function () {
             setTimeout(() => {
-                launchOzowModal();
-            }, 500);
+                launchOzow();
+            }, 300);
 
             setTimeout(() => {
-                if (!modalOpened) {
-                    showManualOptions(true);
-                } else {
-                    payBtn.classList.remove("hidden");
+                if (!modalLaunched) {
+                    showManualLaunch();
                 }
-            }, 2500);
+            }, 2200);
         };
 
         payBtn.addEventListener("click", function () {
-            errorBox.classList.add("hidden");
-            spinner.classList.remove("hidden");
-            launchOzowModal();
+            loader.classList.remove("hidden");
+            launchOzow();
         });
 
         cancelBtn.addEventListener("click", function () {
             try {
                 ozow.cancelFramePayment();
-                title.textContent = "Payment window closed";
-                subtitle.textContent = "You can reopen the payment window using the button below or go back to your order.";
-                payBtn.classList.remove("hidden");
-            } catch (error) {
-                console.error("Ozow cancel failed:", error);
+            } catch (err) {
+                console.error("Ozow cancel error:", err);
             }
+
+            title.textContent = "Payment window closed";
+            subtitle.textContent = "You can reopen the Ozow payment window below or go back to your order.";
+            payBtn.classList.remove("hidden");
+            cancelBtn.classList.add("hidden");
         });
 
         window.addEventListener("message", function (e) {
             if (e.data?.event === "ozowHideModal") {
                 title.textContent = "Payment window closed";
-                subtitle.textContent = "If you have not completed payment, you can reopen the payment window below.";
+                subtitle.textContent = "If payment was not completed, you can reopen the Ozow window below.";
                 payBtn.classList.remove("hidden");
                 cancelBtn.classList.add("hidden");
             }
