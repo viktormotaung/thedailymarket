@@ -526,69 +526,38 @@
 
               <div class="d-flex justify-content-between fw-semibold mb-3">
                 <span>Order Total</span>
-                <span>
-                  R {{ invoice.order_total_inc|floatformat:2|intcomma }}
-                </span>
+                <span>R {{ invoice.order_total_inc|floatformat:2|intcomma }}</span>
               </div>
+
               <div class="d-flex justify-content-between fw-semibold mb-3">
-                <span>Due Before Delivery</span>
-                <span>
-                  R {{ invoice.deposit_required|floatformat:2|intcomma }}
-                </span>
-              </div>
-              <div class="d-flex justify-content-between fw-semibold mb-3">
-                <span>Credit Used</span>
-                <span>
-                  R {{ invoice.credit_used|floatformat:2|intcomma }}
-                </span>
-              </div>
-              <div class="d-flex justify-content-between fw-semibold mb-3">
-                <span>Total Outstanding</span>
-                <span>
-                  R {{ invoice.amount_due|floatformat:2|intcomma }}
-                </span>
+                <span>Due Now</span>
+                <span>R {{ invoice.amount_due|floatformat:2|intcomma }}</span>
               </div>
 
               <div class="d-grid gap-2">
-                <a href="{% url 'view-invoice' invoice.id %}"
-                  class="btn btn-outline-primary">
+
+                <a href="{% url 'view-invoice' invoice.id %}" class="btn btn-outline-primary">
                   View Invoice
                 </a>
 
-                <div class="d-flex justify-content-between fw-semibold mb-3">
-                  <span>Due Now</span>
-                  <span>
-                    R {{ invoice.amount_due|floatformat:2|intcomma }}
-                  </span>
-                </div>
-
                 {% if invoice.status == "paid" %}
 
-                <button class="btn btn-success" disabled>
+                  <button class="btn btn-success" disabled>
                     Paid
-                </button>
+                  </button>
 
                 {% elif invoice.amount_due > 0 %}
 
-                {% elif invoice.amount_due > 0 %}
+                  <a href="{% url 'online_payments:start-payment' invoice.id %}" class="btn btn-success">
+                    Pay via Ozow Instant EFT
+                  </a>
 
-                {% if invoice.status == "paid" %}
-                    <button class="btn btn-success" disabled>Paid</button>
-                {% elif invoice.amount_due > 0 %}
-                    <a href="{% url 'online_payments:start-payment' invoice.id %}" class="btn btn-success mb-2">
-                        Pay via Ozow Instant EFT
-                    </a>
-
-                    <a href="{% url 'online_payments:yoco_checkout' invoice.id %}" class="btn btn-dark">
-                        Pay Via Yoco Card
-                    </a>
-                {% endif %}
+                  <a href="{% url 'online_payments:yoco_checkout' invoice.id %}" class="btn btn-dark">
+                    Pay Via Yoco Card
+                  </a>
 
                 {% endif %}
 
-                {% endif %}
-
-                
               </div>
 
             {% else %}
