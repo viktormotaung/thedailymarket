@@ -70,6 +70,7 @@ urlpatterns = [
     path("refund-policy/", views.refund, name="refund"),
     path("shipping-policy/", views.shipping, name="shipping"),
     
+    
 
 ]
 

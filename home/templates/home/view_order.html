@@ -570,10 +570,21 @@
 
                 {% elif invoice.amount_due > 0 %}
 
-                <a href="{% url 'online_payments:oneapi_checkout_options' invoice.id %}" 
-                  class="btn btn-success">
-                  Pay Now
-                </a>
+                {% elif invoice.amount_due > 0 %}
+
+                {% if invoice.status == "paid" %}
+                    <button class="btn btn-success" disabled>Paid</button>
+                {% elif invoice.amount_due > 0 %}
+                    <a href="{% url 'online_payments:start-payment' invoice.id %}" class="btn btn-success mb-2">
+                        Pay via Ozow Instant EFT
+                    </a>
+
+                    <a href="{% url 'online_payments:yoco_checkout' invoice.id %}" class="btn btn-dark">
+                        Pay Via Yoco Card
+                    </a>
+                {% endif %}
+
+                {% endif %}
 
                 {% endif %}
 

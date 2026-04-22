@@ -1,10 +1,10 @@
-from django.db import models
-from django.conf import settings
 from decimal import Decimal
+
+from django.conf import settings
+from django.db import models
 
 
 class Payment(models.Model):
-
     STATUS_CHOICES = [
         ("pending", "Pending"),
         ("success", "Success"),
@@ -12,26 +12,17 @@ class Payment(models.Model):
     ]
 
     PROVIDER_CHOICES = [
-        ("ozow_oneapi", "Ozow OneAPI"),
-    ]
-
-    METHOD_CHOICES = [
-        ("ozowredirect", "Pay By Bank"),
-        ("payshap", "Payshap"),
+        ("ozow", "Ozow"),
+        ("yoco", "Yoco"),
     ]
 
     reference = models.CharField(max_length=100, unique=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
-    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES, default="ozow_oneapi")
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
 
-    payment_method = models.CharField(max_length=50, choices=METHOD_CHOICES, blank=True, null=True)
-    institution_id = models.CharField(max_length=255, blank=True, null=True)
-    institution_name = models.CharField(max_length=255, blank=True, null=True)
-
-    oneapi_payment_id = models.CharField(max_length=255, blank=True, null=True)
-    oneapi_transaction_id = models.CharField(max_length=255, blank=True, null=True)
+    ozow_transaction_id = models.CharField(max_length=255, blank=True, null=True)
     idempotency_key = models.CharField(max_length=255, blank=True, null=True)
 
     client = models.ForeignKey("clients.Client", on_delete=models.SET_NULL, null=True, blank=True)
@@ -55,10 +46,11 @@ class Payment(models.Model):
         super().save(*args, **kwargs)
 
         if should_apply_invoice_payment and self.invoice:
+            provider_display = dict(self.PROVIDER_CHOICES).get(self.provider, self.provider)
             self.invoice.record_payment(
                 amount=self.amount,
                 reference=self.reference,
-                note=f"{self.provider} payment received",
+                note=f"{provider_display} payment received",
                 when=self.paid_at,
             )
 
