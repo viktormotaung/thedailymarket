@@ -22,10 +22,14 @@ class StaffProfile(models.Model):
     ]
 
     DEPARTMENT_CHOICES = [
-        ("Operations", "Operations"),
-        ("Sales", "Sales"),
-        ("Logistics", "Logistics"),
-        ("Management", "Management"),
+        ("SUPPORT", "Support"),
+        ("ACCOUNTS", "Accounts"),
+        ("SALES", "Sales"),
+        ("COMPLIANCE", "Compliance"),
+        ("SUPPLY_CHAIN", "Supply Chain"),
+        ("OPERATIONS", "Operations"),
+        ("LOGISTICS", "Logistics"),
+        ("FINANCE", "Finance"),
     ]
 
     user = models.OneToOneField(
@@ -271,7 +275,7 @@ class SalesRepProfile(models.Model):
 
     department = models.CharField(
         max_length=50,
-        default="Sales",
+        default="SALES",
         help_text="Department for this sales rep.",
     )
 

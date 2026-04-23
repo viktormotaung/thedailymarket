@@ -4,11 +4,19 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
-from .models import Task, TaskComment
+from .models import (
+    Task,
+    TaskComment,
+    Ticket,
+    TicketComment,
+    Notification,
+)
 
 
-# --- Filters ---
-class OverdueFilter(admin.SimpleListFilter):
+# =========================
+# Shared helpers / filters
+# =========================
+class TaskOverdueFilter(admin.SimpleListFilter):
     title = "Overdue"
     parameter_name = "overdue"
 
@@ -19,22 +27,44 @@ class OverdueFilter(admin.SimpleListFilter):
         )
 
     def queryset(self, request, queryset):
+        now = timezone.now()
+
         if self.value() == "yes":
-            now = timezone.now()
             return queryset.filter(
                 due_at__lt=now,
-                status__in=[Task.Status.PENDING, Task.Status.IN_PROGRESS, Task.Status.BLOCKED],
+                status__in=[Task.Status.PENDING, Task.Status.OPEN],
             )
+
         if self.value() == "no":
-            now = timezone.now()
             return queryset.exclude(
                 due_at__lt=now,
-                status__in=[Task.Status.PENDING, Task.Status.IN_PROGRESS, Task.Status.BLOCKED],
+                status__in=[Task.Status.PENDING, Task.Status.OPEN],
             )
+
         return queryset
 
 
-# --- Inlines ---
+class NotificationOpenedFilter(admin.SimpleListFilter):
+    title = "Opened"
+    parameter_name = "opened"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("yes", "Opened"),
+            ("no", "Not opened"),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == "yes":
+            return queryset.filter(is_opened=True)
+        if self.value() == "no":
+            return queryset.filter(is_opened=False)
+        return queryset
+
+
+# =========================
+# Inlines
+# =========================
 class TaskCommentInline(admin.TabularInline):
     model = TaskComment
     extra = 0
@@ -43,95 +73,202 @@ class TaskCommentInline(admin.TabularInline):
     autocomplete_fields = ("author",)
 
 
-# --- Admin ---
+class TicketCommentInline(admin.TabularInline):
+    model = TicketComment
+    extra = 0
+    fields = ("author", "body", "is_internal", "created_at")
+    readonly_fields = ("created_at",)
+    autocomplete_fields = ("author",)
+
+
+# =========================
+# Task Admin
+# =========================
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     inlines = [TaskCommentInline]
 
-    # Display
     list_display = (
         "id",
         "title",
         "status",
         "priority",
         "department",
+        "task_type",
+        "source",
         "assigned_to",
+        "ticket_link",
         "due_badge",
         "related_link",
         "created_at",
     )
     list_display_links = ("title",)
-
-    # Quick edit in list view
-    list_editable = ("status", "priority", "department", "assigned_to")
+    list_editable = (
+        "status",
+        "priority",
+        "department",
+        "task_type",
+        "source",
+        "assigned_to",
+    )
     ordering = ("-created_at",)
 
-    # Filters & search
     list_filter = (
         "status",
         "priority",
         "department",
+        "task_type",
+        "source",
         "assigned_to",
-        OverdueFilter,
+        TaskOverdueFilter,
         "created_at",
         "due_at",
+        "opened_at",
+        "completed_at",
     )
-    search_fields = ("title", "description")
+
+    search_fields = (
+        "title",
+        "description",
+        "ticket__title",
+    )
     date_hierarchy = "created_at"
 
-    # Forms
-    autocomplete_fields = ("assigned_to", "created_by")
-    readonly_fields = ("created_at", "updated_at", "completed_at", "related_link_readonly")
-    fieldsets = (
-        ("Task", {
-            "fields": (
-                "title",
-                "description",
-                ("status", "priority", "department"),
-            )
-        }),
-        ("Ownership", {
-            "fields": (("created_by", "assigned_to"),)
-        }),
-        ("Timing", {
-            "fields": (("due_at", "completed_at"),)
-        }),
-        ("Relation", {
-            "description": "Links this task to any object in the system.",
-            "fields": ("content_type", "object_id", "related_link_readonly"),
-        }),
-        ("Audit", {
-            "classes": ("collapse",),
-            "fields": (("created_at", "updated_at"),),
-        }),
+    autocomplete_fields = (
+        "created_by",
+        "assigned_to",
+        "closed_by",
+        "ticket",
     )
 
-    # --- Custom display helpers ---
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "opened_at",
+        "completed_at",
+        "related_link_readonly",
+        "ticket_link_readonly",
+        "is_overdue_display",
+    )
+
+    fieldsets = (
+        (
+            "Task",
+            {
+                "fields": (
+                    "title",
+                    "description",
+                    ("status", "priority"),
+                    ("department", "task_type", "source"),
+                )
+            },
+        ),
+        (
+            "Ownership",
+            {
+                "fields": (
+                    ("created_by", "assigned_to", "closed_by"),
+                )
+            },
+        ),
+        (
+            "Ticket Link",
+            {
+                "fields": (
+                    "ticket",
+                    "ticket_link_readonly",
+                )
+            },
+        ),
+        (
+            "Timing",
+            {
+                "fields": (
+                    ("due_at", "opened_at", "completed_at"),
+                    "is_overdue_display",
+                )
+            },
+        ),
+        (
+            "Relation",
+            {
+                "description": "Link this task to any object in the system, such as a Client, Order, Invoice, or Delivery.",
+                "fields": (
+                    "content_type",
+                    "object_id",
+                    "related_link_readonly",
+                ),
+            },
+        ),
+        (
+            "Audit",
+            {
+                "classes": ("collapse",),
+                "fields": (
+                    ("created_at", "updated_at"),
+                ),
+            },
+        ),
+    )
+
+    actions = (
+        "action_mark_pending",
+        "action_mark_open",
+        "action_mark_closed",
+    )
 
     @admin.display(description="Due", ordering="due_at")
     def due_badge(self, obj: Task):
         if not obj.due_at:
-            return format_html('<span style="opacity:.6">—</span>')
+            return format_html('<span style="opacity:.6;">—</span>')
+
         if obj.is_overdue:
-            return format_html('<span style="color:#b42318;font-weight:600;">{} (overdue)</span>', obj.due_at.strftime("%Y-%m-%d %H:%M"))
+            return format_html(
+                '<span style="color:#b42318;font-weight:600;">{} (overdue)</span>',
+                obj.due_at.strftime("%Y-%m-%d %H:%M"),
+            )
+
         return obj.due_at.strftime("%Y-%m-%d %H:%M")
+
+    @admin.display(description="Ticket", ordering="ticket")
+    def ticket_link(self, obj: Task):
+        if not obj.ticket_id:
+            return format_html('<span style="opacity:.6;">—</span>')
+
+        try:
+            url = reverse("admin:tasks_ticket_change", args=[obj.ticket_id])
+            return format_html('<a href="{}">{}</a>', url, obj.ticket.title)
+        except Exception:
+            return obj.ticket.title
+
+    @admin.display(description="Ticket (readonly)")
+    def ticket_link_readonly(self, obj: Task):
+        return self.ticket_link(obj)
 
     @admin.display(description="Related", ordering="object_id")
     def related_link(self, obj: Task):
         if not obj.related_object:
-            return format_html('<span style="opacity:.6">—</span>')
+            return format_html('<span style="opacity:.6;">—</span>')
+
         url = self._related_admin_url(obj)
         label = f"{obj.content_type.app_label}.{obj.content_type.model} #{obj.object_id}"
+
         if url:
             return format_html('<a href="{}">{}</a>', url, label)
+
         return label
 
     @admin.display(description="Related (readonly)")
     def related_link_readonly(self, obj: Task):
         return self.related_link(obj)
 
+    @admin.display(description="Overdue")
+    def is_overdue_display(self, obj: Task):
+        if obj.is_overdue:
+            return format_html('<span style="color:#b42318;font-weight:600;">Yes</span>')
+        return format_html('<span style="color:#18794e;font-weight:600;">No</span>')
+
     def _related_admin_url(self, obj: Task):
-        """Build admin change URL for the related object if possible."""
         try:
             ct = obj.content_type
             if not ct or not obj.object_id:
@@ -140,34 +277,429 @@ class TaskAdmin(admin.ModelAdmin):
         except Exception:
             return None
 
-    # --- Actions ---
-    actions = ["action_mark_done", "action_mark_in_progress", "action_mark_blocked", "action_mark_canceled"]
+    @admin.action(description="Mark selected tasks as Pending")
+    def action_mark_pending(self, request, queryset):
+        count = queryset.update(
+            status=Task.Status.PENDING,
+            completed_at=None,
+        )
+        self.message_user(request, f"{count} task(s) marked as Pending.")
 
-    @admin.action(description="Mark selected tasks as Done")
-    def action_mark_done(self, request, queryset):
-        count = queryset.update(status=Task.Status.DONE, completed_at=timezone.now())
-        self.message_user(request, f"{count} task(s) marked as Done.")
+    @admin.action(description="Mark selected tasks as Open")
+    def action_mark_open(self, request, queryset):
+        now = timezone.now()
+        count = queryset.update(
+            status=Task.Status.OPEN,
+            completed_at=None,
+            opened_at=now,
+        )
+        self.message_user(request, f"{count} task(s) marked as Open.")
 
-    @admin.action(description="Mark selected tasks as In progress")
-    def action_mark_in_progress(self, request, queryset):
-        count = queryset.update(status=Task.Status.IN_PROGRESS, completed_at=None)
-        self.message_user(request, f"{count} task(s) marked as In progress.")
-
-    @admin.action(description="Mark selected tasks as Blocked")
-    def action_mark_blocked(self, request, queryset):
-        count = queryset.update(status=Task.Status.BLOCKED)
-        self.message_user(request, f"{count} task(s) marked as Blocked.")
-
-    @admin.action(description="Mark selected tasks as Canceled")
-    def action_mark_canceled(self, request, queryset):
-        count = queryset.update(status=Task.Status.CANCELED, completed_at=None)
-        self.message_user(request, f"{count} task(s) marked as Canceled.")
+    @admin.action(description="Mark selected tasks as Closed")
+    def action_mark_closed(self, request, queryset):
+        now = timezone.now()
+        count = queryset.update(
+            status=Task.Status.CLOSED,
+            completed_at=now,
+        )
+        self.message_user(request, f"{count} task(s) marked as Closed.")
 
 
+# =========================
+# Task Comment Admin
+# =========================
 @admin.register(TaskComment)
 class TaskCommentAdmin(admin.ModelAdmin):
     list_display = ("id", "task", "author", "created_at")
     list_filter = ("author", "created_at")
-    search_fields = ("body",)
+    search_fields = ("body", "task__title")
     autocomplete_fields = ("task", "author")
     readonly_fields = ("created_at",)
+    ordering = ("-created_at",)
+
+
+# =========================
+# Ticket Admin
+# =========================
+@admin.register(Ticket)
+class TicketAdmin(admin.ModelAdmin):
+    inlines = [TicketCommentInline]
+
+    list_display = (
+        "id",
+        "title",
+        "status",
+        "priority",
+        "department",
+        "ticket_type",
+        "source",
+        "client",
+        "requester_name",
+        "tasks_count",
+        "related_link",
+        "created_at",
+    )
+    list_display_links = ("title",)
+    list_editable = (
+        "status",
+        "priority",
+        "department",
+        "ticket_type",
+    )
+    ordering = ("-created_at",)
+
+    list_filter = (
+        "status",
+        "priority",
+        "department",
+        "ticket_type",
+        "source",
+        "created_at",
+        "opened_at",
+        "resolved_at",
+        "closed_at",
+    )
+
+    search_fields = (
+        "title",
+        "description",
+        "requester_name",
+        "requester_email",
+        "requester_phone",
+        "client__name",
+        "client__organization",
+    )
+    date_hierarchy = "created_at"
+
+    autocomplete_fields = (
+        "client",
+        "created_by",
+        "closed_by",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "opened_at",
+        "resolved_at",
+        "closed_at",
+        "tasks_links_readonly",
+        "related_link_readonly",
+    )
+
+    fieldsets = (
+        (
+            "Ticket",
+            {
+                "fields": (
+                    "title",
+                    "description",
+                    ("status", "priority"),
+                    ("department", "ticket_type", "source"),
+                )
+            },
+        ),
+        (
+            "Requester",
+            {
+                "fields": (
+                    ("requester_name", "requester_email", "requester_phone"),
+                    "client",
+                )
+            },
+        ),
+        (
+            "Workflow",
+            {
+                "fields": (
+                    ("created_by", "closed_by"),
+                    "tasks_links_readonly",
+                )
+            },
+        ),
+        (
+            "Relation",
+            {
+                "fields": (
+                    "content_type",
+                    "object_id",
+                    "related_link_readonly",
+                )
+            },
+        ),
+        (
+            "Timing",
+            {
+                "fields": (
+                    ("opened_at", "resolved_at", "closed_at"),
+                )
+            },
+        ),
+        (
+            "Audit",
+            {
+                "classes": ("collapse",),
+                "fields": (
+                    ("created_at", "updated_at"),
+                ),
+            },
+        ),
+    )
+
+    actions = (
+        "action_mark_new",
+        "action_mark_open",
+        "action_mark_pending",
+        "action_mark_resolved",
+        "action_mark_closed",
+    )
+
+    @admin.display(description="Tasks")
+    def tasks_count(self, obj: Ticket):
+        return obj.tasks.count()
+
+    @admin.display(description="Tasks (readonly)")
+    def tasks_links_readonly(self, obj: Ticket):
+        if not obj.pk:
+            return format_html('<span style="opacity:.6;">Save first to see linked tasks.</span>')
+
+        tasks = obj.tasks.all()[:10]
+        if not tasks:
+            return format_html('<span style="opacity:.6;">No linked tasks.</span>')
+
+        links = []
+        for task in tasks:
+            try:
+                url = reverse("admin:tasks_task_change", args=[task.pk])
+                links.append(f'<a href="{url}">{task.title}</a>')
+            except Exception:
+                links.append(task.title)
+
+        content = "<br>".join(links)
+        if obj.tasks.count() > 10:
+            content += "<br><span style='opacity:.7;'>…more tasks linked</span>"
+
+        return format_html(content)
+
+    @admin.display(description="Related", ordering="object_id")
+    def related_link(self, obj: Ticket):
+        if not obj.related_object:
+            return format_html('<span style="opacity:.6;">—</span>')
+
+        url = self._related_admin_url(obj)
+        label = f"{obj.content_type.app_label}.{obj.content_type.model} #{obj.object_id}"
+
+        if url:
+            return format_html('<a href="{}">{}</a>', url, label)
+
+        return label
+
+    @admin.display(description="Related (readonly)")
+    def related_link_readonly(self, obj: Ticket):
+        return self.related_link(obj)
+
+    def _related_admin_url(self, obj: Ticket):
+        try:
+            ct = obj.content_type
+            if not ct or not obj.object_id:
+                return None
+            return reverse(f"admin:{ct.app_label}_{ct.model}_change", args=[obj.object_id])
+        except Exception:
+            return None
+
+    @admin.action(description="Mark selected tickets as New")
+    def action_mark_new(self, request, queryset):
+        count = queryset.update(
+            status=Ticket.Status.NEW,
+            resolved_at=None,
+            closed_at=None,
+        )
+        self.message_user(request, f"{count} ticket(s) marked as New.")
+
+    @admin.action(description="Mark selected tickets as Open")
+    def action_mark_open(self, request, queryset):
+        now = timezone.now()
+        count = queryset.update(
+            status=Ticket.Status.OPEN,
+            opened_at=now,
+            resolved_at=None,
+            closed_at=None,
+        )
+        self.message_user(request, f"{count} ticket(s) marked as Open.")
+
+    @admin.action(description="Mark selected tickets as Pending")
+    def action_mark_pending(self, request, queryset):
+        count = queryset.update(
+            status=Ticket.Status.PENDING,
+            resolved_at=None,
+            closed_at=None,
+        )
+        self.message_user(request, f"{count} ticket(s) marked as Pending.")
+
+    @admin.action(description="Mark selected tickets as Resolved")
+    def action_mark_resolved(self, request, queryset):
+        now = timezone.now()
+        count = queryset.update(
+            status=Ticket.Status.RESOLVED,
+            resolved_at=now,
+        )
+        self.message_user(request, f"{count} ticket(s) marked as Resolved.")
+
+    @admin.action(description="Mark selected tickets as Closed")
+    def action_mark_closed(self, request, queryset):
+        now = timezone.now()
+        count = queryset.update(
+            status=Ticket.Status.CLOSED,
+            closed_at=now,
+        )
+        self.message_user(request, f"{count} ticket(s) marked as Closed.")
+
+
+# =========================
+# Ticket Comment Admin
+# =========================
+@admin.register(TicketComment)
+class TicketCommentAdmin(admin.ModelAdmin):
+    list_display = ("id", "ticket", "author", "is_internal", "created_at")
+    list_filter = ("is_internal", "author", "created_at")
+    search_fields = ("body", "ticket__title")
+    autocomplete_fields = ("ticket", "author")
+    readonly_fields = ("created_at",)
+    ordering = ("-created_at",)
+
+
+# =========================
+# Notification Admin
+# =========================
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "scope",
+        "notification_type",
+        "recipient",
+        "department",
+        "is_opened",
+        "opened_by",
+        "related_link",
+        "created_at",
+    )
+    list_editable = (
+        "is_opened",
+    )
+    ordering = ("-created_at",)
+
+    list_filter = (
+        "scope",
+        "notification_type",
+        "department",
+        "is_opened",
+        NotificationOpenedFilter,
+        "created_at",
+        "opened_at",
+    )
+
+    search_fields = (
+        "recipient__username",
+        "recipient__first_name",
+        "recipient__last_name",
+        "opened_by__username",
+    )
+
+    autocomplete_fields = (
+        "recipient",
+        "opened_by",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "opened_at",
+        "related_link_readonly",
+    )
+
+    fieldsets = (
+        (
+            "Notification",
+            {
+                "fields": (
+                    ("scope", "notification_type"),
+                    ("recipient", "department"),
+                )
+            },
+        ),
+        (
+            "Open State",
+            {
+                "fields": (
+                    ("is_opened", "opened_at", "opened_by"),
+                )
+            },
+        ),
+        (
+            "Relation",
+            {
+                "fields": (
+                    "content_type",
+                    "object_id",
+                    "related_link_readonly",
+                )
+            },
+        ),
+        (
+            "Audit",
+            {
+                "classes": ("collapse",),
+                "fields": ("created_at",),
+            },
+        ),
+    )
+
+    actions = (
+        "action_mark_opened",
+        "action_mark_unopened",
+    )
+
+    @admin.display(description="Related", ordering="object_id")
+    def related_link(self, obj: Notification):
+        if not obj.related_object:
+            return format_html('<span style="opacity:.6;">—</span>')
+
+        url = self._related_admin_url(obj)
+        label = f"{obj.content_type.app_label}.{obj.content_type.model} #{obj.object_id}"
+
+        if url:
+            return format_html('<a href="{}">{}</a>', url, label)
+
+        return label
+
+    @admin.display(description="Related (readonly)")
+    def related_link_readonly(self, obj: Notification):
+        return self.related_link(obj)
+
+    def _related_admin_url(self, obj: Notification):
+        try:
+            ct = obj.content_type
+            if not ct or not obj.object_id:
+                return None
+            return reverse(f"admin:{ct.app_label}_{ct.model}_change", args=[obj.object_id])
+        except Exception:
+            return None
+
+    @admin.action(description="Mark selected notifications as opened")
+    def action_mark_opened(self, request, queryset):
+        now = timezone.now()
+        count = queryset.update(
+            is_opened=True,
+            opened_at=now,
+            opened_by=request.user,
+        )
+        self.message_user(request, f"{count} notification(s) marked as opened.")
+
+    @admin.action(description="Mark selected notifications as unopened")
+    def action_mark_unopened(self, request, queryset):
+        count = queryset.update(
+            is_opened=False,
+            opened_at=None,
+            opened_by=None,
+        )
+        self.message_user(request, f"{count} notification(s) marked as unopened.")
