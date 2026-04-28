@@ -121,6 +121,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 "core.context_processors.platform_access",
                 "core.context_processors.access_flags",
+                "tasks.context_processors.notification_context",
             ],
         },
     },

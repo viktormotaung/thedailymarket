@@ -111,6 +111,7 @@ from credit.models import FunderMember
 from clients.models import Client
 from django.db.models import OuterRef, Subquery, Value, DateTimeField
 import random
+from tasks.models import Ticket
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth import get_user_model
@@ -1367,7 +1368,85 @@ def wholesale(request):
 
 
 def contact(request):
+    if request.method == "POST":
+        first_name = (request.POST.get("first_name") or "").strip()
+        last_name = (request.POST.get("last_name") or "").strip()
+        email = (request.POST.get("email") or "").strip()
+        cell = (request.POST.get("cell") or "").strip()
+        province = (request.POST.get("province") or "").strip()
+        suburb = (request.POST.get("suburb") or "").strip()
+        category = (request.POST.get("category") or "").strip().lower()
+        subject = (request.POST.get("subject") or "").strip()
+        message = (request.POST.get("message") or "").strip()
+
+        if not first_name or not last_name or not email or not cell or not category or not subject or not message:
+            messages.error(request, "Please complete all required fields.")
+            return render(request, "home/contact.html")
+
+        full_name = f"{first_name} {last_name}".strip()
+
+        # Default mapping
+        department = Ticket.Department.SUPPORT
+        ticket_type = Ticket.TicketType.GENERAL_ENQUIRY
+
+        # Map website category -> department + ticket type
+        if category == "wholesale":
+            department = Ticket.Department.SALES
+            ticket_type = Ticket.TicketType.SALES_ENQUIRY
+        elif category == "retail":
+            department = Ticket.Department.SALES
+            ticket_type = Ticket.TicketType.SALES_ENQUIRY
+        elif category == "grill":
+            department = Ticket.Department.SALES
+            ticket_type = Ticket.TicketType.SALES_ENQUIRY
+        elif category == "general":
+            department = Ticket.Department.SUPPORT
+            ticket_type = Ticket.TicketType.GENERAL_ENQUIRY
+
+        # Optional client link if authenticated business user
+        linked_client = None
+        if request.user.is_authenticated:
+            customer_profile = getattr(request.user, "customer_profile", None)
+            if customer_profile and customer_profile.profile_type == "BUSINESS":
+                linked_client = customer_profile.client
+
+        description_parts = [
+            f"Website contact form enquiry.",
+            f"Category: {category.title()}",
+        ]
+
+        if province:
+            description_parts.append(f"Province: {province}")
+        if suburb:
+            description_parts.append(f"Suburb: {suburb}")
+
+        description_parts.append("")
+        description_parts.append("Message:")
+        description_parts.append(message)
+
+        ticket = Ticket.objects.create(
+            title=subject,
+            description="\n".join(description_parts),
+            status=Ticket.Status.NEW,
+            priority=Ticket.Priority.MEDIUM,
+            department=department,
+            ticket_type=ticket_type,
+            source=Ticket.Source.WEBSITE,
+            requester_name=full_name,
+            requester_email=email,
+            requester_phone=cell,
+            client=linked_client,
+            created_by=request.user if request.user.is_authenticated else None,
+        )
+
+        messages.success(
+            request,
+            f"Thank you, your message has been received. Ticket #{ticket.id} has been created."
+        )
+        return redirect("contact")
+
     return render(request, "home/contact.html")
+
 
 
 def trade_application(request):

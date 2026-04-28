@@ -18,4 +18,5 @@ urlpatterns = [
     path("customers/<int:pk>/edit/", views.customer_profile_edit, name="customer_profile_edit"),
     path("customers/<int:pk>/view/", views.customer_profile_view, name="customer_profile_view"),
     path("staff/<int:pk>/email/", views.staff_profile_email, name="staff_profile_email",), 
+    path("notifications/<int:pk>/open/", views.open_notification, name="notification-open"),
 ]

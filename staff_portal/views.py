@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from decimal import Decimal
 from datetime import timedelta
-
+from tasks.models import Notification
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -563,3 +563,36 @@ def staff_profile_email(request, pk):
     )
 
     return redirect("staff_profile")
+
+
+
+
+@login_required
+def open_notification(request, pk):
+    notification = get_object_or_404(Notification, pk=pk)
+
+    user = request.user
+
+    if notification.scope == Notification.Scope.INDIVIDUAL:
+        if notification.recipient != user:
+            return redirect("staff-dashboard")
+
+    if notification.scope == Notification.Scope.DEPARTMENT:
+        staff = getattr(user, "staff_profile", None)
+        if not staff or staff.status != "active" or staff.department != notification.department:
+            return redirect("staff-dashboard")
+
+    notification.mark_opened(user)
+
+    obj = notification.related_object
+
+    if not obj:
+        return redirect("staff-dashboard")
+
+    if notification.notification_type == Notification.NotificationType.TASK:
+        return redirect("tasks")
+
+    if notification.notification_type == Notification.NotificationType.TICKET:
+        return redirect("staff-dashboard")  # change later to ticket detail
+
+    return redirect("staff-dashboard")
