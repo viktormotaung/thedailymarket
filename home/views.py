@@ -15,6 +15,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
 import json
+from seshibo_site.core.access import get_user_portal_access
 from decimal import Decimal, InvalidOperation
 from typing import Iterable
 import requests
@@ -641,7 +642,7 @@ def staff_login(request):
     # --- Logistics (NEW) ---
     has_active_driver = DriverProfile.objects.filter(
         user=authed,
-        status="ACTIVE"
+        status="active"
     ).exists()
 
     # -------------------------------------------------
@@ -724,29 +725,11 @@ def staff_login(request):
         request.session.pop("current_funder_id", None)
 
     # -------------------------------------------------
-    # 8) Portal access flags
+    # 8) Portal access flags (centralised)
     # -------------------------------------------------
+    from seshibo_site.core.access import get_user_portal_access
 
-    # Staff (Main)
-    can_staff_portal = bool(
-        is_staff_user
-        and staff_profile is not None
-        and staff_status == "ACTIVE"
-    )
-
-    # Sales
-    sales_flag_from_staff = bool(
-        staff_profile is not None
-        and getattr(staff_profile, "can_access_sales", False)
-        and staff_status == "ACTIVE"
-    )
-    can_sales_portal = bool(has_active_sales_rep or sales_flag_from_staff)
-
-    # Lender
-    can_lender_portal = bool(has_active_funder_membership)
-
-    # Logistics (NEW)
-    can_logistics_portal = bool(has_active_driver)
+    access = get_user_portal_access(authed)
 
     # -------------------------------------------------
     # 9) Show portal picker modal
@@ -754,11 +737,10 @@ def staff_login(request):
     ctx = {
         "prefill_username": authed.username,
         "show_portal_modal": True,
-        "can_staff_portal": can_staff_portal,
-        "can_sales_portal": can_sales_portal,
-        "can_lender_portal": can_lender_portal,
-        "can_logistics_portal": can_logistics_portal,
     }
+
+    # Inject all access flags
+    ctx.update(access)
 
     return render(request, "home/staff_login.html", ctx)
 

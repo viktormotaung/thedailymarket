@@ -180,8 +180,8 @@
             <!-- Logistics portal -->
             <a
               href="{% url 'logistics:logistics-dashboard' %}"
-              class="btn btn-outline-primary{% if not can_sales_portal %} disabled{% endif %}"
-              {% if not can_sales_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+              class="btn btn-outline-primary{% if not can_logistics_portal %} disabled{% endif %}"
+              {% if not can_logistics_portal %}tabindex="-1" aria-disabled="true"{% endif %}
             >
               Logistics Portal
             </a>

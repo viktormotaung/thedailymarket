@@ -15,7 +15,8 @@ def get_user_portal_access(user):
     ).exists()
 
     has_active_driver = DriverProfile.objects.filter(
-        user=user, status="ACTIVE"
+        user=user,
+        status="active"
     ).exists()
 
     has_active_funder_membership = FunderMember.objects.filter(

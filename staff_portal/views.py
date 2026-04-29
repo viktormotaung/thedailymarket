@@ -1,6 +1,6 @@
 # staff_portal/views.py
 from __future__ import annotations
-
+from seshibo_site.core.access import get_user_portal_access
 import json
 from decimal import Decimal
 from datetime import timedelta
@@ -121,7 +121,6 @@ def dashboard(request):
     # -------------------------------------------------
     kpi_orders = orders_qs.count()
 
-    # ✅ Revenue = positive transactions
     kpi_revenue = (
         Transaction.objects
         .filter(
@@ -156,7 +155,7 @@ def dashboard(request):
     )
 
     # -------------------------------------------------
-    # Sales trend (orders per day)
+    # Sales trend
     # -------------------------------------------------
     month_start = day_start(now.replace(day=1))
     next_month = day_start((month_start + timedelta(days=32)).replace(day=1))
@@ -194,7 +193,6 @@ def dashboard(request):
     context = {
         "range": range_name,
 
-        # KPI cards
         "kpi_orders": kpi_orders,
         "kpi_revenue": kpi_revenue,
         "kpi_deliveries": kpi_deliveries,
@@ -202,19 +200,21 @@ def dashboard(request):
         "kpi_open_tasks": kpi_open_tasks,
         "kpi_new_clients": kpi_new_clients,
 
-        # Lists
         "orders": orders_qs,
         "deliveries": deliveries_qs,
         "tasks": tasks_qs,
 
-        # Chart
         "sales_labels": json.dumps(labels),
         "sales_data": json.dumps(data),
     }
 
+    # -------------------------------------------------
+    # Portal access flags
+    # -------------------------------------------------
+    access = get_user_portal_access(request.user)
+    context.update(access)
+
     return render(request, "staff_portal/dashboard.html", context)
-
-
 
 # ---------------------------
 @login_required
