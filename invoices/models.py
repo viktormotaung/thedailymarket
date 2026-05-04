@@ -545,7 +545,10 @@ class Invoice(models.Model):
     # --- status helpers (cash deposit dimension) ---
 
     def is_fully_paid(self) -> bool:
-        return self.deposit_paid >= self.amount_due
+        return (
+            self.amount_due > Decimal("0.00")
+            and self.deposit_paid >= self.amount_due
+        )
 
     @property
     def is_overdue(self) -> bool:

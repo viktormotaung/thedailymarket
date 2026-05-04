@@ -298,6 +298,12 @@ class Transaction(models.Model):
         self.balance = bb.balance + business_delta
         self.client_balance = cb.balance + new_signed
 
+        # ✅ Ensure computed balance snapshots are saved even when caller uses update_fields
+        if kwargs.get("update_fields"):
+            update_fields = set(kwargs["update_fields"])
+            update_fields.update({"balance", "client_balance"})
+            kwargs["update_fields"] = list(update_fields)
+
         super().save(*args, **kwargs)
 
         if business_delta:

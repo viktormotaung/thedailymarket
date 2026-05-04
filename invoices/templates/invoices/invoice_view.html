@@ -877,7 +877,18 @@
                 Suggested format: <code>INV-{{ invoice.id }}: deposit</code> or <code>INV-{{ invoice.id }}: credit</code>.
               </div>
             </div>
+
+            <div class="mb-3">
+              <label class="form-label">Provider Source</label>
+              <select name="provider" class="form-select" required>
+                <option value="">Select provider</option>
+                <option value="eft">Direct EFT</option>
+                <option value="cash_deposit">Cash Deposit</option>
+              </select>
+            </div>
           </div>
+
+          
 
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>

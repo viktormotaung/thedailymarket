@@ -22,6 +22,8 @@ from django.utils.timezone import now, make_aware
 from datetime import datetime, timedelta, time, date
 from clients.models import Client
 import logging
+import uuid
+from online_payments.models import Payment
 
 logger = logging.getLogger(__name__)
 
@@ -305,10 +307,39 @@ def invoice_confirm_payment(request, pk):
     # DEPOSIT PAYMENT
     # ==================================================
     try:
+        
+
+
+        provider = (request.POST.get("provider") or "").strip()
+
+        if provider not in ["eft", "cash_deposit"]:
+            messages.error(request, "Please select a valid payment provider.")
+            return redirect("invoice-view", pk=invoice.pk)
+
         result = invoice.record_payment(
             amount=amount,
             reference=reference,
             note=note,
+        )
+
+        payment_reference = reference
+
+        if Payment.objects.filter(reference=payment_reference).exists():
+            payment_reference = f"{reference}-PAY-{uuid.uuid4().hex[:6]}"
+
+        payment = Payment.objects.create(
+            reference=payment_reference,
+            amount=amount,
+            client=invoice.client,
+            invoice=invoice,
+            created_by=request.user if request.user.is_authenticated else None,
+            provider=provider,
+            status="pending",
+        )
+
+        Payment.objects.filter(pk=payment.pk).update(
+            status="success",
+            paid_at=now(),
         )
 
         print("record_payment() returned:", result)
