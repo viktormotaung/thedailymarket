@@ -171,38 +171,20 @@ class Order(models.Model):
             action = OrderAudit.STATUS_CHANGED
 
         # =================================================
-        # WEB AUTO-APPROVAL (Delayed 2 seconds)
+        # WEB AUTO-APPROVAL DISABLED
         # =================================================
+        # Auto-approval was disabled because background
+        # threads inside Order.save() can cause
+        # Gunicorn/Render worker timeouts and recursion
+        # issues during invoice/transaction creation.
+        #
+        # Future improvement:
+        # Move this logic to Celery or a scheduled task.
+
         if creating and self.channel == "WEB" and self.status == "pending":
 
-            print("[DEBUG] Scheduling WEB auto-approval in 2 seconds")
-
-    
-            def delayed_auto_approve(order_id, db):
-                time.sleep(2)
-                try:
-                    order = Order.objects.using(db).get(pk=order_id)
-
-                    if (
-                        order.channel == "WEB"
-                        and order.status == "pending"
-                        and order.items.exists()
-                    ):
-                        print(f"[AUTO] Auto-approving Order {order.pk}")
-                        order.status = "approved"
-                        order.save(update_fields=["status", "updated_at"])
-                    else:
-                        print(f"[AUTO] Conditions not met for Order {order.pk}")
-
-                except Exception as e:
-                    print(f"[AUTO] Auto-approval failed: {e}")
-
-            transaction.on_commit(
-                lambda: threading.Thread(
-                    target=delayed_auto_approve,
-                    args=(self.pk, self._state.db),  # ✅ comma added
-                    daemon=True
-                ).start()
+            print(
+                f"[DEBUG] WEB auto-approval currently disabled for Order {self.pk}"
             )
 
         # -------------------------------------------------
