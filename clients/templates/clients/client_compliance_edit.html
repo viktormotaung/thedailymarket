@@ -231,254 +231,436 @@
   </aside>
 
     <main class="content py-4">
-        <div class="container">
+      <div class="container">
 
-            <!-- ================= HEADER ================= -->
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
-            <div>
-                <h2 class="mb-1">Edit Compliance</h2>
-                <div class="text-muted">
-                {{ client.client_number }} · {{ client.organization|default:client.name }}
-                </div>
+        <!-- ================= HEADER ================= -->
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+          <div>
+            <h2 class="mb-1">Client Compliance</h2>
+            <div class="text-muted">
+              {{ client.client_number }} · {{ client.organization|default:client.name }}
             </div>
+          </div>
 
-            <a href="{% url 'client-view' client.pk %}" class="btn btn-outline-secondary">
-                Back to Client
-            </a>
+          <a href="{% url 'client-view' client.pk %}" class="btn btn-outline-secondary">
+            Back to Client
+          </a>
+        </div>
+
+        <!-- ================= MESSAGES ================= -->
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
+          {% endfor %}
+        {% endif %}
 
-            {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-            {% endif %}
+        <!-- ================= PAGE EXPLANATION ================= -->
+        <div class="alert alert-light border mb-4">
+          <div class="fw-semibold mb-1">How this page works</div>
+          <div class="small text-muted">
+            First upload or replace the required compliance documents. Then review each document individually.
+            Once all documents are acceptable, update the overall compliance status.
+          </div>
+        </div>
 
-            <div class="row g-4">
+        <div class="row g-4">
 
-            <!-- ================= COMPLIANCE DETAILS ================= -->
-            <div class="col-lg-6">
-                <div class="card shadow-sm h-100">
+          <!-- ================= COMPLIANCE DETAILS ================= -->
+          <div class="col-lg-5">
+            <div class="card shadow-sm h-100">
+              <div class="card-header fw-semibold">
+                Overall Compliance Status
+              </div>
 
-                <div class="card-header fw-semibold">
-                    Compliance Details
+              <div class="card-body">
+
+                <!-- READ-ONLY METADATA -->
+                <div class="mb-3 small text-muted">
+                  <div><strong>Created:</strong> {{ compliance.created_at|date:"Y-m-d H:i" }}</div>
+                  <div><strong>Last Updated:</strong> {{ compliance.updated_at|date:"Y-m-d H:i" }}</div>
+                  <div>
+                    <strong>Vetted By:</strong>
+                    {% if compliance.vetted_by %}
+                        {{ compliance.vetted_by.get_full_name|default:compliance.vetted_by.username }}
+                    {% else %}
+                        —
+                    {% endif %}
+                  </div>
+                  <div>
+                    <strong>Vetted At:</strong>
+                    {{ compliance.vetted_at|date:"Y-m-d H:i"|default:"—" }}
+                  </div>
                 </div>
 
-                <div class="card-body">
+                <hr>
 
-                    <!-- READ-ONLY METADATA -->
-                    <div class="mb-3 small text-muted">
-                    <div><strong>Created:</strong> {{ compliance.created_at|date:"Y-m-d H:i" }}</div>
-                    <div><strong>Last Updated:</strong> {{ compliance.updated_at|date:"Y-m-d H:i" }}</div>
-                    <div>
-                        <strong>Vetted By:</strong>
-                        {{ compliance.vetted_by.get_full_name|default:"—" }}
-                    </div>
-                    <div>
-                        <strong>Vetted At:</strong>
-                        {{ compliance.vetted_at|date:"Y-m-d H:i"|default:"—" }}
-                    </div>
-                    </div>
+                <!-- CURRENT STATUS BADGE -->
+                <div class="mb-3">
+                  <div class="small text-muted mb-1">Current Status</div>
 
-                    <hr>
-
-                    <!-- EDITABLE COMPLIANCE FORM -->
-                    <form method="post">
-                    {% csrf_token %}
-
-                    <div class="mb-3">
-                        {{ form.vetting_status.label_tag }}
-                        {{ form.vetting_status }}
-                        {{ form.vetting_status.errors }}
-                    </div>
-
-                    <div class="mb-3">
-                        {{ form.notes.label_tag }}
-                        {{ form.notes }}
-                        {{ form.notes.errors }}
-                    </div>
-
-                    <div class="d-flex justify-content-end">
-                        <button
-                        type="submit"
-                        name="save_compliance"
-                        class="btn btn-primary">
-                        Save Compliance
-                        </button>
-                    </div>
-                    </form>
-
+                  {% if compliance.vetting_status == "APPROVED" %}
+                    <span class="badge bg-success">Approved</span>
+                  {% elif compliance.vetting_status == "REJECTED" %}
+                    <span class="badge bg-danger">Rejected</span>
+                  {% elif compliance.vetting_status == "IN_REVIEW" %}
+                    <span class="badge bg-info text-dark">In Review</span>
+                  {% elif compliance.vetting_status == "EXPIRED" %}
+                    <span class="badge bg-secondary">Expired</span>
+                  {% else %}
+                    <span class="badge bg-warning text-dark">Pending</span>
+                  {% endif %}
                 </div>
-                </div>
+
+                <!-- EDITABLE COMPLIANCE FORM -->
+                <form method="post" novalidate>
+                  {% csrf_token %}
+
+                  <div class="mb-3">
+                    <label class="form-label fw-semibold" for="{{ form.vetting_status.id_for_label }}">
+                      Vetting Status
+                    </label>
+                    {{ form.vetting_status }}
+                    {% if form.vetting_status.errors %}
+                      <div class="text-danger small mt-1">{{ form.vetting_status.errors }}</div>
+                    {% endif %}
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label fw-semibold" for="{{ form.notes.id_for_label }}">
+                      Compliance Notes
+                    </label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}
+                      <div class="text-danger small mt-1">{{ form.notes.errors }}</div>
+                    {% endif %}
+                    <div class="form-text">
+                      Use this for overall vetting comments, not individual document notes.
+                    </div>
+                  </div>
+
+                  <div class="d-grid d-md-flex justify-content-md-end">
+                    <button type="submit" name="save_compliance" value="1" class="btn btn-primary">
+                      Save Compliance Status
+                    </button>
+                  </div>
+                </form>
+
+              </div>
             </div>
+          </div>
 
-            <!-- ================= COMPLIANCE DOCUMENTS (UPLOAD) ================= -->
-            <div class="col-lg-6">
-                <div class="card shadow-sm h-100">
+          <!-- ================= DOCUMENT SUMMARY ================= -->
+          <div class="col-lg-7">
+            <div class="card shadow-sm h-100">
+              <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                <span>Document Summary</span>
+                <span class="badge bg-info text-dark">{{ documents.count }} required</span>
+              </div>
 
-                <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-                    <span>Compliance Documents</span>
-                    <span class="badge bg-info">{{ documents.count }} uploaded</span>
-                </div>
-
+              <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
+                  <table class="table table-sm align-middle mb-0">
                     <thead class="table-light">
-                        <tr>
-                        <th>Type</th>
+                      <tr>
+                        <th>Document</th>
                         <th>Status</th>
                         <th>Uploaded</th>
+                        <th>Reviewed</th>
                         <th class="text-end">File</th>
-                        </tr>
+                      </tr>
                     </thead>
+
                     <tbody>
-
-                        {% for doc in documents %}
+                      {% for doc in documents %}
                         <tr>
-                        <td>{{ doc.get_document_type_display }}</td>
+                          <td class="fw-semibold">
+                            {{ doc.get_document_type_display }}
+                          </td>
 
-                        <td>
+                          <td>
                             {% if doc.status == "APPROVED" %}
-                            <span class="badge bg-success">Approved</span>
+                              <span class="badge bg-success">Approved</span>
                             {% elif doc.status == "REJECTED" %}
-                            <span class="badge bg-danger">Rejected</span>
+                              <span class="badge bg-danger">Rejected</span>
                             {% else %}
-                            <span class="badge bg-warning">Pending</span>
+                              <span class="badge bg-warning text-dark">Pending</span>
                             {% endif %}
-                        </td>
+                          </td>
 
-                        <td class="small text-muted">
-                            {{ doc.uploaded_at|date:"Y-m-d"|default:"—" }}
-                        </td>
-
-                        <td class="text-end">
+                          <td class="small text-muted">
                             {% if doc.file %}
-                            <a href="{{ doc.file.url }}"
+                              {{ doc.uploaded_at|date:"Y-m-d H:i" }}
+                            {% else %}
+                              —
+                            {% endif %}
+                          </td>
+
+                          <td class="small text-muted">
+                            {{ doc.reviewed_at|date:"Y-m-d H:i"|default:"—" }}
+                          </td>
+
+                          <td class="text-end">
+                            {% if doc.file %}
+                              <a href="{{ doc.file.url }}"
                                 target="_blank"
+                                rel="noopener noreferrer"
                                 class="btn btn-sm btn-outline-secondary">
                                 View
-                            </a>
+                              </a>
                             {% else %}
-                            <span class="text-muted small">No file</span>
+                              <span class="text-muted small">No file</span>
                             {% endif %}
-                        </td>
+                          </td>
                         </tr>
-                        {% empty %}
+                      {% empty %}
                         <tr>
-                        <td colspan="4" class="text-center text-muted py-3">
-                            No compliance documents uploaded.
-                        </td>
+                          <td colspan="5" class="text-center text-muted py-4">
+                            No compliance documents have been created yet.
+                          </td>
                         </tr>
-                        {% endfor %}
-
+                      {% endfor %}
                     </tbody>
-                    </table>
-                </div>
 
+                  </table>
                 </div>
+              </div>
             </div>
-
-            </div>
-
-            <!-- ================= DOCUMENT STATUS REVIEW ================= -->
-            <div class="row mt-4">
-            <div class="col-12">
-                <div class="card shadow-sm">
-
-                <div class="card-header fw-semibold">
-                    Document Status Review
-                </div>
-
-                <div class="card-body">
-
-                    <p class="text-muted small mb-3">
-                    Review each document individually. This does <strong>not</strong> affect file uploads.
-                    </p>
-
-                    <div class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead class="table-light">
-                        <tr>
-                            <th>Document</th>
-                            <th>Current Status</th>
-                            <th>Reviewer Notes</th>
-                            <th class="text-end">Action</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-
-                        {% for doc in documents %}
-                        <tr>
-                            <td class="fw-semibold">
-                            {{ doc.get_document_type_display }}
-                            </td>
-
-                            <td>
-                            {% if doc.status == "APPROVED" %}
-                                <span class="badge bg-success">Approved</span>
-                            {% elif doc.status == "REJECTED" %}
-                                <span class="badge bg-danger">Rejected</span>
-                            {% else %}
-                                <span class="badge bg-warning">Pending</span>
-                            {% endif %}
-                            </td>
-
-                            <td colspan="2">
-                            <form method="post" class="row g-2 align-items-center">
-                                {% csrf_token %}
-
-                                <input type="hidden" name="document_id" value="{{ doc.id }}">
-
-                                <div class="col-md-4">
-                                <select name="status" class="form-select form-select-sm">
-                                    <option value="PENDING" {% if doc.status == "PENDING" %}selected{% endif %}>
-                                    Pending
-                                    </option>
-                                    <option value="APPROVED" {% if doc.status == "APPROVED" %}selected{% endif %}>
-                                    Approved
-                                    </option>
-                                    <option value="REJECTED" {% if doc.status == "REJECTED" %}selected{% endif %}>
-                                    Rejected
-                                    </option>
-                                </select>
-                                </div>
-
-                                <div class="col-md-5">
-                                <input type="text"
-                                        name="notes"
-                                        value="{{ doc.notes }}"
-                                        class="form-control form-control-sm"
-                                        placeholder="Reviewer notes (optional)">
-                                </div>
-
-                                <div class="col-md-3 text-end">
-                                <button type="submit"
-                                        name="save_document_status"
-                                        class="btn btn-sm btn-outline-primary">
-                                    Save Status
-                                </button>
-                                </div>
-                            </form>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center text-muted py-3">
-                            No documents available for review.
-                            </td>
-                        </tr>
-                        {% endfor %}
-
-                        </tbody>
-                    </table>
-                    </div>
-
-                </div>
-                </div>
-            </div>
-            </div>
+          </div>
 
         </div>
-        </main>
+
+        <!-- ================= DOCUMENT UPLOAD SECTION ================= -->
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="card shadow-sm">
+              <div class="card-header fw-semibold">
+                Upload / Replace Compliance Documents
+              </div>
+
+              <div class="card-body">
+                <p class="text-muted small mb-3">
+                  Upload the correct file for each document type. Replacing a file should normally reset the document back to pending review in the view logic.
+                </p>
+
+                <div class="row g-3">
+                  {% for doc in documents %}
+                    <div class="col-md-6 col-xl-4">
+                      <div class="border rounded p-3 h-100 bg-white">
+
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                          <div>
+                            <div class="fw-semibold">{{ doc.get_document_type_display }}</div>
+                            <div class="small text-muted">
+                              {% if doc.file %}
+                                File already uploaded
+                              {% else %}
+                                No file uploaded
+                              {% endif %}
+                            </div>
+                          </div>
+
+                          {% if doc.status == "APPROVED" %}
+                            <span class="badge bg-success">Approved</span>
+                          {% elif doc.status == "REJECTED" %}
+                            <span class="badge bg-danger">Rejected</span>
+                          {% else %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                          {% endif %}
+                        </div>
+
+                        {% if doc.file %}
+                          <div class="mb-2">
+                            <a href="{{ doc.file.url }}"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="btn btn-sm btn-outline-secondary w-100">
+                              Open Current File
+                            </a>
+                          </div>
+                        {% endif %}
+
+                        <form method="post" enctype="multipart/form-data" novalidate>
+                          {% csrf_token %}
+
+                          <input type="hidden" name="document_id" value="{{ doc.id }}">
+
+                          <div class="mb-2">
+                            <input type="file"
+                                  name="file"
+                                  class="form-control form-control-sm"
+                                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                          </div>
+
+                          {% if doc.file %}
+                            <div class="small text-muted mb-2">
+                              Uploading a new file will replace the current file.
+                            </div>
+                          {% endif %}
+
+                          <button type="submit"
+                                  name="upload_document"
+                                  value="1"
+                                  class="btn btn-sm btn-primary w-100">
+                            {% if doc.file %}
+                              Replace File
+                            {% else %}
+                              Upload File
+                            {% endif %}
+                          </button>
+                        </form>
+
+                      </div>
+                    </div>
+                  {% empty %}
+                    <div class="col-12">
+                      <div class="text-center text-muted py-4">
+                        No document placeholders exist for this client.
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= DOCUMENT STATUS REVIEW ================= -->
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="card shadow-sm">
+              <div class="card-header fw-semibold">
+                Document Review
+              </div>
+
+              <div class="card-body">
+                <p class="text-muted small mb-3">
+                  Review each uploaded document individually. Do not approve a document unless you have opened and checked the file.
+                </p>
+
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Document</th>
+                        <th>File</th>
+                        <th>Status</th>
+                        <th>Review Notes</th>
+                        <th class="text-end">Action</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {% for doc in documents %}
+                        <tr>
+                          <td class="fw-semibold">
+                            {{ doc.get_document_type_display }}
+                            <div class="small text-muted">
+                              Reviewed by:
+                              {% if doc.reviewed_by %}
+                                  {{ doc.reviewed_by.get_full_name|default:doc.reviewed_by.username }}
+                              {% else %}
+                                  —
+                              {% endif %}
+                            </div>
+                          </td>
+
+                          <td>
+                            {% if doc.file %}
+                              <a href="{{ doc.file.url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="btn btn-sm btn-outline-secondary">
+                                View File
+                              </a>
+                            {% else %}
+                              <span class="badge bg-light text-dark border">No file</span>
+                            {% endif %}
+                          </td>
+
+                          <td>
+                            {% if doc.status == "APPROVED" %}
+                              <span class="badge bg-success">Approved</span>
+                            {% elif doc.status == "REJECTED" %}
+                              <span class="badge bg-danger">Rejected</span>
+                            {% else %}
+                              <span class="badge bg-warning text-dark">Pending</span>
+                            {% endif %}
+                          </td>
+
+                          <td colspan="2">
+                            <form method="post" class="row g-2 align-items-center" novalidate>
+                              {% csrf_token %}
+
+                              <input type="hidden" name="document_id" value="{{ doc.id }}">
+
+                              <div class="col-md-3">
+                                <select name="status"
+                                        class="form-select form-select-sm"
+                                        {% if not doc.file %}disabled{% endif %}>
+                                  <option value="PENDING" {% if doc.status == "PENDING" %}selected{% endif %}>
+                                    Pending
+                                  </option>
+                                  <option value="APPROVED" {% if doc.status == "APPROVED" %}selected{% endif %}>
+                                    Approved
+                                  </option>
+                                  <option value="REJECTED" {% if doc.status == "REJECTED" %}selected{% endif %}>
+                                    Rejected
+                                  </option>
+                                </select>
+                              </div>
+
+                              <div class="col-md-6">
+                                <input type="text"
+                                      name="notes"
+                                      value="{{ doc.notes }}"
+                                      class="form-control form-control-sm"
+                                      maxlength="255"
+                                      placeholder="Reviewer notes">
+                              </div>
+
+                              <div class="col-md-3 text-end">
+                                <button type="submit"
+                                        name="save_document_status"
+                                        value="1"
+                                        class="btn btn-sm btn-outline-primary w-100"
+                                        {% if not doc.file %}disabled{% endif %}>
+                                  Save Review
+                                </button>
+                              </div>
+
+                              {% if not doc.file %}
+                                <div class="col-12">
+                                  <div class="small text-muted">
+                                    Upload a file before reviewing this document.
+                                  </div>
+                                </div>
+                              {% endif %}
+                            </form>
+                          </td>
+                        </tr>
+                      {% empty %}
+                        <tr>
+                          <td colspan="5" class="text-center text-muted py-4">
+                            No documents available for review.
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+
+                  </table>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
 
 
 

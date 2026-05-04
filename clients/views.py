@@ -193,31 +193,98 @@ def client_edit(request, pk):
 @login_required
 @staff_required
 def client_compliance_edit(request, pk):
-    # -----------------------------
-    # Load client + compliance
-    # -----------------------------
     client = get_object_or_404(Client, pk=pk)
 
-    compliance, _ = ClientCompliance.objects.get_or_create(
-        client=client
-    )
+    compliance, _ = ClientCompliance.objects.get_or_create(client=client)
 
     documents = (
         compliance.documents
+        .select_related("reviewed_by", "uploaded_by")
         .all()
         .order_by("document_type")
     )
 
-    # Default form (overall compliance)
     compliance_form = ClientComplianceForm(instance=compliance)
 
-    # -----------------------------
-    # POST handling
-    # -----------------------------
+    allowed_extensions = [".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx"]
+    max_file_size = 10 * 1024 * 1024  # 10MB
+
+    # =====================================================
+    # HELPER: VALIDATE UPLOADED FILE
+    # =====================================================
+    def validate_uploaded_file(uploaded_file):
+        import os
+
+        ext = os.path.splitext(uploaded_file.name)[1].lower()
+
+        if ext not in allowed_extensions:
+            return "Invalid file type. Allowed files: PDF, JPG, PNG, DOC, DOCX."
+
+        if uploaded_file.size > max_file_size:
+            return "File is too large. Maximum allowed size is 10MB."
+
+        return None
+
+    # =====================================================
+    # HELPER: AUTO-RECALCULATE COMPLIANCE STATUS
+    # =====================================================
+    def recalculate_compliance_status():
+        total_docs = compliance.documents.count()
+
+        uploaded_docs = (
+            compliance.documents
+            .exclude(file="")
+            .count()
+        )
+
+        approved_docs = compliance.documents.filter(
+            status="APPROVED"
+        ).count()
+
+        rejected_exists = compliance.documents.filter(
+            status="REJECTED"
+        ).exists()
+
+        # No documents or no uploads yet
+        if total_docs == 0 or uploaded_docs == 0:
+            compliance.vetting_status = "PENDING"
+            compliance.vetted_by = None
+            compliance.vetted_at = None
+
+        # Any rejected document means compliance is rejected
+        elif rejected_exists:
+            compliance.vetting_status = "REJECTED"
+            compliance.vetted_by = request.user
+            compliance.vetted_at = timezone.now()
+
+        # All required documents must be uploaded AND approved
+        elif uploaded_docs == total_docs and approved_docs == total_docs:
+            compliance.vetting_status = "APPROVED"
+            compliance.vetted_by = request.user
+            compliance.vetted_at = timezone.now()
+
+        # Otherwise, still in review
+        else:
+            compliance.vetting_status = "IN_REVIEW"
+            compliance.vetted_by = None
+            compliance.vetted_at = None
+
+        compliance.save(
+            update_fields=[
+                "vetting_status",
+                "vetted_by",
+                "vetted_at",
+                "updated_at",
+            ]
+        )
+
+    # =====================================================
+    # POST HANDLING
+    # =====================================================
     if request.method == "POST":
 
         # =====================================================
-        # 1️⃣ SAVE OVERALL COMPLIANCE STATUS
+        # 1️⃣ SAVE OVERALL COMPLIANCE NOTES ONLY
         # =====================================================
         if "save_compliance" in request.POST:
             compliance_form = ClientComplianceForm(
@@ -226,23 +293,20 @@ def client_compliance_edit(request, pk):
             )
 
             if compliance_form.is_valid():
-                compliance = compliance_form.save(commit=False)
+                updated_compliance = compliance_form.save(commit=False)
 
-                # Audit only when decision is made
-                if compliance.vetting_status in ("APPROVED", "REJECTED"):
-                    compliance.vetted_by = request.user
-                    compliance.vetted_at = timezone.now()
+                # System controls vetting_status automatically.
+                # User may update notes, but status is recalculated.
+                compliance.notes = updated_compliance.notes
+                compliance.save(update_fields=["notes", "updated_at"])
 
-                compliance.save()
+                recalculate_compliance_status()
 
                 messages.success(
                     request,
-                    "Compliance vetting status updated successfully."
+                    "Compliance notes saved and status recalculated successfully."
                 )
-                return redirect(
-                    "client-compliance-edit",
-                    pk=client.pk
-                )
+                return redirect("client-compliance-edit", pk=client.pk)
 
             messages.error(
                 request,
@@ -250,7 +314,51 @@ def client_compliance_edit(request, pk):
             )
 
         # =====================================================
-        # 2️⃣ SAVE INDIVIDUAL DOCUMENT STATUS
+        # 2️⃣ UPLOAD / REPLACE DOCUMENT FILE
+        # =====================================================
+        elif "upload_document" in request.POST:
+            document_id = request.POST.get("document_id")
+
+            document = get_object_or_404(
+                ClientComplianceDocument,
+                pk=document_id,
+                compliance=compliance,
+            )
+
+            uploaded_file = request.FILES.get("file")
+
+            if not uploaded_file:
+                messages.error(request, "Please select a file to upload.")
+                return redirect("client-compliance-edit", pk=client.pk)
+
+            file_error = validate_uploaded_file(uploaded_file)
+
+            if file_error:
+                messages.error(request, file_error)
+                return redirect("client-compliance-edit", pk=client.pk)
+
+            # Save/replace file
+            document.file = uploaded_file
+            document.uploaded_by = request.user
+
+            # Reset review whenever file is uploaded/replaced
+            document.status = "PENDING"
+            document.reviewed_by = None
+            document.reviewed_at = None
+            document.notes = ""
+
+            document.save()
+
+            recalculate_compliance_status()
+
+            messages.success(
+                request,
+                f"{document.get_document_type_display()} uploaded successfully. Document is now pending review."
+            )
+            return redirect("client-compliance-edit", pk=client.pk)
+
+        # =====================================================
+        # 3️⃣ SAVE INDIVIDUAL DOCUMENT REVIEW STATUS
         # =====================================================
         elif "save_document_status" in request.POST:
             document_id = request.POST.get("document_id")
@@ -261,6 +369,13 @@ def client_compliance_edit(request, pk):
                 compliance=compliance,
             )
 
+            if not document.file:
+                messages.error(
+                    request,
+                    "You cannot review a document before a file has been uploaded."
+                )
+                return redirect("client-compliance-edit", pk=client.pk)
+
             document_status_form = ClientComplianceDocumentStatusForm(
                 request.POST,
                 instance=document
@@ -269,28 +384,37 @@ def client_compliance_edit(request, pk):
             if document_status_form.is_valid():
                 doc = document_status_form.save(commit=False)
 
-                # Audit trail
                 doc.reviewed_by = request.user
                 doc.reviewed_at = timezone.now()
                 doc.save()
 
+                recalculate_compliance_status()
+
                 messages.success(
                     request,
-                    f"{doc.get_document_type_display()} reviewed successfully."
+                    f"{doc.get_document_type_display()} reviewed successfully. Compliance status recalculated."
                 )
-                return redirect(
-                    "client-compliance-edit",
-                    pk=client.pk
-                )
+                return redirect("client-compliance-edit", pk=client.pk)
 
             messages.error(
                 request,
                 "Please correct the document status errors."
             )
 
-    # -----------------------------
-    # Render page
-    # -----------------------------
+        else:
+            messages.error(request, "Invalid compliance action.")
+            return redirect("client-compliance-edit", pk=client.pk)
+
+    # =====================================================
+    # REFRESH DOCUMENTS AFTER POSSIBLE CHANGES
+    # =====================================================
+    documents = (
+        compliance.documents
+        .select_related("reviewed_by", "uploaded_by")
+        .all()
+        .order_by("document_type")
+    )
+
     return render(
         request,
         "clients/client_compliance_edit.html",
@@ -299,7 +423,6 @@ def client_compliance_edit(request, pk):
             "compliance": compliance,
             "form": compliance_form,
             "documents": documents,
-            # used to instantiate per-row forms in template
             "document_status_form_class": ClientComplianceDocumentStatusForm,
         },
     )
@@ -538,18 +661,28 @@ def client_view(request, pk):
 
 
 @login_required
+@staff_required
 def client_edit_operations(request, pk):
     client = get_object_or_404(Client, pk=pk)
 
     if request.method == "POST":
-        form = ClientOperationsForm(request.POST, instance=client)
+        form = ClientForm(request.POST, instance=client)
+
         if form.is_valid():
             form.save()
-            return redirect("client-view", pk=client.pk)
-    else:
-        form = ClientOperationsForm(instance=client)
+            messages.success(request, "Operating hours updated successfully.")
+            return redirect("client-edit-operations", pk=client.pk)
 
-    return render(request, "clients/client_edit_operations.html", {
-        "client": client,
-        "form": form,
-    })
+        messages.error(request, "Please correct the errors below.")
+
+    else:
+        form = ClientForm(instance=client)
+
+    return render(
+        request,
+        "clients/client_edit_operations.html",
+        {
+            "client": client,
+            "form": form,
+        },
+    )

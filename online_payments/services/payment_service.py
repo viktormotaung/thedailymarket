@@ -19,6 +19,12 @@ class PaymentService:
             client=invoice.client,
             invoice=invoice,
             created_by=request.user if request.user.is_authenticated else None,
+
+            # ✅ EXPLICIT PROVIDER
+            provider="ozow",
+
+            # ✅ EXPLICIT STATUS
+            status="pending",
         )
 
         ozow_data = PaymentService.generate_ozow_data(payment)

@@ -402,12 +402,17 @@ def notification_count(request):
 @login_required
 @staff_required
 def tickets(request):
+    staff = getattr(request.user, "staff_profile", None)
+
     qs = Ticket.objects.select_related(
         "client",
         "created_by",
         "closed_by",
         "content_type",
     )
+
+    if staff and staff.status == "active" and staff.department:
+        qs = qs.filter(department=staff.department)
 
     q = (request.GET.get("q") or "").strip()
     status = (request.GET.get("status") or "").strip()
@@ -443,7 +448,7 @@ def tickets(request):
 
     qs = qs.order_by("-created_at")
 
-    base = Ticket.objects.all()
+    base = qs
 
     stats = {
         "total": base.count(),
@@ -486,9 +491,16 @@ def tickets(request):
 @login_required
 @staff_required
 def ticket_view(request, pk):
-    ticket = get_object_or_404(Ticket, pk=pk)
+    ticket = get_object_or_404(
+        Ticket.objects.select_related(
+            "client",
+            "created_by",
+            "closed_by",
+            "content_type",
+        ),
+        pk=pk,
+    )
 
-    # Mark linked ticket notification as opened when ticket is viewed
     ticket_content_type = ContentType.objects.get_for_model(Ticket)
 
     linked_notifications = Notification.objects.filter(
@@ -505,7 +517,12 @@ def ticket_view(request, pk):
 
         elif notification.scope == Notification.Scope.DEPARTMENT:
             staff = getattr(request.user, "staff_profile", None)
-            if staff and staff.status == "active" and staff.department == notification.department:
+
+            if (
+                staff
+                and staff.status == "active"
+                and staff.department == notification.department
+            ):
                 notification.mark_opened(request.user)
 
     comments_qs = ticket.comments.select_related("author").order_by("-created_at")
@@ -571,7 +588,5 @@ def ticket_view(request, pk):
             "linked_tasks": linked_tasks,
         },
     )
-
-
 
 

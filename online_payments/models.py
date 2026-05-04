@@ -13,7 +13,8 @@ class Payment(models.Model):
 
     PROVIDER_CHOICES = [
         ("ozow", "Ozow"),
-        ("yoco", "Yoco"),
+        ("eft", "Direct EFT"),
+        ("cash_deposit", "Cash Deposit"),
     ]
 
     reference = models.CharField(max_length=100, unique=True)

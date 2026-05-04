@@ -1,15 +1,16 @@
 import json
 import logging
-
+from django.core.paginator import Paginator
+from django.db.models import Q, Sum
+from django.contrib.auth.decorators import login_required
 import requests
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
-
+from .models import Payment
 from invoices.models import Invoice
-from online_payments.models import Payment
 from online_payments.services.ozow import verify_ozow_hash
 from online_payments.services.ozow_api import get_ozow_transaction
 from online_payments.services.payment_gateway import (
@@ -17,6 +18,8 @@ from online_payments.services.payment_gateway import (
     PaymentGatewayService,
 )
 from online_payments.services.payment_service import PaymentService
+from django.utils.timezone import localdate
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -242,5 +245,110 @@ def test_yoco_connection(request):
             },
             status=500,
         )
+
+
+@login_required
+def payment_list(request):
+
+    query = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "").strip()
+    gateway = request.GET.get("gateway", "").strip()
+
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+
+    today = localdate()
+
+    # DEFAULT TO TODAY
+    if not date_from:
+        date_from = today.strftime("%Y-%m-%d")
+
+    if not date_to:
+        date_to = today.strftime("%Y-%m-%d")
+
+    payments = (
+        Payment.objects
+        .select_related("invoice", "client")
+        .order_by("-created_at")
+    )
+
+    # SEARCH
+    if query:
+        payments = payments.filter(
+            Q(reference__icontains=query)
+            | Q(invoice__invoice_number__icontains=query)
+            | Q(client__name__icontains=query)
+        )
+
+    # STATUS FILTER
+    if status:
+        payments = payments.filter(status=status)
+
+    # PROVIDER FILTER
+    if gateway:
+        payments = payments.filter(provider=gateway)
+
+    # DATE FILTERS
+    if date_from:
+        payments = payments.filter(
+            created_at__date__gte=date_from
+        )
+
+    if date_to:
+        payments = payments.filter(
+            created_at__date__lte=date_to
+        )
+
+    # KPIs
+    total_payments = payments.count()
+
+    successful_payments = payments.filter(
+        status="success"
+    ).count()
+
+    failed_payments = payments.filter(
+        status="failed"
+    ).count()
+
+    pending_payments = payments.filter(
+        status="pending"
+    ).count()
+
+    total_success_value = (
+        payments
+        .filter(status="success")
+        .aggregate(total=Sum("amount"))["total"] or 0
+    )
+
+    # PAGINATION
+    paginator = Paginator(payments, 25)
+
+    page_number = request.GET.get("page")
+
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        "payments": page_obj,
+        "page_obj": page_obj,
+
+        "query": query,
+        "status": status,
+        "gateway": gateway,
+
+        "date_from": date_from,
+        "date_to": date_to,
+
+        "total_payments": total_payments,
+        "successful_payments": successful_payments,
+        "failed_payments": failed_payments,
+        "pending_payments": pending_payments,
+        "total_success_value": total_success_value,
+    }
+
+    return render(
+        request,
+        "online_payments/payment_list.html",
+        context,
+    )
 
 

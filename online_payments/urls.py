@@ -5,6 +5,7 @@ from . import views
 app_name = "online_payments"
 
 urlpatterns = [
+     path("", views.payment_list, name="payment-list"),
     # Ozow Legacy
     path("pay/<int:invoice_id>/", views.start_payment, name="start-payment"),
     path("ozow/notify/", views.ozow_notify, name="ozow-notify"),

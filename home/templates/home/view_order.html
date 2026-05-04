@@ -549,12 +549,10 @@
                 {% elif invoice.amount_due > 0 %}
 
                   <a href="{% url 'online_payments:start-payment' invoice.id %}" class="btn btn-success">
-                    Pay via Ozow Instant EFT
+                    Pay via Ozow
                   </a>
 
-                  <a href="{% url 'online_payments:yoco_checkout' invoice.id %}" class="btn btn-dark">
-                    Pay Via Yoco Card
-                  </a>
+                  
 
                 {% endif %}
 
