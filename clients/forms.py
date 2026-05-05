@@ -666,7 +666,91 @@ class ProspectForm(forms.ModelForm):
         return prospect
 
     
+class ClientOperationsForm(forms.Form):
 
+    def __init__(self, *args, client=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.client = client
+
+        for day_code, day_label in ClientOperatingHours.DAY_CHOICES:
+
+            self.fields[f"{day_code}_is_closed"] = forms.BooleanField(
+                required=False,
+                label=f"{day_label} Closed",
+                widget=forms.CheckboxInput(
+                    attrs={"class": "form-check-input"}
+                )
+            )
+
+            self.fields[f"{day_code}_open"] = forms.TimeField(
+                required=False,
+                widget=forms.TimeInput(
+                    attrs={
+                        "class": "form-control",
+                        "type": "time",
+                    }
+                )
+            )
+
+            self.fields[f"{day_code}_close"] = forms.TimeField(
+                required=False,
+                widget=forms.TimeInput(
+                    attrs={
+                        "class": "form-control",
+                        "type": "time",
+                    }
+                )
+            )
+
+            if client:
+                hours = client.operating_hours.filter(day=day_code).first()
+
+                if hours:
+                    self.fields[f"{day_code}_is_closed"].initial = hours.is_closed
+                    self.fields[f"{day_code}_open"].initial = hours.open_time
+                    self.fields[f"{day_code}_close"].initial = hours.close_time
+
+    def clean(self):
+        cleaned = super().clean()
+
+        for day_code, day_label in ClientOperatingHours.DAY_CHOICES:
+
+            is_closed = cleaned.get(f"{day_code}_is_closed")
+            open_time = cleaned.get(f"{day_code}_open")
+            close_time = cleaned.get(f"{day_code}_close")
+
+            if not is_closed:
+
+                if not open_time or not close_time:
+                    raise forms.ValidationError(
+                        f"{day_label}: Opening and closing times required unless closed."
+                    )
+
+                if close_time <= open_time:
+                    raise forms.ValidationError(
+                        f"{day_label}: Closing time must be after opening time."
+                    )
+
+        return cleaned
+
+    def save(self):
+        for day_code, _ in ClientOperatingHours.DAY_CHOICES:
+
+            is_closed = self.cleaned_data.get(f"{day_code}_is_closed")
+            open_time = self.cleaned_data.get(f"{day_code}_open")
+            close_time = self.cleaned_data.get(f"{day_code}_close")
+
+            hours, _ = ClientOperatingHours.objects.get_or_create(
+                client=self.client,
+                day=day_code,
+            )
+
+            hours.is_closed = bool(is_closed)
+            hours.open_time = None if is_closed else open_time
+            hours.close_time = None if is_closed else close_time
+
+            hours.save()
 
 
 class ProspectUpdateForm(forms.ModelForm):
@@ -1224,48 +1308,63 @@ class ClientComplianceDocumentStatusForm(forms.ModelForm):
         }
 
 
-class ClientOperationsForm(forms.ModelForm):
+class ClientOperationsForm(forms.Form):
     """
-    Edit ONLY business operations:
-    - Working hours
+    Operating-hours-only form.
+
+    This form does NOT edit Client fields like name, organization, address, etc.
+    It only updates ClientOperatingHours rows linked to the client.
     """
 
-    class Meta:
-        model = Client
-        fields = []  # No core client fields
+    DAY_ORDER_MAP = {
+        "MON": 1,
+        "TUE": 2,
+        "WED": 3,
+        "THU": 4,
+        "FRI": 5,
+        "SAT": 6,
+        "SUN": 7,
+    }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, instance=None, **kwargs):
         super().__init__(*args, **kwargs)
 
-        for day_code, day_label in ClientOperatingHours.DAY_CHOICES:
+        self.client = instance
 
+        for day_code, day_label in ClientOperatingHours.DAY_CHOICES:
             self.fields[f"{day_code}_is_closed"] = forms.BooleanField(
                 required=False,
                 label=f"{day_label} Closed",
-                widget=forms.CheckboxInput(attrs={"class": "form-check-input"})
+                widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
             )
 
             self.fields[f"{day_code}_open"] = forms.TimeField(
                 required=False,
                 widget=forms.TimeInput(
-                    attrs={"class": "form-control", "type": "time"}
-                )
+                    attrs={
+                        "class": "form-control",
+                        "type": "time",
+                    }
+                ),
             )
 
             self.fields[f"{day_code}_close"] = forms.TimeField(
                 required=False,
                 widget=forms.TimeInput(
-                    attrs={"class": "form-control", "type": "time"}
-                )
+                    attrs={
+                        "class": "form-control",
+                        "type": "time",
+                    }
+                ),
             )
 
-            # preload existing
-            if self.instance.pk:
-                hours = self.instance.operating_hours.filter(day=day_code).first()
+            if self.client and self.client.pk:
+                hours = self.client.operating_hours.filter(day=day_code).first()
+
                 if hours:
-                    self.initial[f"{day_code}_is_closed"] = hours.is_closed
-                    self.initial[f"{day_code}_open"] = hours.open_time
-                    self.initial[f"{day_code}_close"] = hours.close_time
+                    self.fields[f"{day_code}_is_closed"].initial = hours.is_closed
+                    self.fields[f"{day_code}_open"].initial = hours.open_time
+                    self.fields[f"{day_code}_close"].initial = hours.close_time
 
     def clean(self):
         cleaned = super().clean()
@@ -1275,36 +1374,55 @@ class ClientOperationsForm(forms.ModelForm):
             open_time = cleaned.get(f"{day_code}_open")
             close_time = cleaned.get(f"{day_code}_close")
 
-            if not bool(is_closed):
-                if not open_time or not close_time:
-                    self.add_error(
-                        f"{day_code}_open",
-                        f"{day_label}: Opening and closing times required unless closed."
-                    )
-                elif close_time <= open_time:
-                    self.add_error(
-                        f"{day_code}_close",
-                        f"{day_label}: Closing time must be after opening time."
-                    )
+            if is_closed:
+                continue
+
+            if not open_time:
+                self.add_error(
+                    f"{day_code}_open",
+                    f"{day_label}: Opening time is required unless closed.",
+                )
+
+            if not close_time:
+                self.add_error(
+                    f"{day_code}_close",
+                    f"{day_label}: Closing time is required unless closed.",
+                )
+
+            if open_time and close_time and close_time <= open_time:
+                self.add_error(
+                    f"{day_code}_close",
+                    f"{day_label}: Closing time must be after opening time.",
+                )
 
         return cleaned
 
-    def save(self, commit=True):
-        client = self.instance
+    def save(self):
+        if not self.client:
+            raise ValueError("ClientOperationsForm requires instance=client.")
 
         for day_code, _ in ClientOperatingHours.DAY_CHOICES:
             is_closed = self.cleaned_data.get(f"{day_code}_is_closed")
             open_time = self.cleaned_data.get(f"{day_code}_open")
             close_time = self.cleaned_data.get(f"{day_code}_close")
 
-            hours, _ = ClientOperatingHours.objects.get_or_create(
-                client=client,
+            hours, created = ClientOperatingHours.objects.get_or_create(
+                client=self.client,
                 day=day_code,
+                defaults={
+                    "day_order": self.DAY_ORDER_MAP.get(day_code),
+                },
             )
+
+            if not hours.day_order:
+                hours.day_order = self.DAY_ORDER_MAP.get(day_code)
 
             hours.is_closed = bool(is_closed)
             hours.open_time = None if is_closed else open_time
             hours.close_time = None if is_closed else close_time
             hours.save()
 
-        return client
+        return self.client 
+
+
+

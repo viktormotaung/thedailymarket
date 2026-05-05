@@ -514,29 +514,29 @@ def send_email_inactive_to_active(client, user):
 @login_required
 @staff_required
 def client_view(request, pk):
-    # ---------------------------
-    # Core client
-    # ---------------------------
     client = get_object_or_404(
         Client.objects
         .select_related("account_manager", "funder")
-        .prefetch_related("categories"),
+        .prefetch_related("categories", "operating_hours"),
         pk=pk
     )
 
-    # ---------------------------
-    # Orders (tab)
-    # ---------------------------
+    client_orders_qs = Order.objects.filter(client=client)
+
     orders = (
-        Order.objects
-        .filter(client=client)
+        client_orders_qs
         .only("id", "order_date", "status", "grand_total_inc")
         .order_by("-order_date")[:10]
     )
 
-    # ---------------------------
-    # Credit (tab)
-    # ---------------------------
+    order_count = client_orders_qs.count()
+
+    latest_order = (
+        client_orders_qs
+        .order_by("-order_date")
+        .first()
+    )
+
     credit_account = None
     credit_utilization_pct = None
     credit_utilization_status = None
@@ -558,50 +558,44 @@ def client_view(request, pk):
             else:
                 credit_utilization_status = "Over Limit"
 
-    # ---------------------------
-    # Compliance (tab)
-    # ---------------------------
     compliance = getattr(client, "compliance", None)
 
     compliance_documents = []
     compliance_completion_pct = Decimal("0.00")
+    compliance_total_docs = 0
+    compliance_approved_docs = 0
+    compliance_pending_docs = 0
+    compliance_rejected_docs = 0
 
     if compliance:
         compliance_documents = (
             compliance.documents
+            .select_related("reviewed_by", "uploaded_by")
             .all()
             .order_by("document_type")
         )
 
-        total_docs = compliance_documents.count()
+        compliance_total_docs = compliance_documents.count()
+        compliance_approved_docs = compliance_documents.filter(status="APPROVED").count()
+        compliance_pending_docs = compliance_documents.filter(status="PENDING").count()
+        compliance_rejected_docs = compliance_documents.filter(status="REJECTED").count()
 
-        approved_docs = compliance_documents.filter(
-            status="APPROVED"
-        ).count()
-
-        if total_docs > 0:
+        if compliance_total_docs > 0:
             compliance_completion_pct = (
-                Decimal(approved_docs) / Decimal(total_docs)
+                Decimal(compliance_approved_docs) / Decimal(compliance_total_docs)
             ) * Decimal("100.00")
 
-    # ---------------------------
-    # Overview KPIs
-    # ---------------------------
     total_spend = (
-        Order.objects
-        .filter(client=client)
+        client_orders_qs
         .aggregate(
             s=Coalesce(Sum("grand_total_inc"), Decimal("0.00"))
         )["s"]
     )
 
     days_active = (
-        timezone.now().date() - client.created_at.date()
+        timezone.localdate() - client.created_at.date()
     ).days
 
-    # ---------------------------
-    # Spend Rank
-    # ---------------------------
     ranked_clients = (
         Client.objects
         .annotate(
@@ -623,32 +617,34 @@ def client_view(request, pk):
         else None
     )
 
-    # ---------------------------
-    # Context
-    # ---------------------------
+    today_hours = client.get_today_hours()
+
     context = {
         "client": client,
 
-        # Overview KPIs
         "days_active": days_active,
         "total_spend": total_spend,
         "spend_rank": spend_rank,
         "total_clients": total_clients,
 
-        # Orders
-        "orders": orders,
+        "today_hours": today_hours,
 
-        # Credit
+        "orders": orders,
+        "order_count": order_count,
+        "latest_order": latest_order,
+
         "credit_account": credit_account,
         "credit_utilization_pct": credit_utilization_pct,
         "credit_utilization_status": credit_utilization_status,
 
-        # Compliance
         "compliance": compliance,
         "compliance_documents": compliance_documents,
         "compliance_completion_pct": compliance_completion_pct,
+        "compliance_total_docs": compliance_total_docs,
+        "compliance_approved_docs": compliance_approved_docs,
+        "compliance_pending_docs": compliance_pending_docs,
+        "compliance_rejected_docs": compliance_rejected_docs,
 
-        # UI feedback
         "success_message": request.GET.get("ok", ""),
         "error_message": request.GET.get("err", ""),
     }
@@ -660,13 +656,17 @@ def client_view(request, pk):
     )
 
 
+
 @login_required
 @staff_required
 def client_edit_operations(request, pk):
     client = get_object_or_404(Client, pk=pk)
 
     if request.method == "POST":
-        form = ClientForm(request.POST, instance=client)
+        form = ClientOperationsForm(
+            request.POST,
+            instance=client,
+        )
 
         if form.is_valid():
             form.save()
@@ -676,7 +676,9 @@ def client_edit_operations(request, pk):
         messages.error(request, "Please correct the errors below.")
 
     else:
-        form = ClientForm(instance=client)
+        form = ClientOperationsForm(
+            instance=client,
+        )
 
     return render(
         request,

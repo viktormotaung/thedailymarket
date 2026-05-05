@@ -637,342 +637,262 @@
   <main class="content py-4">
     <div class="container">
 
-        <!-- ================= HEADER ================= -->
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
         <div>
-            <h2 class="mb-1">Client Operating Hours</h2>
-            <div class="text-muted">
+          <h2 class="mb-1">Client Operating Hours</h2>
+          <div class="text-muted">
             {{ client.client_number }} · {{ client.organization|default:client.name }}
-            </div>
+          </div>
         </div>
 
         <a href="{% url 'client-view' client.pk %}" class="btn btn-outline-secondary">
-            Back to Client
+          Back to Client
         </a>
-        </div>
+      </div>
 
-        <!-- ================= MESSAGES ================= -->
-        {% if messages %}
+      {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+          </div>
         {% endfor %}
-        {% endif %}
+      {% endif %}
 
-        <!-- ================= FORM ERRORS ================= -->
-        {% if form.non_field_errors %}
+      {% if form.non_field_errors %}
         <div class="alert alert-danger">
-            {{ form.non_field_errors }}
+          {{ form.non_field_errors }}
         </div>
-        {% endif %}
+      {% endif %}
 
-        <!-- ================= EXPLANATION ================= -->
-        <div class="alert alert-light border mb-4">
+      <div class="alert alert-light border mb-4">
         <div class="fw-semibold mb-1">How operating hours work</div>
         <div class="small text-muted">
-            Set the client's normal opening and closing hours for each day. If the client is closed on a day,
-            tick “Closed” and leave the times empty.
+          Set the client's normal opening and closing hours for each day. If the client is closed on a day,
+          tick “Closed” and leave the times empty.
         </div>
-        </div>
+      </div>
 
-        <form method="post" novalidate>
+      <form method="post" novalidate>
         {% csrf_token %}
 
         <div class="card shadow-sm">
-            <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+          <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
             <span>Weekly Operating Hours</span>
 
             {% if client.is_open_now %}
-                <span class="badge bg-success">Open Now</span>
+              <span class="badge bg-success">Open Now</span>
             {% else %}
-                <span class="badge bg-secondary">Closed Now</span>
+              <span class="badge bg-secondary">Closed Now</span>
             {% endif %}
-            </div>
+          </div>
 
-            <div class="card-body">
+          <div class="card-body">
 
-            <!-- ================= DESKTOP TABLE ================= -->
-            <div class="table-responsive d-none d-md-block">
-                <table class="table align-middle">
+            <div class="table-responsive">
+              <table class="table align-middle">
                 <thead class="table-light">
-                    <tr>
-                    <th style="width: 20%;">Day</th>
-                    <th style="width: 20%;">Closed</th>
-                    <th style="width: 25%;">Opening Time</th>
-                    <th style="width: 25%;">Closing Time</th>
-                    <th style="width: 10%;">Status</th>
-                    </tr>
+                  <tr>
+                    <th style="width:20%;">Day</th>
+                    <th style="width:20%;">Closed</th>
+                    <th style="width:25%;">Opening Time</th>
+                    <th style="width:25%;">Closing Time</th>
+                    <th style="width:10%;">Status</th>
+                  </tr>
                 </thead>
 
                 <tbody>
 
-                    <!-- MONDAY -->
-                    <tr>
+                  <!-- MONDAY -->
+                  <tr>
                     <td class="fw-semibold">Monday</td>
                     <td>
-                        <div class="form-check">
-                        {{ form.MON_is_closed }}
-                        <label class="form-check-label" for="{{ form.MON_is_closed.id_for_label }}">
-                            Closed
-                        </label>
-                        </div>
+                      <div class="form-check">
+                        <input type="checkbox" name="MON_is_closed" id="id_MON_is_closed" class="form-check-input" {% if form.MON_is_closed.value %}checked{% endif %}>
+                        <label class="form-check-label" for="id_MON_is_closed">Closed</label>
+                      </div>
                     </td>
                     <td>
-                        {{ form.MON_open }}
-                        {% if form.MON_open.errors %}
+                      <input type="time" name="MON_open" id="id_MON_open" class="form-control" value="{{ form.MON_open.value|default:'' }}">
+                      {% if form.MON_open.errors %}
                         <div class="text-danger small mt-1">{{ form.MON_open.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td>
-                        {{ form.MON_close }}
-                        {% if form.MON_close.errors %}
+                      <input type="time" name="MON_close" id="id_MON_close" class="form-control" value="{{ form.MON_close.value|default:'' }}">
+                      {% if form.MON_close.errors %}
                         <div class="text-danger small mt-1">{{ form.MON_close.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td><span class="badge bg-light text-dark border">MON</span></td>
-                    </tr>
+                  </tr>
 
-                    <!-- TUESDAY -->
-                    <tr>
+                  <!-- TUESDAY -->
+                  <tr>
                     <td class="fw-semibold">Tuesday</td>
                     <td>
-                        <div class="form-check">
-                        {{ form.TUE_is_closed }}
-                        <label class="form-check-label" for="{{ form.TUE_is_closed.id_for_label }}">
-                            Closed
-                        </label>
-                        </div>
+                      <div class="form-check">
+                        <input type="checkbox" name="TUE_is_closed" id="id_TUE_is_closed" class="form-check-input" {% if form.TUE_is_closed.value %}checked{% endif %}>
+                        <label class="form-check-label" for="id_TUE_is_closed">Closed</label>
+                      </div>
                     </td>
                     <td>
-                        {{ form.TUE_open }}
-                        {% if form.TUE_open.errors %}
+                      <input type="time" name="TUE_open" id="id_TUE_open" class="form-control" value="{{ form.TUE_open.value|default:'' }}">
+                      {% if form.TUE_open.errors %}
                         <div class="text-danger small mt-1">{{ form.TUE_open.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td>
-                        {{ form.TUE_close }}
-                        {% if form.TUE_close.errors %}
+                      <input type="time" name="TUE_close" id="id_TUE_close" class="form-control" value="{{ form.TUE_close.value|default:'' }}">
+                      {% if form.TUE_close.errors %}
                         <div class="text-danger small mt-1">{{ form.TUE_close.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td><span class="badge bg-light text-dark border">TUE</span></td>
-                    </tr>
+                  </tr>
 
-                    <!-- WEDNESDAY -->
-                    <tr>
+                  <!-- WEDNESDAY -->
+                  <tr>
                     <td class="fw-semibold">Wednesday</td>
                     <td>
-                        <div class="form-check">
-                        {{ form.WED_is_closed }}
-                        <label class="form-check-label" for="{{ form.WED_is_closed.id_for_label }}">
-                            Closed
-                        </label>
-                        </div>
+                      <div class="form-check">
+                        <input type="checkbox" name="WED_is_closed" id="id_WED_is_closed" class="form-check-input" {% if form.WED_is_closed.value %}checked{% endif %}>
+                        <label class="form-check-label" for="id_WED_is_closed">Closed</label>
+                      </div>
                     </td>
                     <td>
-                        {{ form.WED_open }}
-                        {% if form.WED_open.errors %}
+                      <input type="time" name="WED_open" id="id_WED_open" class="form-control" value="{{ form.WED_open.value|default:'' }}">
+                      {% if form.WED_open.errors %}
                         <div class="text-danger small mt-1">{{ form.WED_open.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td>
-                        {{ form.WED_close }}
-                        {% if form.WED_close.errors %}
+                      <input type="time" name="WED_close" id="id_WED_close" class="form-control" value="{{ form.WED_close.value|default:'' }}">
+                      {% if form.WED_close.errors %}
                         <div class="text-danger small mt-1">{{ form.WED_close.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td><span class="badge bg-light text-dark border">WED</span></td>
-                    </tr>
+                  </tr>
 
-                    <!-- THURSDAY -->
-                    <tr>
+                  <!-- THURSDAY -->
+                  <tr>
                     <td class="fw-semibold">Thursday</td>
                     <td>
-                        <div class="form-check">
-                        {{ form.THU_is_closed }}
-                        <label class="form-check-label" for="{{ form.THU_is_closed.id_for_label }}">
-                            Closed
-                        </label>
-                        </div>
+                      <div class="form-check">
+                        <input type="checkbox" name="THU_is_closed" id="id_THU_is_closed" class="form-check-input" {% if form.THU_is_closed.value %}checked{% endif %}>
+                        <label class="form-check-label" for="id_THU_is_closed">Closed</label>
+                      </div>
                     </td>
                     <td>
-                        {{ form.THU_open }}
-                        {% if form.THU_open.errors %}
+                      <input type="time" name="THU_open" id="id_THU_open" class="form-control" value="{{ form.THU_open.value|default:'' }}">
+                      {% if form.THU_open.errors %}
                         <div class="text-danger small mt-1">{{ form.THU_open.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td>
-                        {{ form.THU_close }}
-                        {% if form.THU_close.errors %}
+                      <input type="time" name="THU_close" id="id_THU_close" class="form-control" value="{{ form.THU_close.value|default:'' }}">
+                      {% if form.THU_close.errors %}
                         <div class="text-danger small mt-1">{{ form.THU_close.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td><span class="badge bg-light text-dark border">THU</span></td>
-                    </tr>
+                  </tr>
 
-                    <!-- FRIDAY -->
-                    <tr>
+                  <!-- FRIDAY -->
+                  <tr>
                     <td class="fw-semibold">Friday</td>
                     <td>
-                        <div class="form-check">
-                        {{ form.FRI_is_closed }}
-                        <label class="form-check-label" for="{{ form.FRI_is_closed.id_for_label }}">
-                            Closed
-                        </label>
-                        </div>
+                      <div class="form-check">
+                        <input type="checkbox" name="FRI_is_closed" id="id_FRI_is_closed" class="form-check-input" {% if form.FRI_is_closed.value %}checked{% endif %}>
+                        <label class="form-check-label" for="id_FRI_is_closed">Closed</label>
+                      </div>
                     </td>
                     <td>
-                        {{ form.FRI_open }}
-                        {% if form.FRI_open.errors %}
+                      <input type="time" name="FRI_open" id="id_FRI_open" class="form-control" value="{{ form.FRI_open.value|default:'' }}">
+                      {% if form.FRI_open.errors %}
                         <div class="text-danger small mt-1">{{ form.FRI_open.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td>
-                        {{ form.FRI_close }}
-                        {% if form.FRI_close.errors %}
+                      <input type="time" name="FRI_close" id="id_FRI_close" class="form-control" value="{{ form.FRI_close.value|default:'' }}">
+                      {% if form.FRI_close.errors %}
                         <div class="text-danger small mt-1">{{ form.FRI_close.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td><span class="badge bg-light text-dark border">FRI</span></td>
-                    </tr>
+                  </tr>
 
-                    <!-- SATURDAY -->
-                    <tr>
+                  <!-- SATURDAY -->
+                  <tr>
                     <td class="fw-semibold">Saturday</td>
                     <td>
-                        <div class="form-check">
-                        {{ form.SAT_is_closed }}
-                        <label class="form-check-label" for="{{ form.SAT_is_closed.id_for_label }}">
-                            Closed
-                        </label>
-                        </div>
+                      <div class="form-check">
+                        <input type="checkbox" name="SAT_is_closed" id="id_SAT_is_closed" class="form-check-input" {% if form.SAT_is_closed.value %}checked{% endif %}>
+                        <label class="form-check-label" for="id_SAT_is_closed">Closed</label>
+                      </div>
                     </td>
                     <td>
-                        {{ form.SAT_open }}
-                        {% if form.SAT_open.errors %}
+                      <input type="time" name="SAT_open" id="id_SAT_open" class="form-control" value="{{ form.SAT_open.value|default:'' }}">
+                      {% if form.SAT_open.errors %}
                         <div class="text-danger small mt-1">{{ form.SAT_open.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td>
-                        {{ form.SAT_close }}
-                        {% if form.SAT_close.errors %}
+                      <input type="time" name="SAT_close" id="id_SAT_close" class="form-control" value="{{ form.SAT_close.value|default:'' }}">
+                      {% if form.SAT_close.errors %}
                         <div class="text-danger small mt-1">{{ form.SAT_close.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td><span class="badge bg-light text-dark border">SAT</span></td>
-                    </tr>
+                  </tr>
 
-                    <!-- SUNDAY -->
-                    <tr>
+                  <!-- SUNDAY -->
+                  <tr>
                     <td class="fw-semibold">Sunday</td>
                     <td>
-                        <div class="form-check">
-                        {{ form.SUN_is_closed }}
-                        <label class="form-check-label" for="{{ form.SUN_is_closed.id_for_label }}">
-                            Closed
-                        </label>
-                        </div>
+                      <div class="form-check">
+                        <input type="checkbox" name="SUN_is_closed" id="id_SUN_is_closed" class="form-check-input" {% if form.SUN_is_closed.value %}checked{% endif %}>
+                        <label class="form-check-label" for="id_SUN_is_closed">Closed</label>
+                      </div>
                     </td>
                     <td>
-                        {{ form.SUN_open }}
-                        {% if form.SUN_open.errors %}
+                      <input type="time" name="SUN_open" id="id_SUN_open" class="form-control" value="{{ form.SUN_open.value|default:'' }}">
+                      {% if form.SUN_open.errors %}
                         <div class="text-danger small mt-1">{{ form.SUN_open.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td>
-                        {{ form.SUN_close }}
-                        {% if form.SUN_close.errors %}
+                      <input type="time" name="SUN_close" id="id_SUN_close" class="form-control" value="{{ form.SUN_close.value|default:'' }}">
+                      {% if form.SUN_close.errors %}
                         <div class="text-danger small mt-1">{{ form.SUN_close.errors }}</div>
-                        {% endif %}
+                      {% endif %}
                     </td>
                     <td><span class="badge bg-light text-dark border">SUN</span></td>
-                    </tr>
+                  </tr>
 
                 </tbody>
-                </table>
-            </div>
-
-            <!-- ================= MOBILE CARDS ================= -->
-            <div class="d-md-none">
-
-                <!-- Monday -->
-                <div class="border rounded p-3 mb-3 bg-white">
-                <div class="fw-semibold mb-2">Monday</div>
-                <div class="form-check mb-3">{{ form.MON_is_closed }} <label class="form-check-label">Closed</label></div>
-                <div class="mb-2"><label class="form-label small">Opening</label>{{ form.MON_open }}</div>
-                <div><label class="form-label small">Closing</label>{{ form.MON_close }}</div>
-                </div>
-
-                <!-- Tuesday -->
-                <div class="border rounded p-3 mb-3 bg-white">
-                <div class="fw-semibold mb-2">Tuesday</div>
-                <div class="form-check mb-3">{{ form.TUE_is_closed }} <label class="form-check-label">Closed</label></div>
-                <div class="mb-2"><label class="form-label small">Opening</label>{{ form.TUE_open }}</div>
-                <div><label class="form-label small">Closing</label>{{ form.TUE_close }}</div>
-                </div>
-
-                <!-- Wednesday -->
-                <div class="border rounded p-3 mb-3 bg-white">
-                <div class="fw-semibold mb-2">Wednesday</div>
-                <div class="form-check mb-3">{{ form.WED_is_closed }} <label class="form-check-label">Closed</label></div>
-                <div class="mb-2"><label class="form-label small">Opening</label>{{ form.WED_open }}</div>
-                <div><label class="form-label small">Closing</label>{{ form.WED_close }}</div>
-                </div>
-
-                <!-- Thursday -->
-                <div class="border rounded p-3 mb-3 bg-white">
-                <div class="fw-semibold mb-2">Thursday</div>
-                <div class="form-check mb-3">{{ form.THU_is_closed }} <label class="form-check-label">Closed</label></div>
-                <div class="mb-2"><label class="form-label small">Opening</label>{{ form.THU_open }}</div>
-                <div><label class="form-label small">Closing</label>{{ form.THU_close }}</div>
-                </div>
-
-                <!-- Friday -->
-                <div class="border rounded p-3 mb-3 bg-white">
-                <div class="fw-semibold mb-2">Friday</div>
-                <div class="form-check mb-3">{{ form.FRI_is_closed }} <label class="form-check-label">Closed</label></div>
-                <div class="mb-2"><label class="form-label small">Opening</label>{{ form.FRI_open }}</div>
-                <div><label class="form-label small">Closing</label>{{ form.FRI_close }}</div>
-                </div>
-
-                <!-- Saturday -->
-                <div class="border rounded p-3 mb-3 bg-white">
-                <div class="fw-semibold mb-2">Saturday</div>
-                <div class="form-check mb-3">{{ form.SAT_is_closed }} <label class="form-check-label">Closed</label></div>
-                <div class="mb-2"><label class="form-label small">Opening</label>{{ form.SAT_open }}</div>
-                <div><label class="form-label small">Closing</label>{{ form.SAT_close }}</div>
-                </div>
-
-                <!-- Sunday -->
-                <div class="border rounded p-3 mb-3 bg-white">
-                <div class="fw-semibold mb-2">Sunday</div>
-                <div class="form-check mb-3">{{ form.SUN_is_closed }} <label class="form-check-label">Closed</label></div>
-                <div class="mb-2"><label class="form-label small">Opening</label>{{ form.SUN_open }}</div>
-                <div><label class="form-label small">Closing</label>{{ form.SUN_close }}</div>
-                </div>
-
+              </table>
             </div>
 
             <hr>
 
             <div class="d-grid d-md-flex justify-content-md-end gap-2">
-                <a href="{% url 'client-view' client.pk %}" class="btn btn-outline-secondary">
+              <a href="{% url 'client-view' client.pk %}" class="btn btn-outline-secondary">
                 Cancel
-                </a>
+              </a>
 
-                <button type="submit" class="btn btn-primary">
+              <button type="submit" class="btn btn-primary">
                 Save Operating Hours
-                </button>
+              </button>
             </div>
 
-            </div>
+          </div>
         </div>
-        </form>
+      </form>
 
     </div>
-    </main>
+  </main>
 
 
   <!-- SWITCH PLATFORM MODAL -->
