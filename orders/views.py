@@ -47,15 +47,16 @@ def order_list(request):
         .prefetch_related("items")
     )
 
-    # Optional filters
     status = request.GET.get("status")
     channel = request.GET.get("channel")
     q = request.GET.get("q")
 
     if status:
         qs = qs.filter(status=status)
+
     if channel:
         qs = qs.filter(channel=channel)
+
     if q:
         qs = qs.filter(
             Q(client__name__icontains=q) |
@@ -64,34 +65,75 @@ def order_list(request):
             Q(notes__icontains=q)
         )
 
-    # Safe decimal fallbacks
-    ZERO_DEC = Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2))
-    ZERO_INT = Value(0, output_field=IntegerField())
-
-    # A computed fallback for total (inc) if grand_total_inc is 0.00
-    computed_total_fallback = ExpressionWrapper(
-        Coalesce(F("subtotal_excl"), ZERO_DEC) +
-        Coalesce(F("vat_total"), ZERO_DEC) +
-        Coalesce(F("delivery_fee_excl"), ZERO_DEC),
+    ZERO_DEC = Value(
+        Decimal("0.00"),
         output_field=DecimalField(max_digits=12, decimal_places=2)
     )
 
-    qs = qs.annotate(
-        total_quantity=Coalesce(Sum("items__quantity"), ZERO_DEC, output_field=DecimalField(max_digits=12, decimal_places=2)),
-        item_count=Coalesce(Count("items", distinct=True), ZERO_INT, output_field=IntegerField()),
-        total_amount=Coalesce(
-            F("grand_total_inc"),
-            computed_total_fallback,
-            output_field=DecimalField(max_digits=12, decimal_places=2),
-        ),
-    ).order_by("-submitted_at").distinct()
+    ZERO_INT = Value(
+        0,
+        output_field=IntegerField()
+    )
 
-    return render(request, "orders/order_list.html", {
-        "orders": qs,
-        "filter_status": status or "",
-        "filter_channel": channel or "",
-        "search": q or "",
-    })
+    line_excl_expr = ExpressionWrapper(
+        (
+            Coalesce(F("items__unit_price_excl"), ZERO_DEC) -
+            Coalesce(F("items__discount_excl"), ZERO_DEC)
+        ) * Coalesce(F("items__quantity"), ZERO_DEC),
+        output_field=DecimalField(max_digits=12, decimal_places=2)
+    )
+
+    vat_expr = ExpressionWrapper(
+        line_excl_expr * (
+            Coalesce(F("items__vat_percent"), ZERO_DEC) / Decimal("100.00")
+        ),
+        output_field=DecimalField(max_digits=12, decimal_places=2)
+    )
+
+    qs = (
+        qs.annotate(
+            total_quantity=Coalesce(
+                Sum("items__quantity"),
+                ZERO_DEC,
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            item_count=Coalesce(
+                Count("items", distinct=True),
+                ZERO_INT,
+                output_field=IntegerField()
+            ),
+            total_excl=Coalesce(
+                Sum(line_excl_expr),
+                ZERO_DEC,
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            total_vat=Coalesce(
+                Sum(vat_expr),
+                ZERO_DEC,
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+        )
+        .annotate(
+            total_amount=ExpressionWrapper(
+                F("total_excl") + F("total_vat"),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            )
+        )
+        .order_by("-submitted_at")
+        .distinct()
+    )
+
+    return render(
+        request,
+        "orders/order_list.html",
+        {
+            "orders": qs,
+            "filter_status": status or "",
+            "filter_channel": channel or "",
+            "search": q or "",
+        }
+    )
+
 
 
 class OrderForm(ModelForm):
@@ -300,20 +342,23 @@ def order_create(request):
     )
 
 
+
 @login_required
 @staff_required
 def order_edit(request, pk):
-    """
-    Edit an order and its items.
-    Only allows edits for specific statuses.
-    """
-
     order = get_object_or_404(
-        Order.objects.select_related("client").prefetch_related("items__product", "items__category"),
+        Order.objects
+        .select_related("client")
+        .prefetch_related("items__product", "items__category"),
         pk=pk,
     )
 
-    # ✅ Allowed statuses
+    invoice = getattr(order, "invoice", None)
+
+    if invoice and invoice.status == "paid":
+        messages.error(request, "Paid orders cannot be edited.")
+        return redirect("order-view", pk=order.id)
+
     ALLOWED_STATUSES = {
         "pending",
         "approved",
@@ -321,18 +366,26 @@ def order_edit(request, pk):
         "credit_blocked",
     }
 
-    # 🚫 Block editing if not allowed (GET protection)
     if order.status not in ALLOWED_STATUSES:
         messages.error(request, "Order cannot be updated currently.")
         return redirect("order-view", pk=order.id)
 
     if request.method == "POST":
         form = OrderForm(request.POST, instance=order)
-        formset = OrderItemFormSet(request.POST, instance=order, prefix="items")
+        formset = OrderItemFormSet(
+            request.POST,
+            instance=order,
+            prefix="items"
+        )
 
         if form.is_valid() and formset.is_valid():
 
-            # 🔒 Double-check (POST protection)
+            invoice = getattr(order, "invoice", None)
+
+            if invoice and invoice.status == "paid":
+                messages.error(request, "Paid orders cannot be edited.")
+                return redirect("order-view", pk=order.id)
+
             if order.status not in ALLOWED_STATUSES:
                 messages.error(request, "Order cannot be updated currently.")
                 return redirect("order-view", pk=order.id)
@@ -353,9 +406,14 @@ def order_edit(request, pk):
             messages.success(request, f"Order #{order.id} updated.")
             return redirect("order-view", pk=order.id)
 
+        messages.error(request, "Please correct the errors below.")
+
     else:
         form = OrderForm(instance=order)
-        formset = OrderItemFormSet(instance=order, prefix="items")
+        formset = OrderItemFormSet(
+            instance=order,
+            prefix="items"
+        )
 
     return render(
         request,
@@ -367,6 +425,8 @@ def order_edit(request, pk):
             "prefix": "items",
         },
     )
+
+
 
 
 @login_required
@@ -386,11 +446,45 @@ def order_view(request, pk):
     except Exception:
         invoice = None
 
+    invoice_paid = False
+    if invoice and invoice.status == "paid":
+        invoice_paid = True
+
     items = order.items.all().order_by("id")
+
+    item_rows = []
+
+    for item in items:
+        qty = item.quantity or Decimal("0.00")
+        unit_excl = item.unit_price_excl or Decimal("0.00")
+        discount_per_unit = item.discount_excl or Decimal("0.00")
+        vat_pct = item.vat_percent or Decimal("0.00")
+
+        gross_excl = unit_excl * qty
+        discount_total = discount_per_unit * qty
+        line_excl = gross_excl - discount_total
+        vat_amount = line_excl * (vat_pct / Decimal("100.00"))
+        line_inc = line_excl + vat_amount
+
+        discount_pct = Decimal("0.00")
+        if unit_excl > 0 and discount_per_unit > 0:
+            discount_pct = (discount_per_unit / unit_excl) * Decimal("100.00")
+
+        item_rows.append({
+            "item": item,
+            "qty": qty,
+            "unit_excl": unit_excl,
+            "discount_per_unit": discount_per_unit,
+            "discount_total": discount_total,
+            "discount_pct": discount_pct,
+            "vat_pct": vat_pct,
+            "line_excl": line_excl,
+            "vat_amount": vat_amount,
+            "line_inc": line_inc,
+        })
 
     audits = order.audits.all().order_by("-performed_at")
 
-    # 🔹 DELIVERY STOP
     delivery_stop = (
         DeliveryStop.objects
         .filter(order=order)
@@ -404,34 +498,40 @@ def order_view(request, pk):
         {
             "order": order,
             "items": items,
+            "item_rows": item_rows,
             "invoice": invoice,
+            "invoice_paid": invoice_paid,
             "audits": audits,
             "delivery_stop": delivery_stop,
         },
     )
 
-
-
 @login_required
 @staff_required
 def order_delete(request, pk):
-    """
-    Delete an order only if the logged-in user's StaffProfile auth code matches
-    the code typed into the confirmation modal. Uses StaffProfile.check_auth_code()
-    if available; otherwise falls back to a plain string comparison (constant-time).
-    """
-    order = get_object_or_404(Order.objects.select_related("client"), pk=pk)
+    order = get_object_or_404(
+        Order.objects.select_related("client"),
+        pk=pk
+    )
+
+    invoice = getattr(order, "invoice", None)
+
+    if invoice and invoice.status == "paid":
+        messages.error(request, "Paid orders cannot be deleted.")
+        return redirect("order-view", pk=order.pk)
 
     if request.method != "POST":
         messages.error(request, "Please confirm deletion using the Delete button.")
         return redirect("order-view", pk=order.pk)
 
     auth_code = (request.POST.get("auth_code") or "").strip()
+
     if not auth_code:
         messages.error(request, "Authorisation code is required.")
         return redirect("order-view", pk=order.pk)
 
     profile = getattr(request.user, "staff_profile", None)
+
     if not profile:
         messages.error(
             request,
@@ -439,61 +539,105 @@ def order_delete(request, pk):
         )
         return redirect("order-view", pk=order.pk)
 
-    # Validate the code
     is_valid = False
-    # Preferred: secure check if your model provides it
+
     if hasattr(profile, "check_auth_code"):
         try:
             is_valid = profile.check_auth_code(auth_code)
         except Exception:
             is_valid = False
     else:
-        # Fallback if you stored a plain code field named 'employee_auth_code'
         stored = getattr(profile, "employee_auth_code", "") or ""
-        # constant-time compare
         is_valid = bool(stored) and hmac.compare_digest(stored, auth_code)
 
     if not is_valid:
         messages.error(request, "Invalid authorisation code.")
         return redirect("order-view", pk=order.pk)
 
-    # All good – delete the order
     oid = order.pk
     client_label = str(order.client)
+
     try:
         with transaction.atomic():
             order.delete_with_audit(
-            request=request,
-            reason=request.POST.get("reason", ""),
-            auth_verified=True,            # you already validated the staff code
-            auth_method="staff_code",
-        )
+                request=request,
+                reason=request.POST.get("reason", ""),
+                auth_verified=True,
+                auth_method="staff_code",
+            )
 
         messages.success(request, f"Order #{oid} ({client_label}) was deleted.")
         return redirect("staff-orders")
+
     except Exception as e:
         messages.error(request, f"Could not delete order: {e}")
         return redirect("order-view", pk=oid)
-        order.delete
-
-
 
 @login_required
 @staff_required
 def ajax_products_by_category(request):
     cat_id = request.GET.get("category_id")
+
     if not cat_id:
         return JsonResponse({"results": []})
 
-    qs = (
+    products = (
         Product.objects
         .filter(category_id=cat_id)
+        .prefetch_related("pricing_rows")
         .order_by("name")
-        .values("id", "sku", "name", "uom")
     )
-    results = [{"id": p["id"], "text": f'{p["sku"]} · {p["name"]} ({p["uom"]})'} for p in qs]
-    return JsonResponse({"results": results})
 
+    results = []
+
+    for product in products:
+        best_price_excl = None
+        best_vat_percent = None
+
+        active_pricing_rows = product.pricing_rows.filter(is_active=True)
+
+        for pricing in active_pricing_rows:
+            price_excl = pricing.wholesale_price_excl
+            vat_percent = pricing.wholesale_vat_percent
+
+            if price_excl is None or price_excl <= Decimal("0.00"):
+                continue
+
+            if best_price_excl is None or price_excl < best_price_excl:
+                best_price_excl = price_excl
+                best_vat_percent = vat_percent
+
+        if best_price_excl is not None:
+
+            vat_multiplier = (
+                Decimal("1.00") +
+                (best_vat_percent / Decimal("100.00"))
+            )
+
+            best_price_incl = (
+                best_price_excl * vat_multiplier
+            ).quantize(Decimal("0.01"))
+
+            text = (
+                f"{product.sku} · {product.name} "
+                f"({product.uom}) — "
+                f"R{best_price_excl:.2f} excl · "
+                f"R{best_price_incl:.2f} incl"
+            )
+        else:
+            text = (
+                f"{product.sku} · {product.name} "
+                f"({product.uom}) — No active price"
+            )
+
+        results.append({
+            "id": product.id,
+            "text": text,
+            "price_excl": str(best_price_excl or Decimal("0.00")),
+            "vat_percent": str(best_vat_percent or Decimal("0.00")),
+        })
+
+    return JsonResponse({"results": results})
 
 @login_required
 @staff_required

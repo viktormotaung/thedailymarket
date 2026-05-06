@@ -234,6 +234,7 @@
   </aside>
 
   <!-- MAIN CONTENT -->
+  <!-- MAIN CONTENT -->
   <main class="content">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
       <div>
@@ -264,69 +265,101 @@
       {% endif %}
 
       <div class="row g-3">
+
         <!-- Order details -->
         <div class="col-lg-6">
           <div class="card">
             <div class="card-header bg-white"><strong>Order Details</strong></div>
             <div class="card-body">
+
               <div class="mb-3">
                 <label class="form-label" for="{{ form.client.id_for_label }}">Client</label>
                 {{ form.client }}
-                {% if form.client.errors %}<div class="text-danger small">{{ form.client.errors }}</div>{% endif %}
+                {% if form.client.errors %}
+                  <div class="text-danger small">{{ form.client.errors }}</div>
+                {% endif %}
               </div>
+
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label" for="{{ form.order_date.id_for_label }}">Order Date</label>
                   {{ form.order_date }}
-                  {% if form.order_date.errors %}<div class="text-danger small">{{ form.order_date.errors }}</div>{% endif %}
+                  {% if form.order_date.errors %}
+                    <div class="text-danger small">{{ form.order_date.errors }}</div>
+                  {% endif %}
                 </div>
+
                 <div class="col-md-3">
                   <label class="form-label" for="{{ form.channel.id_for_label }}">Channel</label>
                   {{ form.channel }}
-                  {% if form.channel.errors %}<div class="text-danger small">{{ form.channel.errors }}</div>{% endif %}
+                  {% if form.channel.errors %}
+                    <div class="text-danger small">{{ form.channel.errors }}</div>
+                  {% endif %}
                 </div>
+
                 <div class="col-md-3">
                   <label class="form-label" for="{{ form.status.id_for_label }}">Status</label>
                   {{ form.status }}
-                  {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors }}</div>{% endif %}
+                  {% if form.status.errors %}
+                    <div class="text-danger small">{{ form.status.errors }}</div>
+                  {% endif %}
                 </div>
               </div>
+
               <div class="mt-3">
                 <label class="form-label" for="{{ form.customer_notes.id_for_label }}">Customer Notes</label>
                 {{ form.customer_notes }}
-                {% if form.customer_notes.errors %}<div class="text-danger small">{{ form.customer_notes.errors }}</div>{% endif %}
+                {% if form.customer_notes.errors %}
+                  <div class="text-danger small">{{ form.customer_notes.errors }}</div>
+                {% endif %}
               </div>
+
             </div>
           </div>
         </div>
 
-        <!-- Charges -->
+        <!-- Order Totals -->
         <div class="col-lg-6">
           <div class="card">
-            <div class="card-header bg-white"><strong>Charges</strong></div>
+            <div class="card-header bg-white"><strong>Order Totals</strong></div>
             <div class="card-body">
+
+              <div class="d-none">
+                {{ form.discount_total_excl }}
+                {{ form.delivery_fee_excl }}
+                {{ form.delivery_fee_vat_percent }}
+              </div>
+
               <div class="row g-3">
-                <div class="col-md-4">
-                  <label class="form-label" for="{{ form.discount_total_excl.id_for_label }}">Discount (excl)</label>
-                  {{ form.discount_total_excl }}
-                  {% if form.discount_total_excl.errors %}<div class="text-danger small">{{ form.discount_total_excl.errors }}</div>{% endif %}
+                <div class="col-md-6">
+                  <label class="form-label">Total excl</label>
+                  <input type="text" id="order-total-excl" class="form-control" value="0.00" readonly>
                 </div>
-                <div class="col-md-4">
-                  <label class="form-label" for="{{ form.delivery_fee_excl.id_for_label }}">Delivery Fee (excl)</label>
-                  {{ form.delivery_fee_excl }}
-                  {% if form.delivery_fee_excl.errors %}<div class="text-danger small">{{ form.delivery_fee_excl.errors }}</div>{% endif %}
+
+                <div class="col-md-6">
+                  <label class="form-label">VAT Amount</label>
+                  <input type="text" id="order-vat-amount" class="form-control" value="0.00" readonly>
                 </div>
-                <div class="col-md-4">
-                  <label class="form-label" for="{{ form.delivery_fee_vat_percent.id_for_label }}">Delivery VAT %</label>
-                  {{ form.delivery_fee_vat_percent }}
-                  {% if form.delivery_fee_vat_percent.errors %}<div class="text-danger small">{{ form.delivery_fee_vat_percent.errors }}</div>{% endif %}
+
+                <div class="col-md-6">
+                  <label class="form-label">Total Discount</label>
+                  <input type="text" id="order-discount-total" class="form-control" value="0.00" readonly>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label">Total incl</label>
+                  <input type="text" id="order-total-incl" class="form-control fw-bold" value="0.00" readonly>
                 </div>
               </div>
+
               <div class="mt-3">
                 <label class="form-label" for="{{ form.notes.id_for_label }}">Internal Notes</label>
                 {{ form.notes }}
-                {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
+                {% if form.notes.errors %}
+                  <div class="text-danger small">{{ form.notes.errors }}</div>
+                {% endif %}
               </div>
+
             </div>
           </div>
         </div>
@@ -337,25 +370,30 @@
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
               <strong>Items</strong>
               <div class="d-flex gap-2 align-items-center">
-                <span class="small text-muted">Leave “Unit excl” blank to auto-prefill from product pricing.</span>
+                <span class="small text-muted">Product pricing is loaded automatically from active pricing.</span>
                 <button type="button" id="add-item-btn" class="btn btn-sm btn-outline-primary">Add item</button>
               </div>
             </div>
+
             <div class="card-body p-0">
               {{ formset.management_form }}
+
               <div class="table-responsive">
                 <table class="table table-bordered table-striped mb-0">
                   <thead>
                     <tr class="align-middle">
                       <th style="width: 16%">Category</th>
-                      <th style="width: 28%">Product</th>
-                      <th style="width: 10%">Qty</th>
-                      <th style="width: 14%">Unit excl (R)</th>
-                      <th style="width: 14%">Discount excl (R)</th>
-                      <th style="width: 10%">VAT %</th>
-                      <th style="width: 8%" class="text-center">Remove</th>
+                      <th style="width: 26%">Product</th>
+                      <th style="width: 8%">Qty</th>
+                      <th style="width: 12%">Unit Price excl</th>
+                      <th style="width: 8%">VAT %</th>
+                      <th style="width: 10%">VAT Amt</th>
+                      <th style="width: 8%">Disc %</th>
+                      <th style="width: 10%">Total</th>
+                      <th style="width: 6%" class="text-center">Remove</th>
                     </tr>
                   </thead>
+
                   <tbody id="items-tbody">
                     {% for f in formset.forms %}
                       {{ f.id }}
@@ -363,23 +401,41 @@
                         <td>{{ f.category }}</td>
                         <td>{{ f.product }}</td>
                         <td>{{ f.quantity }}</td>
+
                         <td>{{ f.unit_price_excl }}</td>
-                        <td>{{ f.discount_excl }}</td>
                         <td>{{ f.vat_percent }}</td>
+
+                        <td>
+                          <input type="text" class="form-control vat-amount-field" value="0.00" readonly>
+                        </td>
+
+                        <td>
+                          <input type="number" class="form-control discount-percent-field" value="0.00" min="0" max="100" step="0.01">
+                          <div class="d-none">{{ f.discount_excl }}</div>
+                        </td>
+
+                        <td>
+                          <input type="text" class="form-control line-total-field" value="0.00" readonly>
+                        </td>
+
                         <td class="text-center">{{ f.DELETE }}</td>
                       </tr>
+
                       {% if f.non_field_errors %}
-                        <tr><td colspan="7" class="text-danger small">{{ f.non_field_errors }}</td></tr>
+                        <tr>
+                          <td colspan="9" class="text-danger small">{{ f.non_field_errors }}</td>
+                        </tr>
                       {% endif %}
                     {% endfor %}
                   </tbody>
+
                 </table>
               </div>
             </div>
           </div>
         </div>
 
-      </div><!-- /row -->
+      </div>
 
       <div class="d-flex justify-content-end mt-3 gap-2">
         <a href="{% url 'order-view' order.id %}" class="btn btn-outline-secondary">Cancel</a>
@@ -395,9 +451,23 @@
       <td>{{ formset.empty_form.category }}</td>
       <td>{{ formset.empty_form.product }}</td>
       <td>{{ formset.empty_form.quantity }}</td>
+
       <td>{{ formset.empty_form.unit_price_excl }}</td>
-      <td>{{ formset.empty_form.discount_excl }}</td>
       <td>{{ formset.empty_form.vat_percent }}</td>
+
+      <td>
+        <input type="text" class="form-control vat-amount-field" value="0.00" readonly>
+      </td>
+
+      <td>
+        <input type="number" class="form-control discount-percent-field" value="0.00" min="0" max="100" step="0.01">
+        <div class="d-none">{{ formset.empty_form.discount_excl }}</div>
+      </td>
+
+      <td>
+        <input type="text" class="form-control line-total-field" value="0.00" readonly>
+      </td>
+
       <td class="text-center">{{ formset.empty_form.DELETE }}</td>
     </tr>
   </script>
@@ -411,92 +481,245 @@
       const totalFormsInput = document.getElementById(`id_${prefix}-TOTAL_FORMS`);
       const emptyTemplate = document.getElementById("empty-form-row").innerHTML;
 
-      function setOptions(selectEl, options) {
+      function money(value) {
+        const num = parseFloat(value || "0");
+        return isNaN(num) ? "0.00" : num.toFixed(2);
+      }
+
+      function calculateOrderTotals() {
+        let totalExcl = 0;
+        let totalVat = 0;
+        let totalDiscount = 0;
+        let totalIncl = 0;
+
+        tbody.querySelectorAll("tr").forEach(tr => {
+          const qty = parseFloat(tr.querySelector('input[name$="-quantity"]')?.value || "0");
+          const unitExcl = parseFloat(tr.querySelector('input[name$="-unit_price_excl"]')?.value || "0");
+          const vatPct = parseFloat(tr.querySelector('input[name$="-vat_percent"]')?.value || "0");
+          const discountPerUnit = parseFloat(tr.querySelector('input[name$="-discount_excl"]')?.value || "0");
+
+          const grossExcl = qty * unitExcl;
+          const totalDiscountLine = discountPerUnit * qty;
+          const netExcl = grossExcl - totalDiscountLine;
+          const vatAmount = netExcl * (vatPct / 100);
+          const lineIncl = netExcl + vatAmount;
+
+          totalExcl += netExcl;
+          totalVat += vatAmount;
+          totalDiscount += totalDiscountLine;
+          totalIncl += lineIncl;
+        });
+
+        document.getElementById("order-total-excl").value = money(totalExcl);
+        document.getElementById("order-vat-amount").value = money(totalVat);
+        document.getElementById("order-discount-total").value = money(totalDiscount);
+        document.getElementById("order-total-incl").value = money(totalIncl);
+      }
+
+      function calculateRowTotals(tr) {
+        const qtyInput = tr.querySelector('input[name$="-quantity"]');
+        const unitInput = tr.querySelector('input[name$="-unit_price_excl"]');
+        const vatInput = tr.querySelector('input[name$="-vat_percent"]');
+        const discountExclInput = tr.querySelector('input[name$="-discount_excl"]');
+
+        const vatAmountField = tr.querySelector(".vat-amount-field");
+        const discountPercentField = tr.querySelector(".discount-percent-field");
+        const lineTotalField = tr.querySelector(".line-total-field");
+
+        const qty = parseFloat(qtyInput?.value || "0");
+        const unitExcl = parseFloat(unitInput?.value || "0");
+        const vatPct = parseFloat(vatInput?.value || "0");
+
+        let discPct = parseFloat(discountPercentField?.value || "0");
+
+        const discountPerUnit = unitExcl * (discPct / 100);
+        const totalDiscountLine = discountPerUnit * qty;
+        const grossExcl = qty * unitExcl;
+        const netExcl = grossExcl - totalDiscountLine;
+        const vatAmount = netExcl * (vatPct / 100);
+        const lineTotal = netExcl + vatAmount;
+
+        if (discountExclInput) discountExclInput.value = money(discountPerUnit);
+        if (vatAmountField) vatAmountField.value = money(vatAmount);
+        if (lineTotalField) lineTotalField.value = money(lineTotal);
+
+        calculateOrderTotals();
+      }
+
+      function hydrateDiscountPercent(tr) {
+        const unitInput = tr.querySelector('input[name$="-unit_price_excl"]');
+        const discountExclInput = tr.querySelector('input[name$="-discount_excl"]');
+        const discountPercentField = tr.querySelector(".discount-percent-field");
+
+        const unitExcl = parseFloat(unitInput?.value || "0");
+        const discountPerUnit = parseFloat(discountExclInput?.value || "0");
+
+        if (discountPercentField && unitExcl > 0 && discountPerUnit > 0) {
+          discountPercentField.value = money((discountPerUnit / unitExcl) * 100);
+        }
+      }
+
+      function setOptions(selectEl, options, keepValue = false, previousText = "") {
+        const prev = keepValue ? selectEl.value : "";
+
         selectEl.innerHTML = "";
+
         const opt0 = document.createElement("option");
         opt0.value = "";
-        opt0.textContent = (options && options.length) ? "— Select product —" : "No products";
+        opt0.textContent = options.length ? "— Select product —" : "No products";
         selectEl.appendChild(opt0);
-        (options || []).forEach(o => {
+
+        options.forEach(o => {
           const opt = document.createElement("option");
           opt.value = o.id;
           opt.textContent = o.text;
+
+          opt.dataset.priceExcl = o.price_excl || "0.00";
+          opt.dataset.vatPercent = o.vat_percent || "0.00";
+
           selectEl.appendChild(opt);
         });
+
+        if (keepValue && prev) {
+          selectEl.value = prev;
+
+          if (!selectEl.value && previousText) {
+            const fallback = document.createElement("option");
+            fallback.value = prev;
+            fallback.textContent = previousText;
+            fallback.selected = true;
+            selectEl.appendChild(fallback);
+          }
+        }
       }
 
-      async function loadProductsForCategory(catId, productSelect, { keepValue = false, allowFallback = false } = {}) {
-        const prevVal  = productSelect.value || "";
+      function applyProductPricing(tr) {
+        const prodSel = tr.querySelector('select[name$="-product"]');
+        const priceInput = tr.querySelector('input[name$="-unit_price_excl"]');
+        const vatInput = tr.querySelector('input[name$="-vat_percent"]');
+
+        if (!prodSel) return;
+
+        const selectedOption = prodSel.options[prodSel.selectedIndex];
+
+        if (!selectedOption || !selectedOption.value) return;
+
+        const priceExcl = selectedOption.dataset.priceExcl;
+        const vatPercent = selectedOption.dataset.vatPercent;
+
+        if (priceInput && priceExcl) priceInput.value = priceExcl;
+        if (vatInput && vatPercent) vatInput.value = vatPercent;
+
+        calculateRowTotals(tr);
+      }
+
+      function setOptionsToLoading(selectEl) {
+        selectEl.innerHTML = "";
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "Loading products...";
+        selectEl.appendChild(opt);
+      }
+
+      async function loadProductsForCategory(catId, productSelect, { keepValue = false } = {}) {
+        const prevVal = productSelect.value || "";
         const prevText = productSelect.options[productSelect.selectedIndex]?.text || "";
-        setOptions(productSelect, []);         // clear while loading
+
+        setOptionsToLoading(productSelect);
         productSelect.disabled = true;
 
         try {
           const url = new URL(API_URL, window.location.origin);
           url.searchParams.set("category_id", catId || "");
-          const res  = await fetch(url.toString(), { credentials: "same-origin", cache: "no-store" });
+
+          const res = await fetch(url.toString(), {
+            credentials: "same-origin",
+            cache: "no-store"
+          });
+
           const data = await res.json();
-
-          let list = data.results || [];
-
-          // On edit load: keep already-selected product visible even if API doesn't return it
-          if (keepValue && prevVal) {
-            const exists = list.some(o => String(o.id) === String(prevVal));
-            if (!exists && allowFallback) {
-              list = [{ id: prevVal, text: prevText || "Current selection" }, ...list];
-            }
-          }
-
-          setOptions(productSelect, list);
+          setOptions(productSelect, data.results || [], keepValue, prevText);
 
           if (keepValue && prevVal) {
-            productSelect.value = prevVal; // re-select previous product
+            productSelect.value = prevVal;
           }
+
+          const tr = productSelect.closest("tr");
+          if (tr) calculateRowTotals(tr);
+
         } catch (e) {
-          setOptions(productSelect, []);
+          setOptions(productSelect, [], keepValue, prevText);
         } finally {
           productSelect.disabled = false;
         }
       }
 
       function wireRow(tr) {
-        const catSel  = tr.querySelector('select[name$="-category"]');
+        const catSel = tr.querySelector('select[name$="-category"]');
         const prodSel = tr.querySelector('select[name$="-product"]');
-        if (!catSel || !prodSel) return;
 
-        // When user changes category: reset product and load fresh options
+        const qtyInput = tr.querySelector('input[name$="-quantity"]');
+        const unitInput = tr.querySelector('input[name$="-unit_price_excl"]');
+        const vatInput = tr.querySelector('input[name$="-vat_percent"]');
+        const discountPercentField = tr.querySelector(".discount-percent-field");
+
+        if (unitInput) unitInput.readOnly = true;
+        if (vatInput) vatInput.readOnly = true;
+
+        hydrateDiscountPercent(tr);
+
+        [qtyInput, discountPercentField].forEach(input => {
+          if (input) {
+            input.addEventListener("input", () => calculateRowTotals(tr));
+          }
+        });
+
+        if (!catSel || !prodSel) {
+          calculateRowTotals(tr);
+          return;
+        }
+
         catSel.addEventListener("change", () => {
           const catId = catSel.value || "";
           prodSel.value = "";
+
           if (catId) {
             loadProductsForCategory(catId, prodSel, { keepValue: false });
           } else {
             setOptions(prodSel, []);
           }
+
+          calculateRowTotals(tr);
         });
 
-        // Initial hydrate on EDIT: keep existing product selection
+        prodSel.addEventListener("change", () => {
+          applyProductPricing(tr);
+        });
+
         if (catSel.value) {
-          loadProductsForCategory(catSel.value, prodSel, { keepValue: true, allowFallback: true });
-        } else {
-          setOptions(prodSel, []);
+          loadProductsForCategory(catSel.value, prodSel, { keepValue: true });
         }
+
+        calculateRowTotals(tr);
       }
 
-      // Wire existing rows (important for Edit page)
       tbody.querySelectorAll("tr").forEach(wireRow);
 
-      // Add new row + wire it
       addBtn?.addEventListener("click", function () {
         const index = parseInt(totalFormsInput.value || "0", 10);
         const rowHtml = emptyTemplate.replace(/__prefix__/g, String(index));
+
         tbody.insertAdjacentHTML("beforeend", rowHtml);
         totalFormsInput.value = index + 1;
 
         const rows = tbody.querySelectorAll("tr");
         const newRow = rows[rows.length - 1];
+
         wireRow(newRow);
+        calculateOrderTotals();
       });
+
+      calculateOrderTotals();
     });
   </script>
 
