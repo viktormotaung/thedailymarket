@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 from core.dummy_admin import dummy_admin_site
 from online_payments import views as payment_views
 from orders import views as order_views
+from invoices import views as invoice_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -31,6 +32,7 @@ urlpatterns = [
     path("payment/error/", payment_views.payment_error, name="payment_error"),
     path("payments/", include("online_payments.urls")),
     path("orders/q/<uuid:token>/", order_views.public_quotation_view, name="public-quotation-view",),
+    path("invoices/public/<uuid:token>/", invoice_views.public_invoice_view, name="public-invoice-view",),
 
     
 
