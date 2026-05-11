@@ -10,5 +10,14 @@ urlpatterns = [
     path("orders/<int:pk>/delete/", views.order_delete, name="order-delete"),
     path("ajax/products-by-category/", views.ajax_products_by_category, name="ajax-products-by-category"),
     path("delivery-note/<int:stop_id>/",views.delivery_note_view,name="delivery-note-view"),
-    path("delivery-note/<int:stop_id>/email/",views.send_delivery_note_email,name="delivery-note-email",)
+    path("delivery-note/<int:stop_id>/email/",views.send_delivery_note_email,name="delivery-note-email",),
+    path("quotations/", views.quotation_list, name="staff-quotations"), 
+    path("quotations/new/", views.quotation_create, name="quotation-create"),
+    path("quotations/<int:pk>/view/", views.quotation_view, name="quotation-view"),
+    path("quotations/<int:pk>/edit/", views.quotation_edit, name="quotation-edit"),
+    path("q/<uuid:token>/", views.public_quotation_view, name="public_quotation_view",),
+    path("quotations/<int:pk>/send-whatsapp/", views.send_quotation_whatsapp_view, name="send-quotation-whatsapp",),
+    path("orders/q/<uuid:token>/accept/", views.public_accept_quotation_view, name="public-quotation-accept",),
+    path("orders/q/<uuid:token>/reject/", views.public_reject_quotation_view, name="public-quotation-reject",),
+    
 ]

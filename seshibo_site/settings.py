@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     "django_extensions",
     "payments",
     "online_payments",
+    "communications",
 
     # third party
     'django_celery_beat',
@@ -356,3 +357,6 @@ OZOW_ONEAPI_WEBHOOK_ID = ""
 OZOW_ONEAPI_WEBHOOK_SECRET = ""
 
 
+WHATSAPP_ACCESS_TOKEN= "EAAjsvUGFTt4BRRxOXkONkZBBLAkXrgom2L06BIgwMVNHFZCJXdj8r63eWxVskKyDCGhzgw9lpz8XRbYILZAaOteZCllQHj7IjE79u3o0ZCEoZAZCkwKO50yNpU0k4iIZCCqzafDcuAA1CWZCLa1cp9J1U0uZBo8GgPtLjEghIa6VverNuERRPeTaAE4NQehqNpaEtP7DRPZALyW2p2OpWWnV1hzuso4LAWikvRbESZCZB9dlQ4MAAYfbT9SailI6scxBp69f98lWOE3Us4ZACcotIEzqFw"
+WHATSAPP_PHONE_NUMBER_ID= "1114667525067344"
+SITE_URL = "https://www.thedailymarket.co.za"

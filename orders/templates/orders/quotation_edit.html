@@ -1,0 +1,1373 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Quotation - The Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    /* --- Desktop: fixed (non-movable) sidebar --- */
+    @media (min-width: 992px) {
+      html, body { height: 100%; }
+      body { min-height: 100vh; overflow-x: hidden; }
+
+      .sidebar-desktop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 220px;
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: visible !important; /* allow dropdown to show */
+      }
+
+      /* ✅ Let Bootstrap control dropdown positioning */
+      .sidebar-desktop .dropdown {
+        position: relative;
+      }
+
+      
+
+      .sidebar-desktop .dropdown-menu {
+        margin-top: 8px;
+      }
+
+      main.content {
+        margin-left: 220px;
+        min-height: 100vh;
+      }
+    }
+
+    /* Shared styles */
+    .sidebar-skin {
+      background-color: #0b5c39;
+      color: #fff;
+      padding: 1rem;
+    }
+
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: .25rem 0;
+      display: block;
+    }
+
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+
+    .logo-img {
+      max-height: 80px;
+      width: auto;
+    }
+
+    .content {
+      background: #f8f9fa;
+      padding: 20px;
+    }
+
+    .sidebar-skin .nav-link.ps-4 {
+      font-size: .95rem;
+      opacity: .95;
+    }
+
+    /* --- Compact chart height --- */
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 220px;
+    }
+
+    @media (max-width: 991.98px) {
+      .chart-wrap { height: 180px; }
+    }
+
+    @media (max-width: 575.98px) {
+      .chart-wrap { height: 150px; }
+    }
+
+    .chart-wrap canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  
+
+  <!-- MOBILE OFFCANVAS MENU -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+  <div class="container-fluid">
+    <button class="navbar-toggler" type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#mobileMenu"
+            aria-controls="mobileMenu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <a class="navbar-brand ms-2" href="#">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+    </a>
+
+    <!-- Mobile Notifications -->
+    <div class="dropdown">
+      <a class="nav-link text-white position-relative p-0"
+        href="#"
+        role="button"
+        data-bs-toggle="dropdown"
+        aria-expanded="false">
+        <i class="bi bi-bell fs-5"></i>
+
+        <span id="mobileNotificationBadge"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger {% if not nav_unread_notifications_count %}d-none{% endif %}">
+          {{ nav_unread_notifications_count }}
+        </span>
+      </a>
+
+      <ul id="mobileNotificationDropdown"
+          class="dropdown-menu dropdown-menu-end shadow"
+          style="min-width: 260px;">
+
+        <li class="dropdown-header fw-semibold">Notifications</li>
+
+        <li>
+          <a href="{% url 'tickets' %}"
+            class="dropdown-item d-flex justify-content-between align-items-center gap-3">
+            <span>Open Tickets</span>
+            <span id="mobileOpenTicketsCount"
+                  class="badge rounded-pill bg-danger ms-auto">
+              {{ nav_unopened_ticket_count|default:0 }}
+            </span>
+          </a>
+        </li>
+
+        <li>
+          <a href="{% url 'tasks' %}"
+            class="dropdown-item d-flex justify-content-between align-items-center gap-3">
+            <span>Open Tasks</span>
+            <span id="mobileOpenTasksCount"
+                  class="badge rounded-pill bg-danger ms-auto">
+              {{ nav_unopened_task_count|default:0 }}
+            </span>
+          </a>
+        </li>
+
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="offcanvas offcanvas-start d-lg-none sidebar-skin"
+      tabindex="-1"
+      id="mobileMenu">
+
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title">Staff Navigation</h5>
+      <button type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="offcanvas"></button>
+    </div>
+
+    <!-- ACCORDION CONTAINER -->
+    <div class="offcanvas-body" id="mobileAccordion">
+
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" class="logo-img">
+      </div>
+
+      <h6 class="text-uppercase fw-semibold mb-2">
+        <a href="#"
+          class="text-decoration-none text-reset">
+          Main Staff Platform
+        </a>
+      </h6>
+
+    <hr class="border-light">
+
+      {% with current=request.resolver_match.url_name %}
+
+      <!-- Dashboard -->
+      <a href="{% url 'staff-dashboard' %}"
+        class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">
+        Dashboard
+      </a>
+
+      <!-- Clients -->
+      <a href="{% url 'staff-clients' %}"
+        class="nav-link {% if current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' %}active{% endif %}">
+        Clients
+      </a>
+
+      <!-- Sales -->
+      <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+          data-bs-toggle="collapse"
+          href="#salesMenuMobile"
+          aria-expanded="{% if current == 'staff-orders' or current == 'staff-invoices' %}true{% else %}false{% endif %}">
+          <span>Sales</span>
+        </a>
+
+        <div class="collapse {% if current == 'staff-orders' or current == 'staff-invoices' %}show{% endif %}"
+            id="salesMenuMobile"
+            data-bs-parent="#mobileAccordion">
+          <a href="{% url 'staff-quotations' %}"
+            class="nav-link ps-4 {% if current == 'staff-quotations' %}active{% endif %}">
+            Quotations
+          </a>
+          <a href="{% url 'staff-orders' %}"
+            class="nav-link ps-4 {% if current == 'staff-orders' %}active{% endif %}">
+            Orders
+          </a>
+          <a href="{% url 'staff-invoices' %}"
+            class="nav-link ps-4 {% if current == 'staff-invoices' %}active{% endif %}">
+            Invoices
+          </a>
+        </div>
+      </div>
+
+      <!-- Finance -->
+      <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+          data-bs-toggle="collapse"
+          href="#financeMenuMobile"
+          aria-expanded="{% if current == 'staff-transactions' or current == 'staff-credit' %}true{% else %}false{% endif %}">
+          <span>Finance</span>
+        </a>
+
+        <div class="collapse {% if current == 'staff-transactions' or current == 'staff-credit' %}show{% endif %}"
+            id="financeMenuMobile"
+            data-bs-parent="#mobileAccordion">
+          <a href="{% url 'staff-transactions' %}"
+            class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
+            Transactions
+          </a>
+          <a href="{% url 'staff-credit' %}"
+            class="nav-link ps-4 {% if current == 'staff-credit' %}active{% endif %}">
+            Credit
+          </a>
+          <a href="{% url 'funder-list' %}"
+            class="nav-link ps-4 {% if current == 'funder-list' %}active{% endif %}">
+            Funder
+          </a>
+          <a href="{% url 'online_payments:payment-list' %}"
+            class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
+            Payments
+          </a>
+        </div>
+      </div>
+
+      <!-- Logistics -->
+      <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+          data-bs-toggle="collapse"
+          href="#logisticsMenuMobile"
+          aria-expanded="{% if current == 'warehouse' or current == 'delivery' %}true{% else %}false{% endif %}">
+          <span>Logistics</span>
+        </a>
+
+        <div class="collapse {% if current == 'warehouse' or current == 'delivery' %}show{% endif %}"
+            id="logisticsMenuMobile"
+            data-bs-parent="#mobileAccordion">
+          <a href="{% url 'warehouse' %}?view=warehouse"
+            class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">
+            Warehouse
+          </a>
+          <a href="{% url 'delivery' %}?view=runs"
+            class="nav-link ps-4 {% if current == 'delivery' %}active{% endif %}">
+            Deliveries
+          </a>
+          <a class="nav-link ps-4 text-muted disabled">Monitor View</a>
+        </div>
+      </div>
+
+      <!-- Supply Chain -->
+      <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+          data-bs-toggle="collapse"
+          href="#supplyChainMenuMobile"
+          aria-expanded="{% if current == 'staff-suppliers' or current == 'staff-products' %}true{% else %}false{% endif %}">
+          <span>Supply Chain</span>
+        </a>
+
+        <div class="collapse {% if current == 'staff-suppliers' or current == 'staff-products' %}show{% endif %}"
+            id="supplyChainMenuMobile"
+            data-bs-parent="#mobileAccordion">
+          <a href="{% url 'staff-suppliers' %}"
+            class="nav-link ps-4 {% if current == 'staff-suppliers' %}active{% endif %}">
+            Suppliers
+          </a>
+          <a href="{% url 'staff-products' %}"
+            class="nav-link ps-4 {% if current == 'staff-products' %}active{% endif %}">
+            Products
+          </a>
+        </div>
+      </div>
+
+      <!-- Profiles -->
+      <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+          data-bs-toggle="collapse"
+          href="#profilesMenuMobile"
+          aria-expanded="{% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}true{% else %}false{% endif %}">
+          <span>Profiles</span>
+        </a>
+
+        <div class="collapse {% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}show{% endif %}"
+            id="profilesMenuMobile"
+            data-bs-parent="#mobileAccordion">
+          <a href="{% url 'my_profile' %}"
+            class="nav-link ps-4 {% if current == 'my_profile' %}active{% endif %}">
+            My Profile
+          </a>
+          <a href="{% url 'staff_profile' %}"
+            class="nav-link ps-4 {% if current == 'staff_profile' %}active{% endif %}">
+            Staff
+          </a>
+          <a href="{% url 'customer_profile' %}"
+            class="nav-link ps-4 {% if current == 'customer_profile' %}active{% endif %}">
+            Customer
+          </a>
+        </div>
+      </div>
+
+      <!-- Support -->
+      <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+          data-bs-toggle="collapse"
+          href="#supportMenuMobile"
+          aria-expanded="{% if current == 'tasks' %}true{% else %}false{% endif %}">
+          <span>Support</span>
+        </a>
+
+        <div class="collapse {% if current in 'tasks tickets' %}show{% endif %}"
+            id="supportMenuMobile"
+            data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'tasks' %}"
+            class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
+            Tasks
+          </a>
+
+          <a href="{% url 'tickets' %}"
+            class="nav-link ps-4 {% if current == 'tickets' %}active{% endif %}">
+            Tickets
+          </a>
+
+        </div>
+      </div>
+
+      <hr class="border-light">
+
+      <!-- Sign out -->
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light w-100">Sign out</button>
+      </form>
+
+      <hr class="border-light">
+
+      <a href="#"
+        class="nav-link"
+        data-bs-toggle="modal"
+        data-bs-target="#switchPlatformModal">
+        Switch Platform
+      </a>
+
+      {% endwith %}
+
+    </div>
+  </div>
+
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin"
+        id="desktopAccordion">
+
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div class="text-center flex-grow-1">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <!-- Desktop Notifications -->
+      <div class="ms-2 position-relative" style="width: max-content;">
+
+        <!-- Bell -->
+        <a class="nav-link text-white position-relative p-0"
+          href="#"
+          data-bs-toggle="collapse"
+          data-bs-target="#desktopNotificationDropdown"
+          aria-expanded="false">
+
+          <i class="bi bi-bell fs-5"></i>
+
+          <span id="desktopNotificationBadge"
+                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger {% if not nav_unread_notifications_count %}d-none{% endif %}">
+            {{ nav_unread_notifications_count }}
+          </span>
+        </a>
+
+        <!-- Panel -->
+        <div id="desktopNotificationDropdown"
+            class="collapse bg-white text-dark rounded shadow p-2"
+            style="position:absolute; top:35px; right:0; width:220px;">
+
+          <div class="fw-semibold mb-2 px-2">Notifications</div>
+
+          <a href="{% url 'tickets' %}"
+            class="d-flex justify-content-between align-items-center px-2 py-1 text-decoration-none text-dark">
+            <span>Open Tickets</span>
+            <span id="desktopOpenTicketsCount"
+                  class="badge rounded-pill bg-danger">
+              {{ nav_unopened_ticket_count|default:0 }}
+            </span>
+          </a>
+
+          <a href="{% url 'tasks' %}"
+            class="d-flex justify-content-between align-items-center px-2 py-1 text-decoration-none text-dark">
+            <span>Open Tasks</span>
+            <span id="desktopOpenTasksCount"
+                  class="badge rounded-pill bg-danger">
+              {{ nav_unopened_task_count|default:0 }}
+            </span>
+          </a>
+
+        </div>
+
+      </div>
+    </div>
+
+    <h6 class="text-uppercase fw-semibold mb-2">
+      <a href="#"
+        class="text-decoration-none text-reset">
+        Main Staff Platform
+      </a>
+    </h6>
+
+    <hr class="border-light">
+
+    {% with current=request.resolver_match.url_name %}
+
+    <!-- Dashboard -->
+    <a href="{% url 'staff-dashboard' %}"
+      class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">
+      Dashboard
+    </a>
+
+    <!-- Clients -->
+    <a href="{% url 'staff-clients' %}"
+      class="nav-link {% if current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' %}active{% endif %}">
+      Clients
+    </a>
+
+    <!-- Sales -->
+    <div class="mb-2">
+      <a class="nav-link d-flex justify-content-between"
+        data-bs-toggle="collapse"
+        href="#salesMenuDesktop"
+        aria-expanded="{% if current == 'staff-orders' or current == 'staff-invoices' %}true{% else %}false{% endif %}">
+        <span>Sales</span>
+      </a>
+
+      <div class="collapse {% if current == 'staff-orders' or current == 'staff-invoices' %}show{% endif %}"
+          id="salesMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+        <a href="{% url 'staff-quotations' %}"
+          class="nav-link ps-4 {% if current == 'staff-quotations' %}active{% endif %}">
+          Quotations
+        </a>
+        <a href="{% url 'staff-orders' %}"
+          class="nav-link ps-4 {% if current == 'staff-orders' %}active{% endif %}">
+          Orders
+        </a>
+        <a href="{% url 'staff-invoices' %}"
+          class="nav-link ps-4 {% if current == 'staff-invoices' %}active{% endif %}">
+          Invoices
+        </a>
+      </div>
+    </div>
+
+    <!-- Finance -->
+    <div class="mb-2">
+      <a class="nav-link d-flex justify-content-between"
+        data-bs-toggle="collapse"
+        href="#financeMenuDesktop"
+        aria-expanded="{% if current == 'staff-transactions' or current == 'staff-credit' %}true{% else %}false{% endif %}">
+        <span>Finance</span>
+      </a>
+
+      <div class="collapse {% if current == 'staff-transactions' or current == 'staff-credit' %}show{% endif %}"
+          id="financeMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+        <a href="{% url 'staff-transactions' %}"
+          class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
+          Transactions
+        </a>
+        <a href="{% url 'staff-credit' %}"
+          class="nav-link ps-4 {% if current == 'staff-credit' %}active{% endif %}">
+          Credit
+        </a>
+        <a href="{% url 'funder-list' %}"
+          class="nav-link ps-4 {% if current == 'funder-list' %}active{% endif %}">
+          Funder
+        </a>
+        <a href="{% url 'online_payments:payment-list' %}"
+          class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
+          Payments
+        </a>
+      </div>
+    </div>
+
+    <!-- Logistics -->
+    <div class="mb-2">
+      <a class="nav-link d-flex justify-content-between"
+        data-bs-toggle="collapse"
+        href="#logisticsMenuDesktop"
+        aria-expanded="{% if current == 'warehouse' or current == 'delivery' %}true{% else %}false{% endif %}">
+        <span>Logistics</span>
+      </a>
+
+      <div class="collapse {% if current == 'warehouse' or current == 'delivery' %}show{% endif %}"
+          id="logisticsMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+        <a href="{% url 'warehouse' %}?view=warehouse"
+          class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">
+          Warehouse
+        </a>
+        <a href="{% url 'delivery' %}?view=runs"
+          class="nav-link ps-4 {% if current == 'delivery' %}active{% endif %}">
+          Deliveries
+        </a>
+        <a href="{% url 'monitor' %}?view=runs"
+          class="nav-link ps-4 {% if current == 'monitor' %}active{% endif %}">
+          Monitor View
+        </a>
+      </div>
+    </div>
+
+    <!-- Supply Chain -->
+    <div class="mb-2">
+      <a class="nav-link d-flex justify-content-between"
+        data-bs-toggle="collapse"
+        href="#supplyChainMenuDesktop"
+        aria-expanded="{% if current == 'staff-suppliers' or current == 'staff-products' %}true{% else %}false{% endif %}">
+        <span>Supply Chain</span>
+      </a>
+
+      <div class="collapse {% if current == 'staff-suppliers' or current == 'staff-products' %}show{% endif %}"
+          id="supplyChainMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+        <a href="{% url 'staff-suppliers' %}"
+          class="nav-link ps-4 {% if current == 'staff-suppliers' %}active{% endif %}">
+          Suppliers
+        </a>
+        <a href="{% url 'staff-products' %}"
+          class="nav-link ps-4 {% if current == 'staff-products' %}active{% endif %}">
+          Products
+        </a>
+      </div>
+    </div>
+
+    <!-- Profiles -->
+    <div class="mb-2">
+      <a class="nav-link d-flex justify-content-between"
+        data-bs-toggle="collapse"
+        href="#profilesMenuDesktop"
+        aria-expanded="{% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}true{% else %}false{% endif %}">
+        <span>Profiles</span>
+      </a>
+
+      <div class="collapse {% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}show{% endif %}"
+          id="profilesMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+        <a href="{% url 'my_profile' %}"
+          class="nav-link ps-4 {% if current == 'my_profile' %}active{% endif %}">
+          My Profile
+        </a>
+        <a href="{% url 'staff_profile' %}"
+          class="nav-link ps-4 {% if current == 'staff_profile' %}active{% endif %}">
+          Staff
+        </a>
+        <a href="{% url 'customer_profile' %}"
+          class="nav-link ps-4 {% if current == 'customer_profile' %}active{% endif %}">
+          Customer
+        </a>
+      </div>
+    </div>
+
+    <!-- Support -->
+    <div class="mb-2">
+      <a class="nav-link d-flex justify-content-between"
+        data-bs-toggle="collapse"
+        href="#supportMenuDesktop"
+        aria-expanded="{% if current == 'tasks' %}true{% else %}false{% endif %}">
+        <span>Support</span>
+      </a>
+
+      <div class="collapse {% if current in 'tasks tickets' %}show{% endif %}"
+          id="supportMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'tasks' %}"
+          class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
+          Tasks
+        </a>
+
+        <a href="{% url 'tickets' %}"
+          class="nav-link ps-4 {% if current == 'tickets' %}active{% endif %}">
+          Tickets
+        </a>
+
+      </div>
+    </div>
+
+    <!-- Sign out -->
+    <div class="mt-3">
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit"
+                class="nav-link btn btn-link text-start w-100 p-0 text-white">
+          Sign out
+        </button>
+      </form>
+    </div>
+
+    <hr class="border-light">
+
+    <a href="#"
+      class="nav-link"
+      data-bs-toggle="modal"
+      data-bs-target="#switchPlatformModal">
+      Switch Platform
+    </a>
+
+    {% endwith %}
+
+  </aside>
+
+
+    <main class="content">
+
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+          <h2 class="m-0">Edit Quotation #{{ quotation.id }}</h2>
+
+          <div class="text-muted small mt-1">
+            {% if quotation.client %}
+              Client: {{ quotation.client }}
+            {% elif quotation.prospect %}
+              Prospect: {{ quotation.prospect }}
+            {% else %}
+              No linked target
+            {% endif %}
+            · Created {{ quotation.quotation_date|date:"Y-m-d H:i" }}
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a href="{% url 'quotation-view' quotation.id %}" class="btn btn-outline-secondary">
+            Cancel
+          </a>
+
+          <a href="{% url 'staff-quotations' %}" class="btn btn-outline-secondary">
+            Back to Quotations
+          </a>
+        </div>
+      </div>
+
+      {% if messages %}
+        <div class="mt-3">
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <form method="post" class="mt-3">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="row g-3">
+
+          <!-- Quotation Details -->
+          <div class="col-lg-6">
+            <div class="card">
+              <div class="card-header bg-white">
+                <strong>Quotation Details</strong>
+              </div>
+
+              <div class="card-body">
+
+                <!-- Read-only target -->
+                <div class="mb-3">
+                  <label class="form-label">
+                    {% if quotation.client %}
+                      Client
+                    {% elif quotation.prospect %}
+                      Prospect
+                    {% else %}
+                      Quotation For
+                    {% endif %}
+                  </label>
+
+                  <input type="text"
+                        class="form-control"
+                        value="{% if quotation.client %}{{ quotation.client }}{% elif quotation.prospect %}{{ quotation.prospect }}{% else %}—{% endif %}"
+                        readonly>
+
+                  <div class="form-text">
+                    This cannot be changed after the quotation is created.
+                  </div>
+                </div>
+
+                <!-- Keep existing relation values submitted -->
+                <div class="d-none">
+                  {{ form.client }}
+                  {{ form.prospect }}
+                </div>
+
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Quotation Date</label>
+                    <input type="text"
+                          class="form-control"
+                          value="{{ quotation.quotation_date|date:'Y-m-d H:i' }}"
+                          readonly>
+                  </div>
+
+                  <div class="col-md-3">
+                    <label class="form-label" for="{{ form.status.id_for_label }}">
+                      Status
+                    </label>
+
+                    <select name="{{ form.status.name }}"
+                            id="{{ form.status.id_for_label }}"
+                            class="form-select">
+                      {% for value, label in form.fields.status.choices %}
+                        <option value="{{ value }}"
+                          {% if form.status.value == value %}selected{% endif %}>
+                          {{ label }}
+                        </option>
+                      {% endfor %}
+                    </select>
+
+                    {% if form.status.errors %}
+                      <div class="text-danger small">
+                        {{ form.status.errors }}
+                      </div>
+                    {% endif %}
+                  </div>
+
+                  <div class="col-md-3">
+                    <label class="form-label">Valid Until</label>
+                    <input type="text"
+                          class="form-control"
+                          value="{{ quotation.valid_until|date:'Y-m-d' }}"
+                          readonly>
+                  </div>
+                </div>
+
+                <div class="mt-3">
+                  <label class="form-label">Customer Notes</label>
+                  {{ form.customer_notes }}
+
+                  {% if form.customer_notes.errors %}
+                    <div class="text-danger small">
+                      {{ form.customer_notes.errors }}
+                    </div>
+                  {% endif %}
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- Quotation Totals -->
+          <div class="col-lg-6">
+            <div class="card">
+              <div class="card-header bg-white">
+                <strong>Quotation Totals</strong>
+              </div>
+
+              <div class="card-body">
+
+                <div class="d-none">
+                  {{ form.discount_total_excl }}
+                  {{ form.delivery_fee_excl }}
+                  {{ form.delivery_fee_vat_percent }}
+                </div>
+
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Total excl</label>
+                    <input type="text" id="order-total-excl" class="form-control" value="0.00" readonly>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">VAT Amount</label>
+                    <input type="text" id="order-vat-amount" class="form-control" value="0.00" readonly>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">Total Discount</label>
+                    <input type="text" id="order-discount-total" class="form-control" value="0.00" readonly>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">Total incl</label>
+                    <input type="text" id="order-total-incl" class="form-control fw-bold" value="0.00" readonly>
+                  </div>
+                </div>
+
+                <div class="mt-3">
+                  <label class="form-label">Internal Notes</label>
+                  {{ form.notes }}
+
+                  {% if form.notes.errors %}
+                    <div class="text-danger small">
+                      {{ form.notes.errors }}
+                    </div>
+                  {% endif %}
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- Items -->
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong>Items</strong>
+
+                <div class="d-flex gap-2 align-items-center">
+                  <span class="small text-muted">
+                    Product pricing is loaded automatically from active pricing.
+                  </span>
+
+                  <button type="button" id="add-item-btn" class="btn btn-sm btn-outline-primary">
+                    Add item
+                  </button>
+                </div>
+              </div>
+
+              <div class="card-body p-0">
+                {{ formset.management_form }}
+
+                <div class="table-responsive">
+                  <table class="table table-bordered table-striped mb-0">
+                    <thead>
+                      <tr class="align-middle">
+                        <th style="width: 16%">Category</th>
+                        <th style="width: 26%">Product</th>
+                        <th style="width: 8%">Qty</th>
+                        <th style="width: 12%">Unit Price excl</th>
+                        <th style="width: 8%">VAT %</th>
+                        <th style="width: 10%">VAT Amt</th>
+                        <th style="width: 8%">Disc %</th>
+                        <th style="width: 10%">Total</th>
+                        <th style="width: 6%" class="text-center">Remove</th>
+                      </tr>
+                    </thead>
+
+                    <tbody id="items-tbody">
+                      {% for f in formset.forms %}
+                        {{ f.id }}
+
+                        <tr>
+                          <td>{{ f.category }}</td>
+                          <td>{{ f.product }}</td>
+                          <td>{{ f.quantity }}</td>
+                          <td>{{ f.unit_price_excl }}</td>
+                          <td>{{ f.vat_percent }}</td>
+
+                          <td>
+                            <input type="text"
+                                  class="form-control vat-amount-field"
+                                  value="0.00"
+                                  readonly>
+                          </td>
+
+                          <td>
+                            <input type="number"
+                                  class="form-control discount-percent-field"
+                                  value="0.00"
+                                  min="0"
+                                  max="100"
+                                  step="0.01">
+
+                            <div class="d-none">
+                              {{ f.discount_excl }}
+                            </div>
+                          </td>
+
+                          <td>
+                            <input type="text"
+                                  class="form-control line-total-field"
+                                  value="0.00"
+                                  readonly>
+                          </td>
+
+                          <td class="text-center">{{ f.DELETE }}</td>
+                        </tr>
+
+                        {% if f.non_field_errors %}
+                          <tr>
+                            <td colspan="9" class="text-danger small">
+                              {{ f.non_field_errors }}
+                            </td>
+                          </tr>
+                        {% endif %}
+                      {% endfor %}
+                    </tbody>
+
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="d-flex justify-content-end mt-3 gap-2">
+          <a href="{% url 'quotation-view' quotation.id %}" class="btn btn-outline-secondary">
+            Cancel
+          </a>
+
+          <button type="submit" class="btn btn-primary">
+            Save Changes
+          </button>
+        </div>
+
+      </form>
+
+    </main>
+    <script type="text/template" id="empty-form-row">
+        <tr>
+            <td>{{ formset.empty_form.category }}</td>
+            <td>{{ formset.empty_form.product }}</td>
+            <td>{{ formset.empty_form.quantity }}</td>
+            <td>{{ formset.empty_form.unit_price_excl }}</td>
+            <td>{{ formset.empty_form.discount_excl }}</td>
+            <td>{{ formset.empty_form.vat_percent }}</td>
+            <td class="vat-amount text-end">0.00</td>
+            <td class="line-total text-end">0.00</td>
+            <td class="text-center">{{ formset.empty_form.DELETE }}</td>
+        </tr>
+    </script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+
+            const API_URL = "{% url 'ajax-products-by-category' %}";
+            const prefix = "items";
+
+            const tbody = document.getElementById("items-tbody");
+            const addBtn = document.getElementById("add-item-btn");
+            const totalFormsInput = document.getElementById(`id_${prefix}-TOTAL_FORMS`);
+            const emptyTemplate = document.getElementById("empty-form-row").innerHTML;
+
+            function money(value) {
+                const num = parseFloat(value || "0");
+                return isNaN(num) ? "0.00" : num.toFixed(2);
+            }
+
+            function calculateTotals() {
+                let totalExcl = 0;
+                let totalVat = 0;
+
+                tbody.querySelectorAll("tr").forEach(tr => {
+                    const qty = parseFloat(tr.querySelector('[name$="-quantity"]')?.value || 0);
+                    const unit = parseFloat(tr.querySelector('[name$="-unit_price_excl"]')?.value || 0);
+                    const disc = parseFloat(tr.querySelector('[name$="-discount_excl"]')?.value || 0);
+                    const vatPct = parseFloat(tr.querySelector('[name$="-vat_percent"]')?.value || 0);
+
+                    const lineExcl = (unit - disc) * qty;
+                    const vat = lineExcl * (vatPct / 100);
+
+                    totalExcl += lineExcl;
+                    totalVat += vat;
+                });
+
+                document.getElementById("total-excl").textContent = "R" + money(totalExcl);
+                document.getElementById("total-vat").textContent = "R" + money(totalVat);
+                document.getElementById("total-inc").textContent = "R" + money(totalExcl + totalVat);
+            }
+
+            function calculateRow(tr) {
+                const qty = parseFloat(tr.querySelector('[name$="-quantity"]')?.value || 0);
+                const unit = parseFloat(tr.querySelector('[name$="-unit_price_excl"]')?.value || 0);
+                const disc = parseFloat(tr.querySelector('[name$="-discount_excl"]')?.value || 0);
+                const vatPct = parseFloat(tr.querySelector('[name$="-vat_percent"]')?.value || 0);
+
+                const lineExcl = (unit - disc) * qty;
+                const vat = lineExcl * (vatPct / 100);
+                const lineInc = lineExcl + vat;
+
+                tr.querySelector(".vat-amount").textContent = money(vat);
+                tr.querySelector(".line-total").textContent = money(lineInc);
+
+                calculateTotals();
+            }
+
+            function applyProductPricing(tr) {
+                const product = tr.querySelector('[name$="-product"]');
+                const option = product.options[product.selectedIndex];
+
+                if (!option || !option.value) return;
+
+                const price = option.dataset.priceExcl || "0";
+                const vat = option.dataset.vatPercent || "0";
+
+                const unitInput = tr.querySelector('[name$="-unit_price_excl"]');
+                const vatInput = tr.querySelector('[name$="-vat_percent"]');
+
+                unitInput.value = price;
+                vatInput.value = vat;
+
+                unitInput.readOnly = true;
+                vatInput.readOnly = true;
+
+                calculateRow(tr);
+            }
+
+            function setOptions(select, items) {
+                select.innerHTML = `<option value="">— Select product —</option>`;
+
+                items.forEach(p => {
+                    const opt = document.createElement("option");
+                    opt.value = p.id;
+                    opt.textContent = p.text;
+
+                    opt.dataset.priceExcl = p.price_excl || "0";
+                    opt.dataset.vatPercent = p.vat_percent || "0";
+
+                    select.appendChild(opt);
+                });
+            }
+
+            async function loadProducts(categoryId, productSelect) {
+                productSelect.innerHTML = `<option>Loading...</option>`;
+                productSelect.disabled = true;
+
+                try {
+                    const res = await fetch(`${API_URL}?category_id=${categoryId}`);
+                    const data = await res.json();
+                    setOptions(productSelect, data.results || []);
+                } catch {
+                    setOptions(productSelect, []);
+                }
+
+                productSelect.disabled = false;
+            }
+
+            function wireRow(tr) {
+                const cat = tr.querySelector('[name$="-category"]');
+                const prod = tr.querySelector('[name$="-product"]');
+
+                const qty = tr.querySelector('[name$="-quantity"]');
+                const disc = tr.querySelector('[name$="-discount_excl"]');
+
+                if (qty) qty.addEventListener("input", () => calculateRow(tr));
+                if (disc) disc.addEventListener("input", () => calculateRow(tr));
+
+                if (cat) {
+                    cat.addEventListener("change", () => {
+                        loadProducts(cat.value, prod);
+                    });
+                }
+
+                if (prod) {
+                    prod.addEventListener("change", () => {
+                        applyProductPricing(tr);
+                    });
+                }
+
+                calculateRow(tr);
+            }
+
+            // Existing rows
+            tbody.querySelectorAll("tr").forEach(wireRow);
+
+            // Add new row
+            addBtn.addEventListener("click", function () {
+                const index = parseInt(totalFormsInput.value);
+
+                const html = emptyTemplate.replace(/__prefix__/g, index);
+                tbody.insertAdjacentHTML("beforeend", html);
+
+                totalFormsInput.value = index + 1;
+
+                const newRow = tbody.lastElementChild;
+                wireRow(newRow);
+            });
+
+        });
+    </script>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+    const API_URL = "{% url 'ajax-products-by-category' %}";
+    const prefix = "{{ formset.prefix|default:prefix|default:'items' }}";
+
+    const tbody = document.getElementById("items-tbody");
+    const addBtn = document.getElementById("add-item-btn");
+    const totalFormsInput = document.getElementById(`id_${prefix}-TOTAL_FORMS`);
+    const emptyTemplate = document.getElementById("empty-form-row").innerHTML;
+
+    function money(value) {
+        const num = parseFloat(value || "0");
+        return isNaN(num) ? "0.00" : num.toFixed(2);
+    }
+
+    function calculateQuotationTotals() {
+        let totalExcl = 0;
+        let totalVat = 0;
+        let totalDiscount = 0;
+        let totalIncl = 0;
+
+        tbody.querySelectorAll("tr").forEach(tr => {
+        const qty = parseFloat(tr.querySelector('input[name$="-quantity"]')?.value || "0");
+        const unitExcl = parseFloat(tr.querySelector('input[name$="-unit_price_excl"]')?.value || "0");
+        const vatPct = parseFloat(tr.querySelector('input[name$="-vat_percent"]')?.value || "0");
+        const discountPerUnit = parseFloat(tr.querySelector('input[name$="-discount_excl"]')?.value || "0");
+
+        const grossExcl = qty * unitExcl;
+        const discountTotal = discountPerUnit * qty;
+        const netExcl = Math.max(0, grossExcl - discountTotal);
+        const vatAmount = netExcl * (vatPct / 100);
+        const lineIncl = netExcl + vatAmount;
+
+        totalExcl += netExcl;
+        totalVat += vatAmount;
+        totalDiscount += discountTotal;
+        totalIncl += lineIncl;
+        });
+
+        const totalExclEl = document.getElementById("order-total-excl");
+        const vatAmountEl = document.getElementById("order-vat-amount");
+        const discountTotalEl = document.getElementById("order-discount-total");
+        const totalInclEl = document.getElementById("order-total-incl");
+
+        if (totalExclEl) totalExclEl.value = money(totalExcl);
+        if (vatAmountEl) vatAmountEl.value = money(totalVat);
+        if (discountTotalEl) discountTotalEl.value = money(totalDiscount);
+        if (totalInclEl) totalInclEl.value = money(totalIncl);
+    }
+
+    function calculateRowTotals(tr) {
+        const qtyInput = tr.querySelector('input[name$="-quantity"]');
+        const unitInput = tr.querySelector('input[name$="-unit_price_excl"]');
+        const vatInput = tr.querySelector('input[name$="-vat_percent"]');
+        const discountExclInput = tr.querySelector('input[name$="-discount_excl"]');
+
+        const vatAmountField = tr.querySelector(".vat-amount-field");
+        const discountPercentField = tr.querySelector(".discount-percent-field");
+        const lineTotalField = tr.querySelector(".line-total-field");
+
+        const qty = parseFloat(qtyInput?.value || "0");
+        const unitExcl = parseFloat(unitInput?.value || "0");
+        const vatPct = parseFloat(vatInput?.value || "0");
+        const discPct = parseFloat(discountPercentField?.value || "0");
+
+        const discountPerUnit = unitExcl * (discPct / 100);
+        const grossExcl = qty * unitExcl;
+        const discountTotal = discountPerUnit * qty;
+        const netExcl = Math.max(0, grossExcl - discountTotal);
+        const vatAmount = netExcl * (vatPct / 100);
+        const lineTotal = netExcl + vatAmount;
+
+        if (discountExclInput) discountExclInput.value = money(discountPerUnit);
+        if (vatAmountField) vatAmountField.value = money(vatAmount);
+        if (lineTotalField) lineTotalField.value = money(lineTotal);
+
+        calculateQuotationTotals();
+    }
+
+    function hydrateDiscountPercent(tr) {
+        const unitInput = tr.querySelector('input[name$="-unit_price_excl"]');
+        const discountExclInput = tr.querySelector('input[name$="-discount_excl"]');
+        const discountPercentField = tr.querySelector(".discount-percent-field");
+
+        const unitExcl = parseFloat(unitInput?.value || "0");
+        const discountPerUnit = parseFloat(discountExclInput?.value || "0");
+
+        if (discountPercentField && unitExcl > 0 && discountPerUnit > 0) {
+        discountPercentField.value = money((discountPerUnit / unitExcl) * 100);
+        }
+    }
+
+    function setOptions(selectEl, options, keepValue = false, previousText = "") {
+        const prev = keepValue ? selectEl.value : "";
+
+        selectEl.innerHTML = "";
+
+        const opt0 = document.createElement("option");
+        opt0.value = "";
+        opt0.textContent = options.length ? "— Select product —" : "No products";
+        selectEl.appendChild(opt0);
+
+        options.forEach(o => {
+        const opt = document.createElement("option");
+        opt.value = o.id;
+        opt.textContent = o.text;
+        opt.dataset.priceExcl = o.price_excl || "0.00";
+        opt.dataset.vatPercent = o.vat_percent || "0.00";
+        selectEl.appendChild(opt);
+        });
+
+        if (keepValue && prev) {
+        selectEl.value = prev;
+
+        if (!selectEl.value && previousText) {
+            const fallback = document.createElement("option");
+            fallback.value = prev;
+            fallback.textContent = previousText;
+            fallback.selected = true;
+            selectEl.appendChild(fallback);
+        }
+        }
+    }
+
+    function setOptionsToLoading(selectEl) {
+        selectEl.innerHTML = "";
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "Loading products...";
+        selectEl.appendChild(opt);
+    }
+
+    async function loadProductsForCategory(catId, productSelect, { keepValue = false } = {}) {
+        const prevVal = productSelect.value || "";
+        const prevText = productSelect.options[productSelect.selectedIndex]?.text || "";
+
+        setOptionsToLoading(productSelect);
+        productSelect.disabled = true;
+
+        try {
+        const url = new URL(API_URL, window.location.origin);
+        url.searchParams.set("category_id", catId || "");
+
+        const res = await fetch(url.toString(), {
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+
+        const data = await res.json();
+
+        setOptions(productSelect, data.results || [], keepValue, prevText);
+
+        if (keepValue && prevVal) {
+            productSelect.value = prevVal;
+        }
+
+        const tr = productSelect.closest("tr");
+        if (tr) calculateRowTotals(tr);
+
+        } catch (e) {
+        setOptions(productSelect, [], keepValue, prevText);
+        } finally {
+        productSelect.disabled = false;
+        }
+    }
+
+    function applyProductPricing(tr) {
+        const prodSel = tr.querySelector('select[name$="-product"]');
+        const priceInput = tr.querySelector('input[name$="-unit_price_excl"]');
+        const vatInput = tr.querySelector('input[name$="-vat_percent"]');
+
+        if (!prodSel) return;
+
+        const selectedOption = prodSel.options[prodSel.selectedIndex];
+
+        if (!selectedOption || !selectedOption.value) return;
+
+        const priceExcl = selectedOption.dataset.priceExcl || "0.00";
+        const vatPercent = selectedOption.dataset.vatPercent || "0.00";
+
+        if (priceInput) priceInput.value = priceExcl;
+        if (vatInput) vatInput.value = vatPercent;
+
+        calculateRowTotals(tr);
+    }
+
+    function wireRow(tr) {
+        const catSel = tr.querySelector('select[name$="-category"]');
+        const prodSel = tr.querySelector('select[name$="-product"]');
+
+        const qtyInput = tr.querySelector('input[name$="-quantity"]');
+        const unitInput = tr.querySelector('input[name$="-unit_price_excl"]');
+        const vatInput = tr.querySelector('input[name$="-vat_percent"]');
+        const discountPercentField = tr.querySelector(".discount-percent-field");
+
+        if (unitInput) unitInput.readOnly = true;
+        if (vatInput) vatInput.readOnly = true;
+
+        hydrateDiscountPercent(tr);
+
+        [qtyInput, discountPercentField].forEach(input => {
+        if (input) {
+            input.addEventListener("input", () => calculateRowTotals(tr));
+        }
+        });
+
+        if (!catSel || !prodSel) {
+        calculateRowTotals(tr);
+        return;
+        }
+
+        catSel.addEventListener("change", () => {
+        const catId = catSel.value || "";
+        prodSel.value = "";
+
+        if (catId) {
+            loadProductsForCategory(catId, prodSel, { keepValue: false });
+        } else {
+            setOptions(prodSel, []);
+        }
+
+        calculateRowTotals(tr);
+        });
+
+        prodSel.addEventListener("change", () => {
+        applyProductPricing(tr);
+        });
+
+        if (catSel.value) {
+        loadProductsForCategory(catSel.value, prodSel, { keepValue: true });
+        }
+
+        calculateRowTotals(tr);
+    }
+
+    tbody.querySelectorAll("tr").forEach(wireRow);
+
+    addBtn?.addEventListener("click", function () {
+        const index = parseInt(totalFormsInput.value || "0", 10);
+        const rowHtml = emptyTemplate.replace(/__prefix__/g, String(index));
+
+        tbody.insertAdjacentHTML("beforeend", rowHtml);
+        totalFormsInput.value = index + 1;
+
+        const rows = tbody.querySelectorAll("tr");
+        const newRow = rows[rows.length - 1];
+
+        wireRow(newRow);
+        calculateQuotationTotals();
+    });
+
+    calculateQuotationTotals();
+    });
+    </script>
+
+        
+</body>
+</html>

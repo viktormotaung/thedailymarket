@@ -1,6 +1,6 @@
 # orders/models.py
 from __future__ import annotations
-
+import uuid
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 from django.db import transaction
@@ -27,6 +27,529 @@ def r2(x: Decimal | None) -> Decimal:
         x = Decimal("0.00")
     return Decimal(x).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
+
+# ====================================================================
+# Quotation
+# ====================================================================
+class Quotation(models.Model):
+
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("sent", "Sent"),
+        ("accepted", "Accepted"),
+        ("rejected", "Rejected"),
+        ("expired", "Expired"),
+    ]
+
+    # =========================================================
+    # RELATIONS
+    # =========================================================
+
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name="quotations",
+        null=True,
+        blank=True,
+    )
+
+    prospect = models.ForeignKey(
+        "clients.Prospect",
+        on_delete=models.CASCADE,
+        related_name="quotations",
+        null=True,
+        blank=True,
+    )
+
+    converted_order = models.OneToOneField(
+        "orders.Order",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="source_quotation",
+        help_text="Order created from this quotation."
+    )
+
+    # =========================================================
+    # USERS / AUDIT
+    # =========================================================
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="quotations_created",
+        help_text="Logged-in user who created this quotation."
+    )
+
+    accepted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="quotations_accepted",
+    )
+
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    rejected_at = models.DateTimeField(null=True, blank=True)
+
+    rejection_reason = models.TextField(
+        blank=True,
+        null=True,
+    )
+
+    public_decision_ip = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+    )
+
+    public_decision_user_agent = models.TextField(
+        blank=True,
+        null=True,
+    )
+
+    # =========================================================
+    # CORE
+    # =========================================================
+
+    quotation_date = models.DateTimeField(default=now)
+
+    public_token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+    )
+    valid_until = models.DateField(null=True, blank=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="draft",
+        db_index=True,
+    )
+
+    customer_notes = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
+
+    # =========================================================
+    # FINANCIALS
+    # =========================================================
+
+    discount_total_excl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
+
+    delivery_fee_excl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
+
+    delivery_fee_vat_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
+
+    subtotal_excl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
+
+    vat_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
+
+    grand_total_inc = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
+
+    # =========================================================
+    # TIMESTAMPS
+    # =========================================================
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # =========================================================
+    # META
+    # =========================================================
+
+    class Meta:
+        ordering = ["-created_at"]
+
+        indexes = [
+            models.Index(fields=["client", "status"]),
+            models.Index(fields=["prospect", "status"]),
+            models.Index(fields=["quotation_date"]),
+            models.Index(fields=["valid_until"]),
+            models.Index(fields=["created_by"]),
+            models.Index(fields=["converted_order"]),
+        ]
+
+    # =========================================================
+    # DISPLAY
+    # =========================================================
+
+    @property
+    def target(self):
+        return self.client or self.prospect
+
+    def __str__(self):
+        return f"Quotation #{self.pk or '—'} · {self.target} · {self.status}"
+
+    # =========================================================
+    # VALIDATION
+    # =========================================================
+
+    def clean(self):
+        super().clean()
+
+        # Must belong to ONE target
+        if not self.client and not self.prospect:
+            raise ValidationError(
+                "Quotation must be linked to either a client or a prospect."
+            )
+
+        # Cannot belong to both
+        if self.client and self.prospect:
+            raise ValidationError(
+                "Quotation cannot be linked to both a client and a prospect."
+            )
+
+    # =========================================================
+    # TOTALS
+    # =========================================================
+
+    def recalc_totals(self, save=False):
+
+        items = list(self.items.all())
+
+        sub_excl = sum(
+            (i.line_total_excl or Decimal("0.00"))
+            for i in items
+        )
+
+        vat_items = sum(
+            (i.line_vat_amount or Decimal("0.00"))
+            for i in items
+        )
+
+        sub_after_discount = r2(
+            sub_excl - (self.discount_total_excl or Decimal("0.00"))
+        )
+
+        delivery_vat = r2(
+            (self.delivery_fee_excl or Decimal("0.00")) *
+            (
+                (self.delivery_fee_vat_percent or Decimal("0.00"))
+                / Decimal("100")
+            )
+        )
+
+        self.subtotal_excl = r2(sub_after_discount)
+
+        self.vat_total = r2(
+            vat_items + delivery_vat
+        )
+
+        self.grand_total_inc = r2(
+            self.subtotal_excl +
+            self.vat_total +
+            (self.delivery_fee_excl or Decimal("0.00"))
+        )
+
+        if save:
+            super().save(update_fields=[
+                "subtotal_excl",
+                "vat_total",
+                "grand_total_inc",
+                "updated_at",
+            ])
+
+    # =========================================================
+    # HELPERS
+    # =========================================================
+
+    def can_edit(self):
+        return (
+            self.status in ["draft", "sent"]
+            and self.converted_order_id is None
+        )
+
+    def is_converted(self):
+        return self.converted_order_id is not None
+
+    def can_convert_to_order(self):
+        return (
+            self.status == "accepted"
+            and self.converted_order_id is None
+        )
+
+    # =========================================================
+    # CONVERSION
+    # =========================================================
+
+    @transaction.atomic
+    def convert_to_order(self, user=None):
+
+        # Already converted
+        if self.converted_order_id:
+            return self.converted_order
+
+        # Must be accepted
+        if self.status != "accepted":
+            raise ValidationError(
+                "Only accepted quotations can be converted to orders."
+            )
+
+        # Must have client
+        if not self.client:
+            raise ValidationError(
+                "Quotation must first be linked to a client before conversion to an order."
+            )
+
+        # Must have items
+        if not self.items.exists():
+            raise ValidationError(
+                "Quotation must have at least one item before conversion."
+            )
+
+        # =====================================================
+        # CREATE ORDER
+        # =====================================================
+
+        order = Order.objects.create(
+            client=self.client,
+            created_by=user or self.created_by,
+            channel="STAFF",
+            order_date=now(),
+            status="pending",
+
+            customer_notes=self.customer_notes,
+
+            notes=(
+                f"Created from Quotation #{self.pk}\n\n"
+                f"{self.notes}"
+            ).strip(),
+
+            discount_total_excl=self.discount_total_excl,
+            delivery_fee_excl=self.delivery_fee_excl,
+            delivery_fee_vat_percent=self.delivery_fee_vat_percent,
+        )
+
+        # =====================================================
+        # COPY ITEMS
+        # =====================================================
+
+        for q_item in self.items.all():
+
+            OrderItem.objects.create(
+                order=order,
+
+                category=q_item.category,
+                product=q_item.product,
+
+                sku=q_item.sku,
+                product_name=q_item.product_name,
+                uom=q_item.uom,
+
+                quantity=q_item.quantity,
+
+                unit_price_excl=q_item.unit_price_excl,
+                unit_price_inc=q_item.unit_price_inc,
+
+                discount_excl=q_item.discount_excl,
+                vat_percent=q_item.vat_percent,
+            )
+
+        # =====================================================
+        # RECALCULATE ORDER
+        # =====================================================
+
+        order.recalc_totals(save=True)
+
+        # =====================================================
+        # LINK QUOTATION
+        # =====================================================
+
+        self.converted_order = order
+
+        self.save(update_fields=[
+            "converted_order",
+            "updated_at",
+        ])
+
+        return order
+    
+    
+# ====================================================================
+# Quotation Item
+# ====================================================================
+class QuotationItem(models.Model):
+
+    quotation = models.ForeignKey(
+        Quotation,
+        on_delete=models.CASCADE,
+        related_name="items"
+    )
+
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        related_name="quotation_items"
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="quotation_items"
+    )
+
+    sku = models.CharField(max_length=64, blank=True)
+    product_name = models.CharField(max_length=220, blank=True)
+    uom = models.CharField(max_length=8, choices=Product.UOM_CHOICES, blank=True)
+
+    quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+
+    unit_price_excl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+
+    unit_price_inc = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+
+    discount_excl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+
+    vat_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[
+            MinValueValidator(Decimal("0.00")),
+            MaxValueValidator(Decimal("100.00")),
+        ],
+    )
+
+    class Meta:
+        ordering = ["quotation_id", "id"]
+        indexes = [
+            models.Index(fields=["quotation", "product"]),
+        ]
+
+    def __str__(self):
+        return f"{self.product_name or self.product} x {self.quantity}"
+
+    @property
+    def line_total_excl(self):
+        unit_minus_discount = max(
+            Decimal("0.00"),
+            (self.unit_price_excl or Decimal("0.00")) -
+            (self.discount_excl or Decimal("0.00"))
+        )
+        return r2(unit_minus_discount * (self.quantity or Decimal("0.00")))
+
+    @property
+    def line_vat_amount(self):
+        return r2(
+            self.line_total_excl *
+            ((self.vat_percent or Decimal("0.00")) / Decimal("100"))
+        )
+
+    @property
+    def line_total_inc(self):
+        return r2(self.line_total_excl + self.line_vat_amount)
+
+    def _prefill_from_product(self):
+        if not self.product_id:
+            return
+
+        if not self.sku:
+            self.sku = self.product.sku
+
+        if not self.product_name:
+            self.product_name = self.product.name
+
+        if not self.uom:
+            self.uom = self.product.uom
+
+        if (self.unit_price_excl or Decimal("0.00")) == Decimal("0.00"):
+            pr_qs = self.product.pricing_rows.filter(is_active=True)
+
+            best_price_excl = None
+            best_price_inc = None
+            best_vat = None
+
+            for pr in pr_qs:
+                price_excl = pr.wholesale_price_excl
+                price_inc = pr.wholesale_price_inc
+                vat_pct = pr.wholesale_vat_percent
+
+                if price_excl is None or price_excl <= Decimal("0.00"):
+                    continue
+
+                if best_price_excl is None or price_excl < best_price_excl:
+                    best_price_excl = price_excl
+                    best_price_inc = price_inc
+                    best_vat = vat_pct
+
+            if best_price_excl is not None:
+                self.unit_price_excl = best_price_excl
+                self.unit_price_inc = best_price_inc or best_price_excl
+
+                if (self.vat_percent or Decimal("0.00")) == Decimal("0.00") and best_vat is not None:
+                    self.vat_percent = best_vat
+
+    def clean(self):
+        super().clean()
+
+        if not self.category_id:
+            raise ValidationError("Please select a category.")
+
+        if not self.product_id:
+            raise ValidationError("Please select a product.")
+
+        if self.product and self.product.category_id != self.category_id:
+            raise ValidationError("Selected product is not in the chosen category.")
+
+        if (self.unit_price_excl or Decimal("0.00")) == Decimal("0.00"):
+            self._prefill_from_product()
+
+            if (self.unit_price_excl or Decimal("0.00")) == Decimal("0.00"):
+                raise ValidationError("No active pricing found for this product.")
+
+    def save(self, *args, **kwargs):
+        with transaction.atomic():
+            self._prefill_from_product()
+            super().save(*args, **kwargs)
+
+            if self.quotation_id:
+                self.quotation.recalc_totals(save=True)
 
 # ====================================================================
 # Order
@@ -242,6 +765,7 @@ class Order(models.Model):
             print("================ ORDER SAVE END (APPROVAL) ================\n")
             return
 
+        
         # -------------------------------------------------
         # FINANCIAL GATE (STATE-BASED + BULLETPROOF)
         # -------------------------------------------------
@@ -253,6 +777,7 @@ class Order(models.Model):
 
             # ✅ Always recalc totals safely
             self.recalc_totals(save=True)
+
             print(f"[DEBUG] Totals recalculated → Grand Total: {self.grand_total_inc}")
 
             client = self.client
@@ -264,30 +789,69 @@ class Order(models.Model):
             # =================================================
             # CREDIT CHECK
             # =================================================
-            if self.status == "awaiting_payment" and credit_status == "ACTIVE" and credit_account:
+            if (
+                self.status == "awaiting_payment"
+                and credit_status == "ACTIVE"
+                and credit_account
+            ):
 
                 total = self.grand_total_inc or Decimal("0.00")
-                deposit_pct = Decimal(str(getattr(credit_account, "credit_deposit_pct", 100) or 100))
-                deposit_required = r2(total * (deposit_pct / Decimal("100")))
-                credit_required = r2(total - deposit_required)
-                credit_available = credit_account.credit_available or Decimal("0.00")
+
+                # -------------------------------------------------
+                # FIXED: DO NOT CONVERT 0% TO 100%
+                # -------------------------------------------------
+                raw_deposit_pct = getattr(
+                    credit_account,
+                    "credit_deposit_pct",
+                    None
+                )
+
+                if raw_deposit_pct is None:
+                    deposit_pct = Decimal("100.00")
+                else:
+                    deposit_pct = Decimal(str(raw_deposit_pct))
+
+                deposit_required = r2(
+                    total * (deposit_pct / Decimal("100"))
+                )
+
+                credit_required = r2(
+                    total - deposit_required
+                )
+
+                credit_available = (
+                    credit_account.credit_available
+                    or Decimal("0.00")
+                )
 
                 print(f"[DEBUG] Deposit %: {deposit_pct}")
                 print(f"[DEBUG] Deposit Required: {deposit_required}")
                 print(f"[DEBUG] Credit Required: {credit_required}")
                 print(f"[DEBUG] Credit Available: {credit_available}")
 
+                # -------------------------------------------------
+                # BLOCK IF CREDIT EXCEEDED
+                # -------------------------------------------------
                 if credit_required > credit_available:
 
                     print("[DEBUG] CREDIT BLOCKED")
 
                     self.status = "credit_blocked"
-                    super().save(update_fields=["status", "updated_at"])
+
+                    super().save(
+                        update_fields=[
+                            "status",
+                            "updated_at",
+                        ]
+                    )
 
                     OrderAudit.objects.using(db).create(
                         order=self,
                         action=OrderAudit.CREDIT_BLOCKED,
-                        performed_by=self.approved_by or self.created_by,
+                        performed_by=(
+                            self.approved_by
+                            or self.created_by
+                        ),
                         status_before="awaiting_payment",
                         status_after="credit_blocked",
                         amount_before=self.grand_total_inc,
@@ -295,66 +859,88 @@ class Order(models.Model):
                         snapshot_before=before_snapshot,
                         snapshot_after=self._audit_snapshot(),
                         description=(
-                            f"Credit insufficient. Required: {credit_required}, "
+                            f"Credit insufficient. "
+                            f"Required: {credit_required}, "
                             f"Available: {credit_available}"
                         ),
                     )
 
-                    print("================ ORDER SAVE END (BLOCKED) ================\n")
-                    return  # 🚨 stop execution if blocked
+                    print(
+                        "================ ORDER SAVE END (BLOCKED) ================\n"
+                    )
+
+                    return  # 🚨 STOP EXECUTION
 
             # =================================================
-            # 🔥 BULLETPROOF INVOICE CREATION (CORRECT POSITION)
+            # 🔥 BULLETPROOF INVOICE CREATION
             # =================================================
             from invoices.models import Invoice
 
-            invoice_exists = Invoice.objects.using(db).filter(order=self).exists()
+            invoice_exists = (
+                Invoice.objects.using(db)
+                .filter(order=self)
+                .exists()
+            )
 
             print(f"[DEBUG] Invoice exists? {invoice_exists}")
 
             if not invoice_exists:
+
                 print("[DEBUG] Creating invoice now...")
 
-                Invoice.create_for_order(self)  # ✅ DB-safe internally
+                Invoice.create_for_order(self)
 
                 print("[DEBUG] Invoice created.")
+
             else:
+
                 print("[DEBUG] Invoice already exists — updating invoice...")
 
                 invoice = Invoice.objects.using(db).get(order=self)
 
-                # Recalculate invoice properly
                 invoice.calculate_totals()
 
-                invoice.save(using=db, update_fields=[
-                    "order_total_inc",
-                    "amount_due",
-                    "deposit_required",
-                    "credit_used",
-                    "due_date",
-                    "updated_at",
-                ])
+                invoice.save(
+                    using=db,
+                    update_fields=[
+                        "order_total_inc",
+                        "amount_due",
+                        "deposit_required",
+                        "credit_used",
+                        "due_date",
+                        "updated_at",
+                    ],
+                )
 
-                # 🔥 VERY IMPORTANT (keeps system consistent)
                 invoice.ensure_invoice_out_txn()
                 invoice.ensure_credit_after_deposit()
 
                 print("[DEBUG] Invoice updated.")
 
             # -------------------------------------------------
-            # FINAL AUDIT (ALWAYS RUNS)
+            # FINAL AUDIT
             # -------------------------------------------------
             print(f"[DEBUG] Final audit action: {action}")
 
             OrderAudit.objects.using(db).create(
                 order=self,
                 action=action,
-                performed_by=self.approved_by or self.reviewed_by or self.created_by,
+                performed_by=(
+                    self.approved_by
+                    or self.reviewed_by
+                    or self.created_by
+                ),
                 status_before=old_status or "",
                 status_after=self.status,
                 amount_before=(
-                    Decimal(before_snapshot.get("grand_total_inc", "0.00"))
-                    if before_snapshot else None
+                    Decimal(
+                        before_snapshot.get(
+                            "grand_total_inc",
+                            "0.00"
+                        )
+                    )
+                    if before_snapshot
+                    else None
                 ),
                 amount_after=self.grand_total_inc,
                 snapshot_before=before_snapshot,
@@ -363,6 +949,8 @@ class Order(models.Model):
             )
 
             print("================ ORDER SAVE END ================\n")
+
+            
             
         
 class OrderAudit(models.Model):

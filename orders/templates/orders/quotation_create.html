@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - The Daily Market</title>
+  <title>Create Quotation - The Daily Market</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <style>
@@ -651,375 +651,703 @@
 
 
   <main class="content">
-    <div class="container-fluid">
 
-      <!-- ================= HEADER ================= -->
-      <div class="d-flex flex-column align-items-center text-center gap-2 mb-4">
-        <h2 class="m-0">Dashboard</h2>
-        <div class="btn-group">
-          <a class="btn {% if range == 'today' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=today">
-            Today
-          </a>
-          <a class="btn {% if range == '7d' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=7d">
-            Last 7 days
-          </a>
-        </div>
-      </div>
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <div>
+            <h2 class="m-0">Create Quotation</h2>
 
-      <!-- ================= KPI STRIP ================= -->
-      <div class="row g-3 mb-4">
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Orders</div>
-            <div class="fs-5 fw-semibold">{{ kpi_orders }}</div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Revenue</div>
-            <div class="fs-5 fw-semibold">
-              R{{ kpi_revenue|floatformat:2|intcomma }}
+            <div class="text-muted small mt-1">
+                Build a quotation before converting it into an order.
             </div>
-          </div>
         </div>
 
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Active Deliveries</div>
-            <div class="fs-5 fw-semibold">{{ kpi_deliveries }}</div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Credit Used</div>
-            <div class="fs-5 fw-semibold text-warning">
-              R{{ kpi_credit_used|floatformat:2|intcomma }}
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Open Tasks</div>
-            <div class="fs-5 fw-semibold">{{ kpi_open_tasks }}</div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">New Clients</div>
-            <div class="fs-5 fw-semibold">{{ kpi_new_clients }}</div>
-          </div>
-        </div>
-
-      </div>
-
-
-      <!-- ================= SALES TREND ================= -->
-      <div class="card mb-4">
-        <div class="card-header bg-white fw-semibold">
-          Sales Trend · Orders per Day
-        </div>
-        <div class="card-body">
-          <div class="chart-wrap">
-            <canvas id="salesChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- ================= NEEDS ATTENTION ================= -->
-      <div class="row g-3 mb-4">
-
-        <div class="col-md-6">
-          <div class="card h-100">
-            <div class="card-header bg-white fw-semibold">
-              Needs Attention
-            </div>
-            <ul class="list-group list-group-flush small">
-
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Overdue Deliveries</span>
-                <span class="badge bg-danger">{{ alert_overdue_deliveries }}</span>
-              </li>
-
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Clients Over Credit Limit</span>
-                <span class="badge bg-danger">{{ alert_credit_over }}</span>
-              </li>
-
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Unverified Compliance Docs</span>
-                <span class="badge bg-warning">{{ alert_compliance_docs }}</span>
-              </li>
-
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Overdue Tasks</span>
-                <span class="badge bg-warning">{{ alert_tasks }}</span>
-              </li>
-
-            </ul>
-          </div>
-        </div>
-
-        <!-- ================= OPERATIONAL SNAPSHOT ================= -->
-        <div class="col-md-6">
-          <div class="card h-100">
-            <div class="card-header bg-white fw-semibold">
-              Operational Snapshot
-            </div>
-            <div class="card-body small">
-
-              <div class="mb-2">
-                <strong>Orders:</strong>
-                {{ ops_orders_total }} total ·
-                {{ ops_orders_pending }} pending ·
-                {{ ops_orders_completed }} completed
-              </div>
-
-              <div class="mb-2">
-                <strong>Deliveries:</strong>
-                {{ ops_runs_total }} runs ·
-                {{ ops_runs_active }} active ·
-                {{ ops_runs_failed }} failed
-              </div>
-
-              <div>
-                <strong>Warehouse:</strong>
-                {{ ops_picklists_pending }} picklists pending
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      
-
+        <a href="{% url 'staff-quotations' %}"
+           class="btn btn-outline-secondary">
+            Back to Quotations
+        </a>
     </div>
+
+    <form method="post">
+
+        {% csrf_token %}
+
+        <!-- ===================================================== -->
+        <!-- QUOTATION DETAILS -->
+        <!-- ===================================================== -->
+
+        <div class="card mb-3">
+
+            <div class="card-header bg-white">
+                <strong>Quotation Details</strong>
+            </div>
+
+            <div class="card-body">
+
+                <div class="row g-3">
+
+                    <!-- TARGET TYPE -->
+                    <div class="col-md-12">
+
+                        <label class="form-label">
+                            Quotation For
+                        </label>
+
+                        <div class="d-flex gap-4 mt-1">
+
+                            {% for radio in form.quotation_target %}
+                                <div class="form-check">
+                                    {{ radio.tag }}
+
+                                    <label class="form-check-label"
+                                           for="{{ radio.id_for_label }}">
+                                        {{ radio.choice_label }}
+                                    </label>
+                                </div>
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+                    <!-- CLIENT -->
+                    <div class="col-md-6"
+                         id="client-wrapper">
+
+                        <label class="form-label">
+                            Existing Client
+                        </label>
+
+                        {{ form.client }}
+
+                    </div>
+
+                    <!-- PROSPECT -->
+                    <div class="col-md-6 d-none"
+                         id="prospect-wrapper">
+
+                        <label class="form-label">
+                            Prospect
+                        </label>
+
+                        {{ form.prospect }}
+
+                    </div>
+
+                    <!-- DATE -->
+                    <div class="col-md-3">
+
+                        <label class="form-label">
+                            Date
+                        </label>
+
+                        <input type="text"
+                               class="form-control"
+                               value="{{ now|date:'Y-m-d H:i' }}"
+                               readonly>
+
+                    </div>
+
+                    <!-- VALID -->
+                    <div class="col-md-3">
+
+                        <label class="form-label">
+                            Valid Until
+                        </label>
+
+                        <input type="text"
+                               class="form-control"
+                               value="+72 Hours"
+                               readonly>
+
+                    </div>
+
+                    <!-- STATUS -->
+                    <div class="col-md-3">
+
+                        <label class="form-label">
+                            Status
+                        </label>
+
+                        <input type="text"
+                               class="form-control"
+                               value="Draft"
+                               readonly>
+
+                    </div>
+
+                    <!-- NOTES -->
+                    <div class="col-md-12">
+
+                        <label class="form-label">
+                            Customer Notes
+                        </label>
+
+                        {{ form.customer_notes }}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ===================================================== -->
+        <!-- ITEMS -->
+        <!-- ===================================================== -->
+
+        <div class="card mb-3">
+
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+
+                <strong>Items</strong>
+
+                <button type="button"
+                        class="btn btn-sm btn-primary"
+                        id="add-item-btn">
+
+                    + Add Item
+
+                </button>
+
+            </div>
+
+            <div class="card-body p-0">
+
+                {{ formset.management_form }}
+
+                <div class="table-responsive">
+
+                    <table class="table table-bordered mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th style="width:15%">
+                                    Category
+                                </th>
+
+                                <th style="width:25%">
+                                    Product
+                                </th>
+
+                                <th style="width:8%"
+                                    class="text-end">
+                                    Qty
+                                </th>
+
+                                <th style="width:12%"
+                                    class="text-end">
+                                    Unit (excl)
+                                </th>
+
+                                <th style="width:10%"
+                                    class="text-end">
+                                    Disc %
+                                </th>
+
+                                <th style="width:8%"
+                                    class="text-end">
+                                    VAT %
+                                </th>
+
+                                <th style="width:12%"
+                                    class="text-end">
+                                    VAT Amt
+                                </th>
+
+                                <th style="width:12%"
+                                    class="text-end">
+                                    Total
+                                </th>
+
+                                <th style="width:6%"
+                                    class="text-center">
+                                    Del
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody id="items-tbody">
+
+                            {% for form in formset %}
+
+                                <tr>
+
+                                    <td>
+                                        {{ form.category }}
+                                    </td>
+
+                                    <td>
+                                        {{ form.product }}
+                                    </td>
+
+                                    <td>
+                                        {{ form.quantity }}
+                                    </td>
+
+                                    <td>
+                                        {{ form.unit_price_excl }}
+                                    </td>
+
+                                    <!-- DISCOUNT % -->
+                                    <td>
+
+                                        <input type="number"
+                                               class="form-control discount-percent-field"
+                                               value="0.00"
+                                               min="0"
+                                               max="100"
+                                               step="0.01">
+
+                                        <div class="d-none">
+                                            {{ form.discount_excl }}
+                                        </div>
+
+                                    </td>
+
+                                    <td>
+                                        {{ form.vat_percent }}
+                                    </td>
+
+                                    <td class="vat-amount text-end">
+                                        0.00
+                                    </td>
+
+                                    <td class="line-total text-end">
+                                        0.00
+                                    </td>
+
+                                    <td class="text-center">
+                                        {{ form.DELETE }}
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ===================================================== -->
+        <!-- TOTALS -->
+        <!-- ===================================================== -->
+
+        <div class="card mb-3">
+
+            <div class="card-header bg-white">
+                <strong>Totals</strong>
+            </div>
+
+            <div class="card-body">
+
+                <div class="row g-3">
+
+                    <div class="col-md-3">
+
+                        <label class="form-label">
+                            Discount (Total)
+                        </label>
+
+                        {{ form.discount_total_excl }}
+
+                    </div>
+
+                    <div class="col-md-3">
+
+                        <label class="form-label">
+                            Delivery Fee
+                        </label>
+
+                        {{ form.delivery_fee_excl }}
+
+                    </div>
+
+                    <div class="col-md-3">
+
+                        <label class="form-label">
+                            Delivery VAT %
+                        </label>
+
+                        {{ form.delivery_fee_vat_percent }}
+
+                    </div>
+
+                </div>
+
+                <hr>
+
+                <div class="row text-end">
+
+                    <div class="col-md-4">
+
+                        <div class="text-muted small">
+                            Total Excl
+                        </div>
+
+                        <div id="total-excl"
+                             class="fw-bold">
+                            R0.00
+                        </div>
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <div class="text-muted small">
+                            VAT
+                        </div>
+
+                        <div id="total-vat"
+                             class="fw-bold">
+                            R0.00
+                        </div>
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <div class="text-muted small">
+                            Total Incl
+                        </div>
+
+                        <div id="total-inc"
+                             class="fw-bold text-success fs-5">
+                            R0.00
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ===================================================== -->
+        <!-- ACTIONS -->
+        <!-- ===================================================== -->
+
+        <div class="d-flex justify-content-end gap-2">
+
+            <a href="{% url 'staff-quotations' %}"
+               class="btn btn-outline-secondary">
+
+                Cancel
+
+            </a>
+
+            <button type="submit"
+                    class="btn btn-success">
+
+                Save Quotation
+
+            </button>
+
+        </div>
+
+    </form>
+
   </main>
 
-
-  <!-- SWITCH PLATFORM MODAL -->
-  <div class="modal fade"
-      id="switchPlatformModal"
-      tabindex="-1"
-      aria-labelledby="switchPlatformModalLabel"
-      aria-hidden="true">
-
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-
-        <div class="modal-header justify-content-center position-relative">
-          <h5 class="modal-title w-100 text-center" id="switchPlatformModalLabel">
-            Switch Platform
-          </h5>
-          <button type="button"
-                  class="btn-close position-absolute"
-                  style="right:1rem; top:1rem;"
-                  data-bs-dismiss="modal"
-                  aria-label="Close"></button>
-        </div>
-
-        <div class="modal-body text-center">
-          <p class="mb-3 text-muted">Choose a platform to continue:</p>
-
-          <div class="d-grid gap-2">
-
-            <!-- Main Staff Portal -->
-            <a
-              href="{% url 'staff-dashboard' %}"
-              class="btn btn-outline-primary{% if not can_staff_portal %} disabled{% endif %}"
-              {% if not can_staff_portal %}tabindex="-1" aria-disabled="true"{% endif %}
-            >
-              Main Staff Portal
-            </a>
-
-            <!-- Funder Portal -->
-            <a
-              href="{% url 'funder-dashboard' %}"
-              class="btn btn-outline-primary{% if not can_lender_portal %} disabled{% endif %}"
-              {% if not can_lender_portal %}tabindex="-1" aria-disabled="true"{% endif %}
-            >
-              Funder Portal
-            </a>
-
-            <!-- Sales Portal -->
-            <a
-              href="{% url 'sales:sales-dashboard' %}"
-              class="btn btn-outline-primary{% if not can_sales_portal %} disabled{% endif %}"
-              {% if not can_sales_portal %}tabindex="-1" aria-disabled="true"{% endif %}
-            >
-              Sales Portal
-            </a>
-
-            <!-- Logistics Portal -->
-            <a
-              href="{% url 'logistics:logistics-dashboard' %}"
-              class="btn btn-outline-primary{% if not can_logistics_portal %} disabled{% endif %}"
-              {% if not can_logistics_portal %}tabindex="-1" aria-disabled="true"{% endif %}
-            >
-              Logistics Portal
-            </a>
-
-          </div>
-        </div>
-
-        <div class="modal-footer justify-content-center border-0">
-          <small class="text-muted">
-            Platforms you don’t have access to are disabled.
-          </small>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
-    <div id="notificationToast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
-      <div class="d-flex">
-        <div class="toast-body" id="notificationToastBody">
-          New notification received.
-        </div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-      </div>
-    </div>
-  </div>
-
-
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
-    // Chart data from Django
-    const labels = {{ sales_labels|safe }};
-    const dataPoints = {{ sales_data|safe }};
+  document.addEventListener("DOMContentLoaded", function () {
 
-    const ctx = document.getElementById('salesChart').getContext('2d');
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Orders',
-          data: dataPoints,
-          tension: 0.3,
-          fill: false
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,   // <-- respect CSS heights
-        plugins: {
-          legend: { display: true },
-          tooltip: { mode: 'index', intersect: false }
-        },
-        scales: {
-          x: { title: { display: false } },
-          y: { beginAtZero: true, ticks: { precision: 0 } }
-        }
+      const radios = document.querySelectorAll(
+          'input[name="quotation_target"]'
+      );
+
+      const clientWrapper = document.getElementById(
+          "client-wrapper"
+      );
+
+      const prospectWrapper = document.getElementById(
+          "prospect-wrapper"
+      );
+
+      function toggleTargetFields() {
+
+          const selected =
+              document.querySelector(
+                  'input[name="quotation_target"]:checked'
+              )?.value;
+
+          if (selected === "prospect") {
+
+              clientWrapper.classList.add("d-none");
+              prospectWrapper.classList.remove("d-none");
+
+          } else {
+
+              prospectWrapper.classList.add("d-none");
+              clientWrapper.classList.remove("d-none");
+
+          }
       }
-    });
-  </script>
 
-  <script>
-  let lastCount = {{ nav_unread_notifications_count|default:0 }};
-
-  function updateBadge(elementId, count) {
-    const badge = document.getElementById(elementId);
-    if (!badge) return;
-
-    if (count > 0) {
-      badge.textContent = count;
-      badge.classList.remove("d-none");
-    } else {
-      badge.textContent = "";
-      badge.classList.add("d-none");
-    }
-  }
-
-  function updateSummaryCounts(data) {
-    const ticket = data.ticket_count || 0;
-    const task = data.task_count || 0;
-
-    // Desktop
-    const dTickets = document.getElementById("desktopOpenTicketsCount");
-    const dTasks = document.getElementById("desktopOpenTasksCount");
-
-    // Mobile
-    const mTickets = document.getElementById("mobileOpenTicketsCount");
-    const mTasks = document.getElementById("mobileOpenTasksCount");
-
-    if (dTickets) dTickets.textContent = ticket;
-    if (dTasks) dTasks.textContent = task;
-    if (mTickets) mTickets.textContent = ticket;
-    if (mTasks) mTasks.textContent = task;
-  }
-
-  function showNotificationToast(message) {
-    const toastEl = document.getElementById("notificationToast");
-    const toastBody = document.getElementById("notificationToastBody");
-    if (!toastEl || !toastBody) return;
-
-    toastBody.textContent = message || "New notification received.";
-    const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 4000 });
-    toast.show();
-  }
-
-  function playNotificationSound() {
-    const audio = new Audio("https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3");
-    audio.play().catch(() => {});
-  }
-
-  function checkNotifications() {
-    fetch("{% url 'notification-count' %}", {
-      headers: { "X-Requested-With": "XMLHttpRequest" }
-    })
-      .then(res => res.json())
-      .then(data => {
-        const newCount = data.unread_count || 0;
-
-        updateBadge("mobileNotificationBadge", newCount);
-        updateBadge("desktopNotificationBadge", newCount);
-
-        // 🔥 THIS IS WHAT YOU WERE MISSING
-        updateSummaryCounts(data);
-
-        if (newCount > lastCount) {
-          playNotificationSound();
-          showNotificationToast("New notification received.");
-        }
-
-        lastCount = newCount;
-      })
-      .catch(err => {
-        console.error("Notification polling failed:", err);
+      radios.forEach(radio => {
+          radio.addEventListener("change", toggleTargetFields);
       });
-  }
 
-  setTimeout(checkNotifications, 2000);
-  setInterval(checkNotifications, 10000);
+      toggleTargetFields();
+
+  });
   </script>
 
-  <script>
-    document.addEventListener("click", function (event) {
-      const panel = document.getElementById("desktopNotificationDropdown");
-      const trigger = document.querySelector('[data-bs-target="#desktopNotificationDropdown"]');
+    <script type="text/template" id="empty-form-row">
+        <tr>
+            <td>{{ formset.empty_form.category }}</td>
+            <td>{{ formset.empty_form.product }}</td>
+            <td>{{ formset.empty_form.quantity }}</td>
+            <td>{{ formset.empty_form.unit_price_excl }}</td>
 
-      if (!panel || !trigger) return;
+            <td>
+                <input type="number"
+                    class="form-control discount-percent-field"
+                    value="0.00"
+                    min="0"
+                    max="100"
+                    step="0.01">
+                <div class="d-none">{{ formset.empty_form.discount_excl }}</div>
+            </td>
 
-      const isClickInsidePanel = panel.contains(event.target);
-      const isClickOnTrigger = trigger.contains(event.target);
+            <td>{{ formset.empty_form.vat_percent }}</td>
+            <td class="vat-amount text-end">0.00</td>
+            <td class="line-total text-end">0.00</td>
+            <td class="text-center">{{ formset.empty_form.DELETE }}</td>
+        </tr>
+    </script>
 
-      // If click is outside both → close
-      if (!isClickInsidePanel && !isClickOnTrigger) {
-        const collapse = bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false });
-        collapse.hide();
-      }
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const API_URL = "{% url 'ajax-products-by-category' %}";
+        const prefix = "items";
+
+        const tbody = document.getElementById("items-tbody");
+        const addBtn = document.getElementById("add-item-btn");
+        const totalFormsInput = document.getElementById(`id_${prefix}-TOTAL_FORMS`);
+        const emptyTemplate = document.getElementById("empty-form-row").innerHTML;
+
+        function money(value) {
+            const num = parseFloat(value || "0");
+            return isNaN(num) ? "0.00" : num.toFixed(2);
+        }
+
+        function calculateTotals() {
+            let itemsExcl = 0;
+            let itemsVat = 0;
+
+            tbody.querySelectorAll("tr").forEach(tr => {
+                const qty = parseFloat(tr.querySelector('[name$="-quantity"]')?.value || "0");
+                const unit = parseFloat(tr.querySelector('[name$="-unit_price_excl"]')?.value || "0");
+                const discPct = parseFloat(tr.querySelector('[name$="-discount_excl"]')?.value || "0");
+                const vatPct = parseFloat(tr.querySelector('[name$="-vat_percent"]')?.value || "0");
+
+                const discountPerUnit = unit * (discPct / 100);
+                const lineExcl = Math.max(0, (unit - discountPerUnit) * qty);
+                const vat = lineExcl * (vatPct / 100);
+
+                itemsExcl += lineExcl;
+                itemsVat += vat;
+            });
+
+            const discountTotal = parseFloat(document.querySelector('[name="discount_total_excl"]')?.value || "0");
+            const deliveryFee = parseFloat(document.querySelector('[name="delivery_fee_excl"]')?.value || "0");
+            const deliveryVatPct = parseFloat(document.querySelector('[name="delivery_fee_vat_percent"]')?.value || "0");
+
+            const deliveryVat = deliveryFee * (deliveryVatPct / 100);
+
+            const finalExcl = Math.max(0, itemsExcl - discountTotal) + deliveryFee;
+            const finalVat = itemsVat + deliveryVat;
+            const finalInc = finalExcl + finalVat;
+
+            document.getElementById("total-excl").textContent = "R" + money(finalExcl);
+            document.getElementById("total-vat").textContent = "R" + money(finalVat);
+            document.getElementById("total-inc").textContent = "R" + money(finalInc);
+        }
+
+        function calculateRow(tr) {
+            const qty = parseFloat(tr.querySelector('[name$="-quantity"]')?.value || "0");
+            const unit = parseFloat(tr.querySelector('[name$="-unit_price_excl"]')?.value || "0");
+            const discPct = parseFloat(tr.querySelector('[name$="-discount_excl"]')?.value || "0");
+            const vatPct = parseFloat(tr.querySelector('[name$="-vat_percent"]')?.value || "0");
+
+            const discountPerUnit = unit * (discPct / 100);
+            const lineExcl = Math.max(0, (unit - discountPerUnit) * qty);
+            const vat = lineExcl * (vatPct / 100);
+            const lineInc = lineExcl + vat;
+
+            const vatEl = tr.querySelector(".vat-amount");
+            const totalEl = tr.querySelector(".line-total");
+
+            if (vatEl) vatEl.textContent = money(vat);
+            if (totalEl) totalEl.textContent = money(lineInc);
+
+            calculateTotals();
+        }
+
+        function applyProductPricing(tr) {
+            const product = tr.querySelector('[name$="-product"]');
+            if (!product) return;
+
+            const option = product.options[product.selectedIndex];
+            if (!option || !option.value) return;
+
+            const price = option.dataset.priceExcl || "0.00";
+            const vat = option.dataset.vatPercent || "0.00";
+
+            const unitInput = tr.querySelector('[name$="-unit_price_excl"]');
+            const vatInput = tr.querySelector('[name$="-vat_percent"]');
+
+            if (unitInput) {
+                unitInput.value = price;
+                unitInput.readOnly = true;
+            }
+
+            if (vatInput) {
+                vatInput.value = vat;
+                vatInput.readOnly = true;
+            }
+
+            calculateRow(tr);
+        }
+
+        function setOptions(select, items, keepValue = false, previousText = "") {
+            const previousValue = keepValue ? select.value : "";
+
+            select.innerHTML = `<option value="">— Select product —</option>`;
+
+            items.forEach(p => {
+                const opt = document.createElement("option");
+                opt.value = p.id;
+                opt.textContent = p.text;
+                opt.dataset.priceExcl = p.price_excl || "0.00";
+                opt.dataset.vatPercent = p.vat_percent || "0.00";
+                select.appendChild(opt);
+            });
+
+            if (keepValue && previousValue) {
+                select.value = previousValue;
+
+                if (!select.value && previousText) {
+                    const fallback = document.createElement("option");
+                    fallback.value = previousValue;
+                    fallback.textContent = previousText;
+                    fallback.selected = true;
+                    select.appendChild(fallback);
+                }
+            }
+        }
+
+        async function loadProducts(categoryId, productSelect, keepValue = false) {
+            const previousText = productSelect.options[productSelect.selectedIndex]?.text || "";
+
+            productSelect.innerHTML = `<option value="">Loading...</option>`;
+            productSelect.disabled = true;
+
+            try {
+                const url = new URL(API_URL, window.location.origin);
+                url.searchParams.set("category_id", categoryId || "");
+
+                const res = await fetch(url.toString(), {
+                    credentials: "same-origin",
+                    cache: "no-store"
+                });
+
+                const data = await res.json();
+
+                setOptions(productSelect, data.results || [], keepValue, previousText);
+
+                const tr = productSelect.closest("tr");
+                if (keepValue && tr) {
+                    applyProductPricing(tr);
+                }
+
+            } catch {
+                setOptions(productSelect, [], keepValue, previousText);
+            }
+
+            productSelect.disabled = false;
+        }
+
+        function wireRow(tr) {
+            const cat = tr.querySelector('[name$="-category"]');
+            const prod = tr.querySelector('[name$="-product"]');
+
+            const qty = tr.querySelector('[name$="-quantity"]');
+            const disc = tr.querySelector('[name$="-discount_excl"]');
+            const unit = tr.querySelector('[name$="-unit_price_excl"]');
+            const vat = tr.querySelector('[name$="-vat_percent"]');
+
+            if (unit) unit.readOnly = true;
+            if (vat) vat.readOnly = true;
+
+            [qty, disc].forEach(input => {
+                if (input) {
+                    input.addEventListener("input", () => calculateRow(tr));
+                }
+            });
+
+            if (cat && prod) {
+                cat.addEventListener("change", () => {
+                    prod.value = "";
+
+                    if (cat.value) {
+                        loadProducts(cat.value, prod, false);
+                    } else {
+                        setOptions(prod, []);
+                    }
+
+                    calculateRow(tr);
+                });
+
+                prod.addEventListener("change", () => {
+                    applyProductPricing(tr);
+                });
+
+                if (cat.value) {
+                    loadProducts(cat.value, prod, true);
+                }
+            }
+
+            calculateRow(tr);
+        }
+
+        document.querySelectorAll(
+            '[name="discount_total_excl"], [name="delivery_fee_excl"], [name="delivery_fee_vat_percent"]'
+        ).forEach(input => {
+            input.addEventListener("input", calculateTotals);
+        });
+
+        tbody.querySelectorAll("tr").forEach(wireRow);
+
+        addBtn.addEventListener("click", function () {
+            const index = parseInt(totalFormsInput.value || "0", 10);
+            const html = emptyTemplate.replace(/__prefix__/g, index);
+
+            tbody.insertAdjacentHTML("beforeend", html);
+            totalFormsInput.value = index + 1;
+
+            const newRow = tbody.lastElementChild;
+            wireRow(newRow);
+
+            calculateTotals();
+        });
+
+        calculateTotals();
     });
-  </script>
+    </script>
 </body>
 </html>

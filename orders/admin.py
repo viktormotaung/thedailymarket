@@ -2,7 +2,7 @@
 from decimal import Decimal
 from django.contrib import admin, messages
 
-from .models import Order, OrderItem, OrderAudit
+from .models import Order, OrderItem, OrderAudit, Quotation, QuotationItem
 
 
 # ---------- helpers ----------
@@ -443,4 +443,184 @@ class OrderAuditAdmin(admin.ModelAdmin):
 
     ordering = ("-performed_at",)
 
+
+
+class QuotationItemInline(admin.TabularInline):
+    model = QuotationItem
+    extra = 1
+    autocomplete_fields = ("category", "product")
+    show_change_link = False
+
+    fields = (
+        "category",
+        "product",
+        "sku", "product_name", "uom",
+        "quantity",
+        "unit_price_excl", "discount_excl", "vat_percent",
+        "line_total_excl_display",
+        "line_vat_amount_display",
+        "line_total_inc_display",
+    )
+
+    readonly_fields = (
+        "sku", "product_name", "uom",
+        "line_total_excl_display",
+        "line_vat_amount_display",
+        "line_total_inc_display",
+    )
+
+    # MULTI-DB SUPPORT (same pattern as orders)
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.path.startswith("/dummy-admin"):
+            return qs.using("dummy")
+        return qs.using("default")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+        if db_field.name == "category":
+            from products.models import Category
+            field.queryset = Category.objects.using(db).all()
+
+        if db_field.name == "product":
+            from products.models import Product
+            qs = Product.objects.using(db).all()
+            field.queryset = qs
+
+            def label(obj):
+                try:
+                    pr = obj.pricing_rows.filter(is_primary=True, is_active=True).first()
+                    if pr:
+                        return f"{obj.sku} · {obj.name} (R {pr.retail_price_inc:.2f})"
+                    return f"{obj.sku} · {obj.name}"
+                except Exception:
+                    return f"{obj.sku} · {obj.name}"
+
+            field.label_from_instance = label
+
+        return field
+
+    @admin.display(description="Line Total (Excl)")
+    def line_total_excl_display(self, obj):
+        return money(obj.line_total_excl)
+
+    @admin.display(description="VAT (R)")
+    def line_vat_amount_display(self, obj):
+        return money(obj.line_vat_amount)
+
+    @admin.display(description="Line Total (Inc)")
+    def line_total_inc_display(self, obj):
+        return money(obj.line_total_inc)
     
+
+@admin.register(Quotation)
+class QuotationAdmin(admin.ModelAdmin):
+
+    inlines = [QuotationItemInline]
+
+    list_display = (
+        "id",
+        "client",
+        "status",
+        "created_by",
+        "grand_total_inc_display",
+        "quotation_date",
+        "valid_until",
+    )
+
+    list_filter = (
+        "status",
+        ("quotation_date", admin.DateFieldListFilter),
+        ("valid_until", admin.DateFieldListFilter),
+    )
+
+    search_fields = (
+        "id",
+        "client__name",
+        "client__organization",
+    )
+
+    autocomplete_fields = ("client", "created_by")
+
+    readonly_fields = (
+        "subtotal_excl",
+        "vat_total",
+        "grand_total_inc",
+        "converted_order",
+        "accepted_by",
+        "accepted_at",
+        "created_at",
+        "updated_at",
+    )
+
+    fieldsets = (
+        ("Quotation Info", {
+            "fields": (
+                ("client", "created_by"),
+                ("status", "quotation_date", "valid_until"),
+                "customer_notes",
+                "notes",
+            )
+        }),
+        ("Charges / Discounts", {
+            "fields": (
+                "discount_total_excl",
+                ("delivery_fee_excl", "delivery_fee_vat_percent"),
+            )
+        }),
+        ("Totals (auto)", {
+            "fields": (
+                "subtotal_excl",
+                "vat_total",
+                "grand_total_inc",
+            )
+        }),
+        ("Conversion", {
+            "fields": (
+                "converted_order",
+                ("accepted_by", "accepted_at"),
+            )
+        }),
+        ("Meta", {
+            "fields": (
+                "created_at",
+                "updated_at",
+            )
+        }),
+    )
+
+    # DISPLAY HELPERS
+    @admin.display(description="Grand Total (Inc)")
+    def grand_total_inc_display(self, obj):
+        return money(obj.grand_total_inc)
+
+    # SAVE (same logic as OrderAdmin)
+    def save_model(self, request, obj, form, change):
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+        with transaction.atomic(using=db):
+            obj.save(using=db)
+            obj.recalc_totals(save=True)
+
+    def save_related(self, request, form, formsets, change):
+        db = "dummy" if request.path.startswith("/dummy-admin") else "default"
+
+        for formset in formsets:
+            instances = formset.save(commit=False)
+
+            for obj in instances:
+                obj.save(using=db)
+
+            for obj in formset.deleted_objects:
+                obj.delete(using=db)
+
+            formset.save_m2m()
+
+        form.instance.recalc_totals(save=True)
+
+
+        
+           
