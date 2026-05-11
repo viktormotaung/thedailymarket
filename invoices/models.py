@@ -21,7 +21,7 @@ from credit.models import CreditEntry
 from django.db.models.signals import post_save, post_delete
 from django.db.models.functions import Coalesce
 from datetime import date
-
+import uuid
 
 def r2(x: Decimal | None) -> Decimal:
     """Round to 2 decimals, treating None as 0.00."""
@@ -95,6 +95,12 @@ class Invoice(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    public_token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+    )
 
     segment = models.ForeignKey(
         "UtilizationSegment",

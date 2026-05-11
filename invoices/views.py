@@ -24,6 +24,9 @@ from clients.models import Client
 import logging
 import uuid
 from online_payments.models import Payment
+from communications.models import CommunicationLog
+from communications.services.whatsapp import send_invoice_whatsapp
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -813,4 +816,118 @@ def send_invoice_email_internal(request, pk):
     msg.send(fail_silently=False)
 
     return JsonResponse({"success": True})
+
+
+
+@login_required
+@staff_required
+@require_POST
+def send_invoice_whatsapp_view(request, pk):
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("client", "order"),
+        pk=pk,
+    )
+
+    client = invoice.client
+
+    phone = (
+        request.POST.get("phone")
+        or getattr(client, "whatsapp", "")
+        or getattr(client, "phone", "")
+        or ""
+    ).strip()
+
+    if not phone:
+        return JsonResponse({
+            "success": False,
+            "error": "No WhatsApp number found."
+        }, status=400)
+
+    phone = (
+        phone
+        .replace("+", "")
+        .replace(" ", "")
+        .replace("-", "")
+    )
+
+    client_name = (
+        getattr(client, "organization", None)
+        or getattr(client, "name", None)
+        or "Client"
+    )
+
+    link = (
+        f"{settings.SITE_URL}/invoices/public/"
+        f"{invoice.public_token}/"
+    )
+
+    result = send_invoice_whatsapp(
+        to=phone,
+        client_name=client_name,
+        invoice_number=f"INV-{invoice.id}",
+        amount=invoice.amount_due,
+        link=link,
+    )
+
+    if not result.get("messages"):
+        error_message = (
+            result.get("error", {})
+            .get("message", "Unknown WhatsApp error")
+        )
+
+        CommunicationLog.objects.create(
+            channel=CommunicationLog.CHANNEL_WHATSAPP,
+            status=CommunicationLog.STATUS_FAILED,
+            recipient_name=client_name,
+            recipient_contact=phone,
+            subject=f"Invoice INV-{invoice.id}",
+            message=(
+                f"Failed WhatsApp invoice send.\n"
+                f"Invoice ID: {invoice.id}\n"
+                f"Link: {link}"
+            ),
+            related_model="Invoice",
+            related_object_id=invoice.id,
+            provider="Meta WhatsApp Cloud API",
+            provider_response=result,
+            error_message=error_message,
+            sent_by=request.user,
+        )
+
+        return JsonResponse({
+            "success": False,
+            "error": error_message,
+            "result": result,
+        }, status=400)
+
+    message_id = result["messages"][0].get("id")
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_WHATSAPP,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=client_name,
+        recipient_contact=phone,
+        subject=f"Invoice INV-{invoice.id}",
+        message=(
+            f"Invoice sent via WhatsApp.\n"
+            f"Invoice ID: {invoice.id}\n"
+            f"Link: {link}"
+        ),
+        related_model="Invoice",
+        related_object_id=invoice.id,
+        provider="Meta WhatsApp Cloud API",
+        provider_message_id=message_id,
+        provider_response=result,
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "Invoice sent successfully.",
+        "whatsapp_message_id": message_id,
+        "result": result,
+    })
+
+
 
