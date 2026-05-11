@@ -930,4 +930,30 @@ def send_invoice_whatsapp_view(request, pk):
     })
 
 
+def public_invoice_view(request, token):
+
+    invoice = get_object_or_404(
+        Invoice.objects.select_related(
+            "client",
+            "order",
+            "order__client",
+        ).prefetch_related(
+            "order__items",
+            "order__items__product",
+        ),
+        public_token=token,
+    )
+
+    return render(
+        request,
+        "invoices/public_invoice.html",
+        {
+            "invoice": invoice,
+            "order": invoice.order,
+            "client": invoice.client,
+            "items": invoice.order.items.all(),
+        },
+    )
+
+
 

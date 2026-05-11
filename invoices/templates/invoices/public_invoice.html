@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Invoice INV-{{ invoice.id }}</title>
+</head>
+<body>
+
+    <h1>The Daily Market</h1>
+
+    <h2>
+        Invoice INV-{{ invoice.id }}
+    </h2>
+
+    <hr>
+
+    <p>
+        Client:
+        {{ client }}
+    </p>
+
+    <p>
+        Amount Due:
+        R{{ invoice.amount_due }}
+    </p>
+
+    <p>
+        Status:
+        {{ invoice.get_status_display }}
+    </p>
+
+    <hr>
+
+    <h3>Items</h3>
+
+    <ul>
+        {% for item in items %}
+            <li>
+                {{ item.product_name }}
+                -
+                {{ item.quantity }}
+                ×
+                R{{ item.unit_price_inc }}
+            </li>
+        {% endfor %}
+    </ul>
+
+</body>
+</html>
