@@ -19,16 +19,23 @@ class CommunicationLogAdmin(admin.ModelAdmin):
         "sent_by",
         "created_at",
         "sent_at",
+        "delivered_at",
+        "read_at",
+        "failed_at",
     ]
 
     list_filter = [
         "channel",
         "status",
         "provider",
+        "whatsapp_pricing_category",
+        "whatsapp_pricing_type",
+        "whatsapp_billable",
         "created_at",
         "sent_at",
         "delivered_at",
         "read_at",
+        "failed_at",
     ]
 
     search_fields = [
@@ -37,6 +44,12 @@ class CommunicationLogAdmin(admin.ModelAdmin):
         "subject",
         "provider_message_id",
         "message",
+        "related_model",
+        "related_object_id",
+        "whatsapp_phone_number_id",
+        "whatsapp_display_phone_number",
+        "whatsapp_recipient_id",
+        "whatsapp_conversation_id",
     ]
 
     readonly_fields = [
@@ -45,12 +58,18 @@ class CommunicationLogAdmin(admin.ModelAdmin):
         "sent_at",
         "delivered_at",
         "read_at",
+        "failed_at",
         "provider_response",
+        "provider_status_payload",
     ]
 
     ordering = [
         "-created_at",
     ]
+
+    date_hierarchy = "created_at"
+
+    list_per_page = 50
 
     fieldsets = (
 
@@ -69,18 +88,6 @@ class CommunicationLogAdmin(admin.ModelAdmin):
         ),
 
         (
-            "Provider Information",
-            {
-                "fields": (
-                    "provider",
-                    "provider_message_id",
-                    "provider_response",
-                    "error_message",
-                )
-            },
-        ),
-
-        (
             "Linked Object",
             {
                 "fields": (
@@ -91,7 +98,35 @@ class CommunicationLogAdmin(admin.ModelAdmin):
         ),
 
         (
-            "Audit",
+            "Provider Information",
+            {
+                "fields": (
+                    "provider",
+                    "provider_message_id",
+                    "provider_response",
+                    "provider_status_payload",
+                    "error_message",
+                )
+            },
+        ),
+
+        (
+            "WhatsApp Tracking",
+            {
+                "fields": (
+                    "whatsapp_phone_number_id",
+                    "whatsapp_display_phone_number",
+                    "whatsapp_recipient_id",
+                    "whatsapp_conversation_id",
+                    "whatsapp_pricing_category",
+                    "whatsapp_pricing_type",
+                    "whatsapp_billable",
+                )
+            },
+        ),
+
+        (
+            "Audit / Timing",
             {
                 "fields": (
                     "sent_by",
@@ -100,6 +135,7 @@ class CommunicationLogAdmin(admin.ModelAdmin):
                     "sent_at",
                     "delivered_at",
                     "read_at",
+                    "failed_at",
                 )
             },
         ),
