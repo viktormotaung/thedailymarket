@@ -1,9 +1,12 @@
-
 from django.db import models
 from django.conf import settings
 
 
 class CommunicationLog(models.Model):
+
+    # ==================================================
+    # CHANNELS
+    # ==================================================
 
     CHANNEL_WHATSAPP = "whatsapp"
     CHANNEL_EMAIL = "email"
@@ -14,6 +17,10 @@ class CommunicationLog(models.Model):
         (CHANNEL_EMAIL, "Email"),
         (CHANNEL_SMS, "SMS"),
     ]
+
+    # ==================================================
+    # STATUSES
+    # ==================================================
 
     STATUS_PENDING = "pending"
     STATUS_SENT = "sent"
@@ -28,6 +35,10 @@ class CommunicationLog(models.Model):
         (STATUS_DELIVERED, "Delivered"),
         (STATUS_READ, "Read"),
     ]
+
+    # ==================================================
+    # BASIC MESSAGE INFO
+    # ==================================================
 
     channel = models.CharField(
         max_length=20,
@@ -61,6 +72,13 @@ class CommunicationLog(models.Model):
         null=True,
     )
 
+    # ==================================================
+    # RELATED OBJECT
+    # Example:
+    # related_model = "Invoice"
+    # related_object_id = 17
+    # ==================================================
+
     related_model = models.CharField(
         max_length=100,
         blank=True,
@@ -71,6 +89,10 @@ class CommunicationLog(models.Model):
         blank=True,
         null=True,
     )
+
+    # ==================================================
+    # PROVIDER INFO
+    # ==================================================
 
     provider = models.CharField(
         max_length=100,
@@ -83,6 +105,7 @@ class CommunicationLog(models.Model):
         max_length=255,
         blank=True,
         null=True,
+        db_index=True,
     )
 
     provider_response = models.JSONField(
@@ -90,10 +113,65 @@ class CommunicationLog(models.Model):
         null=True,
     )
 
+    provider_status_payload = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Latest webhook/status payload from provider.",
+    )
+
     error_message = models.TextField(
         blank=True,
         null=True,
     )
+
+    # ==================================================
+    # WHATSAPP-SPECIFIC TRACKING
+    # ==================================================
+
+    whatsapp_phone_number_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+
+    whatsapp_display_phone_number = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+    )
+
+    whatsapp_recipient_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+
+    whatsapp_conversation_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+
+    whatsapp_pricing_category = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+
+    whatsapp_pricing_type = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+
+    whatsapp_billable = models.BooleanField(
+        blank=True,
+        null=True,
+    )
+
+    # ==================================================
+    # USER / TIME TRACKING
+    # ==================================================
 
     sent_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -126,8 +204,25 @@ class CommunicationLog(models.Model):
         null=True,
     )
 
+    failed_at = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["channel"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["related_model", "related_object_id"]),
+            models.Index(fields=["provider_message_id"]),
+            models.Index(fields=["recipient_contact"]),
+            models.Index(fields=["created_at"]),
+        ]
 
     def __str__(self):
-        return f"{self.get_channel_display()} to {self.recipient_contact} - {self.get_status_display()}"
+        return (
+            f"{self.get_channel_display()} to "
+            f"{self.recipient_contact} - "
+            f"{self.get_status_display()}"
+        )
