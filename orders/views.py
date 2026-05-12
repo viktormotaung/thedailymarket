@@ -1425,17 +1425,61 @@ def quotation_edit(request, pk):
 
 
 def public_quotation_view(request, token):
+
     quotation = get_object_or_404(
-        Quotation,
+        Quotation.objects.prefetch_related(
+            "items",
+            "items__product",
+        ),
         public_token=token,
     )
+
+    items = list(quotation.items.all())
+
+    for item in items:
+
+        unit_price_excl = (
+            item.unit_price_excl
+            or Decimal("0.00")
+        )
+
+        vat_percent = (
+            item.vat_percent
+            or Decimal("0.00")
+        )
+
+        line_total_excl = (
+            item.line_total_excl
+            or Decimal("0.00")
+        )
+
+        line_vat_amount = (
+            item.line_vat_amount
+            or Decimal("0.00")
+        )
+
+        item.display_unit_price_inc = (
+            unit_price_excl
+            + (
+                unit_price_excl
+                * vat_percent
+                / Decimal("100")
+            )
+        )
+
+        item.display_line_total_inc = (
+            line_total_excl
+            + line_vat_amount
+        )
 
     return render(
         request,
         "orders/public_quotation.html",
-        {"quotation": quotation},
+        {
+            "quotation": quotation,
+            "items": items,
+        },
     )
-
 
 @login_required
 @staff_required
