@@ -205,7 +205,7 @@ CELERY_BEAT_SCHEDULE = {
 EMAIL_BACKEND = "postmarker.django.EmailBackend"
 
 POSTMARK = {
-    "TOKEN": os.getenv("POSTMARK_TOKEN", "cf107fec-de2b-4aea-ba4e-7fe4b3dcbfa3"), 
+    "TOKEN": os.getenv("POSTMARK_TOKEN", "1a973320-7401-41f4-9747-129c404b6899"), 
 }
 INFO_EMAIL = os.getenv("INFO_EMAIL", "info@thedailymarket.co.za")
 DEFAULT_FROM_EMAIL = "The Daily Market <accounts@thedailymarket.co.za>"
@@ -360,3 +360,4 @@ OZOW_ONEAPI_WEBHOOK_SECRET = ""
 WHATSAPP_ACCESS_TOKEN= "EAAjsvUGFTt4BRUIp4VqDUDO5PQM1DlJ0MObts5qUelBLtFu71EJn1XhRorKLtTNfZB9ambVh7Q6glKVivDC9RouEGEX93N2xQ19XYsXhCZBR2FH7qEekSYvoOyfC1jsXqzH5sD7eHRSn4WdUX99aw2rrF7uThst12oggWZC4FbMuZBWAiauXdni9YO152jcmmKkvJHbh7gpyDWUuPZAitxZBML1rS8ZAN7OfNaO7ZC9IfO5WbptZB1H1LsuzcLLscaKmrZBmNDy0KRtZA4sTtXtcOAq"
 WHATSAPP_PHONE_NUMBER_ID= "1114667525067344"
 SITE_URL = "https://www.thedailymarket.co.za"
+WHATSAPP_VERIFY_TOKEN = "TheDailyMarketWebhook2026"

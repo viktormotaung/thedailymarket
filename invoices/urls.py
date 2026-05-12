@@ -22,7 +22,7 @@ urlpatterns = [
     path("<int:pk>/send-request/", views.send_invoice_payment_request, name="invoice-send-request",),
 
 
-    path("invoices/<int:pk>/send-email/", views.send_invoice_email_internal, name="send-invoice-email-internal"),
+    path("<int:pk>/send-email/", views.send_invoice_email_internal, name="send-invoice-email-internal",),
 
     path("<int:pk>/send-whatsapp/", views.send_invoice_whatsapp_view, name="send-invoice-whatsapp",),
     path("public/<uuid:token>/", views.public_invoice_view, name="public-invoice-view",),

@@ -772,10 +772,19 @@ def invoice_send_payment_request(request, pk):
 
 
 @login_required
-@login_required
+@staff_required
 def send_invoice_email_internal(request, pk):
 
-    invoice = get_object_or_404(Invoice, pk=pk)
+    invoice = get_object_or_404(
+        Invoice.objects.select_related(
+            "client",
+            "order",
+        ).prefetch_related(
+            "order__items",
+            "order__items__product",
+        ),
+        pk=pk,
+    )
 
     if request.method != "POST":
         return JsonResponse(
@@ -803,6 +812,32 @@ def send_invoice_email_internal(request, pk):
     client = invoice.client
 
     # --------------------------------------------------
+    # Prepare invoice items for email display
+    # --------------------------------------------------
+
+    items = list(invoice.order.items.all())
+
+    for item in items:
+        unit_price_excl = item.unit_price_excl or Decimal("0.00")
+        vat_percent = item.vat_percent or Decimal("0.00")
+        line_total_excl = item.line_total_excl or Decimal("0.00")
+        line_vat_amount = item.line_vat_amount or Decimal("0.00")
+
+        item.display_unit_price_inc = (
+            unit_price_excl
+            + (
+                unit_price_excl
+                * vat_percent
+                / Decimal("100")
+            )
+        )
+
+        item.display_line_total_inc = (
+            line_total_excl
+            + line_vat_amount
+        )
+
+    # --------------------------------------------------
     # Resolve recipient name safely
     # --------------------------------------------------
 
@@ -824,6 +859,7 @@ def send_invoice_email_internal(request, pk):
     ctx = {
         "invoice": invoice,
         "client": client,
+        "items": items,
         "recipient_name": recipient_name,
         "support_email": getattr(
             settings,
@@ -831,7 +867,10 @@ def send_invoice_email_internal(request, pk):
             "support@thedailymarket.co.za"
         ),
         "invoice_url": request.build_absolute_uri(
-            reverse("view-invoice", args=[invoice.id])
+            reverse(
+                "public-invoice-view",
+                args=[invoice.public_token]
+            )
         ),
     }
 
@@ -877,8 +916,6 @@ def send_invoice_email_internal(request, pk):
     msg.send(fail_silently=False)
 
     return JsonResponse({"success": True})
-
-
 
 @login_required
 @staff_required
