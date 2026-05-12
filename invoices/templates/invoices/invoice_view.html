@@ -669,7 +669,7 @@
                     <td class="text-end">{{ it.vat_percent|floatformat:2 }}%</td>
                     <td class="text-end">R{{ it.line_total_excl|floatformat:2 }}</td>
                     <td class="text-end">R{{ it.line_vat_amount|floatformat:2 }}</td>
-                    <td class="text-end"><strong>R{{ it.line_total_inc|floatformat:2 }}</strong></td>
+                    <td class="text-end"><strong>R{{ it.display_line_total_inc|floatformat:2 }}</strong></td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -847,8 +847,8 @@
         <div class="modal-footer d-flex justify-content-between">
           <button type="button"
                   class="btn btn-outline-primary"
-                  id="btnSendRequestPayment"
-                  data-invoice-id="{{ invoice.id }}">
+                  data-bs-toggle="modal"
+                  data-bs-target="#sendPaymentRequestWhatsappModal">
               <i class="bi bi-send me-1"></i> Send Request Payment
           </button>
 
@@ -868,6 +868,52 @@
       </div>
     </div>
   </div>
+
+  <div class="modal fade" id="sendPaymentRequestWhatsappModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow">
+
+        <div class="modal-header">
+          <h5 class="modal-title">Send Payment Request via WhatsApp</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div id="paymentRequestWhatsappError" class="alert alert-danger d-none"></div>
+
+          <div id="paymentRequestWhatsappSuccess" class="alert alert-success d-none">
+            Payment request sent successfully.
+          </div>
+
+          <label class="form-label fw-semibold">WhatsApp Number</label>
+          <input type="text"
+                id="paymentRequestWhatsappPhone"
+                class="form-control"
+                value="{{ client.whatsapp|default:client.phone }}"
+                placeholder="27721234567">
+
+          <div class="form-text">
+            Use format: 27721234567, without + or spaces.
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">
+            Cancel
+          </button>
+
+          <button class="btn btn-outline-primary" id="sendPaymentRequestWhatsappBtn">
+            <span id="paymentRequestWhatsappSpinner"
+                  class="spinner-border spinner-border-sm d-none"></span>
+            <span id="paymentRequestWhatsappBtnText">Send Payment Request</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  
 
   <!-- Confirm Payment Modal -->
   <!-- Confirm Payment modal (form) -->
@@ -1094,103 +1140,143 @@
 
   <script>
   document.addEventListener("DOMContentLoaded", function () {
-      const btnOpenConfirm = document.getElementById("btnOpenConfirmModal");
       const btnSendRequest = document.getElementById("btnSendRequestPayment");
 
-      const paymentChoiceModal = document.getElementById("paymentChoiceModal");
-      const confirmPaymentModal = document.getElementById("confirmPaymentModal");
+      if (!btnSendRequest) return;
 
-      const kindLabel = document.getElementById("paymentKindLabel");
-      const kindLabelInline = document.getElementById("paymentKindLabelInline");
+      btnSendRequest.addEventListener("click", async function () {
+          const originalHtml = btnSendRequest.innerHTML;
 
-      const confirmKindLabel = document.getElementById("confirmKindLabel");
-      const confirmKindInput = document.getElementById("confirmKindInput");
-      const confirmMerchantIdInput = document.getElementById("confirmMerchantIdInput");
-      const confirmMerchantNameInput = document.getElementById("confirmMerchantNameInput");
-      const confirmInvoiceNumberInput = document.getElementById("confirmInvoiceNumberInput");
-      const confirmAmountInput = document.getElementById("confirmAmountInput");
-      const confirmReferenceInput = document.getElementById("confirmReferenceInput");
+          btnSendRequest.disabled = true;
+          btnSendRequest.innerHTML =
+              '<span class="spinner-border spinner-border-sm me-1"></span> Sending...';
 
-      let currentKind = "deposit";
-      let currentAmount = "{{ deposit_outstanding|floatformat:2 }}";
+          const sendRequestUrl = "{% url 'invoice-send-request' invoice.id %}";
 
-      // Update modal fields when Payment Choice modal is shown
-      if (paymentChoiceModal) {
-          paymentChoiceModal.addEventListener("show.bs.modal", function (event) {
-              const triggerBtn = event.relatedTarget;
-              if (!triggerBtn) return;
+          try {
+              const res = await fetch(sendRequestUrl, {
+                  method: "POST",
+                  headers: {
+                      "X-CSRFToken": "{{ csrf_token }}",
+                      "Content-Type": "application/x-www-form-urlencoded"
+                  },
+                  body: ""
+              });
 
-              const kind = (triggerBtn.getAttribute("data-payment-kind") || "deposit").toLowerCase();
-              const amount = triggerBtn.getAttribute("data-payment-amount") || "0.00";
+              const data = await res.json();
 
-              currentKind = kind;
-              currentAmount = amount;
+              if (data.success) {
+                  btnSendRequest.classList.remove("btn-outline-primary");
+                  btnSendRequest.classList.add("btn-success");
 
-              const niceLabel = kind === "credit" ? "Credit" : "Deposit";
-              kindLabel.textContent = niceLabel;
-              kindLabelInline.textContent = niceLabel.toLowerCase();
-          });
-      }
+                  btnSendRequest.innerHTML =
+                      '<i class="bi bi-check-circle me-1"></i> Sent';
 
-      // Open Confirm Payment modal
-      if (btnOpenConfirm) {
-          btnOpenConfirm.addEventListener("click", function (event) {
-              const btn = event.currentTarget;
+                  setTimeout(function () {
+                      const modalEl = document.getElementById("paymentChoiceModal");
+                      const modal = bootstrap.Modal.getInstance(modalEl);
 
-              const invoiceId = btn.getAttribute("data-invoice-id");
-              const amount = btn.getAttribute("data-deposit-outstanding");
-              const merchantId = btn.getAttribute("data-merchant-id");
-              const merchantName = btn.getAttribute("data-merchant-name");
-              const kind = btn.getAttribute("data-kind") || "deposit";
+                      if (modal) {
+                          modal.hide();
+                      }
 
-              confirmKindLabel.textContent = kind.charAt(0).toUpperCase() + kind.slice(1);
-              confirmKindInput.value = kind;
+                      btnSendRequest.disabled = false;
+                      btnSendRequest.classList.remove("btn-success");
+                      btnSendRequest.classList.add("btn-outline-primary");
+                      btnSendRequest.innerHTML = originalHtml;
+                  }, 1200);
 
-              confirmAmountInput.value = parseFloat(amount).toFixed(2);
-              confirmInvoiceNumberInput.value = invoiceId;
-              confirmMerchantIdInput.value = merchantId;
-              confirmMerchantNameInput.value = merchantName;
-              confirmReferenceInput.value = `INV-${invoiceId}: ${kind}`;
-
-              // show the modal
-              const confirmInstance = new bootstrap.Modal(confirmPaymentModal);
-              confirmInstance.show();
-          });
-      }
-
-
-
-      // Send Payment Request
-      if (btnSendRequest) {
-          btnSendRequest.addEventListener("click", async () => {
-              btnSendRequest.disabled = true;
-              btnSendRequest.innerHTML = "Sending...";
-              const invoiceId = btnSendRequest.getAttribute("data-invoice-id");
-              const sendRequestUrl = "{% url 'invoice-send-request' invoice.id %}";
-
-              try {
-                  const res = await fetch(sendRequestUrl, {
-                      method: "POST",
-                      headers: {
-                          "X-CSRFToken": "{{ csrf_token }}",
-                          "Content-Type": "application/x-www-form-urlencoded"
-                      },
-                      body: ""
-                  });
-
-                  const data = await res.json();
-                  alert(data.success ? data.message : "Error: " + data.message);
-              } catch (err) {
-                  console.error(err);
-                  alert("An unexpected error occurred.");
-              } finally {
-                  btnSendRequest.disabled = false;
-                  btnSendRequest.innerHTML = '<i class="bi bi-send me-1"></i> Send Request Payment';
+              } else {
+                  throw new Error(data.message || "Payment request failed.");
               }
-          });
-      }
+
+          } catch (err) {
+              console.error(err);
+
+              btnSendRequest.classList.remove("btn-outline-primary");
+              btnSendRequest.classList.add("btn-danger");
+
+              btnSendRequest.innerHTML =
+                  '<i class="bi bi-exclamation-triangle me-1"></i> Failed';
+
+              setTimeout(function () {
+                  btnSendRequest.disabled = false;
+                  btnSendRequest.classList.remove("btn-danger");
+                  btnSendRequest.classList.add("btn-outline-primary");
+                  btnSendRequest.innerHTML = originalHtml;
+              }, 1800);
+          }
+      });
   });
-  </script
+  </script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const btn = document.getElementById("sendPaymentRequestWhatsappBtn");
+    const phoneInput = document.getElementById("paymentRequestWhatsappPhone");
+    const spinner = document.getElementById("paymentRequestWhatsappSpinner");
+    const btnText = document.getElementById("paymentRequestWhatsappBtnText");
+    const errorBox = document.getElementById("paymentRequestWhatsappError");
+    const successBox = document.getElementById("paymentRequestWhatsappSuccess");
+
+    if (!btn) return;
+
+    btn.addEventListener("click", function () {
+      const phone = phoneInput.value.trim();
+
+      errorBox.classList.add("d-none");
+      successBox.classList.add("d-none");
+
+      if (!phone) {
+        errorBox.textContent = "Please enter a WhatsApp number.";
+        errorBox.classList.remove("d-none");
+        return;
+      }
+
+      btn.disabled = true;
+      spinner.classList.remove("d-none");
+      btnText.textContent = "Sending...";
+
+      const formData = new FormData();
+      formData.append("phone", phone);
+
+      fetch("{% url 'invoice-send-request' invoice.id %}", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          successBox.classList.remove("d-none");
+
+          setTimeout(() => {
+            const modal = bootstrap.Modal.getInstance(
+              document.getElementById("sendPaymentRequestWhatsappModal")
+            );
+
+            if (modal) {
+              modal.hide();
+            }
+          }, 1200);
+        } else {
+          throw new Error(data.message || "Failed to send payment request.");
+        }
+      })
+      .catch(error => {
+        errorBox.textContent = error.message;
+        errorBox.classList.remove("d-none");
+      })
+      .finally(() => {
+        btn.disabled = false;
+        spinner.classList.add("d-none");
+        btnText.textContent = "Send Payment Request";
+      });
+    });
+  });
+  </script>
 
 
 </body>

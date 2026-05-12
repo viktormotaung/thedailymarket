@@ -27,6 +27,12 @@ from online_payments.models import Payment
 from communications.models import CommunicationLog
 from communications.services.whatsapp import send_invoice_whatsapp
 from django.utils import timezone
+from communications.services.whatsapp import (
+    send_invoice_whatsapp,
+    send_invoice_payment_request_whatsapp,
+)
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +194,13 @@ def invoice_view(request, pk):
 
     order = invoice.order
     client = invoice.client
-    items = order.items.all()
+    items = list(order.items.all())
+
+    for item in items:
+        item.display_line_total_inc = (
+            (item.line_total_excl or Decimal("0.00"))
+            + (item.line_vat_amount or Decimal("0.00"))
+        )
 
     today = localdate()
     is_overdue = (
@@ -454,62 +466,111 @@ def generate_payfast_signature(data, passphrase):
 
 
 @login_required
+@staff_required
 @require_POST
-def send_invoice_payment_request(request, invoice_id):
+def send_invoice_payment_request(request, pk):
     invoice = get_object_or_404(
-        Invoice.objects.select_related("order", "order__client"),
-        pk=invoice_id
+        Invoice.objects.select_related("client", "order"),
+        pk=pk,
     )
-    client = invoice.order.client
 
-    if not client.email:
-        return JsonResponse({"success": False, "message": "Client has no email"}, status=400)
+    client = invoice.client
 
-    # --- Generate PayFast link ---
-    data = [
-        ("merchant_id", settings.PAYFAST_MERCHANT_ID),
-        ("merchant_key", settings.PAYFAST_MERCHANT_KEY),
-        ("return_url", "https://yourdomain.co.za/payfast/return/"),
-        ("cancel_url", "https://yourdomain.co.za/payfast/cancel/"),
-        ("notify_url", "https://yourdomain.co.za/payfast/itn/"),
-        ("name_first", client.contact_person.split()[0]),
-        ("name_last", client.contact_person.split()[-1]),
-        ("email_address", client.email),
-        ("m_payment_id", f"INV-{invoice.id}"),
-        ("amount", f"{invoice.amount_due:.2f}"),
-        ("item_name", f"Invoice #{invoice.id}"),
-    ]
+    if invoice.status == "paid":
+        return JsonResponse({
+            "success": False,
+            "message": "Invoice is already paid.",
+        }, status=400)
 
-    signature = generate_payfast_signature(data, passphrase=settings.PAYFAST_PASSPHRASE)
-    payfast_data = dict(data)
-    payfast_data["signature"] = signature
-    payfast_link = f"{settings.PAYFAST_PROCESS_URL}?{urllib.parse.urlencode(payfast_data)}"
+    phone = (
+        request.POST.get("phone")
+        or getattr(client, "whatsapp", "")
+        or getattr(client, "phone", "")
+        or ""
+    ).strip()
 
-    # --- Prepare Email ---
-    subject = f"The Daily Market – Payment Request for Invoice #{invoice.id}"
-    ctx = {
-        "client": client,
-        "invoice": invoice,
-        "payfast_link": payfast_link,
-        "support_email": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"),
-    }
+    if not phone:
+        return JsonResponse({
+            "success": False,
+            "message": "Client has no WhatsApp number.",
+        }, status=400)
 
-    text_body = render_to_string("email/payfast_invoice_request.txt", ctx)
-    html_body = render_to_string("email/payfast_invoice_request.html", ctx)
-
-    msg = EmailMultiAlternatives(
-        subject=subject,
-        body=text_body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[client.email],
-        headers={"Reply-To": ctx["support_email"]},
+    phone = (
+        phone
+        .replace("+", "")
+        .replace(" ", "")
+        .replace("-", "")
     )
-    msg.attach_alternative(html_body, "text/html")
-    msg.send(fail_silently=False)
 
-    return JsonResponse({"success": True, "message": "Payment request sent successfully."})
+    client_name = (
+        getattr(client, "organization", None)
+        or getattr(client, "name", None)
+        or "Client"
+    )
 
+    link = (
+        f"{settings.SITE_URL}/invoices/public/"
+        f"{invoice.public_token}/"
+    )
 
+    result = send_invoice_payment_request_whatsapp(
+        to=phone,
+        client_name=client_name,
+        invoice_number=f"INV-{invoice.id}",
+        amount=invoice.amount_due,
+        link=link,
+    )
+
+    if not result.get("messages"):
+        error_message = (
+            result.get("error", {})
+            .get("message", "Unknown WhatsApp error")
+        )
+
+        CommunicationLog.objects.create(
+            channel=CommunicationLog.CHANNEL_WHATSAPP,
+            status=CommunicationLog.STATUS_FAILED,
+            recipient_name=client_name,
+            recipient_contact=phone,
+            subject=f"Payment Request INV-{invoice.id}",
+            message=f"Failed payment request for Invoice {invoice.id}. Link: {link}",
+            related_model="Invoice",
+            related_object_id=invoice.id,
+            provider="Meta WhatsApp Cloud API",
+            provider_response=result,
+            error_message=error_message,
+            sent_by=request.user,
+        )
+
+        return JsonResponse({
+            "success": False,
+            "message": error_message,
+            "result": result,
+        }, status=400)
+
+    message_id = result["messages"][0].get("id")
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_WHATSAPP,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=client_name,
+        recipient_contact=phone,
+        subject=f"Payment Request INV-{invoice.id}",
+        message=f"Payment request sent for Invoice {invoice.id}. Link: {link}",
+        related_model="Invoice",
+        related_object_id=invoice.id,
+        provider="Meta WhatsApp Cloud API",
+        provider_message_id=message_id,
+        provider_response=result,
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "Payment request sent via WhatsApp.",
+        "whatsapp_message_id": message_id,
+    })
 
 @login_required
 @staff_required
@@ -944,6 +1005,44 @@ def public_invoice_view(request, token):
         public_token=token,
     )
 
+    items = list(invoice.order.items.all())
+
+    for item in items:
+
+        unit_price_excl = (
+            item.unit_price_excl
+            or Decimal("0.00")
+        )
+
+        vat_percent = (
+            item.vat_percent
+            or Decimal("0.00")
+        )
+
+        line_total_excl = (
+            item.line_total_excl
+            or Decimal("0.00")
+        )
+
+        line_vat_amount = (
+            item.line_vat_amount
+            or Decimal("0.00")
+        )
+
+        item.display_unit_price_inc = (
+            unit_price_excl
+            + (
+                unit_price_excl
+                * vat_percent
+                / Decimal("100")
+            )
+        )
+
+        item.display_line_total_inc = (
+            line_total_excl
+            + line_vat_amount
+        )
+
     return render(
         request,
         "invoices/public_invoice.html",
@@ -951,9 +1050,115 @@ def public_invoice_view(request, token):
             "invoice": invoice,
             "order": invoice.order,
             "client": invoice.client,
-            "items": invoice.order.items.all(),
+            "items": items,
         },
     )
+
+@login_required
+@staff_required
+@require_POST
+def invoice_send_payment_request(request, pk):
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("client", "order"),
+        pk=pk,
+    )
+
+    client = invoice.client
+
+    if invoice.status == "paid":
+        return JsonResponse({
+            "success": False,
+            "message": "Invoice is already paid.",
+        }, status=400)
+
+    phone = (
+        getattr(client, "whatsapp", "")
+        or getattr(client, "phone", "")
+        or ""
+    ).strip()
+
+    if not phone:
+        return JsonResponse({
+            "success": False,
+            "message": "Client has no WhatsApp number.",
+        }, status=400)
+
+    phone = (
+        phone
+        .replace("+", "")
+        .replace(" ", "")
+        .replace("-", "")
+    )
+
+    client_name = (
+        getattr(client, "organization", None)
+        or getattr(client, "name", None)
+        or "Client"
+    )
+
+    link = (
+        f"{settings.SITE_URL}/invoices/public/"
+        f"{invoice.public_token}/"
+    )
+
+    result = send_invoice_payment_request_whatsapp(
+        to=phone,
+        client_name=client_name,
+        invoice_number=f"INV-{invoice.id}",
+        amount=invoice.amount_due,
+        link=link,
+    )
+
+    if not result.get("messages"):
+        error_message = (
+            result.get("error", {})
+            .get("message", "Unknown WhatsApp error")
+        )
+
+        CommunicationLog.objects.create(
+            channel=CommunicationLog.CHANNEL_WHATSAPP,
+            status=CommunicationLog.STATUS_FAILED,
+            recipient_name=client_name,
+            recipient_contact=phone,
+            subject=f"Payment Request INV-{invoice.id}",
+            message=f"Failed payment request for Invoice {invoice.id}. Link: {link}",
+            related_model="Invoice",
+            related_object_id=invoice.id,
+            provider="Meta WhatsApp Cloud API",
+            provider_response=result,
+            error_message=error_message,
+            sent_by=request.user,
+        )
+
+        return JsonResponse({
+            "success": False,
+            "message": error_message,
+            "result": result,
+        }, status=400)
+
+    message_id = result["messages"][0].get("id")
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_WHATSAPP,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=client_name,
+        recipient_contact=phone,
+        subject=f"Payment Request INV-{invoice.id}",
+        message=f"Payment request sent for Invoice {invoice.id}. Link: {link}",
+        related_model="Invoice",
+        related_object_id=invoice.id,
+        provider="Meta WhatsApp Cloud API",
+        provider_message_id=message_id,
+        provider_response=result,
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "Payment request sent via WhatsApp.",
+        "whatsapp_message_id": message_id,
+    })
 
 
 

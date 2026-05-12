@@ -136,6 +136,27 @@ def send_delivery_note_whatsapp(*, to, client_name, delivery_note_number, link):
     )
 
 
+def send_invoice_payment_request_whatsapp(
+    to,
+    client_name,
+    invoice_number,
+    amount,
+    link,
+):
+    message = (
+        f"Hi {client_name},\n\n"
+        f"This is a payment request/reminder for {invoice_number}.\n\n"
+        f"Amount due: R{amount}\n\n"
+        f"Please use the link below to view the invoice and make payment via Ozow:\n"
+        f"{link}\n\n"
+        f"If payment has already been made, please ignore this message.\n\n"
+        f"Thank you,\n"
+        f"The Daily Market"
+    )
 
+    return send_whatsapp_message(
+        to=to,
+        message=message,
+    )
 
 
