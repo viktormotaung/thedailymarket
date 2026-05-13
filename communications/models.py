@@ -226,3 +226,67 @@ class CommunicationLog(models.Model):
             f"{self.recipient_contact} - "
             f"{self.get_status_display()}"
         )
+    
+
+class WhatsAppMessage(models.Model):
+
+    MESSAGE_TYPES = (
+        ("quotation", "Quotation"),
+        ("invoice", "Invoice"),
+        ("payment_reminder", "Payment Reminder"),
+    )
+
+    STATUS_CHOICES = (
+        ("pending", "Pending"),
+        ("sent", "Sent"),
+        ("delivered", "Delivered"),
+        ("read", "Read"),
+        ("failed", "Failed"),
+    )
+
+    recipient = models.CharField(max_length=20)
+
+    template_name = models.CharField(max_length=100)
+
+    message_type = models.CharField(
+        max_length=30,
+        choices=MESSAGE_TYPES,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="pending",
+    )
+
+    whatsapp_message_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+
+    response_payload = models.JSONField(
+        blank=True,
+        null=True,
+    )
+
+    quotation = models.ForeignKey(
+        "orders.Quotation",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
+
+    invoice = models.ForeignKey(
+        "invoices.Invoice",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.template_name} -> {self.recipient}"

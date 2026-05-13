@@ -1,7 +1,7 @@
 import requests
 
 from django.conf import settings
-
+from communications.services.whatsapp_templates import send_whatsapp_template
 
 WHATSAPP_API_VERSION = "v23.0"
 
@@ -71,47 +71,42 @@ def send_whatsapp_message(to, message):
         }
 
 
-def send_quotation_whatsapp(*, to, client_name, quotation_number, amount, link):
-    """
-    Send quotation link via WhatsApp.
-    """
-
-    message = (
-        f"Good Day {client_name},\n\n"
-        f"Your quotation from The Daily Market is ready.\n\n"
-        f"Quotation: {quotation_number}\n"
-        f"Amount: R{amount}\n\n"
-        f"View/download here:\n"
-        f"{link}\n\n"
-        f"Thank you,\n"
-        f"The Daily Market"
-    )
-
-    return send_whatsapp_message(
+def send_quotation_whatsapp(
+    to,
+    client_name,
+    quotation_number,
+    amount,
+    link,
+):
+    return send_whatsapp_template(
         to=to,
-        message=message,
+        template_name="quotation_delivery",
+        body_parameters=[
+            client_name,
+            str(quotation_number).replace("QT-", ""),
+            f"{amount}",
+            link,
+        ],
     )
 
 
-def send_invoice_whatsapp(*, to, client_name, invoice_number, amount, link):
-    """
-    Send invoice link via WhatsApp.
-    """
 
-    message = (
-        f"Good Day {client_name},\n\n"
-        f"Your invoice from The Daily Market is ready.\n\n"
-        f"Invoice: {invoice_number}\n"
-        f"Amount Due: R{amount}\n\n"
-        f"View/download here:\n"
-        f"{link}\n\n"
-        f"Thank you,\n"
-        f"The Daily Market"
-    )
-
-    return send_whatsapp_message(
+def send_invoice_whatsapp(
+    to,
+    client_name,
+    invoice_number,
+    amount,
+    link,
+):
+    return send_whatsapp_template(
         to=to,
-        message=message,
+        template_name="invoice_delivery",
+        body_parameters=[
+            client_name,
+            str(invoice_number).replace("INV-", ""),
+            f"{amount}",
+            link,
+        ],
     )
 
 
@@ -143,20 +138,13 @@ def send_invoice_payment_request_whatsapp(
     amount,
     link,
 ):
-    message = (
-        f"Hi {client_name},\n\n"
-        f"This is a payment request/reminder for {invoice_number}.\n\n"
-        f"Amount due: R{amount}\n\n"
-        f"Please use the link below to view the invoice and make payment via Ozow:\n"
-        f"{link}\n\n"
-        f"If payment has already been made, please ignore this message.\n\n"
-        f"Thank you,\n"
-        f"The Daily Market"
-    )
-
-    return send_whatsapp_message(
+    return send_whatsapp_template(
         to=to,
-        message=message,
+        template_name="payment_reminder",
+        body_parameters=[
+            client_name,
+            str(invoice_number).replace("INV-", ""),
+            f"{amount}",
+            link,
+        ],
     )
-
-

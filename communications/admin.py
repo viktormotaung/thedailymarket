@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CommunicationLog
+from .models import CommunicationLog, WhatsAppMessage
 
 
 @admin.register(CommunicationLog)
@@ -72,7 +72,6 @@ class CommunicationLogAdmin(admin.ModelAdmin):
     list_per_page = 50
 
     fieldsets = (
-
         (
             "Communication",
             {
@@ -86,7 +85,6 @@ class CommunicationLogAdmin(admin.ModelAdmin):
                 )
             },
         ),
-
         (
             "Linked Object",
             {
@@ -96,7 +94,6 @@ class CommunicationLogAdmin(admin.ModelAdmin):
                 )
             },
         ),
-
         (
             "Provider Information",
             {
@@ -109,7 +106,6 @@ class CommunicationLogAdmin(admin.ModelAdmin):
                 )
             },
         ),
-
         (
             "WhatsApp Tracking",
             {
@@ -124,7 +120,6 @@ class CommunicationLogAdmin(admin.ModelAdmin):
                 )
             },
         ),
-
         (
             "Audit / Timing",
             {
@@ -136,6 +131,94 @@ class CommunicationLogAdmin(admin.ModelAdmin):
                     "delivered_at",
                     "read_at",
                     "failed_at",
+                )
+            },
+        ),
+    )
+
+
+@admin.register(WhatsAppMessage)
+class WhatsAppMessageAdmin(admin.ModelAdmin):
+
+    list_display = [
+        "id",
+        "message_type",
+        "template_name",
+        "status",
+        "recipient",
+        "whatsapp_message_id",
+        "invoice",
+        "quotation",
+        "created_at",
+        "updated_at",
+    ]
+
+    list_filter = [
+        "message_type",
+        "template_name",
+        "status",
+        "created_at",
+        "updated_at",
+    ]
+
+    search_fields = [
+        "recipient",
+        "template_name",
+        "whatsapp_message_id",
+        "invoice__id",
+        "quotation__id",
+    ]
+
+    readonly_fields = [
+        "created_at",
+        "updated_at",
+        "response_payload",
+    ]
+
+    ordering = [
+        "-created_at",
+    ]
+
+    date_hierarchy = "created_at"
+
+    list_per_page = 50
+
+    fieldsets = (
+        (
+            "WhatsApp Message",
+            {
+                "fields": (
+                    "message_type",
+                    "template_name",
+                    "status",
+                    "recipient",
+                    "whatsapp_message_id",
+                )
+            },
+        ),
+        (
+            "Linked Records",
+            {
+                "fields": (
+                    "invoice",
+                    "quotation",
+                )
+            },
+        ),
+        (
+            "Provider Response",
+            {
+                "fields": (
+                    "response_payload",
+                )
+            },
+        ),
+        (
+            "Audit",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
                 )
             },
         ),
