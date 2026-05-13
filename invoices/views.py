@@ -519,6 +519,7 @@ def send_invoice_payment_request(request, pk):
         invoice_number=f"INV-{invoice.id}",
         amount=invoice.amount_due,
         link=link,
+        invoice=invoice,
     )
 
     if not result.get("messages"):
@@ -965,6 +966,7 @@ def send_invoice_whatsapp_view(request, pk):
         invoice_number=f"INV-{invoice.id}",
         amount=invoice.amount_due,
         link=link,
+        invoice=invoice,
     )
 
     if not result.get("messages"):
@@ -1144,6 +1146,7 @@ def invoice_send_payment_request(request, pk):
         invoice_number=f"INV-{invoice.id}",
         amount=invoice.amount_due,
         link=link,
+        invoice=invoice,
     )
 
     if not result.get("messages"):

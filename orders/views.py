@@ -1543,6 +1543,7 @@ def send_quotation_whatsapp_view(request, pk):
         quotation_number=f"QT-{quotation.id}",
         amount=quotation.grand_total_inc,
         link=link,
+        quotation=quotation,
     )
 
     # ==========================================

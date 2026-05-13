@@ -77,6 +77,7 @@ def send_quotation_whatsapp(
     quotation_number,
     amount,
     link,
+    quotation=None,
 ):
     return send_whatsapp_template(
         to=to,
@@ -87,6 +88,8 @@ def send_quotation_whatsapp(
             f"{amount}",
             link,
         ],
+        message_type="quotation",
+        quotation=quotation,
     )
 
 
@@ -97,6 +100,7 @@ def send_invoice_whatsapp(
     invoice_number,
     amount,
     link,
+    invoice=None,
 ):
     return send_whatsapp_template(
         to=to,
@@ -107,6 +111,8 @@ def send_invoice_whatsapp(
             f"{amount}",
             link,
         ],
+        message_type="invoice",
+        invoice=invoice,
     )
 
 
@@ -137,6 +143,7 @@ def send_invoice_payment_request_whatsapp(
     invoice_number,
     amount,
     link,
+    invoice=None,
 ):
     return send_whatsapp_template(
         to=to,
@@ -147,4 +154,8 @@ def send_invoice_payment_request_whatsapp(
             f"{amount}",
             link,
         ],
+        message_type="payment_reminder",
+        invoice=invoice,
     )
+
+

@@ -2,15 +2,21 @@ import requests
 
 from django.conf import settings
 
+from communications.models import WhatsAppMessage
+
 
 WHATSAPP_API_VERSION = "v23.0"
 
 
 def send_whatsapp_template(
+    *,
     to,
     template_name,
     language_code="en",
     body_parameters=None,
+    message_type=None,
+    quotation=None,
+    invoice=None,
 ):
     """
     Send WhatsApp template message using Meta Cloud API.
@@ -75,5 +81,33 @@ def send_whatsapp_template(
     print("Status:", response.status_code)
     print("Response:", data)
     print("================================================")
+
+    # ==========================================
+    # CREATE WHATSAPP LOG
+    # ==========================================
+
+    whatsapp_message_id = None
+
+    messages = data.get("messages") or []
+
+    if messages:
+        whatsapp_message_id = messages[0].get("id")
+
+    status = (
+        "sent"
+        if response.status_code == 200
+        else "failed"
+    )
+
+    WhatsAppMessage.objects.create(
+        recipient=to,
+        template_name=template_name,
+        message_type=message_type or "invoice",
+        status=status,
+        whatsapp_message_id=whatsapp_message_id,
+        response_payload=data,
+        quotation=quotation,
+        invoice=invoice,
+    )
 
     return data
