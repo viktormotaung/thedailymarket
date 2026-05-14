@@ -401,21 +401,44 @@ def prospect_create(request):
     Create a new prospect.
 
     - Sets owner and created_by to the current user
+    - Saves ProspectOperatingHours correctly via ProspectForm.save()
     - Logs an initial ProspectUpdate entry
     """
+
     if request.method == "POST":
         form = ProspectForm(request.POST)
+
         if form.is_valid():
-            prospect = form.save(commit=False)
 
-            # Ownership
-            prospect.owner = prospect.owner or request.user
-            prospect.created_by = prospect.created_by or request.user
+            # -----------------------------------
+            # Set ownership BEFORE saving
+            # -----------------------------------
+            form.instance.owner = form.instance.owner or request.user
+            form.instance.created_by = form.instance.created_by or request.user
 
-            prospect.save()
-            form.save_m2m()  # IMPORTANT for categories
+            # Prevent accidental direct WON creation
+            if form.instance.stage == "WON":
+                form.instance.stage = "NEW"
 
-            # ✅ Log creation in timeline
+            # -----------------------------------
+            # Save through form so operating hours
+            # and m2m fields are handled properly
+            # -----------------------------------
+            prospect = form.save()
+
+            # Ensure ownership persisted
+            if not prospect.owner_id or not prospect.created_by_id:
+                prospect.owner = prospect.owner or request.user
+                prospect.created_by = prospect.created_by or request.user
+                prospect.save(update_fields=[
+                    "owner",
+                    "created_by",
+                    "updated_at",
+                ])
+
+            # -----------------------------------
+            # Log creation in timeline
+            # -----------------------------------
             ProspectUpdate.objects.create(
                 prospect=prospect,
                 user=request.user,
@@ -426,7 +449,13 @@ def prospect_create(request):
                 old_stage=prospect.stage,
             )
 
+            messages.success(
+                request,
+                "Prospect created successfully."
+            )
+
             return redirect("sales:sales-prospects")
+
     else:
         form = ProspectForm(initial={
             "stage": "NEW",
@@ -436,7 +465,9 @@ def prospect_create(request):
     return render(
         request,
         "prospects/prospect_form.html",
-        {"form": form}
+        {
+            "form": form,
+        }
     )
 
 
@@ -761,27 +792,98 @@ def prospect_stage_action(request, pk: int):
 @login_required
 def prospect_edit(request, pk: int):
     """
-    Edit an existing prospect's info (name, contact details, location, etc.)
-    Uses the same ProspectForm as create.
+    Edit an existing prospect.
+
+    Uses ProspectForm so:
+    - operating hours save correctly
+    - categories save correctly
+    - delivery slots save correctly
+
+    Does NOT change:
+    - owner
+    - created_by
     """
-    prospect = get_object_or_404(Prospect, pk=pk)
+
+    prospect = get_object_or_404(
+        Prospect.objects.select_related(
+            "owner",
+            "client",
+        ).prefetch_related(
+            "categories",
+        ),
+        pk=pk,
+    )
 
     if request.method == "POST":
-        form = ProspectForm(request.POST, instance=prospect)
+
+        # Capture original stage BEFORE save
+        original_stage = prospect.stage
+
+        form = ProspectForm(
+            request.POST,
+            instance=prospect,
+        )
+
         if form.is_valid():
-            obj = form.save(commit=False)
-            # Don't touch owner / created_by here
-            obj.save()
-            messages.success(request, "Prospect info updated successfully.")
-            return redirect("sales:sales-prospect-detail", pk=prospect.pk)
+
+            # -----------------------------------
+            # Save through form
+            # (important for operating hours)
+            # -----------------------------------
+            updated_prospect = form.save()
+
+            # -----------------------------------
+            # Log stage changes
+            # -----------------------------------
+            if original_stage != updated_prospect.stage:
+
+                ProspectUpdate.objects.create(
+                    prospect=updated_prospect,
+                    user=request.user,
+                    action_type="OTHER",
+                    outcome="OTHER",
+                    notes=(
+                        f"Prospect stage changed from "
+                        f"{original_stage} to "
+                        f"{updated_prospect.stage}."
+                    ),
+                    action_at=timezone.now(),
+                    old_stage=original_stage,
+                    new_stage=updated_prospect.stage,
+                )
+
+            messages.success(
+                request,
+                "Prospect info updated successfully."
+            )
+
+            return redirect(
+                "sales:sales-prospect-detail",
+                pk=updated_prospect.pk
+            )
+
+        messages.error(
+            request,
+            "Please fix the errors below."
+        )
+
     else:
-        form = ProspectForm(instance=prospect)
+
+        form = ProspectForm(
+            instance=prospect,
+        )
 
     context = {
         "form": form,
         "prospect": prospect,
     }
-    return render(request, "prospects/prospect_form.html", context)
+
+    return render(
+        request,
+        "prospects/prospect_form.html",
+        context,
+    )
+
 
 @login_required
 def prospect_contact_log(request, pk: int):

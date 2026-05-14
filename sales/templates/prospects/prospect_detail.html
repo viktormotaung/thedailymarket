@@ -2,11 +2,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Prospect: {{ prospect.name }} - Seshibo Daily Market</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prospect · {{ prospect.organization|default:prospect.name }} - Seshibo Daily Market</title>
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 
   <style>
     :root{
@@ -15,55 +15,40 @@
       --brand-green: #0b5c39;
       --content-bg: #f8f9fa;
     }
+
     html, body { height: 100%; }
 
     .sidebar-skin { background-color: var(--brand-green); color: #fff; padding: 1rem; }
     .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
     .sidebar-skin .nav-link.active,
     .sidebar-skin .nav-link:hover { background: rgba(255,255,255,0.15); border-radius: 4px; padding-left: 8px; }
-    .logo-img { max-height: 80px; width: auto; }
     .sidebar-skin .nav-link.ps-4 { font-size:.95rem; opacity:.95; }
     .nav-link[data-bs-toggle="collapse"]::after { content: none !important; }
+    .logo-img { max-height: 80px; width: auto; }
 
     .content { background: var(--content-bg); padding:20px; }
     .card { box-shadow: 0 1px 2px rgba(0,0,0,.04); }
     .meta { font-size:12px; color:#6c757d; }
-
-    @media (min-width:768px){
-      .dl-grid { display:grid; grid-template-columns:200px 1fr; row-gap:.25rem; }
-      .dl-grid dt { grid-column:1; }
-      .dl-grid dd { grid-column:2; }
-    }
-
-    @media (min-width: 992px) {
-      body { display:block; overflow:hidden; }
-      .sidebar-desktop {
-        position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w);
-        overflow-y:auto; z-index:1020;
-      }
-      .content { margin-left:var(--sidebar-w); height:100vh; overflow:auto; -webkit-overflow-scrolling:touch; }
-    }
-
-    @media (max-width: 991.98px) {
-      html, body { height:100%; overflow:hidden; }
-      .navbar.d-lg-none { position:fixed; top:0; left:0; right:0; z-index:1040; }
-      .content { margin-top:var(--mobile-nav-h); height:calc(100vh - var(--mobile-nav-h)); overflow:auto; -webkit-overflow-scrolling:touch; }
-    }
+    .badge-cat { background:#e9f7f0; color:#0b5c39; border:1px solid #cfe9df; }
 
     .stage-pill {
       font-size: .8rem;
-      padding: .2rem .6rem;
+      padding: .25rem .7rem;
       border-radius: 999px;
-      border: 1px solid rgba(0,0,0,0.05);
+      border: 1px solid rgba(0,0,0,0.06);
       background: #fff;
+      color: #6c757d;
+      white-space: nowrap;
     }
     .stage-pill.active {
-      background: #0b5c39;
+      background: var(--brand-green);
       color: #fff;
+      border-color: var(--brand-green);
     }
     .stage-pill.done {
       background: #e2f4eb;
-      color: #0b5c39;
+      color: var(--brand-green);
+      border-color: #bfe5d1;
     }
 
     .timeline-item {
@@ -71,6 +56,7 @@
       padding-left: 1rem;
       margin-left: .5rem;
       position: relative;
+      padding-bottom: 1rem;
     }
     .timeline-item::before {
       content: "";
@@ -80,16 +66,56 @@
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: #0b5c39;
+      background: var(--brand-green);
+    }
+    .timeline-item:last-child { padding-bottom: 0; }
+
+    @media (min-width: 992px) {
+      body { display:block; overflow:hidden; }
+      .sidebar-desktop {
+        position:fixed;
+        top:0;
+        left:0;
+        bottom:0;
+        width:var(--sidebar-w);
+        overflow-y:auto;
+        z-index:1020;
+      }
+      .content {
+        margin-left:var(--sidebar-w);
+        height:100vh;
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
+      }
+    }
+
+    @media (max-width: 991.98px) {
+      html, body { height:100%; overflow:hidden; }
+      .navbar.d-lg-none {
+        position:fixed;
+        top:0;
+        left:0;
+        right:0;
+        z-index:1040;
+      }
+      .content {
+        margin-top:var(--mobile-nav-h);
+        height:calc(100vh - var(--mobile-nav-h));
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
+      }
     }
   </style>
 </head>
 <body>
 
-  <!-- MOBILE TOP BAR -->
+  <!-- ================= MOBILE TOP BAR ================= -->
   <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
     <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#mobileMenu"
+              aria-controls="mobileMenu">
         <span class="navbar-toggler-icon"></span>
       </button>
       <a class="navbar-brand ms-2" href="#">
@@ -98,76 +124,83 @@
     </div>
   </nav>
 
-  <!-- MOBILE OFFCANVAS -->
-  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
-    <div class="offcanvas-header sidebar-skin">
-      <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Menu</h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  <!-- ================= MOBILE OFFCANVAS MENU ================= -->
+  <div class="offcanvas offcanvas-start d-lg-none sidebar-skin" tabindex="-1" id="mobileMenu">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title">Sales Navigation</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
     </div>
-    <div class="offcanvas-body sidebar-skin">
+
+    <div class="offcanvas-body">
       <div class="text-center mb-3">
-        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+        <img src="{% static 'images/logo.png' %}" class="logo-img" alt="Seshibo Daily Market">
       </div>
 
-      <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
-      <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
-      <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
-      <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
-      <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
-      <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
-      <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+      {% with current=request.resolver_match.url_name %}
+        <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if current == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if current == 'sales-prospects' or current == 'sales-prospect-detail' or current == 'sales-prospect-edit' %}active{% endif %}">Prospects</a>
+        <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if current == 'sales-clients' %}active{% endif %}">Clients</a>
+        <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if current == 'sales-orders' %}active{% endif %}">Orders</a>
+        <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if current == 'sales-invoices' %}active{% endif %}">Invoices</a>
+        <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if current == 'sales-commission' %}active{% endif %}">Commission</a>
+        <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if current == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
 
-      <hr class="border-light">
-      <form action="{% url 'logout' %}" method="post" class="m-0">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-light w-100">Sign out</button>
-      </form>
+        <hr class="border-light">
+
+        <form action="{% url 'logout' %}" method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-light w-100">Sign out</button>
+        </form>
+      {% endwith %}
     </div>
   </div>
 
-  <!-- DESKTOP SIDEBAR -->
+  <!-- ================= DESKTOP SIDEBAR ================= -->
   <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
     <div class="text-center mb-3">
       <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
     </div>
 
-    <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
-    <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
-    <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
-    <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
-    <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
-    <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
-    <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+    <h6 class="text-uppercase fw-semibold mb-2">Sales Platform</h6>
+    <hr class="border-light">
 
-    <div class="mt-3">
-      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
-        {% csrf_token %}
-        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
-      </form>
-    </div>
+    {% with current=request.resolver_match.url_name %}
+      <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if current == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if current == 'sales-prospects' or current == 'sales-prospect-detail' or current == 'sales-prospect-edit' %}active{% endif %}">Prospects</a>
+      <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if current == 'sales-clients' %}active{% endif %}">Clients</a>
+      <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if current == 'sales-orders' %}active{% endif %}">Orders</a>
+      <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if current == 'sales-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if current == 'sales-commission' %}active{% endif %}">Commission</a>
+      <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if current == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+
+      <div class="mt-3">
+        <form action="{% url 'logout' %}" method="post">
+          {% csrf_token %}
+          <button type="submit" class="nav-link btn btn-link text-start w-100 p-0 text-white">Sign out</button>
+        </form>
+      </div>
+    {% endwith %}
   </aside>
 
-  <!-- MAIN CONTENT -->
-  <main class="content">
+  <!-- ================= MAIN CONTENT ================= -->
+  <main class="content py-4">
     <div class="container-fluid">
 
-      <!-- Header -->
-      <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+      <!-- ================= HEADER ================= -->
+      <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
         <div>
           <a href="{% url 'sales:sales-prospects' %}" class="btn btn-link px-0 mb-1">&larr; Back to prospects</a>
-          <h2 class="h4 mb-1">
-            {{ prospect.name }}
-            {% if prospect.organization %}
-              <span class="text-muted">· {{ prospect.organization }}</span>
-            {% endif %}
+          <h2 class="fw-semibold mb-1">
+            {{ prospect.organization|default:prospect.name }}
           </h2>
-          <div class="meta">
-            Created {{ prospect.created_at|date:"Y-m-d H:i" }},
-            last contact:
-            {% if prospect.last_contact_at %}
-              {{ prospect.last_contact_at|naturaltime }}
+          <div class="text-muted small">
+            {{ prospect.get_potential_client_type_display|default:"Prospect" }} ·
+            {{ prospect.city|default:"—" }} ·
+            Owner:
+            {% if prospect.owner %}
+              {{ prospect.owner.get_full_name|default:prospect.owner.username }}
             {% else %}
-              <span class="text-muted">No contact logged</span>
+              Unassigned
             {% endif %}
           </div>
         </div>
@@ -177,81 +210,119 @@
             <span class="badge bg-success">Won</span>
           {% elif prospect.stage == "LOST" %}
             <span class="badge bg-danger">Lost</span>
+          {% elif prospect.stage == "NEGOTIATION" %}
+            <span class="badge bg-warning text-dark">Negotiation</span>
+          {% elif prospect.stage == "SITE_VISIT" %}
+            <span class="badge bg-info text-dark">Site Visit</span>
           {% else %}
             <span class="badge bg-primary">{{ prospect.get_stage_display }}</span>
           {% endif %}
 
-          {% if prospect.owner %}
-            <div class="meta mt-1">
-              Owner:
-              <strong>{{ prospect.owner.get_full_name|default:prospect.owner.username }}</strong>
-            </div>
-          {% endif %}
+          <div class="mt-2 d-flex gap-2 justify-content-end flex-wrap">
+            <a href="{% url 'sales:sales-prospect-edit' prospect.pk %}" class="btn btn-outline-primary btn-sm">Edit Prospect</a>
 
-          <!-- Edit prospect info (write action) -->
-          <a href="{% if can_write %}{% url 'sales:sales-prospect-edit' prospect.id %}{% else %}#{% endif %}"
-            class="btn btn-sm btn-outline-primary mt-2 {% if not can_write %}disabled{% endif %}"
-            {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
-            Edit info
-          </a>
+            {% if not prospect.is_closed %}
+              <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit"
+                        name="stage_action"
+                        value="NEGOTIATION_WON"
+                        class="btn btn-success btn-sm"
+                        onclick="return confirm('Mark this prospect as WON and convert it into a client?');">
+                  Mark Won
+                </button>
+              </form>
+            {% endif %}
 
-          <!-- Reopen button -->
-          <form method="post"
-                action="{% if can_reopen and can_write %}{% url 'sales:sales-prospect-reopen' prospect.id %}{% else %}#{% endif %}"
-                style="display:inline;">
+            {% if can_reopen %}
+              <form method="post" action="{% url 'sales:sales-prospect-reopen' prospect.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Reopen this prospect and restart the pipeline?');">
+                  Reopen
+                </button>
+              </form>
+            {% endif %}
 
-            {% csrf_token %}
-
-            <button type="submit"
-                    class="btn btn-success btn-sm mt-2 {% if not can_reopen or not can_write %}disabled{% endif %}"
-                    {% if not can_reopen or not can_write %}
-                      disabled
-                      aria-disabled="true"
-                      title="You do not have permission to reopen this prospect"
-                    {% else %}
-                      onclick="return confirm('Reopen this prospect and restart the pipeline?');"
-                    {% endif %}>
-              Reopen prospect
-            </button>
-
-          </form>
-
-
+            {% if prospect.client %}
+              <a href="{% url 'client-view' prospect.client.pk %}" class="btn btn-outline-success btn-sm">View Client</a>
+            {% endif %}
+          </div>
         </div>
       </div>
 
-      <!-- Stage progress + SLA -->
-      <div class="card mb-3">
+      <!-- ================= KPI ROW ================= -->
+      <div class="row g-3 mb-4 justify-content-between">
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <div class="card p-3 h-100">
+            <div class="text-muted small">Age</div>
+            <div class="fs-5 fw-semibold">{{ prospect.age_days }} days</div>
+          </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <div class="card p-3 h-100">
+            <div class="text-muted small">Stage</div>
+            <div class="fs-5 fw-semibold">{{ prospect.get_stage_display }}</div>
+          </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <div class="card p-3 h-100">
+            <div class="text-muted small">SLA</div>
+            <div class="fs-5 fw-semibold">{{ prospect.sla_status }}</div>
+          </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <div class="card p-3 h-100">
+            <div class="text-muted small">Est. Weekly Spend</div>
+            <div class="fs-5 fw-semibold">
+              {% if prospect.estimated_weekly_spend %}
+                R{{ prospect.estimated_weekly_spend|floatformat:0|intcomma }}
+              {% else %}
+                —
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <div class="card p-3 h-100">
+            <div class="text-muted small">Conversion</div>
+            <div class="fs-5 fw-semibold">
+              {% if prospect.client %}
+                Client Created
+              {% elif prospect.stage == "WON" %}
+                Pending Link
+              {% else %}
+                In Pipeline
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= PIPELINE PROGRESS ================= -->
+      <div class="card shadow-sm mb-4">
         <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-2">
             <div>
-              <div class="fw-semibold">Pipeline progress</div>
-              <div class="meta">
-                Stage: {{ prospect.get_stage_display }}
-              </div>
+              <h5 class="fw-semibold mb-1">Pipeline Progress</h5>
+              <div class="text-muted small">Current stage: {{ prospect.get_stage_display }}</div>
             </div>
 
             <div class="text-end">
-              <div class="meta">
-                Age: {{ prospect.age_days }} day{% if prospect.age_days != 1 %}s{% endif %}
-              </div>
               {% if prospect.is_closed %}
-                <span class="badge bg-secondary mt-1">
-                  Closed &middot; {{ prospect.sla_status }}
-                </span>
+                <span class="badge bg-secondary">Closed · {{ prospect.sla_status }}</span>
               {% elif prospect.is_overdue %}
-                <span class="badge bg-danger mt-1">
-                  Overdue &middot; {{ prospect.sla_status }}
-                </span>
+                <span class="badge bg-danger">Overdue · {{ prospect.sla_status }}</span>
               {% else %}
-                <span class="badge bg-success mt-1">
-                  {{ prospect.sla_status }}
-                </span>
+                <span class="badge bg-success">{{ prospect.sla_status }}</span>
               {% endif %}
             </div>
           </div>
 
-          <div class="progress mb-2" style="height: 8px;">
+          <div class="progress mb-3" style="height: 8px;">
             <div class="progress-bar" role="progressbar"
                  style="width: {{ progress_percent }}%;"
                  aria-valuenow="{{ progress_percent }}"
@@ -259,317 +330,402 @@
                  aria-valuemax="100"></div>
           </div>
 
-          <div class="d-flex flex-wrap gap-2 mt-2">
+          <div class="d-flex flex-wrap gap-2">
             {% for s in stage_states %}
-              <span class="stage-pill
-                {% if s.state == 'active' %} active
-                {% elif s.state == 'done' %} done
-                {% endif %}
-              ">
+              <span class="stage-pill {% if s.state == 'active' %}active{% elif s.state == 'done' %}done{% endif %}">
                 {{ s.label }}
               </span>
             {% endfor %}
 
             {% if prospect.stage == "LOST" %}
-              <span class="badge bg-danger ms-2">Marked as lost</span>
+              <span class="badge bg-danger ms-1">Marked Lost</span>
             {% endif %}
           </div>
         </div>
       </div>
 
-      <!-- OUTER TABS -->
-      <ul class="nav nav-tabs mb-3" id="prospectTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="tab-info-tab" data-bs-toggle="tab" data-bs-target="#tab-info" type="button" role="tab">
-            Prospect info
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="tab-contact-stage-tab" data-bs-toggle="tab" data-bs-target="#tab-contact-stage" type="button" role="tab">
-            Contact stage
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="tab-site-visit-tab" data-bs-toggle="tab" data-bs-target="#tab-site-visit" type="button" role="tab">
-            Site visit
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="tab-negotiation-tab" data-bs-toggle="tab" data-bs-target="#tab-negotiation" type="button" role="tab">
-            Negotiation
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="tab-won-tab" data-bs-toggle="tab" data-bs-target="#tab-won" type="button" role="tab">
-            Won / Conversion
-          </button>
-        </li>
+      <!-- ================= TABS ================= -->
+      <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview" type="button">Overview</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#contact" type="button">Contact Stage</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#sitevisit" type="button">Site Visit</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#negotiation" type="button">Negotiation</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#conversion" type="button">Won / Conversion</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#timeline" type="button">Timeline</button></li>
       </ul>
 
       <div class="tab-content">
 
-        <!-- PROSPECT INFO TAB -->
-        <div class="tab-pane fade show active" id="tab-info" role="tabpanel" aria-labelledby="tab-info-tab">
-          <div class="card mb-3">
-            <div class="card-body">
+        <!-- ================= OVERVIEW TAB ================= -->
+        <div class="tab-pane fade show active" id="overview" role="tabpanel">
 
-              <!-- inner tabs for info -->
-              <ul class="nav nav-pills mb-3" id="infoSubTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link active" id="info-overview-tab" data-bs-toggle="tab" data-bs-target="#info-overview" type="button" role="tab">
-                    Overview
-                  </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link" id="info-contact-tab" data-bs-toggle="tab" data-bs-target="#info-contact" type="button" role="tab">
-                    Contact &amp; location
-                  </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link" id="info-potential-tab" data-bs-toggle="tab" data-bs-target="#info-potential" type="button" role="tab">
-                    Potential profile
-                  </button>
-                </li>
-                <!-- NEW Timeline inner tab -->
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link" id="info-timeline-tab" data-bs-toggle="tab" data-bs-target="#info-timeline" type="button" role="tab">
-                    Timeline
-                  </button>
-                </li>
-              </ul>
-
-              <div class="tab-content">
-                <!-- Overview -->
-                <div class="tab-pane fade show active" id="info-overview" role="tabpanel" aria-labelledby="info-overview-tab">
-                  <dl class="dl-grid mb-0">
-                    <dt>Lead source</dt>
-                    <dd>{{ prospect.lead_source|default:"—" }}</dd>
-
-                    <dt>Stage</dt>
-                    <dd>{{ prospect.get_stage_display }}</dd>
-
-                    <dt>Status</dt>
-                    <dd>{{ prospect.get_status_display }}</dd>
-
-                    <dt>Estimated weekly spend</dt>
-                    <dd>
-                      {% if prospect.estimated_weekly_spend %}
-                        R {{ prospect.estimated_weekly_spend|floatformat:0|intcomma }} / week
-                      {% else %}
-                        <span class="text-muted">Not set</span>
-                      {% endif %}
-                    </dd>
-
-                    <dt>Notes</dt>
-                    <dd>
-                      {% if prospect.notes %}
-                        <div style="white-space:pre-wrap;">{{ prospect.notes }}</div>
-                      {% else %}
-                        <span class="text-muted">No notes yet</span>
-                      {% endif %}
-                    </dd>
-                  </dl>
+          <div class="card shadow-sm mb-4">
+            <div class="card-body d-flex justify-content-between align-items-start flex-wrap gap-3">
+              <div>
+                <h5 class="fw-semibold mb-1">Prospect Overview</h5>
+                <div class="text-muted small">
+                  Quick view of pipeline health, contact readiness, commercial potential, and conversion readiness.
                 </div>
+              </div>
+              <div class="d-flex gap-2 flex-wrap">
+                <a href="{% url 'sales:sales-prospect-edit' prospect.pk %}" class="btn btn-outline-primary btn-sm">Edit Prospect</a>
 
-                <!-- Contact & location -->
-                <div class="tab-pane fade" id="info-contact" role="tabpanel" aria-labelledby="info-contact-tab">
-                  <dl class="dl-grid mb-0">
-                    <dt>Contact person</dt>
-                    <dd>{{ prospect.contact_name|default:"—" }}</dd>
+                {% if not prospect.is_closed %}
+                  <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit"
+                            name="stage_action"
+                            value="NEGOTIATION_WON"
+                            class="btn btn-success btn-sm"
+                            onclick="return confirm('Mark this prospect as WON and convert it into a client?');">
+                      Mark Won
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            </div>
+          </div>
 
-                    <dt>Phone</dt>
-                    <dd>{{ prospect.phone|default:"—" }}</dd>
-
-                    <dt>WhatsApp</dt>
-                    <dd>{{ prospect.whatsapp|default:"—" }}</dd>
-
-                    <dt>Email</dt>
-                    <dd>
-                      {% if prospect.email %}
-                        <a href="mailto:{{ prospect.email }}">{{ prospect.email }}</a>
-                      {% else %}
-                        — 
-                      {% endif %}
-                    </dd>
-
-                    <dt>Suburb</dt>
-                    <dd>{{ prospect.suburb|default:"—" }}</dd>
-
-                    <dt>City</dt>
-                    <dd>{{ prospect.city|default:"—" }}</dd>
-
-                    <dt>Province</dt>
-                    <dd>
-                      {% if prospect.province %}
-                        {{ prospect.get_province_display|default:prospect.province }}
-                      {% else %}
-                        — 
-                      {% endif %}
-                    </dd>
-                  </dl>
+          <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-md-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                  <div class="text-muted small mb-1">Pipeline Status</div>
+                  {% if prospect.stage == "WON" %}
+                    <span class="badge bg-success">Won</span>
+                  {% elif prospect.stage == "LOST" %}
+                    <span class="badge bg-danger">Lost</span>
+                  {% else %}
+                    <span class="badge bg-primary">{{ prospect.get_stage_display }}</span>
+                  {% endif %}
+                  <div class="small text-muted mt-2">Created {{ prospect.created_at|date:"Y-m-d" }}</div>
                 </div>
+              </div>
+            </div>
 
-                <!-- Potential profile -->
-                <div class="tab-pane fade" id="info-potential" role="tabpanel" aria-labelledby="info-potential-tab">
-                  <dl class="dl-grid mb-0">
-                    <dt>Expected client type</dt>
-                    <dd>
-                      {% if prospect.potential_client_type %}
-                        {{ prospect.get_potential_client_type_display }}
-                      {% else %}
-                        <span class="text-muted">Not set</span>
-                      {% endif %}
-                    </dd>
-
-                    <dt>Expected size tier</dt>
-                    <dd>
-                      {% if prospect.potential_size_tier %}
-                        {{ prospect.get_potential_client_size_tier_display|default:prospect.get_potential_size_tier_display }}
-                      {% else %}
-                        <span class="text-muted">Not set</span>
-                      {% endif %}
-                    </dd>
-
-                    <dt>Territory</dt>
-                    <dd>
-                      {% if prospect.area %}
-                        {{ prospect.get_area_display }}
-                      {% else %}
-                        <span class="text-muted">Not assigned</span>
-                      {% endif %}
-                    </dd>
-
-                    <dt>Estimated weekly spend</dt>
-                    <dd>
-                      {% if prospect.estimated_weekly_spend %}
-                        R {{ prospect.estimated_weekly_spend|floatformat:0|intcomma }}
-                      {% else %}
-                        <span class="text-muted">Not set</span>
-                      {% endif %}
-                    </dd>
-
-                    <dt>Created by</dt>
-                    <dd>
-                      {% if prospect.created_by %}
-                        {{ prospect.created_by.get_full_name|default:prospect.created_by.username }}
-                      {% else %}
-                        — 
-                      {% endif %}
-                    </dd>
-                  </dl>
+            <div class="col-xl-3 col-md-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                  <div class="text-muted small mb-1">SLA</div>
+                  {% if prospect.is_overdue and not prospect.is_closed %}
+                    <span class="badge bg-danger">{{ prospect.sla_status }}</span>
+                  {% elif prospect.is_closed %}
+                    <span class="badge bg-secondary">Closed</span>
+                  {% else %}
+                    <span class="badge bg-success">{{ prospect.sla_status }}</span>
+                  {% endif %}
+                  <div class="small text-muted mt-2">{{ prospect.age_days }} day{% if prospect.age_days != 1 %}s{% endif %} in pipeline</div>
                 </div>
+              </div>
+            </div>
 
-                <!-- TIMELINE inner tab -->
-                <div class="tab-pane fade" id="info-timeline" role="tabpanel" aria-labelledby="info-timeline-tab">
-                  <div class="vstack gap-3">
-
-                    <!-- Created entry -->
-                    <div class="timeline-item">
-                      <div class="d-flex justify-content-between">
-                        <div class="fw-semibold">
-                          Prospect created
-                        </div>
-                        <div class="meta">
-                          {{ prospect.created_at|date:"Y-m-d H:i" }}
-                        </div>
-                      </div>
-                      <div class="meta">
-                        {% if prospect.created_by %}
-                          by {{ prospect.created_by.get_full_name|default:prospect.created_by.username }}
-                        {% else %}
-                          (creator not recorded)
-                        {% endif %}
-                      </div>
-                    </div>
-
-                    <!-- All updates, oldest → newest -->
-                    {% if updates_timeline %}
-                      {% for u in updates_timeline %}
-                        <div class="timeline-item">
-                          <div class="d-flex justify-content-between">
-                            <div class="fw-semibold">
-                              {{ u.get_action_type_display }}
-                              {% if u.outcome %}
-                                <span class="text-muted">· {{ u.get_outcome_display }}</span>
-                              {% endif %}
-                            </div>
-                            <div class="meta">
-                              {{ u.action_at|date:"Y-m-d H:i" }}
-                            </div>
-                          </div>
-
-                          <div class="meta mb-1">
-                            {% if u.user %}
-                              by {{ u.user.get_full_name|default:u.user.username }}
-                            {% endif %}
-                            {% if u.old_stage or u.new_stage %}
-                              · stage: 
-                              {% if u.old_stage %}
-                                {{ u.get_old_stage_display }}
-                              {% else %}
-                                —
-                              {% endif %}
-                              →
-                              {% if u.new_stage %}
-                                {{ u.get_new_stage_display }}
-                              {% else %}
-                                —
-                              {% endif %}
-                            {% endif %}
-                          </div>
-
-                          {% if u.notes %}
-                            <div style="white-space:pre-wrap;">{{ u.notes }}</div>
-                          {% endif %}
-                        </div>
-                      {% endfor %}
+            <div class="col-xl-3 col-md-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                  <div class="text-muted small mb-1">Commercial Potential</div>
+                  <div class="fw-semibold">
+                    {% if prospect.estimated_weekly_spend %}
+                      R{{ prospect.estimated_weekly_spend|floatformat:2|intcomma }} / week
                     {% else %}
-                      <p class="text-muted mb-0">
-                        No timeline entries yet apart from creation.
-                      </p>
+                      Not Set
+                    {% endif %}
+                  </div>
+                  <div class="small text-muted mt-2">{{ prospect.get_potential_client_type_display|default:"Client type not set" }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                  <div class="text-muted small mb-1">Conversion</div>
+                  {% if prospect.client %}
+                    <span class="badge bg-success">Linked to Client</span>
+                  {% elif prospect.stage == "WON" %}
+                    <span class="badge bg-warning text-dark">Won but No Client Link</span>
+                  {% else %}
+                    <span class="badge bg-secondary">Not Converted</span>
+                  {% endif %}
+                  <div class="small text-muted mt-2">
+                    {% if prospect.client %}
+                      Client: {{ prospect.client.client_number }}
+                    {% else %}
+                      Conversion happens when marked won
                     {% endif %}
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
 
+          <!-- ================= ACTION FLAGS ================= -->
+          <div class="card shadow-sm mb-4">
+            <div class="card-header fw-semibold">Risk & Action Flags</div>
+            <div class="card-body">
+              <div class="d-flex flex-wrap gap-2">
+                {% if not prospect.owner %}<span class="badge bg-warning text-dark">No Owner</span>{% endif %}
+                {% if not prospect.phone and not prospect.whatsapp %}<span class="badge bg-warning text-dark">No Phone / WhatsApp</span>{% endif %}
+                {% if not prospect.email %}<span class="badge bg-secondary">No Email</span>{% endif %}
+                {% if not prospect.potential_client_type %}<span class="badge bg-warning text-dark">Client Type Missing</span>{% endif %}
+                {% if not prospect.area %}<span class="badge bg-warning text-dark">Territory Missing</span>{% endif %}
+                {% if not prospect.estimated_weekly_spend %}<span class="badge bg-secondary">Spend Estimate Missing</span>{% endif %}
+                {% if prospect.is_overdue and not prospect.is_closed %}<span class="badge bg-danger">Follow-up Overdue</span>{% endif %}
+                {% if prospect.stage == "WON" and not prospect.client %}<span class="badge bg-danger">Won But Not Linked To Client</span>{% endif %}
+                {% if prospect.owner and prospect.phone or prospect.whatsapp and prospect.potential_client_type and prospect.area and not prospect.is_overdue %}
+                  <span class="badge bg-success">No Major Flags</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-4">
+            <div class="col-lg-8">
+
+              <!-- ================= IDENTITY & CONTACT ================= -->
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Identity & Contact</div>
+                <div class="card-body">
+                  <div class="row g-4">
+                    <div class="col-md-4">
+                      <div class="text-muted small">Display Name</div>
+                      <div class="fw-semibold">{{ prospect.organization|default:prospect.name }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="text-muted small">Entity Type</div>
+                      <div class="fw-semibold">{{ prospect.get_entity_type_display|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="text-muted small">Lead Source</div>
+                      <div class="fw-semibold">{{ prospect.lead_source|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="text-muted small">Primary Contact</div>
+                      <div class="fw-semibold">{{ prospect.contact_name|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="text-muted small">Phone</div>
+                      <div class="fw-semibold">{{ prospect.phone|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="text-muted small">WhatsApp</div>
+                      <div class="fw-semibold">{{ prospect.whatsapp|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="text-muted small">Email</div>
+                      <div class="fw-semibold">
+                        {% if prospect.email %}<a href="mailto:{{ prospect.email }}">{{ prospect.email }}</a>{% else %}—{% endif %}
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="text-muted small">Owner</div>
+                      <div class="fw-semibold">
+                        {% if prospect.owner %}
+                          {{ prospect.owner.get_full_name|default:prospect.owner.username }}
+                        {% else %}
+                          Unassigned
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ================= LOCATION ================= -->
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Business Address & Delivery Preference</div>
+                <div class="card-body">
+                  <div class="row g-4">
+                    <div class="col-md-8">
+                      <div class="text-muted small">Business Address</div>
+                      <div class="fw-semibold">
+                        {{ prospect.address_line1|default:"" }}
+                        {% if prospect.address_line2 %}, {{ prospect.address_line2 }}{% endif %}
+                        {% if prospect.suburb %}, {{ prospect.suburb }}{% endif %}
+                        {% if prospect.city %}, {{ prospect.city }}{% endif %}
+                        {% if prospect.province %}, {{ prospect.get_province_display|default:prospect.province }}{% endif %}
+                        {% if prospect.postal_code %}, {{ prospect.postal_code }}{% endif %}
+                        {% if not prospect.address_line1 and not prospect.suburb and not prospect.city %}—{% endif %}
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="text-muted small">Territory</div>
+                      <div class="fw-semibold">{{ prospect.get_area_display|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="text-muted small">Preferred Slot 1</div>
+                      <div class="fw-semibold">{{ prospect.get_preferred_delivery_slot_1_display|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="text-muted small">Preferred Slot 2</div>
+                      <div class="fw-semibold">{{ prospect.get_preferred_delivery_slot_2_display|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="text-muted small">Preferred Slot 3</div>
+                      <div class="fw-semibold">{{ prospect.get_preferred_delivery_slot_3_display|default:"—" }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ================= COMMERCIAL PROFILE ================= -->
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Commercial Profile</div>
+                <div class="card-body">
+                  <div class="row g-4">
+                    <div class="col-md-3">
+                      <div class="text-muted small">Expected Client Type</div>
+                      <div class="fw-semibold">{{ prospect.get_potential_client_type_display|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="text-muted small">Size Tier</div>
+                      <div class="fw-semibold">{{ prospect.potential_size_tier|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="text-muted small">Est. Weekly Spend</div>
+                      <div class="fw-semibold">
+                        {% if prospect.estimated_weekly_spend %}
+                          R{{ prospect.estimated_weekly_spend|floatformat:2|intcomma }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="text-muted small">Future Price Type</div>
+                      <div class="fw-semibold">Wholesale</div>
+                    </div>
+
+                    <div class="col-12">
+                      <div class="text-muted small mb-1">Interested Categories</div>
+                      {% for category in prospect.categories.all %}
+                        <span class="badge badge-cat me-1 mb-1">{{ category.name }}</span>
+                      {% empty %}
+                        <span class="text-muted">No categories selected</span>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="col-lg-4">
+
+              <!-- ================= CONVERSION SNAPSHOT ================= -->
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Conversion Snapshot</div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <div class="text-muted small">Status</div>
+                    {% if prospect.client %}
+                      <span class="badge bg-success">Client Created</span>
+                    {% elif prospect.stage == "WON" %}
+                      <span class="badge bg-warning text-dark">Won - Client Link Missing</span>
+                    {% else %}
+                      <span class="badge bg-secondary">Not Yet Converted</span>
+                    {% endif %}
+                  </div>
+
+                  <div class="mb-3">
+                    <div class="text-muted small">Client Link</div>
+                    {% if prospect.client %}
+                      <a href="{% url 'client-view' prospect.client.pk %}" class="fw-semibold">
+                        {{ prospect.client.client_number }} · {{ prospect.client.organization|default:prospect.client.name }}
+                      </a>
+                    {% else %}
+                      <div class="fw-semibold text-muted">No client linked yet</div>
+                    {% endif %}
+                  </div>
+
+                  <div class="mb-3">
+                    <div class="text-muted small">When Won</div>
+                    <div class="fw-semibold">Prospect auto-converts to active wholesale client</div>
+                  </div>
+
+                  {% if not prospect.is_closed %}
+                    <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.pk %}" class="mb-3">
+                      {% csrf_token %}
+                      <button type="submit"
+                              name="stage_action"
+                              value="NEGOTIATION_WON"
+                              class="btn btn-success btn-sm w-100"
+                              onclick="return confirm('Mark this prospect as WON and convert it into a client?');">
+                        Mark Won & Convert
+                      </button>
+                    </form>
+                  {% endif %}
+
+                  <div class="small text-muted">
+                    Account manager becomes prospect owner. Business address becomes delivery address. Account type defaults to cash and credit status inactive.
+                  </div>
+                </div>
+              </div>
+
+              <!-- ================= NOTES ================= -->
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Notes</div>
+                <div class="card-body">
+                  {% if prospect.notes %}
+                    <div style="white-space:pre-wrap;">{{ prospect.notes }}</div>
+                  {% else %}
+                    <span class="text-muted">No notes captured yet.</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <!-- ================= FOLLOW-UP ================= -->
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Follow-up</div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <div class="text-muted small">Last Contact</div>
+                    <div class="fw-semibold">
+                      {% if prospect.last_contact_at %}
+                        {{ prospect.last_contact_at|naturaltime }}
+                      {% else %}
+                        No contact logged
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-muted small">Next Follow-up</div>
+                    <div class="fw-semibold">
+                      {% if prospect.next_follow_up_at %}
+                        {{ prospect.next_follow_up_at|date:"Y-m-d H:i" }}
+                      {% else %}
+                        Not scheduled
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
               </div>
 
             </div>
           </div>
         </div>
 
-        <!-- CONTACT STAGE TAB -->
-        <div class="tab-pane fade" id="tab-contact-stage" role="tabpanel" aria-labelledby="tab-contact-stage-tab">
-          <div class="row">
+        <!-- ================= CONTACT TAB ================= -->
+        <div class="tab-pane fade" id="contact" role="tabpanel">
+          <div class="row g-4">
             <div class="col-lg-7">
-              <div class="card mb-3">
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Contact History</div>
                 <div class="card-body">
-                  <h6 class="fw-semibold mb-3">Contact history</h6>
                   {% if contact_updates %}
                     <div class="vstack gap-3">
                       {% for u in contact_updates %}
                         <div class="timeline-item">
-                          <div class="d-flex justify-content-between">
+                          <div class="d-flex justify-content-between flex-wrap gap-2">
                             <div class="fw-semibold">
-                              {{ u.get_action_type_display }}
-                              {% if u.outcome %}
-                                <span class="text-muted">· {{ u.get_outcome_display }}</span>
-                              {% endif %}
+                              {{ u.get_action_type_display }}{% if u.outcome %} · <span class="text-muted">{{ u.get_outcome_display }}</span>{% endif %}
                             </div>
-                            <div class="meta">
-                              {{ u.action_at|date:"Y-m-d H:i" }}
-                            </div>
+                            <div class="meta">{{ u.action_at|date:"Y-m-d H:i" }}</div>
                           </div>
                           <div class="meta mb-1">
-                            {% if u.user %}
-                              by {{ u.user.get_full_name|default:u.user.username }}
-                            {% endif %}
-                            {% if u.old_stage or u.new_stage %}
-                              · stage: {{ u.old_stage|default:"—" }} → {{ u.new_stage|default:"—" }}
-                            {% endif %}
+                            {% if u.user %}by {{ u.user.get_full_name|default:u.user.username }}{% endif %}
+                            {% if u.old_stage or u.new_stage %} · stage: {{ u.old_stage|default:"—" }} → {{ u.new_stage|default:"—" }}{% endif %}
                           </div>
-                          {% if u.notes %}
-                            <div style="white-space:pre-wrap;">{{ u.notes }}</div>
-                          {% endif %}
+                          {% if u.notes %}<div style="white-space:pre-wrap;">{{ u.notes }}</div>{% endif %}
                         </div>
                       {% endfor %}
                     </div>
@@ -579,80 +735,53 @@
                 </div>
               </div>
 
-              <!-- Stage buttons -->
-              <div class="card mb-3">
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Contact Stage Outcome</div>
                 <div class="card-body">
-                  <h6 class="fw-semibold mb-2">Contact stage outcome</h6>
-                  <p class="meta mb-2">
-                    Use these buttons when you have a clear outcome for the contact stage.
-                  </p>
-
-                  <form method="post"
-                        action="{% if can_use_contact_stage_buttons and can_write %}
-                                  {% url 'sales:sales-prospect-stage-action' prospect.id %}
-                                {% else %}
-                                  #
-                                {% endif %}">
+                  <p class="meta mb-3">Use these buttons once you have a clear contact outcome.</p>
+                  <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.pk %}">
                     {% csrf_token %}
-
-                    <!-- PASSED -->
                     <button type="submit"
                             name="stage_action"
                             value="CONTACT_PASS"
-                            class="btn btn-success me-2 mb-2
-                                  {% if not can_use_contact_stage_buttons or not can_write %}disabled{% endif %}"
-                            {% if not can_use_contact_stage_buttons or not can_write %}
-                              disabled
-                              aria-disabled="true"
-                              title="You do not have permission to perform this action"
-                            {% endif %}>
-                      Passed contact stage
+                            class="btn btn-success me-2 mb-2"
+                            {% if not can_use_contact_stage_buttons %}disabled{% endif %}>
+                      Passed Contact Stage
                     </button>
-
-                    <!-- LOST -->
                     <button type="submit"
                             name="stage_action"
                             value="CONTACT_LOST"
-                            class="btn btn-outline-danger mb-2
-                                  {% if not can_use_contact_stage_buttons or not can_write %}disabled{% endif %}"
-                            {% if not can_use_contact_stage_buttons or not can_write %}
-                              disabled
-                              aria-disabled="true"
-                              title="You do not have permission to perform this action"
-                            {% else %}
-                              onclick="return confirm('Mark this prospect as lost at contact stage?');"
-                            {% endif %}>
-                      Mark lost at contact stage
+                            class="btn btn-outline-danger me-2 mb-2"
+                            {% if not can_use_contact_stage_buttons %}disabled{% else %}onclick="return confirm('Mark this prospect as lost at contact stage?');"{% endif %}>
+                      Mark Lost
                     </button>
+
+                    {% if not prospect.is_closed %}
+                      <button type="submit"
+                              name="stage_action"
+                              value="NEGOTIATION_WON"
+                              class="btn btn-success mb-2"
+                              onclick="return confirm('Mark this prospect as WON and convert it into a client?');">
+                        Mark Won
+                      </button>
+                    {% endif %}
                   </form>
 
                   {% if not can_use_contact_stage_buttons %}
-                    <p class="text-muted small mb-0">
-                      Buttons inactive. Only available while the prospect is in the New or Contacted stage and not closed.
-                    </p>
+                    <p class="text-muted small mb-0">Contact stage actions may be unavailable, but Mark Won is available while the prospect is still open.</p>
                   {% endif %}
                 </div>
               </div>
-
             </div>
 
-            <!-- Log new contact -->
             <div class="col-lg-5">
-              <div class="card mb-3">
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Log Contact Update</div>
                 <div class="card-body">
-                  <h6 class="fw-semibold mb-3">Log contact update</h6>
-                  <form method="post" action="{% url 'sales:sales-prospect-contact-log' prospect.id %}">
+                  <form method="post" action="{% url 'sales:sales-prospect-contact-log' prospect.pk %}">
                     {% csrf_token %}
-                    <div class="mb-2">
-                      <label class="form-label mb-1">Type of contact</label>
-                      <select name="action_type" class="form-select">
-                        <option value="CALL">Call</option>
-                        <option value="WHATSAPP">WhatsApp</option>
-                        <option value="EMAIL">Email</option>
-                      </select>
-                    </div>
-                    <div class="mb-2">
-                      <label class="form-label mb-1">Outcome</label>
+                    <div class="mb-3">
+                      <label class="form-label">Outcome</label>
                       <select name="outcome" class="form-select">
                         <option value="">Select...</option>
                         <option value="NO_ANSWER">No answer</option>
@@ -663,27 +792,15 @@
                         <option value="OTHER">Other</option>
                       </select>
                     </div>
-                    <div class="mb-2">
-                      <label class="form-label mb-1">When did this happen?</label>
-                      <input type="datetime-local" name="action_at"
-                             class="form-control"
-                             value="{{ today|date:'Y-m-d' }}T09:00">
+                    <div class="mb-3">
+                      <label class="form-label">When did this happen?</label>
+                      <input type="datetime-local" name="contact_datetime" class="form-control" value="{{ today|date:'Y-m-d' }}T09:00">
                     </div>
                     <div class="mb-3">
-                      <label class="form-label mb-1">Notes</label>
-                      <textarea name="notes" class="form-control" rows="3"
-                                placeholder="e.g. Called at 10:30, no answer. Left WhatsApp."></textarea>
+                      <label class="form-label">Notes</label>
+                      <textarea name="notes" class="form-control" rows="4" placeholder="e.g. Called, no answer. Sent WhatsApp follow-up."></textarea>
                     </div>
-                    <button type="submit"
-                            class="btn btn-primary w-100 {% if not can_write %}disabled{% endif %}"
-                            {% if not can_write %}
-                              disabled
-                              aria-disabled="true"
-                              title="View-only access"
-                            {% endif %}>
-                      Save contact update
-                    </button>
-
+                    <button type="submit" class="btn btn-primary w-100">Save Contact Update</button>
                   </form>
                 </div>
               </div>
@@ -691,51 +808,38 @@
           </div>
         </div>
 
-        <!-- SITE VISIT TAB -->
-        <div class="tab-pane fade" id="tab-site-visit" role="tabpanel" aria-labelledby="tab-site-visit-tab">
-          <div class="row">
+        <!-- ================= SITE VISIT TAB ================= -->
+        <div class="tab-pane fade" id="sitevisit" role="tabpanel">
+          <div class="row g-4">
             <div class="col-lg-7">
-              <div class="card mb-3">
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Site Visit History</div>
                 <div class="card-body">
-                  <h6 class="fw-semibold mb-3">Site visit history</h6>
                   {% if site_visit_updates %}
                     <div class="vstack gap-3">
                       {% for u in site_visit_updates %}
                         <div class="timeline-item">
-                          <div class="d-flex justify-content-between">
+                          <div class="d-flex justify-content-between flex-wrap gap-2">
                             <div class="fw-semibold">
-                              {{ u.get_action_type_display }}
-                              {% if u.outcome %}
-                                <span class="text-muted">· {{ u.get_outcome_display }}</span>
-                              {% endif %}
+                              {{ u.get_action_type_display }}{% if u.outcome %} · <span class="text-muted">{{ u.get_outcome_display }}</span>{% endif %}
                             </div>
-                            <div class="meta">
-                              {{ u.action_at|date:"Y-m-d H:i" }}
-                            </div>
+                            <div class="meta">{{ u.action_at|date:"Y-m-d H:i" }}</div>
                           </div>
                           <div class="meta mb-1">
-                            {% if u.user %}
-                              by {{ u.user.get_full_name|default:u.user.username }}
-                            {% endif %}
-                            {% if u.old_stage or u.new_stage %}
-                              · stage: {{ u.old_stage|default:"—" }} → {{ u.new_stage|default:"—" }}
-                            {% endif %}
+                            {% if u.user %}by {{ u.user.get_full_name|default:u.user.username }}{% endif %}
+                            {% if u.old_stage or u.new_stage %} · stage: {{ u.old_stage|default:"—" }} → {{ u.new_stage|default:"—" }}{% endif %}
                           </div>
                           {% if u.visit_date or u.visit_contact_name %}
                             <div class="meta mb-1">
                               {% if u.visit_date %}Visit date: {{ u.visit_date }}{% endif %}
-                              {% if u.visit_time_arrived %} · Arrived: {{ u.visit_time_arrived }}{% endif %}
-                              {% if u.visit_time_left %} · Left: {{ u.visit_time_left }}{% endif %}
-                              {% if u.visit_contact_name %} · Met with: {{ u.visit_contact_name }}{% endif %}
+                              {% if u.visit_time_arrived %} · Arrived: {{ u.visit_time_arrived|time:"H:i" }}{% endif %}
+                              {% if u.visit_time_left %} · Left: {{ u.visit_time_left|time:"H:i" }}{% endif %}
+                              {% if u.visit_contact_name %} · Met: {{ u.visit_contact_name }}{% endif %}
                             </div>
                           {% endif %}
-                          {% if u.notes %}
-                            <div style="white-space:pre-wrap;">{{ u.notes }}</div>
-                          {% endif %}
+                          {% if u.notes %}<div style="white-space:pre-wrap;">{{ u.notes }}</div>{% endif %}
                           {% if u.visit_photo %}
-                            <div class="mt-2">
-                              <img src="{{ u.visit_photo.url }}" alt="Visit photo" class="img-fluid rounded">
-                            </div>
+                            <div class="mt-2"><img src="{{ u.visit_photo.url }}" class="img-fluid rounded" alt="Visit photo"></div>
                           {% endif %}
                         </div>
                       {% endfor %}
@@ -746,173 +850,128 @@
                 </div>
               </div>
 
-              <!-- Site Visit stage buttons -->
-              <div class="card mb-3">
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Site Visit Stage Outcome</div>
                 <div class="card-body">
-                  <h6 class="fw-semibold mb-2">Site visit stage outcome</h6>
-                  <p class="meta mb-2">
-                    Use these buttons once you know if the site visit stage has passed or if the lead is dead.
-                  </p>
-
-                  <form method="post"
-                        action="{% url 'sales:sales-prospect-stage-action' prospect.id %}">
+                  <p class="meta mb-3">Use these buttons once the site visit outcome is clear.</p>
+                  <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.pk %}">
                     {% csrf_token %}
-
-                    <!-- PASS SITE VISIT -->
-                    <button name="stage_action"
+                    <button type="submit"
+                            name="stage_action"
                             value="SITE_VISIT_PASS"
-                            class="btn btn-success me-2 mb-2
-                                  {% if not can_use_site_visit_stage_buttons or not can_write %}disabled{% endif %}"
-                            {% if not can_use_site_visit_stage_buttons or not can_write %}
-                              disabled
-                              aria-disabled="true"
-                              title="{% if not can_write %}View-only access{% else %}Action not available at this stage{% endif %}"
-                            {% endif %}>
-                      Passed site visit stage
+                            class="btn btn-success me-2 mb-2"
+                            {% if not can_use_site_visit_stage_buttons %}disabled{% endif %}>
+                      Passed Site Visit Stage
+                    </button>
+                    <button type="submit"
+                            name="stage_action"
+                            value="SITE_VISIT_LOST"
+                            class="btn btn-outline-danger me-2 mb-2"
+                            {% if not can_use_site_visit_stage_buttons %}disabled{% else %}onclick="return confirm('Mark this prospect as lost after site visit?');"{% endif %}>
+                      Mark Lost
                     </button>
 
-                    <!-- LOSE AFTER SITE VISIT -->
-                    <button name="stage_action"
-                            value="SITE_VISIT_LOST"
-                            class="btn btn-outline-danger mb-2
-                                  {% if not can_use_site_visit_stage_buttons or not can_write %}disabled{% endif %}"
-                            {% if not can_use_site_visit_stage_buttons or not can_write %}
-                              disabled
-                              aria-disabled="true"
-                              title="{% if not can_write %}View-only access{% else %}Action not available at this stage{% endif %}"
-                            {% else %}
-                              onclick="return confirm('Mark this prospect as lost after site visit?');"
-                            {% endif %}>
-                      Mark lost after site visit
-                    </button>
+                    {% if not prospect.is_closed %}
+                      <button type="submit"
+                              name="stage_action"
+                              value="NEGOTIATION_WON"
+                              class="btn btn-success mb-2"
+                              onclick="return confirm('Mark this prospect as WON and convert it into a client?');">
+                        Mark Won
+                      </button>
+                    {% endif %}
                   </form>
 
                   {% if not can_use_site_visit_stage_buttons %}
-                    <p class="text-muted small mb-0">
-                      Buttons inactive. Only available when this prospect is at the site visit stage and not closed.
-                    </p>
-                  {% elif not can_write %}
-                    <p class="text-muted small mb-0">
-                      View-only access. You cannot perform stage actions.
-                    </p>
+                    <p class="text-muted small mb-0">Site visit actions may be unavailable, but Mark Won is available while the prospect is still open.</p>
                   {% endif %}
                 </div>
               </div>
-
             </div>
 
-            <!-- Log new site visit -->
             <div class="col-lg-5">
-              <div class="card mb-3">
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Log Site Visit</div>
                 <div class="card-body">
-                  <h6 class="fw-semibold mb-3">Log site visit</h6>
-                  <form method="post"
-                        action="{% url 'sales:sales-prospect-site-visit-log' prospect.id %}"
-                        enctype="multipart/form-data">
+                  <form method="post" action="{% url 'sales:sales-prospect-site-visit-log' prospect.pk %}" enctype="multipart/form-data">
                     {% csrf_token %}
-                    <div class="mb-2">
-                      <label class="form-label mb-1">Visit date</label>
-                      <input type="date" name="visit_date" class="form-control"
-                             value="{{ today|date:'Y-m-d' }}">
-                    </div>
-                    <div class="mb-2">
-                      <label class="form-label mb-1">Time arrived</label>
-                      <input type="time" name="visit_time_arrived" class="form-control">
-                    </div>
-                    <div class="mb-2">
-                      <label class="form-label mb-1">Time left</label>
-                      <input type="time" name="visit_time_left" class="form-control">
-                    </div>
-                    <div class="mb-2">
-                      <label class="form-label mb-1">Person you met with</label>
-                      <input type="text" name="visit_contact_name" class="form-control"
-                             placeholder="e.g. Store manager, John">
-                    </div>
-                    <div class="mb-2">
-                      <label class="form-label mb-1">Notes</label>
-                      <textarea name="notes" class="form-control" rows="3"
-                                placeholder="Outcome of visit, what was discussed, samples left behind, etc."></textarea>
+                    <div class="mb-3">
+                      <label class="form-label">Outcome</label>
+                      <select name="outcome" class="form-select">
+                        <option value="">Select...</option>
+                        <option value="INTERESTED">Interested</option>
+                        <option value="REQUESTED_PRICELIST">Requested price list</option>
+                        <option value="REQUESTED_SAMPLE">Requested sample</option>
+                        <option value="FOLLOW_UP_AGREED">Follow-up agreed</option>
+                        <option value="NOT_INTERESTED">Not interested</option>
+                        <option value="OTHER">Other</option>
+                      </select>
                     </div>
                     <div class="mb-3">
-                      <label class="form-label mb-1">Photo (optional)</label>
+                      <label class="form-label">Visit Date</label>
+                      <input type="date" name="visit_date" class="form-control" value="{{ today|date:'Y-m-d' }}">
+                    </div>
+                    <div class="row g-2">
+                      <div class="col-md-6 mb-3">
+                        <label class="form-label">Time Arrived</label>
+                        <input type="time" name="visit_time_arrived" class="form-control">
+                      </div>
+                      <div class="col-md-6 mb-3">
+                        <label class="form-label">Time Left</label>
+                        <input type="time" name="visit_time_left" class="form-control">
+                      </div>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Person Met</label>
+                      <input type="text" name="visit_contact_name" class="form-control" placeholder="e.g. Store manager">
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Notes</label>
+                      <textarea name="visit_notes" class="form-control" rows="4" placeholder="What was discussed, sample feedback, operational notes..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Photo Optional</label>
                       <input type="file" name="visit_photo" class="form-control" accept="image/*">
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Save site visit</button>
-                  </form><button type="submit"
-                          class="btn btn-primary w-100 {% if not can_write %}disabled{% endif %}"
-                          {% if not can_write %}
-                            disabled
-                            aria-disabled="true"
-                            title="View-only access"
-                          {% endif %}>
-                    Save site visit
-                  </button>
-
+                    <button type="submit" class="btn btn-primary w-100">Save Site Visit</button>
+                  </form>
                 </div>
               </div>
             </div>
-
           </div>
         </div>
 
-        <!-- NEGOTIATION TAB -->
-        <div class="tab-pane fade" id="tab-negotiation" role="tabpanel" aria-labelledby="tab-negotiation-tab">
-          <div class="row">
+        <!-- ================= NEGOTIATION TAB ================= -->
+        <div class="tab-pane fade" id="negotiation" role="tabpanel">
+          <div class="row g-4">
             <div class="col-lg-7">
-              <div class="card mb-3">
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Negotiation History</div>
                 <div class="card-body">
-                  <h6 class="fw-semibold mb-3">Negotiation history</h6>
                   {% if negotiation_updates %}
                     <div class="vstack gap-3">
                       {% for u in negotiation_updates %}
                         <div class="timeline-item">
-                          <div class="d-flex justify-content-between">
+                          <div class="d-flex justify-content-between flex-wrap gap-2">
                             <div class="fw-semibold">
-                              Negotiation
-                              {% if u.outcome %}
-                                <span class="text-muted">· {{ u.get_outcome_display }}</span>
-                              {% endif %}
+                              {{ u.get_action_type_display }}{% if u.outcome %} · <span class="text-muted">{{ u.get_outcome_display }}</span>{% endif %}
                             </div>
-                            <div class="meta">
-                              {{ u.action_at|date:"Y-m-d H:i" }}
-                            </div>
+                            <div class="meta">{{ u.action_at|date:"Y-m-d H:i" }}</div>
                           </div>
                           <div class="meta mb-1">
-                            {% if u.user %}
-                              by {{ u.user.get_full_name|default:u.user.username }}
-                            {% endif %}
-                            {% if u.old_stage or u.new_stage %}
-                              · stage: {{ u.old_stage|default:"—" }} → {{ u.new_stage|default:"—" }}
-                            {% endif %}
+                            {% if u.user %}by {{ u.user.get_full_name|default:u.user.username }}{% endif %}
+                            {% if u.old_stage or u.new_stage %} · stage: {{ u.old_stage|default:"—" }} → {{ u.new_stage|default:"—" }}{% endif %}
                           </div>
-
                           {% if u.negotiation_products %}
-                            <div class="mb-1">
-                              <strong>Products they want now:</strong><br>
-                              <div style="white-space:pre-wrap;">{{ u.negotiation_products }}</div>
-                            </div>
+                            <div class="small"><strong>Products:</strong> {{ u.negotiation_products }}</div>
                           {% endif %}
-
                           {% if u.negotiation_menu_opportunities %}
-                            <div class="mb-1">
-                              <strong>Future menu opportunities:</strong><br>
-                              <div style="white-space:pre-wrap;">{{ u.negotiation_menu_opportunities }}</div>
-                            </div>
+                            <div class="small"><strong>Future opportunities:</strong> {{ u.negotiation_menu_opportunities }}</div>
                           {% endif %}
-
                           {% if u.negotiation_competitor_info %}
-                            <div class="mb-1">
-                              <strong>Current supplier / pricing:</strong><br>
-                              <div style="white-space:pre-wrap;">{{ u.negotiation_competitor_info }}</div>
-                            </div>
+                            <div class="small"><strong>Competitor info:</strong> {{ u.negotiation_competitor_info }}</div>
                           {% endif %}
-
-                          {% if u.notes %}
-                            <div>
-                              <strong>Extra notes:</strong><br>
-                              <div style="white-space:pre-wrap;">{{ u.notes }}</div>
-                            </div>
-                          {% endif %}
+                          {% if u.notes %}<div class="mt-1" style="white-space:pre-wrap;">{{ u.notes }}</div>{% endif %}
                         </div>
                       {% endfor %}
                     </div>
@@ -922,190 +981,200 @@
                 </div>
               </div>
 
-              <!-- Stage buttons -->
-              <div class="card mb-3">
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Negotiation Stage Outcome</div>
                 <div class="card-body">
-                  <h6 class="fw-semibold mb-2">Negotiation stage outcome</h6>
-                  <p class="meta mb-2">
-                    Use these buttons once you know if this prospect is moving forward, won, or lost.
-                  </p>
-
-                  <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.id %}">
+                  <p class="meta mb-3">Use these buttons once negotiation progress is clear.</p>
+                  <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.pk %}">
                     {% csrf_token %}
-
-                    <!-- Move to negotiation -->
-                    <button name="stage_action"
-                            value="NEGOTIATION_PASS"
-                            class="btn btn-success me-2 mb-2 {% if not can_write or not can_use_negotiation_stage_buttons %}disabled{% endif %}"
-                            {% if not can_write or not can_use_negotiation_stage_buttons %}
-                              disabled
-                              aria-disabled="true"
-                              title="{% if not can_write %}View-only access{% else %}Stage action not available{% endif %}"
-                            {% endif %}>
-                      Move to negotiation
-                    </button>
-
-                    <!-- Mark as won -->
-                    <button name="stage_action"
-                            value="NEGOTIATION_WON"
-                            class="btn btn-outline-success me-2 mb-2 {% if not can_write or not can_use_negotiation_stage_buttons %}disabled{% endif %}"
-                            {% if not can_write or not can_use_negotiation_stage_buttons %}
-                              disabled
-                              aria-disabled="true"
-                              title="{% if not can_write %}View-only access{% else %}Stage action not available{% endif %}"
-                            {% else %}
-                              onclick="return confirm('Mark this prospect as won?');"
-                            {% endif %}>
-                      Mark as won
-                    </button>
-
-                    <!-- Mark as lost -->
-                    <button name="stage_action"
+                    {% if not prospect.is_closed %}
+                      <button type="submit"
+                              name="stage_action"
+                              value="NEGOTIATION_WON"
+                              class="btn btn-success me-2 mb-2"
+                              onclick="return confirm('Mark this prospect as WON and convert it into a client?');">
+                        Mark Won
+                      </button>
+                    {% endif %}
+                    <button type="submit"
+                            name="stage_action"
                             value="NEGOTIATION_LOST"
-                            class="btn btn-outline-danger mb-2 {% if not can_write or not can_use_negotiation_stage_buttons %}disabled{% endif %}"
-                            {% if not can_write or not can_use_negotiation_stage_buttons %}
-                              disabled
-                              aria-disabled="true"
-                              title="{% if not can_write %}View-only access{% else %}Stage action not available{% endif %}"
-                            {% else %}
-                              onclick="return confirm('Mark this prospect as lost at negotiation?');"
-                            {% endif %}>
-                      Mark as lost
+                            class="btn btn-outline-danger mb-2"
+                            {% if not can_use_negotiation_stage_buttons %}disabled{% else %}onclick="return confirm('Mark this prospect as lost?');"{% endif %}>
+                      Mark Lost
                     </button>
                   </form>
 
                   {% if not can_use_negotiation_stage_buttons %}
-                    <p class="text-muted small mb-0">
-                      Buttons inactive. Only active when this prospect is at negotiation stage and not closed.
-                    </p>
-                  {% endif %}
-
-                  {% if not can_write %}
-                    <p class="text-muted small mb-0">
-                      View-only access. You cannot change the prospect stage.
-                    </p>
+                    <p class="text-muted small mb-0">Negotiation-stage lost action is unavailable for the current stage, but Mark Won is available while the prospect is still open.</p>
                   {% endif %}
                 </div>
               </div>
+            </div>
 
-
-            <!-- Log negotiation -->
             <div class="col-lg-5">
-              <div class="card mb-3">
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Log Negotiation Update</div>
                 <div class="card-body">
-                  <h6 class="fw-semibold mb-3">Log negotiation update</h6>
-                  <form method="post" action="{% url 'sales:sales-prospect-negotiation-log' prospect.id %}">
+                  <form method="post" action="{% url 'sales:sales-prospect-negotiation-log' prospect.pk %}">
                     {% csrf_token %}
-                    <div class="mb-2">
-                      <label class="form-label mb-1">Outcome</label>
+                    <div class="mb-3">
+                      <label class="form-label">Outcome</label>
                       <select name="outcome" class="form-select">
-                        <option value="">Select...</option>
                         <option value="INTERESTED">Interested</option>
+                        <option value="FOLLOW_UP_AGREED">Follow-up agreed</option>
                         <option value="DEAL_WON">Deal won</option>
                         <option value="DEAL_LOST">Deal lost</option>
                         <option value="OTHER">Other</option>
                       </select>
                     </div>
-                    <div class="mb-2">
-                      <label class="form-label mb-1">When did this negotiation happen?</label>
-                      <input type="datetime-local" name="action_at" class="form-control">
-                    </div>
-                    <div class="mb-2">
-                      <label class="form-label mb-1">Products they want now</label>
-                      <textarea name="negotiation_products" class="form-control" rows="2"
-                                placeholder="e.g. 10kg wings/week, 20kg drumsticks, 5 boxes chips..."></textarea>
-                    </div>
-                    <div class="mb-2">
-                      <label class="form-label mb-1">What else is on their menu / future opportunities?</label>
-                      <textarea name="negotiation_menu_opportunities" class="form-control" rows="2"
-                                placeholder="e.g. They also sell burgers, russians, pizza – possible add-on deals later."></textarea>
-                    </div>
-                    <div class="mb-2">
-                      <label class="form-label mb-1">Current supplier / pricing (optional)</label>
-                      <textarea name="negotiation_competitor_info" class="form-control" rows="2"
-                                placeholder="e.g. Currently buying wings at RXX/kg from YYY, deliveries Tues/Thurs."></textarea>
+                    <div class="mb-3">
+                      <label class="form-label">Negotiation Date</label>
+                      <input type="date" name="negotiation_date" class="form-control" value="{{ today|date:'Y-m-d' }}">
                     </div>
                     <div class="mb-3">
-                      <label class="form-label mb-1">Extra notes</label>
-                      <textarea name="notes" class="form-control" rows="3"
-                                placeholder="Objections, decision maker notes, delivery days they prefer, etc."></textarea>
+                      <label class="form-label">Products They Want Now</label>
+                      <textarea name="negotiation_products" class="form-control" rows="3"></textarea>
                     </div>
-                    <button type="submit"
-                            class="btn btn-primary w-100 {% if not can_write %}disabled{% endif %}"
-                            {% if not can_write %}
-                              disabled
-                              aria-disabled="true"
-                              title="View-only access"
-                            {% endif %}>
-                      Save negotiation update
-                    </button>
-
+                    <div class="mb-3">
+                      <label class="form-label">Future Menu Opportunities</label>
+                      <textarea name="negotiation_menu_opportunities" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Competitor / Supplier Info</label>
+                      <textarea name="negotiation_competitor_info" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Notes</label>
+                      <textarea name="negotiation_notes" class="form-control" rows="4"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Save Negotiation Update</button>
                   </form>
                 </div>
               </div>
             </div>
-
           </div>
         </div>
 
-        <!-- WON / CONVERSION TAB -->
-        <div class="tab-pane fade" id="tab-won" role="tabpanel" aria-labelledby="tab-won-tab">
-          <div class="card mb-3">
-            <div class="card-body">
-              <h6 class="fw-semibold mb-3">Conversion</h6>
+        <!-- ================= CONVERSION TAB ================= -->
+        <div class="tab-pane fade" id="conversion" role="tabpanel">
+          <div class="row g-4">
+            <div class="col-lg-8">
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Won / Conversion Status</div>
+                <div class="card-body">
+                  {% if prospect.client %}
+                    <div class="alert alert-success mb-4">
+                      This prospect has been converted into a client.
+                    </div>
 
-              {% if prospect.client %}
-                <p class="mb-2">
-                  This prospect has been converted to a client:
-                </p>
-                <p class="mb-3">
-                  <strong>{{ prospect.client }}</strong><br>
-                  Client number: {{ prospect.client.client_number }}<br>
-                  Status: {{ prospect.client.get_status_display }}
-                </p>
-                <a href="{% url 'view-client' prospect.client.id %}" class="btn btn-outline-success">
-                  View client profile
-                </a>
-              {% else %}
-                <p class="mb-3">
-                  This prospect is not yet linked to a client record.
-                </p>
-                <button type="button" class="btn btn-outline-secondary" disabled>
-                  Convert to client (wire up later)
-                </button>
-              {% endif %}
+                    <div class="row g-4">
+                      <div class="col-md-4">
+                        <div class="text-muted small">Client Number</div>
+                        <div class="fw-semibold">{{ prospect.client.client_number }}</div>
+                      </div>
+                      <div class="col-md-4">
+                        <div class="text-muted small">Client Name</div>
+                        <div class="fw-semibold">{{ prospect.client.organization|default:prospect.client.name }}</div>
+                      </div>
+                      <div class="col-md-4">
+                        <div class="text-muted small">Client Status</div>
+                        <div class="fw-semibold">{{ prospect.client.get_status_display }}</div>
+                      </div>
+                      <div class="col-12">
+                        <a href="{% url 'client-view' prospect.client.pk %}" class="btn btn-success btn-sm">Open Client Profile</a>
+                      </div>
+                    </div>
+                  {% elif prospect.stage == "WON" %}
+                    <div class="alert alert-warning mb-0">
+                      This prospect is marked as won, but no linked client was found. Check the conversion logic or save the prospect again.
+                    </div>
+                  {% else %}
+                    <div class="alert alert-secondary mb-3">
+                      This prospect has not been won yet. Once marked as won, it should automatically convert into an active wholesale client.
+                    </div>
 
-              <hr class="my-3">
+                    <form method="post" action="{% url 'sales:sales-prospect-stage-action' prospect.pk %}">
+                      {% csrf_token %}
+                      <button type="submit"
+                              name="stage_action"
+                              value="NEGOTIATION_WON"
+                              class="btn btn-success btn-sm"
+                              onclick="return confirm('Mark this prospect as WON and convert it into a client?');">
+                        Mark Won & Convert Now
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
 
-              <h6 class="fw-semibold mb-2">Reopen this prospect</h6>
-              <p class="text-muted mb-2">
-                Use this if the prospect comes back after saying no, or if you want to work
-                them again in a new sales cycle. This will reopen the pipeline and restart the time-based tracking.
-              </p>
-
-              {% if can_reopen %}
-                <form method="post"
-                      action="{% url 'sales:sales-prospect-reopen' prospect.id %}"
-                      onsubmit="return confirm('Reopen this prospect and restart the pipeline?');">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-outline-warning">
-                    Reopen prospect
-                  </button>
-                </form>
-              {% else %}
-                <button type="button" class="btn btn-outline-secondary" disabled>
-                  Reopen (not available in current state)
-                </button>
-              {% endif %}
+            <div class="col-lg-4">
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Conversion Rules</div>
+                <div class="card-body small">
+                  <div class="mb-2"><strong>Account Manager:</strong> Prospect owner</div>
+                  <div class="mb-2"><strong>Status:</strong> Active</div>
+                  <div class="mb-2"><strong>Account Type:</strong> Cash</div>
+                  <div class="mb-2"><strong>Credit Status:</strong> Inactive</div>
+                  <div class="mb-2"><strong>Price Type:</strong> Wholesale</div>
+                  <div class="mb-2"><strong>Delivery:</strong> Business address copied to delivery address</div>
+                  <div><strong>Dummy:</strong> No</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-      </div> <!-- /.tab-content -->
+        <!-- ================= TIMELINE TAB ================= -->
+        <div class="tab-pane fade" id="timeline" role="tabpanel">
+          <div class="card shadow-sm mb-4">
+            <div class="card-header fw-semibold">Full Timeline</div>
+            <div class="card-body">
+              <div class="vstack gap-3">
+                <div class="timeline-item">
+                  <div class="d-flex justify-content-between flex-wrap gap-2">
+                    <div class="fw-semibold">Prospect Created</div>
+                    <div class="meta">{{ prospect.created_at|date:"Y-m-d H:i" }}</div>
+                  </div>
+                  <div class="meta">
+                    {% if prospect.created_by %}
+                      by {{ prospect.created_by.get_full_name|default:prospect.created_by.username }}
+                    {% else %}
+                      Creator not recorded
+                    {% endif %}
+                  </div>
+                </div>
 
+                {% if updates_timeline %}
+                  {% for u in updates_timeline %}
+                    <div class="timeline-item">
+                      <div class="d-flex justify-content-between flex-wrap gap-2">
+                        <div class="fw-semibold">
+                          {{ u.get_action_type_display }}{% if u.outcome %} · <span class="text-muted">{{ u.get_outcome_display }}</span>{% endif %}
+                        </div>
+                        <div class="meta">{{ u.action_at|date:"Y-m-d H:i" }}</div>
+                      </div>
+                      <div class="meta mb-1">
+                        {% if u.user %}by {{ u.user.get_full_name|default:u.user.username }}{% endif %}
+                        {% if u.old_stage or u.new_stage %} · stage: {{ u.old_stage|default:"—" }} → {{ u.new_stage|default:"—" }}{% endif %}
+                      </div>
+                      {% if u.notes %}<div style="white-space:pre-wrap;">{{ u.notes }}</div>{% endif %}
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <p class="text-muted mb-0">No timeline entries yet apart from creation.</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+

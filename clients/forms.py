@@ -455,6 +455,11 @@ class ProspectForm(forms.ModelForm):
             "postal_code",
             "country",
 
+            # ---- Preferred Delivery Slots ----
+            "preferred_delivery_slot_1",
+            "preferred_delivery_slot_2",
+            "preferred_delivery_slot_3",
+
             # ---- Early compliance ----
             "registration_identifier",
             "vat_number",
@@ -516,6 +521,11 @@ class ProspectForm(forms.ModelForm):
             "province": forms.Select(attrs={"class": "form-select"}),
             "postal_code": forms.TextInput(attrs={"class": "form-control"}),
             "country": forms.TextInput(attrs={"class": "form-control"}),
+
+            # Preferred Delivery Slots
+            "preferred_delivery_slot_1": forms.Select(attrs={"class": "form-select"}),
+            "preferred_delivery_slot_2": forms.Select(attrs={"class": "form-select"}),
+            "preferred_delivery_slot_3": forms.Select(attrs={"class": "form-select"}),
 
             # Compliance
             "registration_identifier": forms.TextInput(attrs={
@@ -647,6 +657,7 @@ class ProspectForm(forms.ModelForm):
 
         if commit:
             prospect.save()
+            self.save_m2m()
 
             for day_code, _ in ProspectOperatingHours.DAY_CHOICES:
                 is_closed = self.cleaned_data.get(f"{day_code}_is_closed")

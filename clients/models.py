@@ -553,31 +553,31 @@ class ClientOperatingHours(models.Model):
         # If marked as closed
         # -----------------------------
         if self.is_closed:
+
             if self.open_time or self.close_time:
-                errors["is_closed"] = "Closed days must not have opening or closing times."
+                errors["is_closed"] = (
+                    "Closed days must not have opening or closing times."
+                )
 
         # -----------------------------
         # If marked as open
         # -----------------------------
         else:
-            # Both times required
-            if not self.open_time:
-                errors["open_time"] = "Opening time is required when the day is not closed."
 
-            if not self.close_time:
-                errors["close_time"] = "Closing time is required when the day is not closed."
-
-            # Only compare times if both exist
+            # Allow empty operating hours
+            # Only validate if BOTH times were supplied
             if self.open_time and self.close_time:
+
                 if self.close_time <= self.open_time:
-                    errors["close_time"] = "Closing time must be after opening time."
+                    errors["close_time"] = (
+                        "Closing time must be after opening time."
+                    )
 
         # -----------------------------
         # Raise structured validation
         # -----------------------------
         if errors:
             raise ValidationError(errors)
-    
     
 class Prospect(models.Model):
     """
@@ -791,6 +791,27 @@ class Prospect(models.Model):
         help_text="Client created from this prospect (if converted).",
     )
 
+    preferred_delivery_slot_1 = models.CharField(
+        max_length=10,
+        choices=Client.DELIVERY_SLOT_CHOICES,
+        blank=True,
+        help_text="Prospect's first preferred delivery slot."
+    )
+
+    preferred_delivery_slot_2 = models.CharField(
+        max_length=10,
+        choices=Client.DELIVERY_SLOT_CHOICES,
+        blank=True,
+        help_text="Prospect's second preferred delivery slot."
+    )
+
+    preferred_delivery_slot_3 = models.CharField(
+        max_length=10,
+        choices=Client.DELIVERY_SLOT_CHOICES,
+        blank=True,
+        help_text="Prospect's third preferred delivery slot."
+    )
+
     # -------------------------------------------------
     # Notes & meta
     # -------------------------------------------------
@@ -848,7 +869,127 @@ class Prospect(models.Model):
             return "Overdue"
         return "Very overdue"
     
+    @transaction.atomic
+    def convert_to_client(self):
+        """
+        Convert a WON prospect into a real Client.
+        Safe to run multiple times: if client already exists, return it.
+        """
+
+        if self.client_id:
+            return self.client
+
+        client = Client.objects.create(
+            account_manager=self.owner,
+
+            is_dummy=False,
+
+            name=self.name,
+            organization=self.organization,
+            entity_type=self.entity_type,
+
+            client_type=self.potential_client_type or "RESTAURANT",
+            client_size_tier=self.potential_size_tier or "",
+
+            contact_person=self.contact_name,
+            email=self.email,
+            phone=self.phone,
+            whatsapp=self.whatsapp,
+
+            address_line1=self.address_line1,
+            address_line2=self.address_line2,
+            suburb=self.suburb,
+            city=self.city,
+            province=self.province,
+            postal_code=self.postal_code,
+            country=self.country,
+
+            # Business address = delivery address
+            delivery_address_line1=self.address_line1,
+            delivery_address_line2=self.address_line2,
+            delivery_suburb=self.suburb,
+            delivery_city=self.city,
+            delivery_province=self.province,
+            delivery_postal_code=self.postal_code,
+            delivery_country=self.country,
+
+            preferred_delivery_slot_1=self.preferred_delivery_slot_1,
+            preferred_delivery_slot_2=self.preferred_delivery_slot_2,
+            preferred_delivery_slot_3=self.preferred_delivery_slot_3,
+
+            area=self.area,
+
+            vat_number=self.vat_number,
+            registration_identifier=self.registration_identifier,
+
+            estimated_weekly_spend=self.estimated_weekly_spend,
+            notes=self.notes,
+
+            status="ACTIVE",
+            account_type="CASH",
+            credit_status="INACTIVE",
+            price_type="Wholesale",
+        )
+
+        client.categories.set(self.categories.all())
+
+        
+        Prospect.objects.filter(pk=self.pk).update(client=client)
+        self.client = client
+
+        return client
     
+    def save(self, *args, **kwargs):
+        creating = self.pk is None
+        old_stage = None
+
+        if not creating:
+            old_stage = (
+                Prospect.objects
+                .filter(pk=self.pk)
+                .values_list("stage", flat=True)
+                .first()
+            )
+
+        super().save(*args, **kwargs)
+
+        if self.stage == "WON" and old_stage != "WON" and not self.client_id:
+            self.convert_to_client()
+
+    def log_update(
+        self,
+        *,
+        user=None,
+        action_type="OTHER",
+        outcome="OTHER",
+        notes="",
+        new_stage=None,
+        action_at=None,
+    ):
+        """
+        Helper for quickly logging ProspectUpdate entries.
+        Optionally updates the prospect stage.
+        """
+
+        old_stage = self.stage
+
+        if new_stage and new_stage != self.stage:
+            self.stage = new_stage
+            self.save(update_fields=["stage", "updated_at"])
+
+        return ProspectUpdate.objects.create(
+            prospect=self,
+            user=user,
+            action_type=action_type,
+            outcome=outcome,
+            notes=notes,
+            action_at=action_at or timezone.now(),
+            old_stage=old_stage,
+            new_stage=new_stage or old_stage,
+        )   
+        
+
+
 
 
     
@@ -890,13 +1031,11 @@ class ProspectOperatingHours(models.Model):
                 errors["is_closed"] = "Closed days must not have opening or closing times."
 
         else:
-            if not self.open_time:
-                errors["open_time"] = "Opening time is required when the day is not closed."
 
-            if not self.close_time:
-                errors["close_time"] = "Closing time is required when the day is not closed."
-
+            # Allow empty operating hours
+            # Only validate if BOTH times were supplied
             if self.open_time and self.close_time:
+
                 if self.close_time <= self.open_time:
                     errors["close_time"] = "Closing time must be after opening time."
 

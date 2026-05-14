@@ -312,12 +312,6 @@ class Quotation(models.Model):
                 "Only accepted quotations can be converted to orders."
             )
 
-        # Must have client
-        if not self.client:
-            raise ValidationError(
-                "Quotation must first be linked to a client before conversion to an order."
-            )
-
         # Must have items
         if not self.items.exists():
             raise ValidationError(
@@ -325,9 +319,45 @@ class Quotation(models.Model):
             )
 
         # =====================================================
+        # IF QUOTATION HAS PROSPECT BUT NO CLIENT
+        # Convert prospect into client first
+        # =====================================================
+        if not self.client and self.prospect:
+
+            prospect = self.prospect
+
+            # Mark prospect as WON
+            if prospect.stage != "WON":
+                prospect.stage = "WON"
+                prospect.save(update_fields=["stage", "updated_at"])
+
+            # This creates client if missing, or returns existing client
+            client = prospect.convert_to_client()
+
+            # Ensure client is active
+            if client.status != "ACTIVE":
+                client.status = "ACTIVE"
+                client.save(update_fields=["status", "updated_at"])
+
+            # Link quotation to client
+            # Clear prospect because your clean() does not allow both
+            self.client = client
+            self.prospect = None
+            self.save(update_fields=[
+                "client",
+                "prospect",
+                "updated_at",
+            ])
+
+        # Final safety check
+        if not self.client:
+            raise ValidationError(
+                "Quotation must be linked to a client before conversion to an order."
+            )
+
+        # =====================================================
         # CREATE ORDER
         # =====================================================
-
         order = Order.objects.create(
             client=self.client,
             created_by=user or self.created_by,
@@ -350,7 +380,6 @@ class Quotation(models.Model):
         # =====================================================
         # COPY ITEMS
         # =====================================================
-
         for q_item in self.items.all():
 
             OrderItem.objects.create(
@@ -375,15 +404,12 @@ class Quotation(models.Model):
         # =====================================================
         # RECALCULATE ORDER
         # =====================================================
-
         order.recalc_totals(save=True)
 
         # =====================================================
         # LINK QUOTATION
         # =====================================================
-
         self.converted_order = order
-
         self.save(update_fields=[
             "converted_order",
             "updated_at",

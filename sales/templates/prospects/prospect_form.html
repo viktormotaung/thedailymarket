@@ -1,478 +1,631 @@
-{% load static %}
 {% load static humanize %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Add Prospect - The Daily Market</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% if prospect %}Edit Prospect{% else %}Add Prospect{% endif %} - Seshibo Daily Market</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 
   <style>
-    /* -------------------------------------------------
-      ROOT & BASE
-    ------------------------------------------------- */
-    :root {
-      --sidebar-width: 220px;
+    :root{
+      --sidebar-w: 220px;
+      --mobile-nav-h: 56px;
+      --brand-green: #0b5c39;
+      --content-bg: #f8f9fa;
     }
 
-    body {
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-    }
+    html, body { height: 100%; }
 
-    /* -------------------------------------------------
-      CONTENT
-    ------------------------------------------------- */
-    .content {
-      padding: 24px;
-      margin: 0;
-      max-width: none; /* ✅ full width, no white gap */
-    }
-
-    /* -------------------------------------------------
-      DESKTOP LAYOUT (lg and up)
-    ------------------------------------------------- */
-    @media (min-width: 992px) {
-
-      /* Fixed, non-scrollable sidebar */
-      .sidebar-desktop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: var(--sidebar-width);
-        height: 100vh;
-        overflow: hidden;
-        z-index: 1040;
-      }
-
-      /* Main scrollable area */
-      .content-wrap {
-        margin-left: var(--sidebar-width);
-        min-height: 100vh;
-      }
-    }
-
-    /* -------------------------------------------------
-      MOBILE / TABLET
-    ------------------------------------------------- */
-    @media (max-width: 991.98px) {
-      .sidebar-desktop {
-        display: none;
-      }
-
-      .content-wrap {
-        margin-left: 0;
-      }
-
-      .content {
-        padding: 16px;
-      }
-    }
-
-    /* -------------------------------------------------
-      SIDEBAR VISUALS
-    ------------------------------------------------- */
-    .sidebar-skin {
-      background-color: #0b5c39;
-      color: #fff;
-      padding: 1rem;
-    }
-
-    .sidebar-skin .nav-link {
-      color: #fff;
-      margin: 0.25rem 0;
-      display: block;
-      text-decoration: none;
-    }
-
+    .sidebar-skin { background-color: var(--brand-green); color: #fff; padding: 1rem; }
+    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; text-decoration: none; }
     .sidebar-skin .nav-link.active,
-    .sidebar-skin .nav-link:hover {
-      background: rgba(255, 255, 255, 0.12);
-      border-radius: 6px;
-      padding-left: 8px;
+    .sidebar-skin .nav-link:hover { background: rgba(255,255,255,0.15); border-radius: 4px; padding-left: 8px; }
+    .sidebar-skin .nav-link.ps-4 { font-size:.95rem; opacity:.95; }
+    .nav-link[data-bs-toggle="collapse"]::after { content: none !important; }
+    .logo-img { max-height: 80px; width: auto; }
+
+    .content { background: var(--content-bg); padding:20px; }
+    .card { box-shadow: 0 1px 2px rgba(0,0,0,.04); border:0; }
+    .meta { font-size:12px; color:#6c757d; }
+    .section-title { font-size:.82rem; text-transform:uppercase; letter-spacing:.04em; color:#6c757d; font-weight:700; }
+    .help-text { font-size:.8rem; color:#6c757d; margin-top:.25rem; }
+    .errorlist { margin: .25rem 0 0; padding-left: 1rem; color:#dc3545; font-size:.85rem; }
+    .form-control, .form-select, textarea { width:100%; }
+    .required-dot::after { content:" *"; color:#dc3545; }
+
+    .slot-card {
+      border:1px solid #e9ecef;
+      border-radius:.5rem;
+      padding:1rem;
+      background:#fff;
     }
 
-    /* -------------------------------------------------
-      SHARED UI
-    ------------------------------------------------- */
-    .logo-img {
-      max-height: 80px;
-      width: auto;
+    .day-row {
+      border:1px solid #e9ecef;
+      border-radius:.5rem;
+      padding:.85rem;
+      background:#fff;
+      margin-bottom:.75rem;
     }
 
-    .form-section-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: #6c757d;
-      margin-bottom: 0.5rem;
+    @media (min-width: 992px) {
+      body { display:block; overflow:hidden; }
+      .sidebar-desktop {
+        position:fixed;
+        top:0;
+        left:0;
+        bottom:0;
+        width:var(--sidebar-w);
+        overflow-y:auto;
+        z-index:1020;
+      }
+      .content {
+        margin-left:var(--sidebar-w);
+        height:100vh;
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
+      }
     }
 
-    /* Inputs always fill container */
-    .form-control,
-    .form-select,
-    textarea {
-      width: 100%;
-    }
-
-    /* Cards */
-    .card {
-      border: 0;
-      border-radius: 8px;
-    }
-
-    .card.shadow-sm {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    @media (max-width: 991.98px) {
+      html, body { height:100%; overflow:hidden; }
+      .navbar.d-lg-none {
+        position:fixed;
+        top:0;
+        left:0;
+        right:0;
+        z-index:1040;
+      }
+      .content {
+        margin-top:var(--mobile-nav-h);
+        height:calc(100vh - var(--mobile-nav-h));
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
+      }
     }
   </style>
-
 </head>
 <body>
-  <!-- MOBILE/TABLET TOP BAR -->
+
+  <!-- ================= MOBILE TOP BAR ================= -->
   <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
-      <div class="container-fluid">
-        <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <a class="navbar-brand ms-2" href="#">
-          <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
-        </a>
-      </div>
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#mobileMenu"
+              aria-controls="mobileMenu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
   </nav>
-  
-  <!-- MOBILE OFFCANVAS MENU -->
-  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
-      <div class="offcanvas-header sidebar-skin">
-        <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Menu</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+
+  <!-- ================= MOBILE OFFCANVAS MENU ================= -->
+  <div class="offcanvas offcanvas-start d-lg-none sidebar-skin" tabindex="-1" id="mobileMenu">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title">Sales Navigation</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+
+    <div class="offcanvas-body">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" class="logo-img" alt="Seshibo Daily Market">
       </div>
-      <div class="offcanvas-body sidebar-skin">
-        <div class="text-center mb-3">
-          <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
-        </div>
-  
-        <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
-        <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospect-create' %}active{% endif %}">Prospects</a>
-        <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
-        <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
-        <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
-        <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
-        <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+
+      {% with current=request.resolver_match.url_name %}
+        <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if current == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if current == 'sales-prospects' or current == 'sales-prospect-create' or current == 'sales-prospect-edit' or current == 'sales-prospect-detail' %}active{% endif %}">Prospects</a>
+        <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if current == 'sales-clients' %}active{% endif %}">Clients</a>
+        <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if current == 'sales-orders' %}active{% endif %}">Orders</a>
+        <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if current == 'sales-invoices' %}active{% endif %}">Invoices</a>
+        <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if current == 'sales-commission' %}active{% endif %}">Commission</a>
+        <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if current == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+
         <hr class="border-light">
-        <form action="{% url 'logout' %}" method="post" class="m-0">
+
+        <form action="{% url 'logout' %}" method="post">
           {% csrf_token %}
           <button type="submit" class="btn btn-light w-100">Sign out</button>
         </form>
-      </div>
+      {% endwith %}
+    </div>
   </div>
-  
-  <!-- DESKTOP SIDEBAR -->
+
+  <!-- ================= DESKTOP SIDEBAR ================= -->
   <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
-      <div class="text-center mb-3">
-        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
-      </div>
-  
-      <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
-      <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospect-create' %}active{% endif %}">Prospects</a>
-      <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
-      <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
-      <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
-      <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
-      <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+
+    <h6 class="text-uppercase fw-semibold mb-2">Sales Platform</h6>
+    <hr class="border-light">
+
+    {% with current=request.resolver_match.url_name %}
+      <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if current == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if current == 'sales-prospects' or current == 'sales-prospect-create' or current == 'sales-prospect-edit' or current == 'sales-prospect-detail' %}active{% endif %}">Prospects</a>
+      <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if current == 'sales-clients' %}active{% endif %}">Clients</a>
+      <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if current == 'sales-orders' %}active{% endif %}">Orders</a>
+      <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if current == 'sales-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if current == 'sales-commission' %}active{% endif %}">Commission</a>
+      <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if current == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+
       <div class="mt-3">
-        <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+        <form action="{% url 'logout' %}" method="post">
           {% csrf_token %}
-          <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+          <button type="submit" class="nav-link btn btn-link text-start w-100 p-0 text-white">Sign out</button>
         </form>
       </div>
+    {% endwith %}
   </aside>
 
-    
-  <div class="content-wrap">
-    <main class="content">
-      <!-- Header -->
-      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+  <!-- ================= MAIN CONTENT ================= -->
+  <main class="content py-4">
+    <div class="container-fluid">
+
+      <!-- ================= HEADER ================= -->
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
         <div>
-          <h2 class="m-0">Add Prospect</h2>
-          <div class="text-muted">Capture a new sales lead</div>
+          <a href="{% url 'sales:sales-prospects' %}" class="btn btn-link px-0 mb-1">&larr; Back to prospects</a>
+          <h2 class="fw-semibold mb-1">
+            {% if prospect %}Edit Prospect{% else %}Add Prospect{% endif %}
+          </h2>
+          <div class="text-muted small">
+            {% if prospect %}
+              Update lead details, delivery preferences, operating hours, and sales pipeline data.
+            {% else %}
+              Capture a new sales lead and prepare it for smooth conversion into a client.
+            {% endif %}
+          </div>
         </div>
-        <a href="{% url 'sales:sales-prospects' %}" class="btn btn-outline-secondary">
-          Back to Prospects
-        </a>
+
+        <div class="text-end">
+          {% if prospect %}
+            {% if prospect.stage == "WON" %}
+              <span class="badge bg-success">Won</span>
+            {% elif prospect.stage == "LOST" %}
+              <span class="badge bg-danger">Lost</span>
+            {% else %}
+              <span class="badge bg-primary">{{ prospect.get_stage_display }}</span>
+            {% endif %}
+          {% else %}
+            <span class="badge bg-secondary">New Prospect</span>
+          {% endif %}
+        </div>
       </div>
 
-      <!-- Messages -->
+      <!-- ================= MESSAGES ================= -->
       {% if messages %}
-        <div class="mb-3">
+        <div class="mb-4">
           {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            <div class="alert alert-{{ message.tags }} mb-2">{{ message }}</div>
           {% endfor %}
+        </div>
+      {% endif %}
+
+      <!-- ================= FORM ERRORS ================= -->
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+          {{ form.non_field_errors }}
         </div>
       {% endif %}
 
       <form method="post" novalidate>
         {% csrf_token %}
 
-        {% if form.non_field_errors %}
-          <div class="alert alert-danger">
-            {{ form.non_field_errors }}
-          </div>
-        {% endif %}
+        <div class="row g-4">
 
-        <div class="row g-3">
+          <!-- ================= LEFT COLUMN ================= -->
+          <div class="col-lg-8">
 
-          <!-- ========================= -->
-          <!-- Identity & Ownership -->
-          <!-- ========================= -->
-          <div class="col-lg-6">
-            <div class="card shadow-sm h-100">
-              <div class="card-header"><strong>Identity & Ownership</strong></div>
-              <div class="card-body">
-
-                <div class="mb-3">
-                  <label class="form-label">Entity Type</label>
-                  {{ form.entity_type }}
-                </div>
-
-                <div class="mb-3">
-                  <label class="form-label">Name</label>
-                  {{ form.name }}
-                  {% for err in form.name.errors %}
-                    <div class="text-danger small">{{ err }}</div>
-                  {% endfor %}
-                </div>
-
-                <div class="mb-3">
-                  <label class="form-label">Trading As</label>
-                  {{ form.organization }}
-                </div>
-
-                <div class="row g-3">
-                  <div class="col-md-6">
-                    <label class="form-label">Expected Client Type</label>
-                    {{ form.potential_client_type }}
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label">Expected Size Tier</label>
-                    {{ form.potential_size_tier }}
-                  </div>
-
-                  <div class="col-md-12">
-                    <label class="form-label">Territory</label>
-                    {{ form.area }}
-                  </div>
-                </div>
-
+            <!-- ================= IDENTITY ================= -->
+            <div class="card shadow-sm mb-4">
+              <div class="card-header bg-white">
+                <div class="fw-semibold">Identity & Contact</div>
+                <div class="meta">Who the prospect is and how the sales team can reach them.</div>
               </div>
-            </div>
-          </div>
 
-          <!-- ========================= -->
-          <!-- Contact -->
-          <!-- ========================= -->
-          <div class="col-lg-6">
-            <div class="card shadow-sm h-100">
-              <div class="card-header"><strong>Contact</strong></div>
               <div class="card-body">
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label">Entity Type</label>
+                    {{ form.entity_type }}
+                    {{ form.entity_type.errors }}
+                  </div>
 
-                <div class="mb-3">
-                  <label class="form-label">Contact Person</label>
-                  {{ form.contact_name }}
-                </div>
+                  <div class="col-md-4">
+                    <label class="form-label required-dot">Name</label>
+                    {{ form.name }}
+                    {{ form.name.errors }}
+                  </div>
 
-                <div class="row g-3 mb-3">
-                  <div class="col-md-6">
+                  <div class="col-md-4">
+                    <label class="form-label">Trading / Organization Name</label>
+                    {{ form.organization }}
+                    {{ form.organization.errors }}
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label">Contact Person</label>
+                    {{ form.contact_name }}
+                    {{ form.contact_name.errors }}
+                  </div>
+
+                  <div class="col-md-4">
                     <label class="form-label">Phone</label>
                     {{ form.phone }}
+                    {{ form.phone.errors }}
                   </div>
-                  <div class="col-md-6">
+
+                  <div class="col-md-4">
                     <label class="form-label">WhatsApp</label>
                     {{ form.whatsapp }}
+                    {{ form.whatsapp.errors }}
                   </div>
-                </div>
 
-                <div class="row g-3">
                   <div class="col-md-6">
                     <label class="form-label">Email</label>
                     {{ form.email }}
+                    {{ form.email.errors }}
                   </div>
+
                   <div class="col-md-6">
                     <label class="form-label">Lead Source</label>
                     {{ form.lead_source }}
+                    {{ form.lead_source.errors }}
                   </div>
                 </div>
-
               </div>
             </div>
-          </div>
 
-          <!-- ========================= -->
-          <!-- Address -->
-          <!-- ========================= -->
-          <div class="col-lg-6">
-            <div class="card shadow-sm h-100">
-              <div class="card-header"><strong>Address</strong></div>
+            <!-- ================= COMMERCIAL PROFILE ================= -->
+            <div class="card shadow-sm mb-4">
+              <div class="card-header bg-white">
+                <div class="fw-semibold">Commercial Profile</div>
+                <div class="meta">Classify the opportunity and estimate its potential value.</div>
+              </div>
+
               <div class="card-body">
-
-                <div class="mb-3">
-                  <label class="form-label">Address Line 1</label>
-                  {{ form.address_line1 }}
-                </div>
-
-                <div class="mb-3">
-                  <label class="form-label">Address Line 2</label>
-                  {{ form.address_line2 }}
-                </div>
-
-                <div class="row g-3 mb-3">
-                  <div class="col-md-6">
-                    <label class="form-label">Suburb</label>
-                    {{ form.suburb }}
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label">City</label>
-                    {{ form.city }}
-                  </div>
-                </div>
-
                 <div class="row g-3">
                   <div class="col-md-4">
-                    <label class="form-label">Province</label>
-                    {{ form.province }}
+                    <label class="form-label">Expected Client Type</label>
+                    {{ form.potential_client_type }}
+                    {{ form.potential_client_type.errors }}
                   </div>
+
                   <div class="col-md-4">
-                    <label class="form-label">Postal Code</label>
-                    {{ form.postal_code }}
+                    <label class="form-label">Expected Size Tier</label>
+                    {{ form.potential_size_tier }}
+                    {{ form.potential_size_tier.errors }}
                   </div>
+
                   <div class="col-md-4">
-                    <label class="form-label">Country</label>
-                    {{ form.country }}
+                    <label class="form-label">Territory</label>
+                    {{ form.area }}
+                    {{ form.area.errors }}
                   </div>
-                </div>
 
-              </div>
-            </div>
-          </div>
-
-          <!-- ========================= -->
-          <!-- Business Details -->
-          <!-- ========================= -->
-          <div class="col-lg-6">
-            <div class="card shadow-sm h-100">
-              <div class="card-header"><strong>Business Details (Optional)</strong></div>
-              <div class="card-body">
-
-                <div class="row g-3">
-                  <div class="col-md-6">
-                    <label class="form-label">Registration / ID Number</label>
-                    {{ form.registration_identifier }}
+                  <div class="col-md-4">
+                    <label class="form-label">Estimated Weekly Spend</label>
+                    {{ form.estimated_weekly_spend }}
+                    {{ form.estimated_weekly_spend.errors }}
                   </div>
-                  <div class="col-md-6">
-                    <label class="form-label">VAT Number</label>
-                    {{ form.vat_number }}
-                  </div>
-                </div>
 
-              </div>
-            </div>
-          </div>
-
-          <!-- ========================= -->
-          <!-- Product Interest -->
-          <!-- ========================= -->
-          <div class="col-lg-6">
-            <div class="card shadow-sm h-100">
-              <div class="card-header"><strong>Product Interest</strong></div>
-              <div class="card-body">
-                {{ form.categories }}
-              </div>
-            </div>
-          </div>
-
-          <!-- ========================= -->
-          <!-- Pipeline -->
-          <!-- ========================= -->
-          <div class="col-lg-6">
-            <div class="card shadow-sm h-100">
-              <div class="card-header"><strong>Pipeline & Value</strong></div>
-              <div class="card-body">
-
-                <div class="row g-3">
                   <div class="col-md-4">
                     <label class="form-label">Stage</label>
                     {{ form.stage }}
+                    {{ form.stage.errors }}
+                    <div class="help-text">Direct WON creation is protected in the view.</div>
                   </div>
+
                   <div class="col-md-4">
                     <label class="form-label">Status</label>
                     {{ form.status }}
+                    {{ form.status.errors }}
                   </div>
-                  <div class="col-md-4">
-                    <label class="form-label">Weekly Spend (R)</label>
-                    {{ form.estimated_weekly_spend }}
+
+                  <div class="col-12">
+                    <label class="form-label">Interested Categories</label>
+                    {{ form.categories }}
+                    {{ form.categories.errors }}
+                    <div class="help-text">These will copy to the client if the prospect is won.</div>
                   </div>
                 </div>
-
               </div>
             </div>
-          </div>
 
-          <!-- ========================= -->
-          <!-- Follow-up -->
-          <!-- ========================= -->
-          <div class="col-lg-6">
-            <div class="card shadow-sm h-100">
-              <div class="card-header"><strong>Follow-up</strong></div>
+            <!-- ================= ADDRESS ================= -->
+            <div class="card shadow-sm mb-4">
+              <div class="card-header bg-white">
+                <div class="fw-semibold">Business Address</div>
+                <div class="meta">This address becomes the delivery address when the prospect converts to a client.</div>
+              </div>
+
               <div class="card-body">
-
                 <div class="row g-3">
                   <div class="col-md-6">
-                    <label class="form-label">Last Contact</label>
-                    {{ form.last_contact_at }}
+                    <label class="form-label">Address Line 1</label>
+                    {{ form.address_line1 }}
+                    {{ form.address_line1.errors }}
                   </div>
+
                   <div class="col-md-6">
-                    <label class="form-label">Next Follow-up</label>
-                    {{ form.next_follow_up_at }}
+                    <label class="form-label">Address Line 2</label>
+                    {{ form.address_line2 }}
+                    {{ form.address_line2.errors }}
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label">Suburb</label>
+                    {{ form.suburb }}
+                    {{ form.suburb.errors }}
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label">City</label>
+                    {{ form.city }}
+                    {{ form.city.errors }}
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label">Province</label>
+                    {{ form.province }}
+                    {{ form.province.errors }}
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">Postal Code</label>
+                    {{ form.postal_code }}
+                    {{ form.postal_code.errors }}
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">Country</label>
+                    {{ form.country }}
+                    {{ form.country.errors }}
                   </div>
                 </div>
-
               </div>
             </div>
+
+            <!-- ================= DELIVERY SLOTS ================= -->
+            <div class="card shadow-sm mb-4">
+              <div class="card-header bg-white">
+                <div class="fw-semibold">Preferred Delivery Slots</div>
+                <div class="meta">Optional. These preferences will copy into the client profile after conversion.</div>
+              </div>
+
+              <div class="card-body">
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <div class="slot-card h-100">
+                      <label class="form-label">1st Preferred Slot</label>
+                      {{ form.preferred_delivery_slot_1 }}
+                      {{ form.preferred_delivery_slot_1.errors }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="slot-card h-100">
+                      <label class="form-label">2nd Preferred Slot</label>
+                      {{ form.preferred_delivery_slot_2 }}
+                      {{ form.preferred_delivery_slot_2.errors }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="slot-card h-100">
+                      <label class="form-label">3rd Preferred Slot</label>
+                      {{ form.preferred_delivery_slot_3 }}
+                      {{ form.preferred_delivery_slot_3.errors }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ================= OPERATING HOURS ================= -->
+            <div class="card shadow-sm mb-4">
+              <div class="card-header bg-white">
+                <div class="fw-semibold">Operating Hours</div>
+                <div class="meta">Capture when the prospect operates. Mark closed days to avoid requiring times.</div>
+              </div>
+
+              <div class="card-body">
+                <div class="row g-3">
+                  <div class="col-md-6 col-xl-4">
+                    <div class="day-row">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Monday</strong>
+                        <div class="form-check m-0">
+                          {{ form.MON_is_closed }}
+                          <label class="form-check-label small">Closed</label>
+                        </div>
+                      </div>
+                      <div class="row g-2">
+                        <div class="col-6">{{ form.MON_open }}</div>
+                        <div class="col-6">{{ form.MON_close }}</div>
+                      </div>
+                      {{ form.MON_open.errors }}{{ form.MON_close.errors }}{{ form.MON_is_closed.errors }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-6 col-xl-4">
+                    <div class="day-row">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Tuesday</strong>
+                        <div class="form-check m-0">{{ form.TUE_is_closed }} <label class="form-check-label small">Closed</label></div>
+                      </div>
+                      <div class="row g-2"><div class="col-6">{{ form.TUE_open }}</div><div class="col-6">{{ form.TUE_close }}</div></div>
+                      {{ form.TUE_open.errors }}{{ form.TUE_close.errors }}{{ form.TUE_is_closed.errors }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-6 col-xl-4">
+                    <div class="day-row">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Wednesday</strong>
+                        <div class="form-check m-0">{{ form.WED_is_closed }} <label class="form-check-label small">Closed</label></div>
+                      </div>
+                      <div class="row g-2"><div class="col-6">{{ form.WED_open }}</div><div class="col-6">{{ form.WED_close }}</div></div>
+                      {{ form.WED_open.errors }}{{ form.WED_close.errors }}{{ form.WED_is_closed.errors }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-6 col-xl-4">
+                    <div class="day-row">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Thursday</strong>
+                        <div class="form-check m-0">{{ form.THU_is_closed }} <label class="form-check-label small">Closed</label></div>
+                      </div>
+                      <div class="row g-2"><div class="col-6">{{ form.THU_open }}</div><div class="col-6">{{ form.THU_close }}</div></div>
+                      {{ form.THU_open.errors }}{{ form.THU_close.errors }}{{ form.THU_is_closed.errors }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-6 col-xl-4">
+                    <div class="day-row">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Friday</strong>
+                        <div class="form-check m-0">{{ form.FRI_is_closed }} <label class="form-check-label small">Closed</label></div>
+                      </div>
+                      <div class="row g-2"><div class="col-6">{{ form.FRI_open }}</div><div class="col-6">{{ form.FRI_close }}</div></div>
+                      {{ form.FRI_open.errors }}{{ form.FRI_close.errors }}{{ form.FRI_is_closed.errors }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-6 col-xl-4">
+                    <div class="day-row">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Saturday</strong>
+                        <div class="form-check m-0">{{ form.SAT_is_closed }} <label class="form-check-label small">Closed</label></div>
+                      </div>
+                      <div class="row g-2"><div class="col-6">{{ form.SAT_open }}</div><div class="col-6">{{ form.SAT_close }}</div></div>
+                      {{ form.SAT_open.errors }}{{ form.SAT_close.errors }}{{ form.SAT_is_closed.errors }}
+                    </div>
+                  </div>
+
+                  <div class="col-md-6 col-xl-4">
+                    <div class="day-row">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Sunday</strong>
+                        <div class="form-check m-0">{{ form.SUN_is_closed }} <label class="form-check-label small">Closed</label></div>
+                      </div>
+                      <div class="row g-2"><div class="col-6">{{ form.SUN_open }}</div><div class="col-6">{{ form.SUN_close }}</div></div>
+                      {{ form.SUN_open.errors }}{{ form.SUN_close.errors }}{{ form.SUN_is_closed.errors }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
 
-          <!-- ========================= -->
-          <!-- Notes -->
-          <!-- ========================= -->
-          <div class="col-lg-12">
-            <div class="card shadow-sm">
-              <div class="card-header"><strong>Notes</strong></div>
+          <!-- ================= RIGHT COLUMN ================= -->
+          <div class="col-lg-4">
+
+            <!-- ================= SAVE CARD ================= -->
+            <div class="card shadow-sm mb-4 sticky-lg-top" style="top: 1rem; z-index: 10;">
+              <div class="card-header bg-white">
+                <div class="fw-semibold">Save Prospect</div>
+                <div class="meta">Review the key details before saving.</div>
+              </div>
+
+              <div class="card-body">
+                <div class="mb-3">
+                  <div class="text-muted small">Conversion Rule</div>
+                  <div class="fw-semibold">WON converts into active wholesale client</div>
+                </div>
+
+                <div class="mb-3">
+                  <div class="text-muted small">Owner</div>
+                  <div class="fw-semibold">Current user on create</div>
+                </div>
+
+                <div class="mb-3">
+                  <div class="text-muted small">Delivery Address</div>
+                  <div class="fw-semibold">Same as business address</div>
+                </div>
+
+                <div class="d-grid gap-2">
+                  <button type="submit" class="btn btn-success">
+                    {% if prospect %}Save Changes{% else %}Create Prospect{% endif %}
+                  </button>
+                  <a href="{% if prospect %}{% url 'sales:sales-prospect-detail' prospect.pk %}{% else %}{% url 'sales:sales-prospects' %}{% endif %}" class="btn btn-outline-secondary">
+                    Cancel
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <!-- ================= COMPLIANCE ================= -->
+            <div class="card shadow-sm mb-4">
+              <div class="card-header bg-white">
+                <div class="fw-semibold">Early Compliance</div>
+                <div class="meta">Optional details to speed up onboarding after conversion.</div>
+              </div>
+
+              <div class="card-body">
+                <div class="mb-3">
+                  <label class="form-label">Registration / ID Number</label>
+                  {{ form.registration_identifier }}
+                  {{ form.registration_identifier.errors }}
+                  {% if form.registration_identifier.help_text %}
+                    <div class="help-text">{{ form.registration_identifier.help_text }}</div>
+                  {% endif %}
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">VAT Number</label>
+                  {{ form.vat_number }}
+                  {{ form.vat_number.errors }}
+                </div>
+              </div>
+            </div>
+
+            <!-- ================= ACTIVITY ================= -->
+            <div class="card shadow-sm mb-4">
+              <div class="card-header bg-white">
+                <div class="fw-semibold">Sales Activity</div>
+                <div class="meta">Optional follow-up and activity fields.</div>
+              </div>
+
+              <div class="card-body">
+                <div class="mb-3">
+                  <label class="form-label">Last Contact At</label>
+                  {{ form.last_contact_at }}
+                  {{ form.last_contact_at.errors }}
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Next Follow-up At</label>
+                  {{ form.next_follow_up_at }}
+                  {{ form.next_follow_up_at.errors }}
+                </div>
+              </div>
+            </div>
+
+            <!-- ================= NOTES ================= -->
+            <div class="card shadow-sm mb-4">
+              <div class="card-header bg-white">
+                <div class="fw-semibold">Notes</div>
+                <div class="meta">Anything useful for the sales handover or next contact.</div>
+              </div>
+
               <div class="card-body">
                 {{ form.notes }}
+                {{ form.notes.errors }}
               </div>
             </div>
+
           </div>
-
         </div>
-
-        <!-- Actions -->
-        <div class="d-flex justify-content-end gap-2 mt-4">
-          <a href="{% url 'sales:sales-prospects' %}" class="btn btn-outline-secondary">
-            Cancel
-          </a>
-          <button type="submit" class="btn btn-success">
-            Save Prospect
-          </button>
-        </div>
-
       </form>
-    </main>
-  </div>
-
-
-
- 
+    </div>
+  </main>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
