@@ -294,6 +294,37 @@ class Quotation(models.Model):
             self.status == "accepted"
             and self.converted_order_id is None
         )
+    
+
+
+    def save(self, *args, **kwargs):
+        old_status = None
+
+        if self.pk:
+            old_status = (
+                Quotation.objects
+                .filter(pk=self.pk)
+                .values_list("status", flat=True)
+                .first()
+            )
+
+        super().save(*args, **kwargs)
+
+        if (
+            self.status == "accepted"
+            and old_status != "accepted"
+            and not self.converted_order_id
+        ):
+            print("========== QUOTATION ACCEPTED: START CONVERSION ==========")
+            self.convert_to_order(
+                user=self.accepted_by or self.created_by
+            )
+            print("========== QUOTATION ACCEPTED: CONVERSION COMPLETE ==========")
+    
+
+
+
+
 
     # =========================================================
     # CONVERSION
@@ -343,7 +374,7 @@ class Quotation(models.Model):
             # Clear prospect because your clean() does not allow both
             self.client = client
             self.prospect = None
-            self.save(update_fields=[
+            super().save(update_fields=[
                 "client",
                 "prospect",
                 "updated_at",
@@ -406,11 +437,21 @@ class Quotation(models.Model):
         # =====================================================
         order.recalc_totals(save=True)
 
+        order.status = "approved"
+        order.approved_by = user or self.accepted_by or self.created_by
+        order.approved_at = now()
+        order.save(update_fields=[
+            "status",
+            "approved_by",
+            "approved_at",
+            "updated_at",
+        ])
+
         # =====================================================
         # LINK QUOTATION
         # =====================================================
         self.converted_order = order
-        self.save(update_fields=[
+        super().save(update_fields=[
             "converted_order",
             "updated_at",
         ])

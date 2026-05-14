@@ -1344,8 +1344,31 @@ def quotation_edit(request, pk):
                             "updated_at",
                         ])
 
-                        # Existing client
-                        if quotation.client:
+                        # =====================================
+                        # ACCEPTED
+                        # =====================================
+
+                        if (
+                            old_status != "accepted"
+                            and quotation.status == "accepted"
+                        ):
+
+                            quotation.accepted_by = request.user
+
+                            quotation.accepted_at = timezone.now()
+
+                            quotation.save(update_fields=[
+                                "accepted_by",
+                                "accepted_at",
+                                "updated_at",
+                            ])
+
+                            # =====================================
+                            # AUTO CONVERT TO ORDER
+                            # Handles:
+                            # - existing client
+                            # - prospect -> client conversion
+                            # =====================================
 
                             order = quotation.convert_to_order(
                                 user=request.user
@@ -1359,19 +1382,6 @@ def quotation_edit(request, pk):
                             return redirect(
                                 "order-view",
                                 pk=order.id
-                            )
-
-                        # Prospect
-                        else:
-
-                            messages.warning(
-                                request,
-                                "Quotation accepted. Convert the prospect into a client before creating an order."
-                            )
-
-                            return redirect(
-                                "quotation-view",
-                                pk=quotation.id
                             )
 
                 messages.success(
@@ -1663,9 +1673,8 @@ def public_accept_quotation_view(request, token):
 
     order_id = None
 
-    if quotation.client:
-        order = quotation.convert_to_order(user=None)
-        order_id = order.id
+    order = quotation.convert_to_order(user=None)
+    order_id = order.id
 
     return JsonResponse({
         "success": True,
