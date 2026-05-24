@@ -16,17 +16,20 @@ from datetime import timedelta
 from django.utils import timezone
 import django.forms as forms
 from decimal import Decimal
+import json
 from django.shortcuts import render, get_object_or_404
 from .models import Quotation
 from django.contrib.auth.decorators import login_required
 from django.db.models import (
     Sum, Count, F, Q, Value, DecimalField, IntegerField, ExpressionWrapper
 )
+from django.urls import reverse
 from communications.services.whatsapp import send_quotation_whatsapp
 from django.shortcuts import render
 from communications.services.whatsapp import (
     send_quotation_whatsapp
 )
+from communications.services.smsportal import send_sms
 from .models import Order, OrderItem, Quotation, QuotationItem
 from clients.models import Client
 from products.models import Category, Product
@@ -1645,6 +1648,107 @@ def send_quotation_whatsapp_view(request, pk):
     })
 
 
+@login_required
+@staff_required
+@require_POST
+def send_quotation_sms(request, pk):
+
+    quotation = get_object_or_404(
+        Quotation.objects.select_related(
+            "client",
+            "prospect",
+        ),
+        pk=pk,
+    )
+
+    recipient = quotation.client or quotation.prospect
+
+    if not recipient:
+        return JsonResponse({
+            "success": False,
+            "error": "No client/prospect found."
+        }, status=400)
+
+    phone = (
+        request.POST.get("phone")
+        or getattr(recipient, "phone", "")
+        or ""
+    ).strip()
+
+    if not phone:
+        return JsonResponse({
+            "success": False,
+            "error": "No mobile number found."
+        }, status=400)
+
+    client_name = (
+        getattr(recipient, "organization", None)
+        or getattr(recipient, "name", None)
+        or "Client"
+    )
+
+    link = (
+        f"{settings.SITE_URL}/orders/q/"
+        f"{quotation.public_token}/"
+    )
+
+    message = (
+        f"Hi {client_name}, your The Daily Market quotation "
+        f"QT-{quotation.id} is ready. "
+        f"Total R{quotation.grand_total_inc:.2f}. "
+        f"View/accept: {link}"
+    )
+
+    result = send_sms(
+        to=phone,
+        message=message,
+    )
+
+    if not result.get("success"):
+
+        CommunicationLog.objects.create(
+            channel=CommunicationLog.CHANNEL_SMS,
+            status=CommunicationLog.STATUS_FAILED,
+            recipient_name=client_name,
+            recipient_contact=phone,
+            subject=f"Quotation QT-{quotation.id}",
+            message=message,
+            related_model="Quotation",
+            related_object_id=quotation.id,
+            provider="SMSPortal",
+            provider_response=result,
+            error_message=str(result.get("response")),
+            sent_by=request.user,
+        )
+
+        return JsonResponse({
+            "success": False,
+            "error": "SMS failed to send.",
+            "result": result,
+        }, status=400)
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_SMS,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=client_name,
+        recipient_contact=phone,
+        subject=f"Quotation QT-{quotation.id}",
+        message=message,
+        related_model="Quotation",
+        related_object_id=quotation.id,
+        provider="SMSPortal",
+        provider_response=result,
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "SMS sent successfully.",
+        "result": result,
+    })
+
+
 @require_POST
 def public_accept_quotation_view(request, token):
     quotation = get_object_or_404(
@@ -1718,6 +1822,153 @@ def public_reject_quotation_view(request, token):
         "message": "Quotation rejected successfully.",
     })
 
+
+
+@login_required
+@staff_required
+def send_quotation_email_internal(request, pk):
+
+    quotation = get_object_or_404(
+        Quotation.objects
+        .select_related(
+            "client",
+            "prospect",
+        )
+        .prefetch_related(
+            "items",
+            "items__product",
+            "items__category",
+        ),
+        pk=pk,
+    )
+
+    if request.method != "POST":
+        return JsonResponse(
+            {"success": False, "error": "Invalid request method."},
+            status=400
+        )
+
+    try:
+        data = json.loads(request.body)
+
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"success": False, "error": "Invalid JSON."},
+            status=400
+        )
+
+    email_to = (data.get("email") or "").strip()
+    recipient_name = (data.get("recipient_name") or "").strip()
+
+    if not email_to:
+        return JsonResponse(
+            {"success": False, "error": "No email provided."},
+            status=400
+        )
+
+    recipient = quotation.client or quotation.prospect
+
+    if not recipient:
+        return JsonResponse(
+            {"success": False, "error": "No client/prospect found."},
+            status=400
+        )
+
+    if not recipient_name:
+        recipient_name = (
+            getattr(recipient, "organization", None)
+            or getattr(recipient, "name", None)
+            or "Valued Customer"
+        )
+
+    items = list(quotation.items.all())
+
+    for item in items:
+        unit_price_excl = item.unit_price_excl or Decimal("0.00")
+        vat_percent = item.vat_percent or Decimal("0.00")
+        line_total_excl = item.line_total_excl or Decimal("0.00")
+        line_vat_amount = item.line_vat_amount or Decimal("0.00")
+
+        item.display_unit_price_inc = (
+            unit_price_excl
+            + (
+                unit_price_excl
+                * vat_percent
+                / Decimal("100")
+            )
+        )
+
+        item.display_line_total_inc = (
+            line_total_excl
+            + line_vat_amount
+        )
+
+    ctx = {
+        "quotation": quotation,
+        "recipient": recipient,
+        "items": items,
+        "recipient_name": recipient_name,
+        "support_email": getattr(
+            settings,
+            "SUPPORT_EMAIL",
+            "support@thedailymarket.co.za"
+        ),
+        "quotation_url": request.build_absolute_uri(
+            reverse(
+                "public-quotation-view",
+                args=[quotation.public_token]
+            )
+        ),
+    }
+
+    text_body = render_to_string(
+        "email/quotation_email.txt",
+        ctx
+    )
+
+    html_body = render_to_string(
+        "email/quotation_email.html",
+        ctx
+    )
+
+    subject = f"The Daily Market – Quotation QT-{quotation.id}"
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=getattr(
+            settings,
+            "DEFAULT_FROM_EMAIL",
+            "accounts@thedailymarket.co.za"
+        ),
+        to=[email_to],
+        headers={
+            "Reply-To": getattr(
+                settings,
+                "SUPPORT_EMAIL",
+                "support@thedailymarket.co.za"
+            )
+        },
+    )
+
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_EMAIL,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=recipient_name,
+        recipient_contact=email_to,
+        subject=subject,
+        message=f"Quotation sent via email. Quotation ID: {quotation.id}",
+        related_model="Quotation",
+        related_object_id=quotation.id,
+        provider="Django Email",
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse({"success": True})
 
 
 

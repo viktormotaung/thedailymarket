@@ -26,4 +26,8 @@ urlpatterns = [
 
     path("<int:pk>/send-whatsapp/", views.send_invoice_whatsapp_view, name="send-invoice-whatsapp",),
     path("public/<uuid:token>/", views.public_invoice_view, name="public-invoice-view",),
+    path("<int:pk>/send-sms/", views.send_invoice_sms_view, name="invoice-send-sms",),
+    path("<int:pk>/payment-request/sms/", views.send_invoice_payment_request_sms, name="invoice-payment-request-sms",),
+
+    path("<int:pk>/payment-request/email/", views.send_invoice_payment_request_email, name="invoice-payment-request-email",),
 ]

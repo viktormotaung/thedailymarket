@@ -538,6 +538,11 @@
                 data-bs-target="#sendInvoiceWhatsappModal">
           <i class="bi bi-whatsapp"></i> Send via WhatsApp
         </button>
+        <button class="btn btn-outline-success btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#sendInvoiceSmsModal">
+          Send via SMS
+        </button>
         {% endif %}
       </div>
     </div>
@@ -821,6 +826,51 @@
     </div>
   </div>
 
+  <div class="modal fade" id="sendInvoiceSmsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow">
+
+        <div class="modal-header">
+          <h5 class="modal-title">Send Invoice via SMS</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div id="invoiceSmsError" class="alert alert-danger d-none"></div>
+
+          <div id="invoiceSmsSuccess" class="alert alert-success d-none">
+            Invoice sent successfully via SMS.
+          </div>
+
+          <label class="form-label fw-semibold">Mobile Number</label>
+
+          <input type="text"
+                id="invoiceSmsPhone"
+                class="form-control"
+                value="{{ client.phone|default:client.whatsapp }}"
+                placeholder="27721234567">
+
+          <div class="form-text">
+            Use format: 27721234567, without + or spaces.
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">
+            Cancel
+          </button>
+
+          <button class="btn btn-success" id="sendInvoiceSmsBtn">
+            <span id="invoiceSmsSpinner"
+                  class="spinner-border spinner-border-sm d-none"></span>
+            <span id="invoiceSmsBtnText">Send SMS</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   
   <!-- Payment Choice Modal -->
   <div class="modal fade" id="paymentChoiceModal" tabindex="-1" aria-labelledby="paymentChoiceModalLabel" aria-hidden="true">
@@ -848,7 +898,7 @@
           <button type="button"
                   class="btn btn-outline-primary"
                   data-bs-toggle="modal"
-                  data-bs-target="#sendPaymentRequestWhatsappModal">
+                  data-bs-target="#paymentRequestChannelModal">
               <i class="bi bi-send me-1"></i> Send Request Payment
           </button>
 
@@ -865,6 +915,52 @@
           </button>
 
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="paymentRequestChannelModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow">
+
+        <div class="modal-header">
+          <h5 class="modal-title">Choose Payment Request Channel</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <p class="text-muted mb-3">
+            Select how you want to send the payment request for INV-{{ invoice.id }}.
+          </p>
+
+          <div class="d-grid gap-2">
+
+            <button type="button"
+                    class="btn btn-success"
+                    data-bs-toggle="modal"
+                    data-bs-target="#sendPaymentRequestWhatsappModal">
+              <i class="bi bi-whatsapp me-1"></i>
+              Send via WhatsApp
+            </button>
+
+            <button type="button"
+                    class="btn btn-outline-success"
+                    data-bs-toggle="modal"
+                    data-bs-target="#sendPaymentRequestSmsModal">
+              Send via SMS
+            </button>
+
+            <button type="button"
+                    class="btn btn-outline-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#sendPaymentRequestEmailModal">
+              <i class="bi bi-envelope me-1"></i>
+              Send via Email
+            </button>
+
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -906,6 +1002,108 @@
             <span id="paymentRequestWhatsappSpinner"
                   class="spinner-border spinner-border-sm d-none"></span>
             <span id="paymentRequestWhatsappBtnText">Send Payment Request</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="sendPaymentRequestSmsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow">
+
+        <div class="modal-header">
+          <h5 class="modal-title">Send Payment Request via SMS</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div id="paymentRequestSmsError" class="alert alert-danger d-none"></div>
+
+          <div id="paymentRequestSmsSuccess" class="alert alert-success d-none">
+            Payment request sent successfully via SMS.
+          </div>
+
+          <label class="form-label fw-semibold">Mobile Number</label>
+
+          <input type="text"
+                id="paymentRequestSmsPhone"
+                class="form-control"
+                value="{{ client.phone|default:client.whatsapp }}"
+                placeholder="27721234567">
+
+          <div class="form-text">
+            Use format: 27721234567, without + or spaces.
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">
+            Cancel
+          </button>
+
+          <button class="btn btn-success" id="sendPaymentRequestSmsBtn">
+            <span id="paymentRequestSmsSpinner"
+                  class="spinner-border spinner-border-sm d-none"></span>
+            <span id="paymentRequestSmsBtnText">Send SMS</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="sendPaymentRequestEmailModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow">
+
+        <div class="modal-header">
+          <h5 class="modal-title fw-semibold">
+            Send Payment Request INV-{{ invoice.id }}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+
+          <div id="paymentRequestEmailError" class="alert alert-danger d-none"></div>
+
+          <div id="paymentRequestEmailSuccess" class="alert alert-success d-none">
+            Payment request sent successfully.
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Recipient Name</label>
+
+            <input type="text"
+                  class="form-control"
+                  id="paymentRequestRecipientName"
+                  value="{{ client.organization|default:client.name }}"
+                  placeholder="Full Name">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Recipient Email</label>
+
+            <input type="email"
+                  class="form-control"
+                  id="paymentRequestEmail"
+                  value="{{ client.email }}"
+                  placeholder="email@example.com">
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">
+            Cancel
+          </button>
+
+          <button class="btn btn-primary" id="sendPaymentRequestEmailBtn">
+            <span id="paymentRequestEmailSpinner"
+                  class="spinner-border spinner-border-sm d-none"></span>
+            <span id="paymentRequestEmailBtnText">Send Email</span>
           </button>
         </div>
 
@@ -999,6 +1197,163 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const btn = document.getElementById("sendPaymentRequestEmailBtn");
+    const emailInput = document.getElementById("paymentRequestEmail");
+    const recipientNameInput = document.getElementById("paymentRequestRecipientName");
+    const spinner = document.getElementById("paymentRequestEmailSpinner");
+    const btnText = document.getElementById("paymentRequestEmailBtnText");
+    const errorBox = document.getElementById("paymentRequestEmailError");
+    const successBox = document.getElementById("paymentRequestEmailSuccess");
+
+    if (!btn) return;
+
+    btn.addEventListener("click", function () {
+      const email = emailInput.value.trim();
+      const recipientName = recipientNameInput.value.trim();
+
+      errorBox.classList.add("d-none");
+      successBox.classList.add("d-none");
+
+      if (!recipientName) {
+        errorBox.textContent = "Please enter a recipient name.";
+        errorBox.classList.remove("d-none");
+        return;
+      }
+
+      if (!email) {
+        errorBox.textContent = "Please enter a valid email address.";
+        errorBox.classList.remove("d-none");
+        return;
+      }
+
+      btn.disabled = true;
+      spinner.classList.remove("d-none");
+      btnText.textContent = "Sending...";
+
+      fetch("{% url 'invoice-payment-request-email' invoice.id %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({
+          email: email,
+          recipient_name: recipientName
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          successBox.classList.remove("d-none");
+          btnText.textContent = "Sent";
+
+          setTimeout(() => {
+            const modal = bootstrap.Modal.getInstance(
+              document.getElementById("sendPaymentRequestEmailModal")
+            );
+
+            if (modal) {
+              modal.hide();
+            }
+          }, 1200);
+        } else {
+          throw new Error(data.error || data.message || "Failed to send payment request email.");
+        }
+      })
+      .catch(error => {
+        errorBox.textContent = error.message;
+        errorBox.classList.remove("d-none");
+      })
+      .finally(() => {
+        btn.disabled = false;
+        spinner.classList.add("d-none");
+
+        if (!successBox.classList.contains("d-none")) {
+          btnText.textContent = "Sent";
+        } else {
+          btnText.textContent = "Send Email";
+        }
+      });
+    });
+  });
+  </script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const btn = document.getElementById("sendPaymentRequestSmsBtn");
+    const phoneInput = document.getElementById("paymentRequestSmsPhone");
+    const spinner = document.getElementById("paymentRequestSmsSpinner");
+    const btnText = document.getElementById("paymentRequestSmsBtnText");
+    const errorBox = document.getElementById("paymentRequestSmsError");
+    const successBox = document.getElementById("paymentRequestSmsSuccess");
+
+    if (!btn) return;
+
+    btn.addEventListener("click", function () {
+      const phone = phoneInput.value.trim();
+
+      errorBox.classList.add("d-none");
+      successBox.classList.add("d-none");
+
+      if (!phone) {
+        errorBox.textContent = "Please enter a mobile number.";
+        errorBox.classList.remove("d-none");
+        return;
+      }
+
+      btn.disabled = true;
+      spinner.classList.remove("d-none");
+      btnText.textContent = "Sending...";
+
+      const formData = new FormData();
+      formData.append("phone", phone);
+
+      fetch("{% url 'invoice-payment-request-sms' invoice.id %}", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          successBox.classList.remove("d-none");
+          btnText.textContent = "Sent";
+
+          setTimeout(() => {
+            const modal = bootstrap.Modal.getInstance(
+              document.getElementById("sendPaymentRequestSmsModal")
+            );
+
+            if (modal) {
+              modal.hide();
+            }
+          }, 1200);
+        } else {
+          throw new Error(data.error || data.message || "Failed to send payment request SMS.");
+        }
+      })
+      .catch(error => {
+        errorBox.textContent = error.message;
+        errorBox.classList.remove("d-none");
+      })
+      .finally(() => {
+        btn.disabled = false;
+        spinner.classList.add("d-none");
+
+        if (!successBox.classList.contains("d-none")) {
+          btnText.textContent = "Sent";
+        } else {
+          btnText.textContent = "Send SMS";
+        }
+      });
+    });
+  });
+  </script>
+
 
   <script>
   document.addEventListener("DOMContentLoaded", function () {
@@ -1060,6 +1415,80 @@
         btn.disabled = false;
         spinner.classList.add("d-none");
         btnText.textContent = "Send WhatsApp";
+      });
+    });
+  });
+  </script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const btn = document.getElementById("sendInvoiceSmsBtn");
+    const phoneInput = document.getElementById("invoiceSmsPhone");
+    const spinner = document.getElementById("invoiceSmsSpinner");
+    const btnText = document.getElementById("invoiceSmsBtnText");
+    const errorBox = document.getElementById("invoiceSmsError");
+    const successBox = document.getElementById("invoiceSmsSuccess");
+
+    if (!btn) return;
+
+    btn.addEventListener("click", function () {
+      const phone = phoneInput.value.trim();
+
+      errorBox.classList.add("d-none");
+      successBox.classList.add("d-none");
+
+      if (!phone) {
+        errorBox.textContent = "Please enter a mobile number.";
+        errorBox.classList.remove("d-none");
+        return;
+      }
+
+      btn.disabled = true;
+      spinner.classList.remove("d-none");
+      btnText.textContent = "Sending...";
+
+      const formData = new FormData();
+      formData.append("phone", phone);
+
+      fetch("{% url 'invoice-send-sms' invoice.id %}", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          successBox.classList.remove("d-none");
+          btnText.textContent = "Sent";
+
+          setTimeout(() => {
+            const modal = bootstrap.Modal.getInstance(
+              document.getElementById("sendInvoiceSmsModal")
+            );
+
+            if (modal) {
+              modal.hide();
+            }
+          }, 1200);
+        } else {
+          throw new Error(data.error || "Failed to send invoice via SMS.");
+        }
+      })
+      .catch(error => {
+        errorBox.textContent = error.message;
+        errorBox.classList.remove("d-none");
+      })
+      .finally(() => {
+        btn.disabled = false;
+        spinner.classList.add("d-none");
+
+        if (!successBox.classList.contains("d-none")) {
+          btnText.textContent = "Sent";
+        } else {
+          btnText.textContent = "Send SMS";
+        }
       });
     });
   });

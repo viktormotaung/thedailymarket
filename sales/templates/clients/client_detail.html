@@ -2,10 +2,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prospects - Seshibo Daily Market</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Client · {{ client.organization|default:client.name }} - Seshibo Daily Market</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 
   <style>
     :root{
@@ -14,56 +15,129 @@
       --brand-green: #0b5c39;
       --content-bg: #f8f9fa;
     }
+
     html, body { height: 100%; }
 
-    /* Sidebar skin */
-    .sidebar-skin { background-color: var(--brand-green); color: #fff; padding: 1rem; }
-    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
+    .sidebar-skin {
+      background-color: var(--brand-green);
+      color: #fff;
+      padding: 1rem;
+    }
+
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: .25rem 0;
+      display: block;
+      text-decoration: none;
+    }
+
     .sidebar-skin .nav-link.active,
-    .sidebar-skin .nav-link:hover { background: rgba(255,255,255,0.15); border-radius: 4px; padding-left: 8px; }
-    .logo-img { max-height: 80px; width: auto; }
+    .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
 
-    /* Nested links + remove caret/arrow on collapses */
-    .sidebar-skin .nav-link.ps-4 { font-size:.95rem; opacity:.95; }
-    .nav-link[data-bs-toggle="collapse"]::after { content: none !important; }
+    .sidebar-skin .nav-link.ps-4 {
+      font-size:.95rem;
+      opacity:.95;
+    }
 
-    /* Content */
-    .content { background: var(--content-bg); padding:20px; }
-    .card { box-shadow: 0 1px 2px rgba(0,0,0,.04); }
-    .meta { font-size:12px; color:#6c757d; }
-    .badge-cat { background:#e9f7f0; color:#0b5c39; border:1px solid #cfe9df; }
+    .nav-link[data-bs-toggle="collapse"]::after {
+      content: none !important;
+    }
 
-    /* Definition list grid */
+    .logo-img {
+      max-height: 80px;
+      width: auto;
+    }
+
+    .content {
+      background: var(--content-bg);
+      padding:20px;
+    }
+
+    .card {
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+
+    .meta {
+      font-size:12px;
+      color:#6c757d;
+    }
+
+    .badge-cat {
+      background:#e9f7f0;
+      color:#0b5c39;
+      border:1px solid #cfe9df;
+    }
+
     @media (min-width:768px){
-      .dl-grid { display:grid; grid-template-columns:200px 1fr; row-gap:.25rem; }
+      .dl-grid {
+        display:grid;
+        grid-template-columns:200px 1fr;
+        row-gap:.25rem;
+      }
       .dl-grid dt { grid-column:1; }
       .dl-grid dd { grid-column:2; }
     }
 
-    /* Desktop: fixed sidebar, content scrolls */
     @media (min-width: 992px) {
-      body { display:block; overflow:hidden; }
-      .sidebar-desktop {
-        position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w);
-        overflow-y:auto; z-index:1020;
+      body {
+        display:block;
+        overflow:hidden;
       }
-      .content { margin-left:var(--sidebar-w); height:100vh; overflow:auto; -webkit-overflow-scrolling:touch; }
+
+      .sidebar-desktop {
+        position:fixed;
+        top:0;
+        left:0;
+        bottom:0;
+        width:var(--sidebar-w);
+        overflow-y:auto;
+        z-index:1020;
+      }
+
+      .content {
+        margin-left:var(--sidebar-w);
+        height:100vh;
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
+      }
     }
 
-    /* Mobile: fixed top bar, content scrolls under */
     @media (max-width: 991.98px) {
-      html, body { height:100%; overflow:hidden; }
-      .navbar.d-lg-none { position:fixed; top:0; left:0; right:0; z-index:1040; }
-      .content { margin-top:var(--mobile-nav-h); height:calc(100vh - var(--mobile-nav-h)); overflow:auto; -webkit-overflow-scrolling:touch; }
+      html, body {
+        height:100%;
+        overflow:hidden;
+      }
+
+      .navbar.d-lg-none {
+        position:fixed;
+        top:0;
+        left:0;
+        right:0;
+        z-index:1040;
+      }
+
+      .content {
+        margin-top:var(--mobile-nav-h);
+        height:calc(100vh - var(--mobile-nav-h));
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
+      }
     }
   </style>
 </head>
 <body>
 
-  <!-- MOBILE/TABLET TOP BAR -->
+  <!-- ================= MOBILE / TABLET TOP BAR ================= -->
   <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
     <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#mobileMenu"
+              aria-controls="mobileMenu">
         <span class="navbar-toggler-icon"></span>
       </button>
       <a class="navbar-brand ms-2" href="#">
@@ -72,645 +146,1210 @@
     </div>
   </nav>
 
-  <!-- MOBILE OFFCANVAS MENU -->
-  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
-    <div class="offcanvas-header sidebar-skin">
-      <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Menu</h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  <!-- ================= MOBILE OFFCANVAS MENU ================= -->
+  <div class="offcanvas offcanvas-start d-lg-none sidebar-skin"
+       tabindex="-1"
+       id="mobileMenu">
+
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title">Sales Navigation</h5>
+      <button type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="offcanvas"></button>
     </div>
-    <div class="offcanvas-body sidebar-skin">
+
+    <div class="offcanvas-body" id="mobileAccordion">
       <div class="text-center mb-3">
-        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+        <img src="{% static 'images/logo.png' %}" class="logo-img" alt="Seshibo Daily Market">
       </div>
 
-      <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
-      <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
-      <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
-      <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
-      <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
-      <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
-      <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+      <h6 class="text-uppercase fw-semibold mb-2">
+        <a href="#" class="text-decoration-none text-reset">
+          Sales Platform
+        </a>
+      </h6>
+
       <hr class="border-light">
-      <form action="{% url 'logout' %}" method="post" class="m-0">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-light w-100">Sign out</button>
-      </form>
+
+      {% with current=request.resolver_match.url_name %}
+
+        <a href="{% url 'sales:sales-dashboard' %}"
+           class="nav-link {% if current == 'sales-dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
+
+        <a href="{% url 'sales:sales-prospects' %}"
+           class="nav-link {% if current == 'sales-prospects' or current == 'sales-prospect-detail' or current == 'sales-prospect-edit' or current == 'sales-prospect-create' %}active{% endif %}">
+          Prospects
+        </a>
+
+        <a href="{% url 'sales:sales-clients' %}"
+           class="nav-link {% if current == 'sales-clients' or current == 'client-detail' or current == 'edit-client' or current == 'sales-client-detail' %}active{% endif %}">
+          Clients
+        </a>
+
+        <a href="{% url 'sales:sales-orders' %}"
+           class="nav-link {% if current == 'sales-orders' %}active{% endif %}">
+          Orders
+        </a>
+
+        <a href="{% url 'sales:sales-invoices' %}"
+           class="nav-link {% if current == 'sales-invoices' %}active{% endif %}">
+          Invoices
+        </a>
+
+        <a href="{% url 'sales:sales-commission' %}"
+           class="nav-link {% if current == 'sales-commission' %}active{% endif %}">
+          Commission
+        </a>
+
+        <a href="{% url 'sales:sales-tickets' %}"
+           class="nav-link {% if current == 'sales-tickets' %}active{% endif %}">
+          Tickets &amp; Tasks
+        </a>
+
+        <hr class="border-light">
+
+        <form action="{% url 'logout' %}" method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-light w-100">Sign out</button>
+        </form>
+
+      {% endwith %}
     </div>
   </div>
 
-  <!-- DESKTOP SIDEBAR -->
-  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+  <!-- ================= DESKTOP SIDEBAR ================= -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin" id="desktopAccordion">
     <div class="text-center mb-3">
       <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
     </div>
 
-    <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
-    <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
-    <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
-    <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
-    <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
-    <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
-    <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
-    <div class="mt-3">
-      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
-        {% csrf_token %}
-        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
-      </form>
-    </div>
+    <h6 class="text-uppercase fw-semibold mb-2">
+      <a href="#" class="text-decoration-none text-reset">
+        Sales Platform
+      </a>
+    </h6>
+
+    <hr class="border-light">
+
+    {% with current=request.resolver_match.url_name %}
+
+      <a href="{% url 'sales:sales-dashboard' %}"
+         class="nav-link {% if current == 'sales-dashboard' %}active{% endif %}">
+        Dashboard
+      </a>
+
+      <a href="{% url 'sales:sales-prospects' %}"
+         class="nav-link {% if current == 'sales-prospects' or current == 'sales-prospect-detail' or current == 'sales-prospect-edit' or current == 'sales-prospect-create' %}active{% endif %}">
+        Prospects
+      </a>
+
+      <a href="{% url 'sales:sales-clients' %}"
+         class="nav-link {% if current == 'sales-clients' or current == 'client-detail' or current == 'edit-client' or current == 'sales-client-detail' %}active{% endif %}">
+        Clients
+      </a>
+
+      <a href="{% url 'sales:sales-orders' %}"
+         class="nav-link {% if current == 'sales-orders' %}active{% endif %}">
+        Orders
+      </a>
+
+      <a href="{% url 'sales:sales-invoices' %}"
+         class="nav-link {% if current == 'sales-invoices' %}active{% endif %}">
+        Invoices
+      </a>
+
+      <a href="{% url 'sales:sales-commission' %}"
+         class="nav-link {% if current == 'sales-commission' %}active{% endif %}">
+        Commission
+      </a>
+
+      <a href="{% url 'sales:sales-tickets' %}"
+         class="nav-link {% if current == 'sales-tickets' %}active{% endif %}">
+        Tickets &amp; Tasks
+      </a>
+
+      <div class="mt-3">
+        <form action="{% url 'logout' %}" method="post">
+          {% csrf_token %}
+          <button type="submit"
+                  class="nav-link btn btn-link text-start w-100 p-0 text-white">
+            Sign out
+          </button>
+        </form>
+      </div>
+
+    {% endwith %}
   </aside>
 
-    <!-- MAIN CONTENT -->
-    <main class="content py-4">
-      <div class="container">
+  <!-- ================= MAIN CONTENT ================= -->
+  <main class="content py-4">
+    <div class="container">
 
-        <!-- ================= HEADER ================= -->
-        <div class="d-flex justify-content-between align-items-start mb-4">
-          <div>
-            <h2 class="fw-semibold mb-1">
-              {{ client.organization|default:client.name }}
-            </h2>
-            <div class="text-muted small">
-              {{ client.client_number }} ·
-              {{ client.get_client_type_display }} ·
-              {{ client.city|default:"—" }}
-            </div>
+      <!-- ================= HEADER ================= -->
+      <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+        <div>
+          <a href="{% url 'sales:sales-clients' %}" class="btn btn-link px-0 mb-1">
+            &larr; Back to Clients
+          </a>
+
+          <h2 class="fw-semibold mb-1">
+            {{ client.organization|default:client.name }}
+          </h2>
+
+          <div class="text-muted small">
+            {{ client.client_number }} ·
+            {{ client.get_client_type_display }} ·
+            {{ client.city|default:"—" }}
           </div>
+        </div>
 
-          
+        <div class="text-end">
+          <span class="badge
+            {% if client.status == 'ACTIVE' %}bg-success
+            {% elif client.status == 'INACTIVE' %}bg-secondary
+            {% else %}bg-warning text-dark{% endif %}">
+            {{ client.get_status_display }}
+          </span>
 
-          
-          <div class="d-flex gap-2">
-            <div class="text-end">
-              <span class="badge 
-                {% if client.status == 'ACTIVE' %}bg-success
-                {% elif client.status == 'INACTIVE' %}bg-secondary
-                {% else %}bg-warning{% endif %}">
-                {{ client.get_status_display }}
-              </span>
-            </div>
-
-            <!-- Back (read-only) -->
+          <div class="mt-2 d-flex gap-2 justify-content-end flex-wrap">
             <a href="{% url 'sales:sales-clients' %}"
-              class="btn btn-outline-secondary">
+               class="btn btn-outline-secondary btn-sm">
               Back to Clients
             </a>
 
-            <!-- Edit Client (write) -->
-            <a href="{% if can_write %}{% url 'sales:edit-client' client.id %}{% else %}#{% endif %}"
-              class="btn btn-primary {% if not can_write %}disabled{% endif %}"
-              {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
+            <a href="{% url 'sales:edit-client' client.pk %}"
+               class="btn btn-primary btn-sm">
               Edit Client
             </a>
+          </div>
+        </div>
+      </div>
 
+      <!-- ================= MESSAGES ================= -->
+      {% if messages %}
+        <div class="mb-4">
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} mb-2">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if success_message %}
+        <div class="alert alert-success">{{ success_message }}</div>
+      {% endif %}
+
+      {% if error_message %}
+        <div class="alert alert-danger">{{ error_message }}</div>
+      {% endif %}
+
+      <!-- ================= KPI ROW ================= -->
+      <div class="row g-3 mb-4 justify-content-between">
+
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <div class="card p-3 h-100">
+            <div class="text-muted small">Days Active</div>
+            <div class="fs-5 fw-semibold">
+              {{ days_active }} days
+            </div>
           </div>
         </div>
 
-        
-
-        <!-- ================= KPI ROW ================= -->
-        <div class="row g-3 mb-4 justify-content-between">
-
-          <div class="col-lg-2 col-md-4 col-sm-6">
-            <div class="card p-3 h-100">
-              <div class="text-muted small">Days Active</div>
-              <div class="fs-5 fw-semibold">
-                {{ days_active }} days
-              </div>
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <div class="card p-3 h-100">
+            <div class="text-muted small">Total Spend</div>
+            <div class="fs-5 fw-semibold">
+              R{{ total_spend|default:0|floatformat:2|intcomma }}
             </div>
           </div>
+        </div>
 
-          <div class="col-lg-2 col-md-4 col-sm-6">
-            <div class="card p-3 h-100">
-              <div class="text-muted small">Total Spend</div>
-              <div class="fs-5 fw-semibold">
-                R{{ total_spend|floatformat:2|intcomma }}
-              </div>
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <div class="card p-3 h-100">
+            <div class="text-muted small">Account Type</div>
+            <div class="fs-5 fw-semibold">
+              {{ client.get_account_type_display }}
             </div>
           </div>
+        </div>
 
-          <div class="col-lg-2 col-md-4 col-sm-6">
-            <div class="card p-3 h-100">
-              <div class="text-muted small">Account Type</div>
-              <div class="fs-5 fw-semibold">
-                {{ client.get_account_type_display }}
-              </div>
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <div class="card p-3 h-100">
+            <div class="text-muted small">Compliance</div>
+            <div class="fs-5 fw-semibold">
+              {% if compliance %}
+                {{ compliance.vetting_status }}
+              {% else %}
+                Not Started
+              {% endif %}
             </div>
           </div>
+        </div>
 
-          <div class="col-lg-2 col-md-4 col-sm-6">
-            <div class="card p-3 h-100">
-              <div class="text-muted small">Compliance</div>
-              <div class="fs-5 fw-semibold">
-                {% if compliance %}
-                  {{ compliance.vetting_status }}
-                {% else %}
-                  Not Started
-                {% endif %}
-              </div>
-            </div>
-          </div>
-
-          <div class="col-lg-2 col-md-4 col-sm-6">
-            <div class="card p-3 h-100">
-              <div class="text-muted small">Spend Rank</div>
-              <div class="fs-5 fw-semibold">
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <div class="card p-3 h-100">
+            <div class="text-muted small">Spend Rank</div>
+            <div class="fs-5 fw-semibold">
+              {% if spend_rank %}
                 #{{ spend_rank }} of {{ total_clients }}
-              </div>
+              {% else %}
+                —
+              {% endif %}
             </div>
           </div>
-
         </div>
 
+      </div>
 
-        </div>
+      <!-- ================= TABS ================= -->
+      <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview" type="button">
+            Overview
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#orders" type="button">
+            Orders
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#credit" type="button">
+            Credit
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#compliance" type="button">
+            Compliance
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#operations" type="button">
+            Business Operations
+          </button>
+        </li>
+      </ul>
 
-        <!-- ================= TABS ================= -->
-        <ul class="nav nav-tabs mb-4" role="tablist">
-          <li class="nav-item">
-            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview">
-              Overview
-            </button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#orders">
-              Orders
-            </button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#credit">
-              Credit
-            </button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#compliance">
-              Compliance
-            </button>
-          </li>
-        </ul>
+      <div class="tab-content">
 
-        <div class="tab-content">
+        <!-- ================= OVERVIEW TAB ================= -->
+        <div class="tab-pane fade show active" id="overview" role="tabpanel">
 
-          <!-- ================= OVERVIEW TAB ================= -->
-          <div class="tab-pane fade show active" id="overview" role="tabpanel">
-            <div class="card shadow-sm">
+          <!-- ================= ACTION HEADER ================= -->
+          <div class="card shadow-sm mb-4">
+            <div class="card-body d-flex justify-content-between align-items-start flex-wrap gap-3">
+              <div>
+                <h5 class="fw-semibold mb-1">Client Overview</h5>
+                <div class="text-muted small">
+                  Quick view of client health, trading readiness, operations, risk flags, and commercial context.
+                </div>
+              </div>
 
-              <!-- HEADER -->
-              <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-                <span>Client Overview</span>
-
-                <a href="{% if can_write %}{% url 'sales:edit-client' client.pk %}{% else %}#{% endif %}"
-                  class="btn btn-outline-primary btn-sm {% if not can_write %}disabled{% endif %}"
-                  title="{% if not can_write %}View-only access{% else %}Edit client details{% endif %}"
-                  {% if not can_write %}aria-disabled="true"{% endif %}>
-                  <i class="bi bi-pencil"></i> Edit
+              <div class="d-flex gap-2 flex-wrap">
+                <a href="{% url 'sales:edit-client' client.pk %}"
+                   class="btn btn-outline-primary btn-sm">
+                  Edit Client
                 </a>
               </div>
+            </div>
+          </div>
 
-              <div class="card-body">
+          <!-- ================= CLIENT HEALTH SUMMARY ================= -->
+          <div class="row g-3 mb-4">
 
-                <!-- ================= CLIENT IDENTITY ================= -->
-                <div class="row g-4 mb-4">
-                  <div class="col-md-3">
-                    <div class="text-muted small">Client Number</div>
-                    <div class="fw-semibold">{{ client.client_number }}</div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <div class="text-muted small">Status</div>
-                    <span class="badge
-                      {% if client.status == 'ACTIVE' %}bg-success
-                      {% elif client.status == 'INACTIVE' %}bg-danger
-                      {% else %}bg-warning{% endif %}">
-                      {{ client.get_status_display }}
-                    </span>
-                  </div>
-
-                  <div class="col-md-3">
-                    <div class="text-muted small">Client Name</div>
-                    <div class="fw-semibold">
-                      {{ client.organization|default:client.name }}
-                    </div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <div class="text-muted small">Country</div>
-                    <div class="fw-semibold">{{ client.country }}</div>
+            <div class="col-xl-3 col-md-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                  <div class="text-muted small mb-1">Client Status</div>
+                  {% if client.status == "ACTIVE" %}
+                    <span class="badge bg-success">Active</span>
+                  {% elif client.status == "INACTIVE" %}
+                    <span class="badge bg-danger">Inactive</span>
+                  {% else %}
+                    <span class="badge bg-warning text-dark">Pending</span>
+                  {% endif %}
+                  <div class="small text-muted mt-2">
+                    Client since {{ client.created_at|date:"Y-m-d" }}
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <hr>
-                <!-- ================= CONTACT & COMMUNICATION ================= -->
-                <div class="row g-4 mb-4">
-                  <div class="col-md-4">
-                    <div class="text-muted small">Primary Contact</div>
-                    <div class="fw-semibold">{{ client.contact_person|default:"—" }}</div>
-                  </div>
-
-                  <div class="col-md-4">
-                    <div class="text-muted small">Phone</div>
-                    <div class="fw-semibold">
-                      {{ client.phone|default:"—" }}
-                      {% if client.whatsapp %}
-                        <span class="text-muted small">(WhatsApp: {{ client.whatsapp }})</span>
-                      {% endif %}
-                    </div>
-                  </div>
-
-                  <div class="col-md-4">
-                    <div class="text-muted small">Email</div>
-                    <div class="fw-semibold">
-                      {% if client.email %}
-                        <a href="mailto:{{ client.email }}">{{ client.email }}</a>
-                      {% else %}
-                        —
-                      {% endif %}
-                    </div>
-                  </div>
-                </div>
-
-                <div class="row g-4 mb-4">
-                  <div class="col-md-6">
-                    <div class="text-muted small">Account Manager</div>
-                    <div class="fw-semibold">
-                      {{ client.account_manager.get_full_name|default:"Unassigned" }}
-                    </div>
-                  </div>
-                </div>
-
-                <hr>
-
-                <hr>
-
-                <!-- ================= DELIVERY ADDRESS ================= -->
-                <div class="row g-4 mb-3">
-                  <div class="col-md-8">
-                    <div class="text-muted small mb-1">Delivery Address</div>
-                    <div class="fw-semibold">
-                      {{ client.delivery_address_as_line|default:"—" }}
-                    </div>
-                  </div>
-
-                  <div class="col-md-4">
-                    <div class="text-muted small mb-1">Delivery Area</div>
-                    <div>
-                      {{ client.delivery_city|default:client.city|default:"—" }},
-                      {{ client.delivery_province|default:client.province|default:"—" }}
-                    </div>
-                  </div>
-                </div>
-
-                <!-- ================= DELIVERY GEO ================= -->
-                <div class="row g-4 mb-4">
-                  <div class="col-md-4">
-                    <div class="text-muted small">Latitude</div>
-                    <div class="fw-semibold">
-                      {% if client.delivery_lat %}
-                        {{ client.delivery_lat }}
-                      {% else %}
-                        —
-                      {% endif %}
-                    </div>
-                  </div>
-
-                  <div class="col-md-4">
-                    <div class="text-muted small">Longitude</div>
-                    <div class="fw-semibold">
-                      {% if client.delivery_lng %}
-                        {{ client.delivery_lng }}
-                      {% else %}
-                        —
-                      {% endif %}
-                    </div>
-                  </div>
-
-                  <div class="col-md-4">
-                    <div class="text-muted small">Map</div>
-                    {% if client.has_delivery_geo %}
-                      <a href="{{ client.google_maps_link }}"
-                        target="_blank"
-                        class="fw-semibold">
-                        View on Google Maps
-                      </a>
+            <div class="col-xl-3 col-md-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                  <div class="text-muted small mb-1">Compliance</div>
+                  {% if compliance %}
+                    {% if compliance.vetting_status == "APPROVED" %}
+                      <span class="badge bg-success">Approved</span>
+                    {% elif compliance.vetting_status == "REJECTED" %}
+                      <span class="badge bg-danger">Rejected</span>
+                    {% elif compliance.vetting_status == "IN_REVIEW" %}
+                      <span class="badge bg-warning text-dark">In Review</span>
                     {% else %}
-                      <span class="text-muted">Not set</span>
+                      <span class="badge bg-secondary">Pending</span>
                     {% endif %}
+                  {% else %}
+                    <span class="badge bg-secondary">Not Started</span>
+                  {% endif %}
+                  <div class="small text-muted mt-2">
+                    {{ compliance_completion_pct|default:"0"|floatformat:0 }}% documents approved
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <hr>
-
-                <!-- ================= SEGMENTATION ================= -->
-                <div class="row g-4 mb-4">
-                  <div class="col-md-3">
-                    <div class="text-muted small">Client Type</div>
-                    <div class="fw-semibold">
-                      {{ client.get_client_type_display }}
-                    </div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <div class="text-muted small">Size Tier</div>
-                    <div class="fw-semibold">
-                      {{ client.client_size_tier|default:"—" }}
-                    </div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <div class="text-muted small">Pricing Type</div>
-                    <div class="fw-semibold">
-                      {{ client.get_price_type_display|default:"—" }}
-                    </div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <div class="text-muted small">Account Type</div>
-                    <div class="fw-semibold">
-                      {{ client.get_account_type_display }}
-                    </div>
+            <div class="col-xl-3 col-md-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                  <div class="text-muted small mb-1">Trading Account</div>
+                  <div class="fw-semibold">{{ client.get_account_type_display }}</div>
+                  <div class="small text-muted mt-2">
+                    Credit: {{ client.get_credit_status_display }}
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <hr>
-
-                <!-- ================= BUSINESS & COMPLIANCE ================= -->
-                <div class="row g-4 mb-4">
-                  <div class="col-md-4">
-                    <div class="text-muted small">Company Registration</div>
-                    <div class="fw-semibold">
-                      {{ client.company_reg_number|default:"—" }}
-                    </div>
-                  </div>
-
-                  <div class="col-md-4">
-                    <div class="text-muted small">VAT Number</div>
-                    <div class="fw-semibold">
-                      {{ client.vat_number|default:"—" }}
-                    </div>
-                  </div>
-
-                  <div class="col-md-4">
-                    <div class="text-muted small">Compliance Status</div>
-                    <div>
-                      {% if compliance %}
-                        <span class="badge
-                          {% if compliance.vetting_status == 'APPROVED' %}bg-success
-                          {% elif compliance.vetting_status == 'REJECTED' %}bg-danger
-                          {% elif compliance.vetting_status == 'IN_REVIEW' %}bg-warning
-                          {% else %}bg-secondary{% endif %}">
-                          {{ compliance.get_vetting_status_display }}
-                        </span>
+            <div class="col-xl-3 col-md-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                  <div class="text-muted small mb-1">Operating Status</div>
+                  {% if client.is_open_now %}
+                    <span class="badge bg-success">Open Now</span>
+                  {% else %}
+                    <span class="badge bg-secondary">Closed Now</span>
+                  {% endif %}
+                  <div class="small text-muted mt-2">
+                    {% with today_hours=client.get_today_hours %}
+                      {% if today_hours %}
+                        {% if today_hours.is_closed %}
+                          Closed today
+                        {% elif today_hours.open_time and today_hours.close_time %}
+                          {{ today_hours.open_time|time:"H:i" }} - {{ today_hours.close_time|time:"H:i" }}
+                        {% else %}
+                          Today’s hours not set
+                        {% endif %}
                       {% else %}
-                        <span class="badge bg-secondary">Not Started</span>
+                        Today’s hours not set
                       {% endif %}
-                    </div>
+                    {% endwith %}
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <hr>
+          </div>
 
-                <!-- ================= COMMERCIAL CONTEXT ================= -->
-                <div class="row g-4 mb-4">
-                  <div class="col-md-4">
-                    <div class="text-muted small">Estimated Weekly Spend</div>
-                    <div class="fw-semibold">
-                      {% if client.estimated_weekly_spend %}
-                        R{{ client.estimated_weekly_spend|floatformat:2|intcomma }}
-                      {% else %}
-                        —
-                      {% endif %}
-                    </div>
-                  </div>
+          <!-- ================= RISK / ACTION FLAGS ================= -->
+          <div class="card shadow-sm mb-4">
+            <div class="card-header fw-semibold">
+              Risk & Action Flags
+            </div>
 
-                  <div class="col-md-4">
-                    <div class="text-muted small">Last Order</div>
-                    <div class="fw-semibold">
-                      {{ client.last_order_at|date:"Y-m-d"|default:"—" }}
-                    </div>
-                  </div>
+            <div class="card-body">
+              <div class="d-flex flex-wrap gap-2">
 
-                  <div class="col-md-4">
-                    <div class="text-muted small">Client Since</div>
-                    <div class="fw-semibold">
-                      {{ client.created_at|date:"Y-m-d" }}
-                    </div>
-                  </div>
-                </div>
+                {% if not client.account_manager %}
+                  <span class="badge bg-warning text-dark">No Account Manager</span>
+                {% endif %}
 
-                <hr>
+                {% if not client.has_delivery_geo %}
+                  <span class="badge bg-warning text-dark">Missing Delivery Coordinates</span>
+                {% endif %}
 
-                <!-- ================= SYSTEM INFO ================= -->
-                <div class="row g-4">
-                  <div class="col-md-4">
-                    <div class="text-muted small">Created At</div>
-                    <div class="fw-semibold">{{ client.created_at|date:"Y-m-d H:i" }}</div>
-                  </div>
+                {% if not compliance or compliance.vetting_status != "APPROVED" %}
+                  <span class="badge bg-danger">Compliance Not Approved</span>
+                {% endif %}
 
-                  <div class="col-md-4">
-                    <div class="text-muted small">Last Updated</div>
-                    <div class="fw-semibold">{{ client.updated_at|date:"Y-m-d H:i" }}</div>
-                  </div>
+                {% if client.account_type == "CREDIT" and client.credit_status != "ACTIVE" %}
+                  <span class="badge bg-warning text-dark">Credit Not Active</span>
+                {% endif %}
 
-                  <div class="col-md-4">
-                    <div class="text-muted small">Last Order</div>
-                    <div class="fw-semibold">
-                      {{ client.last_order_at|date:"Y-m-d"|default:"—" }}
-                    </div>
-                  </div>
-                </div>
+                {% if not client.phone and not client.whatsapp %}
+                  <span class="badge bg-warning text-dark">No Phone / WhatsApp</span>
+                {% endif %}
 
-                <!-- ================= NOTES ================= -->
-                {% if client.notes %}
-                  <hr>
-                  <div>
-                    <div class="text-muted small mb-1">Internal Notes</div>
-                    <div class="small">
-                      {{ client.notes|linebreaks }}
-                    </div>
-                  </div>
+                {% if not client.email %}
+                  <span class="badge bg-secondary">No Email</span>
+                {% endif %}
+
+                {% if orders|length == 0 %}
+                  <span class="badge bg-secondary">No Orders Yet</span>
+                {% endif %}
+
+                {% if client.account_manager and client.has_delivery_geo and compliance and compliance.vetting_status == "APPROVED" %}
+                  <span class="badge bg-success">No Major Flags</span>
                 {% endif %}
 
               </div>
             </div>
           </div>
 
+          <div class="row g-4">
 
+            <!-- ================= LEFT COLUMN ================= -->
+            <div class="col-lg-8">
 
+              <!-- ================= IDENTITY & CONTACT ================= -->
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">
+                  Identity & Contact
+                </div>
 
+                <div class="card-body">
+                  <div class="row g-4">
 
+                    <div class="col-md-4">
+                      <div class="text-muted small">Client Number</div>
+                      <div class="fw-semibold">{{ client.client_number }}</div>
+                    </div>
 
-          <!-- ================= ORDERS TAB ================= -->
-          <div class="tab-pane fade" id="orders">
-            <div class="card shadow-sm">
-              <div class="card-header fw-semibold">
-                Recent Orders
+                    <div class="col-md-4">
+                      <div class="text-muted small">Display Name</div>
+                      <div class="fw-semibold">{{ client.organization|default:client.name }}</div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="text-muted small">Entity Type</div>
+                      <div class="fw-semibold">{{ client.get_entity_type_display|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="text-muted small">Primary Contact</div>
+                      <div class="fw-semibold">{{ client.contact_person|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="text-muted small">Phone</div>
+                      <div class="fw-semibold">{{ client.phone|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="text-muted small">WhatsApp</div>
+                      <div class="fw-semibold">{{ client.whatsapp|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-6">
+                      <div class="text-muted small">Email</div>
+                      <div class="fw-semibold">
+                        {% if client.email %}
+                          <a href="mailto:{{ client.email }}">{{ client.email }}</a>
+                        {% else %}
+                          —
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <div class="col-md-6">
+                      <div class="text-muted small">Account Manager</div>
+                      <div class="fw-semibold">
+                        {% if client.account_manager %}
+                          {{ client.account_manager.get_full_name|default:client.account_manager.username }}
+                        {% else %}
+                          Unassigned
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <div class="col-md-6">
+                      <div class="text-muted small">Registration / ID Number</div>
+                      <div class="fw-semibold">{{ client.registration_identifier|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-6">
+                      <div class="text-muted small">VAT Number</div>
+                      <div class="fw-semibold">{{ client.vat_number|default:"—" }}</div>
+                    </div>
+
+                  </div>
+                </div>
               </div>
 
-              <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                  <thead class="table-light">
+              <!-- ================= DELIVERY & LOCATION ================= -->
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">
+                  Delivery & Location
+                </div>
+
+                <div class="card-body">
+                  <div class="row g-4">
+
+                    <div class="col-md-6">
+                      <div class="text-muted small">Business Address</div>
+                      <div class="fw-semibold">
+                        {{ client.address_line1|default:"" }}
+                        {% if client.address_line2 %}, {{ client.address_line2 }}{% endif %}
+                        {% if client.suburb %}, {{ client.suburb }}{% endif %}
+                        {% if client.city %}, {{ client.city }}{% endif %}
+                        {% if client.province %}, {{ client.get_province_display|default:client.province }}{% endif %}
+                        {% if client.postal_code %}, {{ client.postal_code }}{% endif %}
+                        {% if client.country %}, {{ client.country }}{% endif %}
+                        {% if not client.address_line1 and not client.suburb and not client.city %}—{% endif %}
+                      </div>
+                    </div>
+
+                    <div class="col-md-6">
+                      <div class="text-muted small">Delivery Address</div>
+                      <div class="fw-semibold">
+                        {{ client.delivery_address_as_line|default:"—" }}
+                      </div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="text-muted small">Delivery Area</div>
+                      <div class="fw-semibold">
+                        {{ client.delivery_city|default:client.city|default:"—" }},
+                        {{ client.delivery_province|default:client.province|default:"—" }}
+                      </div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="text-muted small">Latitude</div>
+                      <div class="fw-semibold">{{ client.delivery_lat|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="text-muted small">Longitude</div>
+                      <div class="fw-semibold">{{ client.delivery_lng|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="text-muted small">Preferred Slot 1</div>
+                      <div class="fw-semibold">{{ client.get_preferred_delivery_slot_1_display|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="text-muted small">Preferred Slot 2</div>
+                      <div class="fw-semibold">{{ client.get_preferred_delivery_slot_2_display|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="text-muted small">Preferred Slot 3</div>
+                      <div class="fw-semibold">{{ client.get_preferred_delivery_slot_3_display|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-12">
+                      <div class="text-muted small">Map</div>
+                      {% if client.has_delivery_geo %}
+                        <a href="{{ client.google_maps_link }}"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           class="fw-semibold">
+                          View on Google Maps
+                        </a>
+                      {% else %}
+                        <span class="text-muted">Not set</span>
+                      {% endif %}
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+              <!-- ================= COMMERCIAL PROFILE ================= -->
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">
+                  Commercial Profile
+                </div>
+
+                <div class="card-body">
+                  <div class="row g-4">
+
+                    <div class="col-md-3">
+                      <div class="text-muted small">Client Type</div>
+                      <div class="fw-semibold">{{ client.get_client_type_display }}</div>
+                    </div>
+
+                    <div class="col-md-3">
+                      <div class="text-muted small">Size Tier</div>
+                      <div class="fw-semibold">{{ client.client_size_tier|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-3">
+                      <div class="text-muted small">Pricing Type</div>
+                      <div class="fw-semibold">{{ client.get_price_type_display|default:client.price_type|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-3">
+                      <div class="text-muted small">Territory</div>
+                      <div class="fw-semibold">{{ client.get_area_display|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="text-muted small">Estimated Weekly Spend</div>
+                      <div class="fw-semibold">
+                        {% if client.estimated_weekly_spend %}
+                          R{{ client.estimated_weekly_spend|floatformat:2|intcomma }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="text-muted small">Total Spend</div>
+                      <div class="fw-semibold">
+                        R{{ total_spend|default:0|floatformat:2|intcomma }}
+                      </div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="text-muted small">Spend Rank</div>
+                      <div class="fw-semibold">
+                        {% if spend_rank %}
+                          #{{ spend_rank }} of {{ total_clients }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <div class="col-12">
+                      <div class="text-muted small mb-1">Categories</div>
+                      {% for category in client.categories.all %}
+                        <span class="badge badge-cat me-1 mb-1">{{ category.name }}</span>
+                      {% empty %}
+                        <span class="text-muted">No categories selected</span>
+                      {% endfor %}
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- ================= RIGHT COLUMN ================= -->
+            <div class="col-lg-4">
+
+              <!-- ================= OPERATIONS SNAPSHOT ================= -->
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">
+                  Operations Snapshot
+                </div>
+
+                <div class="card-body">
+                  {% with today_hours=client.get_today_hours %}
+                    <div class="mb-3">
+                      <div class="text-muted small">Today’s Hours</div>
+                      <div class="fw-semibold">
+                        {% if today_hours %}
+                          {% if today_hours.is_closed %}
+                            Closed Today
+                          {% elif today_hours.open_time and today_hours.close_time %}
+                            {{ today_hours.open_time|time:"H:i" }} - {{ today_hours.close_time|time:"H:i" }}
+                          {% else %}
+                            Not Set
+                          {% endif %}
+                        {% else %}
+                          Not Set
+                        {% endif %}
+                      </div>
+                    </div>
+                  {% endwith %}
+
+                  <div class="mb-3">
+                    <div class="text-muted small">Preferred Delivery Slot 1</div>
+                    <div class="fw-semibold">
+                      {{ client.get_preferred_delivery_slot_1_display|default:"—" }}
+                    </div>
+                  </div>
+
+                  <div class="mb-3">
+                    <div class="text-muted small">Preferred Delivery Slot 2</div>
+                    <div class="fw-semibold">
+                      {{ client.get_preferred_delivery_slot_2_display|default:"—" }}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="text-muted small">Preferred Delivery Slot 3</div>
+                    <div class="fw-semibold">
+                      {{ client.get_preferred_delivery_slot_3_display|default:"—" }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ================= CREDIT SNAPSHOT ================= -->
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">
+                  Credit Snapshot
+                </div>
+
+                <div class="card-body">
+                  <div class="mb-3">
+                    <div class="text-muted small">Account Type</div>
+                    <div class="fw-semibold">{{ client.get_account_type_display }}</div>
+                  </div>
+
+                  <div class="mb-3">
+                    <div class="text-muted small">Credit Status</div>
+                    {% if client.credit_status == "ACTIVE" %}
+                      <span class="badge bg-success">Active</span>
+                    {% elif client.credit_status == "PENDING" %}
+                      <span class="badge bg-warning text-dark">Pending</span>
+                    {% else %}
+                      <span class="badge bg-secondary">Inactive</span>
+                    {% endif %}
+                  </div>
+
+                  <div class="mb-3">
+                    <div class="text-muted small">Funder</div>
+                    <div class="fw-semibold">
+                      {% if client.funder %}
+                        {{ client.funder }}
+                      {% else %}
+                        —
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  {% if credit_account %}
+                    <div class="mb-2">
+                      <div class="text-muted small">Credit Utilisation</div>
+                      <div class="fw-semibold">
+                        {{ credit_utilization_pct|default:0|floatformat:2 }}%
+                      </div>
+                    </div>
+
+                    <div class="progress" style="height: 8px;">
+                      <div class="progress-bar"
+                           role="progressbar"
+                           style="width: {{ credit_utilization_pct|default:0|floatformat:0 }}%;">
+                      </div>
+                    </div>
+
+                    <div class="small text-muted mt-2">
+                      Status: {{ credit_utilization_status|default:"—" }}
+                    </div>
+                  {% else %}
+                    <div class="small text-muted">
+                      No credit account data available.
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+
+              <!-- ================= RECENT ACTIVITY ================= -->
+              <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">
+                  Recent Activity
+                </div>
+
+                <div class="card-body">
+                  <div class="mb-3">
+                    <div class="text-muted small">Last Order</div>
+                    <div class="fw-semibold">
+                      {% if client.last_order_at %}
+                        {{ client.last_order_at|date:"Y-m-d H:i" }}
+                      {% else %}
+                        —
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="mb-3">
+                    <div class="text-muted small">Created</div>
+                    <div class="fw-semibold">
+                      {{ client.created_at|date:"Y-m-d H:i" }}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="text-muted small">Last Updated</div>
+                    <div class="fw-semibold">
+                      {{ client.updated_at|date:"Y-m-d H:i" }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ================= NOTES ================= -->
+          {% if client.notes %}
+            <div class="card shadow-sm">
+              <div class="card-header fw-semibold">
+                Internal Notes
+              </div>
+              <div class="card-body small">
+                {{ client.notes|linebreaks }}
+              </div>
+            </div>
+          {% endif %}
+
+        </div>
+
+        <!-- ================= ORDERS TAB ================= -->
+        <div class="tab-pane fade" id="orders" role="tabpanel">
+          <div class="card shadow-sm">
+            <div class="card-header fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <span>Recent Orders</span>
+              <span class="badge bg-secondary">{{ orders|length }} shown</span>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Order</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th class="text-end">Total</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for o in orders %}
                     <tr>
-                      <th>Date</th>
-                      <th>Status</th>
-                      <th class="text-end">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for o in orders %}
-                    <tr>
+                      <td class="fw-semibold">#{{ o.id }}</td>
                       <td>{{ o.order_date|date:"Y-m-d" }}</td>
                       <td>{{ o.get_status_display }}</td>
                       <td class="text-end">
-                        R{{ o.grand_total_inc|floatformat:2|intcomma }}
+                        R{{ o.grand_total_inc|default:0|floatformat:2|intcomma }}
+                      </td>
+                      <td class="text-end">
+                        <a href="{% url 'order-view' o.pk %}" class="btn btn-outline-primary btn-sm">
+                          View
+                        </a>
                       </td>
                     </tr>
-                    {% empty %}
+                  {% empty %}
                     <tr>
-                      <td colspan="3" class="text-center text-muted py-3">
+                      <td colspan="5" class="text-center text-muted py-3">
                         No orders found.
                       </td>
                     </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
+                  {% endfor %}
+                </tbody>
+              </table>
             </div>
           </div>
+        </div>
 
-          <!-- ================= CREDIT TAB ================= -->
-          <div class="tab-pane fade" id="credit" role="tabpanel">
-            <div class="card shadow-sm">
-              <div class="card-body">
+        <!-- ================= CREDIT TAB ================= -->
+        <div class="tab-pane fade" id="credit" role="tabpanel">
+          <div class="card shadow-sm">
+            <div class="card-body">
 
-                {% if credit_account %}
+              {% if credit_account %}
 
-                  <!-- CREDIT KPIs -->
-                  <div class="row g-3 mb-3">
+                <div class="row g-3 mb-4">
+                  <div class="col-md-3">
+                    <div class="card p-3 h-100">
+                      <div class="text-muted small">Credit Limit</div>
+                      <div class="fs-5 fw-semibold">
+                        R{{ credit_account.credit_limit|default:0|floatformat:2|intcomma }}
+                      </div>
+                    </div>
+                  </div>
 
-                    <!-- Credit Limit -->
-                    <div class="col-md-4">
-                      <div class="card h-100 p-3">
-                        <div class="text-muted small">Credit Limit</div>
-                        <div class="fs-5 fw-semibold">
-                          R{{ credit_account.credit_limit|floatformat:2|intcomma }}
+                  <div class="col-md-3">
+                    <div class="card p-3 h-100">
+                      <div class="text-muted small">Credit Used</div>
+                      <div class="fs-5 fw-semibold">
+                        R{{ credit_account.credit_used|default:0|floatformat:2|intcomma }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-md-3">
+                    <div class="card p-3 h-100">
+                      <div class="text-muted small">Available</div>
+                      <div class="fs-5 fw-semibold">
+                        R{{ credit_account.credit_available|default:0|floatformat:2|intcomma }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-md-3">
+                    <div class="card p-3 h-100">
+                      <div class="text-muted small">Utilisation</div>
+                      <div class="fs-5 fw-semibold">
+                        {{ credit_utilization_pct|default:0|floatformat:2 }}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card shadow-sm">
+                  <div class="card-header fw-semibold">
+                    Credit Utilisation
+                  </div>
+                  <div class="card-body">
+                    <div class="progress mb-2" style="height: 12px;">
+                      <div class="progress-bar"
+                           role="progressbar"
+                           style="width: {{ credit_utilization_pct|default:0|floatformat:0 }}%;"
+                           aria-valuenow="{{ credit_utilization_pct|default:0|floatformat:0 }}"
+                           aria-valuemin="0"
+                           aria-valuemax="100">
+                      </div>
+                    </div>
+                    <div class="small text-muted">
+                      Status: {{ credit_utilization_status|default:"—" }}
+                    </div>
+                  </div>
+                </div>
+
+              {% else %}
+
+                <div class="text-center text-muted py-4">
+                  No credit account data available for this client.
+                </div>
+
+              {% endif %}
+
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= COMPLIANCE TAB ================= -->
+        <div class="tab-pane fade" id="compliance" role="tabpanel">
+          <div class="row g-4">
+
+            <div class="col-lg-4">
+              <div class="card shadow-sm h-100">
+                <div class="card-header fw-semibold">
+                  Compliance Summary
+                </div>
+
+                <div class="card-body">
+                  {% if compliance %}
+                    <div class="mb-3">
+                      <div class="text-muted small">Vetting Status</div>
+                      {% if compliance.vetting_status == "APPROVED" %}
+                        <span class="badge bg-success">Approved</span>
+                      {% elif compliance.vetting_status == "REJECTED" %}
+                        <span class="badge bg-danger">Rejected</span>
+                      {% elif compliance.vetting_status == "IN_REVIEW" %}
+                        <span class="badge bg-warning text-dark">In Review</span>
+                      {% else %}
+                        <span class="badge bg-secondary">Pending</span>
+                      {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                      <div class="text-muted small">Completion</div>
+                      <div class="fw-semibold">
+                        {{ compliance_completion_pct|default:0|floatformat:0 }}%
+                      </div>
+                      <div class="progress mt-2" style="height: 8px;">
+                        <div class="progress-bar"
+                             role="progressbar"
+                             style="width: {{ compliance_completion_pct|default:0|floatformat:0 }}%;">
                         </div>
                       </div>
                     </div>
 
-                    <!-- Outstanding -->
-                    <div class="col-md-4">
-                      <div class="card h-100 p-3">
-                        <div class="text-muted small">Outstanding</div>
-                        <div class="fs-5 fw-semibold text-danger">
-                          R{{ credit_account.credit_used|default:"0.00"|floatformat:2|intcomma }}
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Utilisation -->
-                    <div class="col-md-4">
-                      <div class="card h-100 p-3">
-                        <div class="text-muted small">Utilisation</div>
-
-                        {% if credit_utilization_pct is not None %}
-                          <div class="fs-5 fw-semibold
-                            {% if credit_utilization_status == 'Healthy' %}text-success
-                            {% elif credit_utilization_status == 'Watch' %}text-warning
-                            {% elif credit_utilization_status == 'High Risk' %}text-danger
-                            {% else %}text-danger fw-bold{% endif %}">
-                            {{ credit_utilization_pct|floatformat:1 }}%
-                          </div>
-
-                          <div class="small text-muted">
-                            {{ credit_utilization_status }}
-                          </div>
+                    <div class="mb-3">
+                      <div class="text-muted small">Vetted At</div>
+                      <div class="fw-semibold">
+                        {% if compliance.vetted_at %}
+                          {{ compliance.vetted_at|date:"Y-m-d H:i" }}
                         {% else %}
-                          <div class="text-muted">—</div>
+                          —
                         {% endif %}
                       </div>
                     </div>
 
-                  </div>
-
-                  
-                  
-
-                {% else %}
-                  <!-- NO CREDIT ACCOUNT -->
-                  <div class="alert alert-light text-muted text-center mb-0">
-                    This client does not have a credit account.
-                  </div>
-                {% endif %}
-
+                    <div>
+                      <div class="text-muted small">Notes</div>
+                      <div class="small">
+                        {{ compliance.notes|default:"No compliance notes."|linebreaks }}
+                      </div>
+                    </div>
+                  {% else %}
+                    <div class="text-muted">
+                      Compliance has not started for this client.
+                    </div>
+                  {% endif %}
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- ================= COMPLIANCE TAB ================= -->
-          <div class="tab-pane fade" id="compliance" role="tabpanel">
-            <div class="card shadow-sm">
-
-              <!-- HEADER -->
-              <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center gap-2">
+            <div class="col-lg-8">
+              <div class="card shadow-sm">
+                <div class="card-header fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <span>Compliance Documents</span>
                   <span class="badge bg-info">
-                    {{ compliance_completion_pct|floatformat:0 }}% complete
+                    {{ compliance_completion_pct|default:0|floatformat:0 }}% complete
                   </span>
                 </div>
 
-                <a href="#"
-                  class="btn btn-outline-primary btn-sm disabled"
-                  aria-disabled="true"
-                  title="Compliance editing is not available yet">
-                  <i class="bi bi-pencil"></i> Edit
-                </a>
-
-
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Document</th>
+                        <th>Status</th>
+                        <th>Uploaded</th>
+                        <th>Reviewed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for d in compliance_documents %}
+                        <tr>
+                          <td>{{ d.get_document_type_display }}</td>
+                          <td>
+                            {% if d.status == "APPROVED" %}
+                              <span class="badge bg-success">Approved</span>
+                            {% elif d.status == "REJECTED" %}
+                              <span class="badge bg-danger">Rejected</span>
+                            {% else %}
+                              <span class="badge bg-warning text-dark">Pending</span>
+                            {% endif %}
+                          </td>
+                          <td class="small text-muted">
+                            {% if d.file %}
+                              {{ d.uploaded_at|date:"Y-m-d"|default:"Uploaded" }}
+                            {% else %}
+                              —
+                            {% endif %}
+                          </td>
+                          <td class="small text-muted">
+                            {{ d.reviewed_at|date:"Y-m-d"|default:"—" }}
+                          </td>
+                        </tr>
+                      {% empty %}
+                        <tr>
+                          <td colspan="4" class="text-center text-muted py-3">
+                            No compliance records found.
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-
-              <!-- TABLE -->
-              <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                  <thead class="table-light">
-                    <tr>
-                      <th>Document</th>
-                      <th>Status</th>
-                      <th>Uploaded</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for d in compliance_documents %}
-                    <tr>
-                      <td>{{ d.get_document_type_display }}</td>
-                      <td>
-                        {% if d.is_verified %}
-                          <span class="badge bg-success">Verified</span>
-                        {% else %}
-                          <span class="badge bg-warning">Pending</span>
-                        {% endif %}
-                      </td>
-                      <td class="small text-muted">
-                        {{ d.uploaded_at|date:"Y-m-d"|default:"—" }}
-                      </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                      <td colspan="3" class="text-center text-muted py-3">
-                        No compliance records found.
-                      </td>
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-
             </div>
+
           </div>
-
-
         </div>
+
+        <!-- ================= OPERATIONS TAB ================= -->
+        <div class="tab-pane fade" id="operations" role="tabpanel">
+          <div class="row g-4">
+
+            <div class="col-lg-5">
+              <div class="card shadow-sm h-100">
+                <div class="card-header fw-semibold">
+                  Operating Status
+                </div>
+
+                <div class="card-body">
+                  {% if client.is_open_now %}
+                    <span class="badge bg-success mb-3">Open Now</span>
+                  {% else %}
+                    <span class="badge bg-secondary mb-3">Closed Now</span>
+                  {% endif %}
+
+                  {% with today_hours=client.get_today_hours %}
+                    <div class="mb-3">
+                      <div class="text-muted small">Today</div>
+                      <div class="fw-semibold">
+                        {% if today_hours %}
+                          {% if today_hours.is_closed %}
+                            Closed
+                          {% elif today_hours.open_time and today_hours.close_time %}
+                            {{ today_hours.open_time|time:"H:i" }} - {{ today_hours.close_time|time:"H:i" }}
+                          {% else %}
+                            Not Set
+                          {% endif %}
+                        {% else %}
+                          Not Set
+                        {% endif %}
+                      </div>
+                    </div>
+                  {% endwith %}
+
+                  <div class="text-muted small">
+                    Operating hours are used for planning follow-ups, delivery timing, and service readiness.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-7">
+              <div class="card shadow-sm">
+                <div class="card-header fw-semibold">
+                  Weekly Operating Hours
+                </div>
+
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Day</th>
+                        <th>Status</th>
+                        <th>Open</th>
+                        <th>Close</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for h in client.operating_hours.all %}
+                        <tr>
+                          <td>{{ h.get_day_display }}</td>
+                          <td>
+                            {% if h.is_closed %}
+                              <span class="badge bg-secondary">Closed</span>
+                            {% else %}
+                              <span class="badge bg-success">Open</span>
+                            {% endif %}
+                          </td>
+                          <td>{{ h.open_time|time:"H:i"|default:"—" }}</td>
+                          <td>{{ h.close_time|time:"H:i"|default:"—" }}</td>
+                        </tr>
+                      {% empty %}
+                        <tr>
+                          <td colspan="4" class="text-center text-muted py-3">
+                            No operating hours captured.
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="card shadow-sm">
+                <div class="card-header fw-semibold">
+                  Delivery Preferences
+                </div>
+
+                <div class="card-body">
+                  <div class="row g-4">
+                    <div class="col-md-4">
+                      <div class="text-muted small">Preferred Slot 1</div>
+                      <div class="fw-semibold">{{ client.get_preferred_delivery_slot_1_display|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="text-muted small">Preferred Slot 2</div>
+                      <div class="fw-semibold">{{ client.get_preferred_delivery_slot_2_display|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="text-muted small">Preferred Slot 3</div>
+                      <div class="fw-semibold">{{ client.get_preferred_delivery_slot_3_display|default:"—" }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </div>
-    </main>
+    </div>
+  </main>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

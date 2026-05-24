@@ -1,0 +1,215 @@
+{% load humanize %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>The Daily Market — Quotation QT-{{ quotation.id }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f7faf8;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color: #111827;
+    }
+
+    a {
+      color: #0b5c39;
+      text-decoration: none;
+    }
+
+    .wrap {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 24px 22px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+    }
+
+    .brand {
+      color: #0b5c39;
+    }
+
+    .muted {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 14px 24px;
+      border-radius: 10px;
+      text-decoration: none;
+      background: #0b5c39;
+      color: #ffffff !important;
+      font-weight: 700;
+      font-size: 15px;
+      margin-top: 12px;
+    }
+
+    .hr {
+      height: 1px;
+      background: #eef2f7;
+      border: 0;
+      margin: 18px 0 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+
+    th,
+    td {
+      border: 1px solid #e5e7eb;
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      background-color: #f3f4f6;
+      text-transform: uppercase;
+    }
+
+    td.text-end,
+    th.text-end {
+      text-align: right;
+    }
+
+    .fw-bold {
+      font-weight: 700;
+    }
+
+    .totals {
+      margin-top: 16px;
+      text-align: right;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <div class="center" style="margin-bottom: 16px;">
+      <h2 class="brand" style="margin: 0; font-weight: 800;">
+        The Daily Market
+      </h2>
+
+      <div class="muted">
+        Quotation QT-{{ quotation.id }}
+      </div>
+    </div>
+
+    <div class="card">
+
+      <p>
+        Hi {{ recipient_name }},
+      </p>
+
+      <p>
+        Please find your quotation below for
+        <strong>{{ recipient.organization|default:recipient.name }}</strong>.
+      </p>
+
+      <div>
+        <strong>Quotation Date:</strong>
+        {{ quotation.created_at|date:"d M Y" }}<br>
+
+        <strong>Status:</strong>
+        {{ quotation.get_status_display }}
+      </div>
+
+      <div class="hr"></div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th class="text-end">Qty</th>
+            <th class="text-end">Unit Price</th>
+            <th class="text-end">Amount</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td>{{ item.product_name }}</td>
+
+            <td class="text-end">
+              {{ item.quantity|floatformat:2 }}
+            </td>
+
+            <td class="text-end">
+              R{{ item.display_unit_price_inc|floatformat:2|intcomma }}
+            </td>
+
+            <td class="text-end fw-bold">
+              R{{ item.display_line_total_inc|floatformat:2|intcomma }}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="center muted">
+              No quotation items found.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <div class="fw-bold" style="margin-top: 8px;">
+          Total:
+          R{{ quotation.grand_total_inc|floatformat:2|intcomma }}
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div style="margin-top: 18px; text-align: center;">
+        <a href="{{ quotation_url }}" class="btn">
+          View & Accept Quotation
+        </a>
+      </div>
+
+      <p class="muted" style="margin-top: 14px; text-align: center;">
+        You can review and accept this quotation online.
+      </p>
+
+      <div class="hr"></div>
+
+      <p class="muted" style="margin: 0 0 8px;">
+        If you need assistance, simply reply to this email or contact us at
+        <a href="mailto:{{ support_email|default:'support@thedailymarket.co.za' }}">
+          {{ support_email|default:'support@thedailymarket.co.za' }}
+        </a>.
+      </p>
+
+      <p style="margin: 0;">
+        — The Daily Market Team
+      </p>
+
+    </div>
+
+    <p class="muted center" style="margin-top: 14px;">
+      If you weren’t expecting this quotation, please ignore this email.
+    </p>
+
+  </div>
+</body>
+</html>

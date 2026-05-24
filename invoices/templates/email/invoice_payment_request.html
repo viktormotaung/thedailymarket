@@ -1,0 +1,178 @@
+{% load humanize %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Payment Request — Invoice INV-{{ invoice.id }}</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f7faf8;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color: #111827;
+    }
+
+    .wrap {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 28px 24px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+    }
+
+    .brand {
+      color: #0b5c39;
+      font-weight: 800;
+    }
+
+    .muted {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .btn {
+      display: inline-block;
+      background: #0b5c39;
+      color: #ffffff !important;
+      text-decoration: none;
+      padding: 14px 24px;
+      border-radius: 10px;
+      font-weight: 700;
+      margin-top: 16px;
+    }
+
+    .summary {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 18px;
+      margin-top: 18px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+
+    .total {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0b5c39;
+      margin-top: 12px;
+    }
+
+    .hr {
+      height: 1px;
+      background: #eef2f7;
+      border: 0;
+      margin: 20px 0;
+    }
+
+    .center {
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+  <div class="center" style="margin-bottom: 16px;">
+
+    <h2 class="brand" style="margin:0;">
+      The Daily Market
+    </h2>
+
+    <div class="muted">
+      Payment Request
+    </div>
+
+  </div>
+
+  <div class="card">
+
+    <p>
+      Hi {{ recipient_name }},
+    </p>
+
+    <p>
+      This is a friendly reminder that payment is due for the invoice below.
+    </p>
+
+    <div class="summary">
+
+      <div class="summary-row">
+        <span>Invoice Number</span>
+        <strong>INV-{{ invoice.id }}</strong>
+      </div>
+
+      <div class="summary-row">
+        <span>Invoice Date</span>
+        <strong>{{ invoice.invoice_date|date:"d M Y" }}</strong>
+      </div>
+
+      <div class="summary-row">
+        <span>Due Date</span>
+        <strong>
+          {{ invoice.due_date|date:"d M Y"|default:"Immediate" }}
+        </strong>
+      </div>
+
+      <div class="summary-row">
+        <span>Status</span>
+        <strong>{{ invoice.get_status_display }}</strong>
+      </div>
+
+      <div class="summary-row total">
+        <span>Amount Due</span>
+        <span>
+          R{{ invoice.amount_due|floatformat:2|intcomma }}
+        </span>
+      </div>
+
+    </div>
+
+    <div class="center">
+
+      <a href="{{ invoice_url }}" class="btn">
+        View & Pay Invoice
+      </a>
+
+    </div>
+
+    <div class="hr"></div>
+
+    <p class="muted">
+      If payment has already been made, please disregard this message.
+    </p>
+
+    <p class="muted">
+      For assistance, contact:
+      <a href="mailto:{{ support_email }}">
+        {{ support_email }}
+      </a>
+    </p>
+
+    <p>
+      — The Daily Market Team
+    </p>
+
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,28 @@
+Hi {{ recipient_name }},
+
+This is a friendly reminder that payment is due for the following invoice.
+
+Invoice Number:
+INV-{{ invoice.id }}
+
+Invoice Date:
+{{ invoice.invoice_date|date:"d M Y" }}
+
+Due Date:
+{{ invoice.due_date|date:"d M Y"|default:"Immediate" }}
+
+Status:
+{{ invoice.get_status_display }}
+
+Amount Due:
+R{{ invoice.amount_due|floatformat:2 }}
+
+View & Pay Invoice:
+{{ invoice_url }}
+
+If payment has already been made, please disregard this message.
+
+For assistance:
+{{ support_email }}
+
+— The Daily Market Team

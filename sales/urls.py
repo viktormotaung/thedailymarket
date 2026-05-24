@@ -63,6 +63,16 @@ urlpatterns = [
     path("clients/<int:pk>/edit/", views.edit_client, name="edit-client"),
     path("clients/<int:pk>/view/", views.view_client, name="client-detail"),
 
+
+    path("quotations/", views.quotations, name="sales-quotations"), 
+    path("quotations/create/", views.create_quotation, name="sales-create-quotation",), 
+    path("quotations/<int:pk>/edit/", views.edit_quotation, name="sales-edit-quotation",),
+    path("quotations/<int:pk>/send-whatsapp/", views.send_quotation_whatsapp_view, name="sales-send-quotation-whatsapp",),
+
+
+
+    path("quotations/<int:pk>/view/", views.view_quotation, name="sales-view-quotation",),
+
     # Orders (from a sales perspective) - grouped under orders/
     path("orders/", views.orders, name="sales-orders"),
     path("orders/new/", views.create_order, name="create-order"),
@@ -104,6 +114,13 @@ urlpatterns = [
         views.sales_job_thank_you,
         name="sales-job-thank-you",
     ),
+    path("quotations/<int:pk>/send-email/", views.send_quotation_email_internal, name="sales-send-quotation-email",),
+
+
+    path("quotations/<int:pk>/send-sms/", views.send_quotation_sms, name="sales-send-quotation-sms",),
+    path("invoices/<int:pk>/send-email/", views.send_invoice_email_internal, name="sales-send-invoice-email",),
+    path("invoices/<int:pk>/send-whatsapp/", views.send_invoice_whatsapp_view, name="sales-send-invoice-whatsapp",),
+    path("invoices/<int:pk>/send-sms/", views.send_invoice_sms_view, name="sales-send-invoice-sms",),
 
 
 ]

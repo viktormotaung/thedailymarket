@@ -19,5 +19,7 @@ urlpatterns = [
     path("quotations/<int:pk>/send-whatsapp/", views.send_quotation_whatsapp_view, name="send-quotation-whatsapp",),
     path("orders/q/<uuid:token>/accept/", views.public_accept_quotation_view, name="public-quotation-accept",),
     path("orders/q/<uuid:token>/reject/", views.public_reject_quotation_view, name="public-quotation-reject",),
+    path("quotations/<int:pk>/send-sms/", views.send_quotation_sms, name="send-quotation-sms",),
+    path("quotations/<int:pk>/send-email/", views.send_quotation_email_internal, name="send-quotation-email",),
     
 ]

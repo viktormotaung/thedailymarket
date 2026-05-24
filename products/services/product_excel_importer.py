@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import re
 
 from openpyxl import load_workbook
@@ -23,9 +23,16 @@ def _is_active(val):
 
 def _dec(val):
     try:
-        return Decimal(str(val)) if val not in (None, "") else Decimal("0")
+        if val in (None, ""):
+            return Decimal("0.00")
+
+        return Decimal(str(val)).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP
+        )
+
     except Exception:
-        return Decimal("0")
+        return Decimal("0.00")
 
 
 def generate_supplier_code(name: str, db="default") -> str:
@@ -142,9 +149,12 @@ def import_products_from_excel(file, db="default"):
                     raise ValidationError(f"Invalid UOM '{uom}'")
 
                 vat_included = _vat_included(row[COL["vat_included"]])
+
                 cost_price = _dec(row[COL["cost_price"]])
-                wholesale_margin = _dec(row[COL["wholesale_margin"]])
-                retail_margin = _dec(row[COL["retail_margin"]])
+
+                wholesale_margin = str(int(float(row[COL["wholesale_margin"]] or 0)))
+                retail_margin = str(int(float(row[COL["retail_margin"]] or 0)))
+
                 is_active = _is_active(row[COL["is_active"]])
 
                 # -----------------------------

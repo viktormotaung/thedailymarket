@@ -10,18 +10,34 @@ import calendar
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from clients.models import Prospect, ProspectUpdate, Client
 from clients.forms import ProspectForm, ProspectUpdateForm
-from products.models import Category
 from django.utils.timezone import localdate
 from invoices.models import CommissionEntry, MonthlyCommission  # adjust import path if needed
-from orders.models import Order, OrderItem
+from products.models import Category, Product
+from orders.models import Order, OrderItem, Quotation, QuotationItem
 from django import forms
 from django.forms import ModelForm, inlineformset_factory, widgets
 from django.db.models import (
     Sum, Count, F, Q, Value, DecimalField, IntegerField, ExpressionWrapper
 )
+from communications.services.whatsapp import send_invoice_whatsapp
+from communications.services.smsportal import send_sms
+from django.core.mail import EmailMultiAlternatives
+from datetime import timedelta
+from decimal import Decimal
+from django.conf import settings
+from django.views.decorators.http import require_POST
+from communications.models import CommunicationLog
+from communications.services.whatsapp import send_quotation_whatsapp
+from django.contrib import messages
+from django.db import transaction
+from django.http import JsonResponse
+from django.urls import reverse
+from django.utils import timezone
+
+from communications.services.whatsapp import send_whatsapp_message
 import json
 from invoices.forms import MonthlyTargetForm
-
+from django.db.models import Q
 from datetime import date
 import calendar
 
@@ -72,53 +88,174 @@ DAY_OPTIONS = [7, 14, 30, 60]
 @login_required
 def sales_dashboard(request):
     user = request.user
-    now = timezone.now()
+    now_dt = timezone.now()
+    today = timezone.localdate()
 
-    # -------------------------------------------------
-    # Range handling (single source of truth)
-    # -------------------------------------------------
     range_param = request.GET.get("range", "today")
 
+    def month_start(d):
+        return d.replace(day=1)
+
+    def previous_month_start(d):
+        if d.month == 1:
+            return d.replace(year=d.year - 1, month=12, day=1)
+        return d.replace(month=d.month - 1, day=1)
+
+    def next_month_start(d):
+        if d.month == 12:
+            return d.replace(year=d.year + 1, month=1, day=1)
+        return d.replace(month=d.month + 1, day=1)
+
+    # =====================================================
+    # DATE RANGE
+    # =====================================================
     if range_param == "7d":
-        start_dt = now - timedelta(days=7)
+        start_dt = now_dt - timedelta(days=7)
+        end_dt = now_dt
+
+        prev_start_dt = start_dt - timedelta(days=7)
+        prev_end_dt = start_dt
+
+        period_label = "Last 7 days"
+        comparison_label = "Previous 7 days"
+
     elif range_param == "month":
-        start_dt = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    else:  # today
-        start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = today.replace(day=1)
+        start_dt = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
+        end_dt = now_dt
+
+        prev_start_date = previous_month_start(start_date)
+        prev_start_dt = timezone.make_aware(datetime.combine(prev_start_date, datetime.min.time()))
+        prev_end_dt = prev_start_dt + (end_dt - start_dt)
+
+        period_label = "This month"
+        comparison_label = "Previous month"
+
+    elif range_param == "last_month":
+        this_month_start = today.replace(day=1)
+        last_month_start = previous_month_start(this_month_start)
+        month_before_start = previous_month_start(last_month_start)
+
+        start_dt = timezone.make_aware(datetime.combine(last_month_start, datetime.min.time()))
+        end_dt = timezone.make_aware(datetime.combine(this_month_start, datetime.min.time()))
+
+        prev_start_dt = timezone.make_aware(datetime.combine(month_before_start, datetime.min.time()))
+        prev_end_dt = start_dt
+
+        period_label = "Last month"
+        comparison_label = "Month before"
+
+    else:
         range_param = "today"
 
-    end_dt = now
+        start_dt = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_dt = now_dt
 
-    # -------------------------------------------------
-    # Prospects
-    # -------------------------------------------------
-    prospects_in_range = Prospect.objects.filter(
+        prev_start_dt = start_dt - timedelta(days=1)
+        prev_end_dt = end_dt - timedelta(days=1)
+
+        period_label = "Today"
+        comparison_label = "Yesterday"
+
+    # =====================================================
+    # TREND HELPER
+    # =====================================================
+    def build_trend(current_value, previous_value):
+        current_value = current_value or 0
+        previous_value = previous_value or 0
+
+        diff = current_value - previous_value
+
+        if previous_value > 0:
+            percent = round((diff / previous_value) * 100, 1)
+            label = f"{abs(percent)}%"
+        elif current_value > 0:
+            percent = 100
+            label = "New"
+        else:
+            percent = 0
+            label = "No change"
+
+        if diff > 0:
+            direction = "up"
+        elif diff < 0:
+            direction = "down"
+        else:
+            direction = "same"
+
+        return {
+            "current": current_value,
+            "previous": previous_value,
+            "diff": diff,
+            "percent": percent,
+            "label": label,
+            "direction": direction,
+        }
+
+    # =====================================================
+    # PROSPECTS
+    # =====================================================
+    prospects_current = Prospect.objects.filter(
         owner=user,
         created_at__gte=start_dt,
         created_at__lt=end_dt,
     ).count()
 
-    # Active pipeline = non-terminal prospects (NOT range-based)
-    prospects_total = Prospect.objects.filter(
+    prospects_previous = Prospect.objects.filter(
         owner=user,
-        status="active",  # adjust if you use stages instead
+        created_at__gte=prev_start_dt,
+        created_at__lt=prev_end_dt,
     ).count()
 
-    pipeline_summary = (
+    prospects_trend = build_trend(prospects_current, prospects_previous)
+
+    active_pipeline_total = (
         Prospect.objects
-        .filter(owner=user, status="active")
-        .values("stage")
-        .annotate(count=Count("id"))
-        .order_by("stage")
+        .filter(owner=user, status="ACTIVE")
+        .exclude(stage__in=["WON", "LOST"])
+        .count()
     )
 
-    # Optional: stage label mapping (safe even if unused)
-    for row in pipeline_summary:
-        row["stage_label"] = row["stage"].replace("_", " ").title()
+    # =====================================================
+    # NEW CLIENTS
+    # =====================================================
+    new_clients_current = Client.objects.filter(
+        account_manager=user,
+        created_at__gte=start_dt,
+        created_at__lt=end_dt,
+    ).count()
 
-    # -------------------------------------------------
-    # Orders (range-based, owned by sales rep via created_by)
-    # -------------------------------------------------
+    new_clients_previous = Client.objects.filter(
+        account_manager=user,
+        created_at__gte=prev_start_dt,
+        created_at__lt=prev_end_dt,
+    ).count()
+
+    new_clients_trend = build_trend(new_clients_current, new_clients_previous)
+
+    active_clients_overall = Client.objects.filter(
+        account_manager=user,
+        status="ACTIVE",
+    ).count()
+
+    # =====================================================
+    # CONVERSION RATE
+    # =====================================================
+    prospects_converted_current = Prospect.objects.filter(
+        owner=user,
+        client__isnull=False,
+        updated_at__gte=start_dt,
+        updated_at__lt=end_dt,
+    ).count()
+
+    if prospects_current > 0:
+        conversion_rate = round((prospects_converted_current / prospects_current) * 100, 1)
+    else:
+        conversion_rate = 0
+
+    # =====================================================
+    # ORDERS
+    # =====================================================
     orders_qs = (
         Order.objects
         .annotate(
@@ -137,71 +274,7 @@ def sales_dashboard(request):
         )
     )
 
-    recent_orders = (
-        orders_qs
-        .select_related("client")
-        .order_by("-ts")[:10]
-    )
-
-    # Active clients = distinct clients ordering in range
-    active_clients_count = (
-        orders_qs
-        .values("client_id")
-        .distinct()
-        .count()
-    )
-
-    # -------------------------------------------------
-    # Client buying patterns
-    # -------------------------------------------------
-    top_clients_by_value = (
-        orders_qs
-        .values("client__name")
-        .annotate(
-            total_spent=Coalesce(Sum("grand_total_inc"), Decimal("0.00"))
-        )
-        .order_by("-total_spent")[:5]
-    )
-
-    top_clients_by_frequency = (
-        orders_qs
-        .values("client__name")
-        .annotate(order_count=Count("id"))
-        .order_by("-order_count")[:5]
-    )
-
-    # -------------------------------------------------
-    # Tasks & follow-ups (range-based)
-    # -------------------------------------------------
-    tasks = (
-        Task.objects
-        .filter(
-            created_by=user,
-            created_at__gte=start_dt,
-            created_at__lt=end_dt,
-        )
-        .order_by("completed_at", "due_at")[:10]
-    )
-
-  
-
-    
-    # -------------------------------------------------
-    # Company-wide sales trend (Orders per Day)
-    # -------------------------------------------------
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    # 1️⃣ Build empty day map for entire month
-    day_cursor = month_start.date()
-    end_day = now.date()
-
-    day_counts = OrderedDict()
-    while day_cursor <= end_day:
-        day_counts[day_cursor] = 0
-        day_cursor += timedelta(days=1)
-
-    # 2️⃣ Fetch orders and increment days
-    order_days = (
+    previous_orders_qs = (
         Order.objects
         .annotate(
             ts=Coalesce(
@@ -213,44 +286,186 @@ def sales_dashboard(request):
             )
         )
         .filter(
-            ts__gte=month_start,
-            ts__lt=now,
+            created_by=user,
+            ts__gte=prev_start_dt,
+            ts__lt=prev_end_dt,
         )
-        .values_list("ts", flat=True)
     )
 
-    for ts in order_days:
-        day_counts[ts.date()] += 1
+    orders_closed_count = orders_qs.count()
 
-    # 3️⃣ Prepare chart data
+    # =====================================================
+    # ORDER TREND GRAPH
+    # =====================================================
+    day_counts = OrderedDict()
+
+    day_cursor = start_dt.date()
+    end_day = (end_dt - timedelta(seconds=1)).date()
+
+    while day_cursor <= end_day:
+        day_counts[day_cursor] = 0
+        day_cursor += timedelta(days=1)
+
+    for ts in orders_qs.values_list("ts", flat=True):
+        if ts:
+            order_day = ts.date()
+            if order_day in day_counts:
+                day_counts[order_day] += 1
+
     sales_labels = [d.strftime("%d %b") for d in day_counts.keys()]
     sales_data = list(day_counts.values())
 
-    # -------------------------------------------------
-    # Context
-    # -------------------------------------------------
+    # =====================================================
+    # INVOICES
+    # =====================================================
+    invoices_qs = Invoice.objects.filter(
+        invoice_date__gte=start_dt.date(),
+        invoice_date__lt=end_dt.date() + timedelta(days=1),
+        client__account_manager=user,
+    )
+
+    previous_invoices_qs = Invoice.objects.filter(
+        invoice_date__gte=prev_start_dt.date(),
+        invoice_date__lt=prev_end_dt.date() + timedelta(days=1),
+        client__account_manager=user,
+    )
+
+    current_clients_invoice_data = (
+        invoices_qs
+        .values("client_id", "client__name", "client__organization")
+        .annotate(
+            invoice_count=Count("id"),
+            invoice_value=Coalesce(
+                Sum("order_total_inc"),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+        )
+    )
+
+    previous_clients_invoice_data = (
+        previous_invoices_qs
+        .values("client_id")
+        .annotate(
+            invoice_count=Count("id"),
+            invoice_value=Coalesce(
+                Sum("order_total_inc"),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+        )
+    )
+
+    previous_client_map = {
+        row["client_id"]: row
+        for row in previous_clients_invoice_data
+    }
+
+    client_rows = []
+
+    for row in current_clients_invoice_data:
+        previous = previous_client_map.get(row["client_id"], {})
+
+        invoice_count = row["invoice_count"] or 0
+        previous_invoice_count = previous.get("invoice_count", 0) or 0
+
+        invoice_value = row["invoice_value"] or Decimal("0.00")
+        previous_invoice_value = previous.get("invoice_value", Decimal("0.00")) or Decimal("0.00")
+
+        client_rows.append({
+            "client_id": row["client_id"],
+            "client_name": row["client__name"],
+            "client_organization": row["client__organization"],
+            "invoice_count": invoice_count,
+            "invoice_value": invoice_value,
+            "quantity_trend": build_trend(invoice_count, previous_invoice_count),
+            "value_trend": build_trend(float(invoice_value), float(previous_invoice_value)),
+        })
+
+    top_clients_by_invoice_quantity = sorted(
+        client_rows,
+        key=lambda x: (x["invoice_count"], x["invoice_value"]),
+        reverse=True,
+    )[:5]
+
+    top_clients_by_invoice_value = sorted(
+        client_rows,
+        key=lambda x: (x["invoice_value"], x["invoice_count"]),
+        reverse=True,
+    )[:5]
+
+    # =====================================================
+    # TOP PRODUCTS
+    # =====================================================
+    current_products_data = (
+        OrderItem.objects
+        .filter(order_id__in=orders_qs.values("id"))
+        .values("product_id", "product_name")
+        .annotate(
+            quantity_sold=Coalesce(
+                Sum("quantity"),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+        )
+    )
+
+    previous_products_data = (
+        OrderItem.objects
+        .filter(order_id__in=previous_orders_qs.values("id"))
+        .values("product_id")
+        .annotate(
+            quantity_sold=Coalesce(
+                Sum("quantity"),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+        )
+    )
+
+    previous_product_map = {
+        row["product_id"]: row["quantity_sold"] or Decimal("0.00")
+        for row in previous_products_data
+    }
+
+    product_rows = []
+
+    for row in current_products_data:
+        current_qty = row["quantity_sold"] or Decimal("0.00")
+        previous_qty = previous_product_map.get(row["product_id"], Decimal("0.00"))
+
+        product_rows.append({
+            "product_id": row["product_id"],
+            "product_name": row["product_name"],
+            "quantity_sold": current_qty,
+            "quantity_trend": build_trend(float(current_qty), float(previous_qty)),
+        })
+
+    top_products = sorted(
+        product_rows,
+        key=lambda x: x["quantity_sold"],
+        reverse=True,
+    )[:5]
+
     context = {
         "range": range_param,
+        "period_label": period_label,
+        "comparison_label": comparison_label,
 
-        # KPIs
-        "prospects_in_range": prospects_in_range,
-        "prospects_total": prospects_total,
-        "active_clients_count": active_clients_count,
+        "prospects_trend": prospects_trend,
+        "new_clients_trend": new_clients_trend,
+        "conversion_rate": conversion_rate,
+        "prospects_converted_current": prospects_converted_current,
+        "active_clients_overall": active_clients_overall,
+        "active_pipeline_total": active_pipeline_total,
+        "orders_closed_count": orders_closed_count,
 
-        # Pipeline
-        "pipeline_summary": pipeline_summary,
-
-        # Clients
-        "top_clients_by_value": top_clients_by_value,
-        "top_clients_by_frequency": top_clients_by_frequency,
-
-        # Orders & tasks
-        "recent_orders": recent_orders,
-        "tasks": tasks,
-
-        # Chart
         "sales_labels": sales_labels,
         "sales_data": sales_data,
+
+        "top_clients_by_invoice_quantity": top_clients_by_invoice_quantity,
+        "top_clients_by_invoice_value": top_clients_by_invoice_value,
+        "top_products": top_products,
     }
 
     return render(request, "sales/dashboard.html", context)
@@ -260,140 +475,106 @@ def sales_dashboard(request):
 def prospects(request):
     """
     Sales prospects pipeline:
-    - GET: list + filters + pipeline summary + sample stats
-    - POST: quick 'Record Sample' from the modal at the top.
+    - GET: list prospects with search, stage filter, and status filter.
+    - No sample filtering or sample stats.
     """
 
-    # ----- Handle quick 'Record Sample' POST from the modal -----
-    if request.method == "POST":
-        prospect_id = request.POST.get("prospect_id")
-        if prospect_id:
-            prospect = get_object_or_404(Prospect, pk=prospect_id)
-            sample_details = (request.POST.get("sample_details") or "").strip()
-            sample_date_str = (request.POST.get("sample_date") or "").strip()
-
-            # Parse sample date; if invalid/missing, use now
-            if sample_date_str:
-                try:
-                    # sample_date_str is just a date (YYYY-MM-DD)
-                    sample_date = datetime.fromisoformat(sample_date_str)
-                    if timezone.is_naive(sample_date):
-                        sample_date = timezone.make_aware(sample_date)
-                except ValueError:
-                    sample_date = timezone.now()
-            else:
-                sample_date = timezone.now()
-
-            old_stage = prospect.stage
-            new_stage = old_stage
-            # 🔁 if a sample/site visit is recorded from NEW/CONTACTED, move to SITE_VISIT
-            if old_stage in ["NEW", "CONTACTED"]:
-                new_stage = "SITE_VISIT"   # 🔑 was "SAMPLES_GIVEN" before
-
-            # Create the update
-            ProspectUpdate.objects.create(
-                prospect=prospect,
-                user=request.user,
-                action_type="SAMPLE",
-                outcome="SAMPLE_DROPPED",
-                action_at=sample_date,
-                old_stage=old_stage,
-                new_stage=new_stage,
-                notes=sample_details,
-            )
-
-            # Update prospect stage + last_contact
-            prospect.stage = new_stage
-            prospect.last_contact_at = sample_date
-            prospect.save(update_fields=["stage", "last_contact_at", "updated_at"])
-
-        return redirect("sales-prospects")
-
-    # ----- GET: filtering / listing -----
     qs = (
         Prospect.objects
         .select_related("owner")
-        .annotate(
-            # 🔁 rename so it doesn't clash with the @property samples_count
-            samples_total=Count(
-                "updates",
-                filter=Q(updates__action_type="SAMPLE"),
-                distinct=True,
-            )
-        )
     )
 
-    # Search
+    # -------------------------------------------------
+    # SEARCH
+    # -------------------------------------------------
     q = (request.GET.get("q") or "").strip()
+
     if q:
         qs = qs.filter(
             Q(name__icontains=q)
             | Q(organization__icontains=q)
             | Q(contact_name__icontains=q)
             | Q(notes__icontains=q)
+            | Q(suburb__icontains=q)
+            | Q(city__icontains=q)
         )
 
-    # Stage filter (UI uses lowercase values; model uses uppercase codes)
+    # -------------------------------------------------
+    # STAGE FILTER
+    # -------------------------------------------------
     stage_filter = (request.GET.get("stage") or "").strip().upper()
-    valid_stages = {code for code, _ in Prospect.STAGE_CHOICES}
+
+    valid_stages = {
+        code
+        for code, _ in Prospect.STAGE_CHOICES
+    }
+
     if stage_filter and stage_filter in valid_stages:
         qs = qs.filter(stage=stage_filter)
 
-    # Has samples filter
-    has_samples = (request.GET.get("has_samples") or "").strip()
-    if has_samples == "yes":
-        qs = qs.filter(samples_total__gt=0)   # 🔁 was samples_count
-    elif has_samples == "no":
-        qs = qs.filter(samples_total=0)       # 🔁 was samples_count
+    # -------------------------------------------------
+    # STATUS FILTER
+    # -------------------------------------------------
+    status_filter = (request.GET.get("status") or "").strip().upper()
 
-    # Total (after filters)
+    valid_statuses = {
+        code
+        for code, _ in Prospect.STATUS_CHOICES
+    }
+
+    if status_filter and status_filter in valid_statuses:
+        qs = qs.filter(status=status_filter)
+
+    # -------------------------------------------------
+    # TOTAL AFTER FILTERS
+    # -------------------------------------------------
     prospects_total = qs.count()
 
-    # Pipeline summary for the filtered set
+    # -------------------------------------------------
+    # PIPELINE SUMMARY
+    # -------------------------------------------------
     stage_label_map = dict(Prospect.STAGE_CHOICES)
+
     pipeline_raw = (
         qs.values("stage")
         .annotate(count=Count("id"))
         .order_by("stage")
     )
+
     pipeline_summary = [
         {
             "stage": row["stage"],
-            "stage_label": stage_label_map.get(row["stage"], row["stage"]),
+            "stage_label": stage_label_map.get(
+                row["stage"],
+                row["stage"],
+            ),
             "count": row["count"],
         }
         for row in pipeline_raw
     ]
 
-    # Sample stats
-    prospects_with_samples = qs.filter(samples_total__gt=0).count()  # 🔁
-    samples_total = ProspectUpdate.objects.filter(
-        prospect__in=qs,
-        action_type="SAMPLE",
-    ).count()
-    samples_converted = (
-        qs.filter(stage="WON", updates__action_type="SAMPLE")
+    # -------------------------------------------------
+    # FINAL QUERYSET
+    # -------------------------------------------------
+    prospects_qs = (
+        qs
+        .order_by("-created_at")
         .distinct()
-        .count()
     )
 
-    if prospects_with_samples > 0:
-        rate = int(round((samples_converted / prospects_with_samples) * 100))
-        sample_conversion_rate = f"{rate}%"
-    else:
-        sample_conversion_rate = "0%"
-
     context = {
-        "prospects": qs.order_by("-created_at"),
+        "prospects": prospects_qs,
         "prospects_total": prospects_total,
         "pipeline_summary": pipeline_summary,
-        "prospects_with_samples": prospects_with_samples,
-        "samples_total": samples_total,
-        "samples_converted": samples_converted,
-        "sample_conversion_rate": sample_conversion_rate,
-        "today": timezone.localdate(),  # used in the modal default date
+        "today": timezone.localdate(),
     }
-    return render(request, "prospects/prospects.html", context)
+
+    return render(
+        request,
+        "prospects/prospects.html",
+        context,
+    )
+
 
 @login_required
 def prospect_create(request):
@@ -1364,6 +1545,608 @@ def edit_client(request, pk):
     return render(request, "clients/edit_client.html", {"form": form, "client": client})
 
 
+@login_required
+def quotations(request):
+
+    qs = (
+        Quotation.objects
+        .select_related(
+            "client",
+            "prospect",
+            "created_by",
+            "accepted_by",
+            "converted_order",
+        )
+        .prefetch_related("items")
+        .order_by("-created_at")
+    )
+
+    # -------------------------------------------------
+    # FILTER DROPDOWNS
+    # -------------------------------------------------
+
+    statuses = Quotation.STATUS_CHOICES
+
+    # -------------------------------------------------
+    # GET PARAMS
+    # -------------------------------------------------
+
+    search = (request.GET.get("search") or "").strip()
+
+    status = request.GET.get("status") or ""
+
+    has_order = request.GET.get("has_order") or ""
+
+    target_type = request.GET.get("target_type") or ""
+
+    created_by = request.GET.get("created_by") or ""
+
+    # -------------------------------------------------
+    # SEARCH
+    # -------------------------------------------------
+
+    if search:
+
+        qs = qs.filter(
+
+            Q(id__icontains=search) |
+
+            Q(client__name__icontains=search) |
+            Q(client__organization__icontains=search) |
+            Q(client__contact_person__icontains=search) |
+            Q(client__email__icontains=search) |
+            Q(client__phone__icontains=search) |
+
+            Q(prospect__name__icontains=search) |
+            Q(prospect__organization__icontains=search) |
+            Q(prospect__email__icontains=search) |
+            Q(prospect__phone__icontains=search)
+
+        )
+
+    # -------------------------------------------------
+    # STATUS
+    # -------------------------------------------------
+
+    if status:
+        qs = qs.filter(status=status)
+
+    # -------------------------------------------------
+    # HAS CONVERTED ORDER
+    # -------------------------------------------------
+
+    if has_order == "yes":
+        qs = qs.filter(converted_order__isnull=False)
+
+    elif has_order == "no":
+        qs = qs.filter(converted_order__isnull=True)
+
+    # -------------------------------------------------
+    # TARGET TYPE
+    # -------------------------------------------------
+
+    if target_type == "client":
+        qs = qs.filter(client__isnull=False)
+
+    elif target_type == "prospect":
+        qs = qs.filter(prospect__isnull=False)
+
+    # -------------------------------------------------
+    # CREATED BY
+    # -------------------------------------------------
+
+    if created_by.isdigit():
+        qs = qs.filter(created_by_id=int(created_by))
+
+    # -------------------------------------------------
+    # FINAL DISTINCT
+    # -------------------------------------------------
+
+    quotations = qs.distinct()
+
+    return render(request, "quotations/quotations.html", {
+
+        "quotations": quotations,
+
+        "statuses": statuses,
+
+        "selected_status": status,
+        "selected_has_order": has_order,
+        "selected_target_type": target_type,
+        "selected_created_by": created_by,
+        "search": search,
+
+    })
+    
+
+
+
+class QuotationCreateForm(forms.ModelForm):
+    quotation_for = forms.ChoiceField(
+        choices=[
+            ("client", "Existing Client"),
+            ("prospect", "Prospect"),
+        ],
+        widget=forms.RadioSelect,
+        initial="client",
+        required=True,
+    )
+
+    class Meta:
+        model = Quotation
+        fields = [
+            "quotation_for",
+            "client",
+            "prospect",
+            "customer_notes",
+        ]
+
+        widgets = {
+            "client": forms.Select(attrs={"class": "form-select"}),
+            "prospect": forms.Select(attrs={"class": "form-select"}),
+            "customer_notes": forms.Textarea(attrs={"class": "form-control", "rows": 4}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["client"].queryset = (
+            Client.objects
+            .filter(status="ACTIVE")
+            .order_by("name")
+        )
+
+        self.fields["prospect"].queryset = (
+            Prospect.objects
+            .filter(client__isnull=True)
+            .exclude(stage="WON")
+            .order_by("name")
+        )
+
+        self.fields["client"].required = False
+        self.fields["prospect"].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        quotation_for = cleaned_data.get("quotation_for")
+        client = cleaned_data.get("client")
+        prospect = cleaned_data.get("prospect")
+
+        if quotation_for == "client":
+            if not client:
+                raise forms.ValidationError("Please select an existing client.")
+            cleaned_data["prospect"] = None
+
+        elif quotation_for == "prospect":
+            if not prospect:
+                raise forms.ValidationError("Please select a prospect.")
+            cleaned_data["client"] = None
+
+        return cleaned_data
+
+
+class QuotationItemForm(forms.ModelForm):
+    class Meta:
+        model = QuotationItem
+        fields = [
+            "category",
+            "product",
+            "quantity",
+            "unit_price_excl",
+            "discount_excl",
+            "vat_percent",
+        ]
+
+        widgets = {
+            "category": forms.Select(attrs={"class": "form-select quotation-category"}),
+            "product": forms.Select(attrs={"class": "form-select quotation-product"}),
+            "quantity": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0.01"}),
+            "unit_price_excl": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
+            "discount_excl": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
+            "vat_percent": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0", "max": "100"}),
+        }
+
+
+QuotationItemFormSet = inlineformset_factory(
+    parent_model=Quotation,
+    model=QuotationItem,
+    form=QuotationItemForm,
+    fields=[
+        "category",
+        "product",
+        "quantity",
+        "unit_price_excl",
+        "discount_excl",
+        "vat_percent",
+    ],
+    extra=0,
+    can_delete=True,
+    validate_min=True,
+    min_num=1,
+)
+
+
+@login_required
+def create_quotation(request):
+
+    if request.method == "POST":
+
+        form = QuotationCreateForm(request.POST)
+
+        formset = QuotationItemFormSet(
+            request.POST,
+            prefix="items"
+        )
+
+        if form.is_valid() and formset.is_valid():
+
+            try:
+                with transaction.atomic():
+
+                    quotation = form.save(commit=False)
+
+                    quotation.created_by = request.user
+                    quotation.status = "draft"
+                    quotation.quotation_date = timezone.now()
+                    quotation.valid_until = (
+                        timezone.now() + timedelta(hours=72)
+                    ).date()
+
+                    quotation.save()
+
+                    items = formset.save(commit=False)
+
+                    for item in items:
+                        item.quotation = quotation
+                        item.save()
+
+                    for deleted in formset.deleted_objects:
+                        deleted.delete()
+
+                    quotation.recalc_totals(save=True)
+
+                messages.success(
+                    request,
+                    f"Quotation #{quotation.id} created."
+                )
+
+                return redirect(
+                    "sales:sales-view-quotation",
+                    pk=quotation.id
+                )
+
+            except Exception as e:
+                messages.error(
+                    request,
+                    f"Quotation could not be created: {e}"
+                )
+
+        else:
+            messages.error(
+                request,
+                "Please correct the errors below."
+            )
+
+    else:
+        form = QuotationCreateForm()
+
+        formset = QuotationItemFormSet(
+            prefix="items"
+        )
+
+    return render(
+        request,
+        "quotations/create_quotation.html",
+        {
+            "form": form,
+            "formset": formset,
+            "prefix": "items",
+        },
+    )
+
+
+@login_required
+def edit_quotation(request, pk):
+
+    quotation = get_object_or_404(
+        Quotation.objects.prefetch_related("items"),
+        pk=pk,
+    )
+
+    # -----------------------------------
+    # LOCKED CHECK
+    # -----------------------------------
+    locked_statuses = [
+        "accepted",
+        "rejected",
+        "expired",
+    ]
+
+    if quotation.status in locked_statuses:
+        messages.warning(
+            request,
+            "This quotation is locked and can no longer be edited."
+        )
+
+        return redirect(
+            "sales:sales-view-quotation",
+            pk=quotation.id,
+        )
+
+    if request.method == "POST":
+
+        form = QuotationCreateForm(
+            request.POST,
+            instance=quotation,
+        )
+
+        formset = QuotationItemFormSet(
+            request.POST,
+            instance=quotation,
+            prefix="items",
+        )
+
+        if form.is_valid() and formset.is_valid():
+
+            try:
+
+                with transaction.atomic():
+
+                    quotation = form.save(commit=False)
+                    quotation.save()
+
+                    items = formset.save(commit=False)
+
+                    for item in items:
+                        item.quotation = quotation
+                        item.save()
+
+                    for deleted in formset.deleted_objects:
+                        deleted.delete()
+
+                    quotation.recalc_totals(save=True)
+
+                messages.success(
+                    request,
+                    f"Quotation #{quotation.id} updated successfully."
+                )
+
+                return redirect(
+                    "sales:sales-view-quotation",
+                    pk=quotation.id,
+                )
+
+            except Exception as e:
+
+                messages.error(
+                    request,
+                    f"Quotation could not be updated: {e}"
+                )
+
+        else:
+
+            messages.error(
+                request,
+                "Please correct the errors below."
+            )
+
+    else:
+
+        form = QuotationCreateForm(instance=quotation)
+
+        if quotation.client:
+            form.initial["quotation_for"] = "client"
+
+        elif quotation.prospect:
+            form.initial["quotation_for"] = "prospect"
+
+        formset = QuotationItemFormSet(
+            instance=quotation,
+            prefix="items",
+        )
+
+    return render(
+        request,
+        "quotations/create_quotation.html",
+        {
+            "form": form,
+            "formset": formset,
+            "quotation": quotation,
+            "is_edit": True,
+        },
+    )
+
+
+@login_required
+@require_POST
+def send_quotation_whatsapp_view(request, pk):
+
+    quotation = get_object_or_404(
+        Quotation.objects.select_related(
+            "client",
+            "prospect",
+        ),
+        pk=pk,
+    )
+
+    recipient = quotation.client or quotation.prospect
+
+    if not recipient:
+        return JsonResponse({
+            "success": False,
+            "error": "No client/prospect found."
+        }, status=400)
+
+    phone = (
+        request.POST.get("phone")
+        or getattr(recipient, "phone", "")
+        or ""
+    ).strip()
+
+    if not phone:
+        return JsonResponse({
+            "success": False,
+            "error": "No WhatsApp number found."
+        }, status=400)
+
+    phone = (
+        phone
+        .replace("+", "")
+        .replace(" ", "")
+        .replace("-", "")
+    )
+
+    client_name = (
+        getattr(recipient, "organization", None)
+        or getattr(recipient, "name", None)
+        or "Client"
+    )
+
+    link = (
+        f"{settings.SITE_URL}/orders/q/"
+        f"{quotation.public_token}/"
+    )
+
+    result = send_quotation_whatsapp(
+        to=phone,
+        client_name=client_name,
+        quotation_number=f"QT-{quotation.id}",
+        amount=quotation.grand_total_inc,
+        link=link,
+        quotation=quotation,
+    )
+
+    if not result.get("messages"):
+
+        error_message = (
+            result.get("error", {})
+            .get("message", "Unknown WhatsApp error")
+        )
+
+        CommunicationLog.objects.create(
+            channel=CommunicationLog.CHANNEL_WHATSAPP,
+            status=CommunicationLog.STATUS_FAILED,
+            recipient_name=client_name,
+            recipient_contact=phone,
+            subject=f"Quotation QT-{quotation.id}",
+            message=f"Failed WhatsApp quotation send.\nQuotation ID: {quotation.id}\nLink: {link}",
+            related_model="Quotation",
+            related_object_id=quotation.id,
+            provider="Meta WhatsApp Cloud API",
+            provider_response=result,
+            error_message=error_message,
+            sent_by=request.user,
+        )
+
+        return JsonResponse({
+            "success": False,
+            "error": error_message,
+            "result": result,
+        }, status=400)
+
+    message_id = result["messages"][0].get("id")
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_WHATSAPP,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=client_name,
+        recipient_contact=phone,
+        subject=f"Quotation QT-{quotation.id}",
+        message=f"Quotation sent via WhatsApp.\nQuotation ID: {quotation.id}\nLink: {link}",
+        related_model="Quotation",
+        related_object_id=quotation.id,
+        provider="Meta WhatsApp Cloud API",
+        provider_message_id=message_id,
+        provider_response=result,
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    quotation.status = "sent"
+
+    quotation.save(
+        update_fields=[
+            "status",
+            "updated_at",
+        ]
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "Quotation sent successfully.",
+        "whatsapp_message_id": message_id,
+        "result": result,
+    })
+
+
+@login_required
+def view_quotation(request, pk):
+
+    quotation = get_object_or_404(
+        Quotation.objects
+        .select_related(
+            "client",
+            "prospect",
+            "created_by",
+            "accepted_by",
+            "converted_order",
+        )
+        .prefetch_related(
+            "items__product",
+            "items__category",
+        ),
+        pk=pk,
+    )
+
+    quotation.recalc_totals(save=False)
+
+    item_rows = []
+
+    for item in quotation.items.all().order_by("id"):
+
+        qty = item.quantity or Decimal("0.00")
+        unit_excl = item.unit_price_excl or Decimal("0.00")
+        discount_per_unit = item.discount_excl or Decimal("0.00")
+        vat_pct = item.vat_percent or Decimal("0.00")
+
+        gross_excl = unit_excl * qty
+        discount_total = discount_per_unit * qty
+        line_excl = gross_excl - discount_total
+        vat_amount = line_excl * (vat_pct / Decimal("100.00"))
+        line_inc = line_excl + vat_amount
+
+        discount_pct = Decimal("0.00")
+
+        if unit_excl > 0 and discount_per_unit > 0:
+            discount_pct = (discount_per_unit / unit_excl) * Decimal("100.00")
+
+        item_rows.append({
+            "item": item,
+            "qty": qty,
+            "unit_excl": unit_excl,
+            "discount_per_unit": discount_per_unit,
+            "discount_total": discount_total,
+            "discount_pct": discount_pct,
+            "vat_pct": vat_pct,
+            "line_excl": line_excl,
+            "vat_amount": vat_amount,
+            "line_inc": line_inc,
+        })
+
+    return render(
+        request,
+        "quotations/view_quotation.html",
+        {
+            "quotation": quotation,
+            "item_rows": item_rows,
+        },
+    )
+
+
+
+
+
 def send_email_pending_to_active(client, user):
     subject = "The Daily Market – Your account is now active"
 
@@ -1819,17 +2602,66 @@ def delete_order(request, pk):
 @login_required
 def ajax_products_by_category(request):
     cat_id = request.GET.get("category_id")
+
     if not cat_id:
         return JsonResponse({"results": []})
 
-    qs = (
+    products = (
         Product.objects
         .filter(category_id=cat_id)
+        .prefetch_related("pricing_rows")
         .order_by("name")
-        .values("id", "sku", "name", "uom")
     )
-    results = [{"id": p["id"], "text": f'{p["sku"]} · {p["name"]} ({p["uom"]})'} for p in qs]
+
+    results = []
+
+    for product in products:
+        best_price_excl = None
+        best_vat_percent = None
+
+        active_pricing_rows = product.pricing_rows.filter(is_active=True)
+
+        for pricing in active_pricing_rows:
+            price_excl = pricing.wholesale_price_excl
+            vat_percent = pricing.wholesale_vat_percent
+
+            if price_excl is None or price_excl <= Decimal("0.00"):
+                continue
+
+            if best_price_excl is None or price_excl < best_price_excl:
+                best_price_excl = price_excl
+                best_vat_percent = vat_percent
+
+        if best_price_excl is not None:
+            vat_multiplier = Decimal("1.00") + (
+                best_vat_percent / Decimal("100.00")
+            )
+
+            best_price_incl = (
+                best_price_excl * vat_multiplier
+            ).quantize(Decimal("0.01"))
+
+            text = (
+                f"{product.sku} · {product.name} "
+                f"({product.uom}) — "
+                f"R{best_price_excl:.2f} excl · "
+                f"R{best_price_incl:.2f} incl"
+            )
+        else:
+            text = (
+                f"{product.sku} · {product.name} "
+                f"({product.uom}) — No active price"
+            )
+
+        results.append({
+            "id": product.id,
+            "text": text,
+            "price_excl": str(best_price_excl or Decimal("0.00")),
+            "vat_percent": str(best_vat_percent or Decimal("0.00")),
+        })
+
     return JsonResponse({"results": results})
+
 
 
 @login_required
@@ -3204,3 +4036,560 @@ def sales_job(request):
 
 def sales_job_thank_you(request):
     return render(request, "jobs/sales_job_thank_you.html")
+
+
+@login_required
+@require_POST
+def send_quotation_sms(request, pk):
+
+    quotation = get_object_or_404(
+        Quotation.objects.select_related("client", "prospect"),
+        pk=pk,
+    )
+
+    recipient = quotation.client or quotation.prospect
+
+    if not recipient:
+        return JsonResponse({
+            "success": False,
+            "error": "No client/prospect found."
+        }, status=400)
+
+    phone = (
+        request.POST.get("phone")
+        or getattr(recipient, "phone", "")
+        or ""
+    ).strip()
+
+    if not phone:
+        return JsonResponse({
+            "success": False,
+            "error": "No mobile number found."
+        }, status=400)
+
+    client_name = (
+        getattr(recipient, "organization", None)
+        or getattr(recipient, "name", None)
+        or "Client"
+    )
+
+    link = f"{settings.SITE_URL}/orders/q/{quotation.public_token}/"
+
+    message = (
+        f"Hi {client_name}, your The Daily Market quotation QT-{quotation.id} "
+        f"is ready. Total R{quotation.grand_total_inc:.2f}. "
+        f"View/accept: {link}"
+    )
+
+    result = send_sms(
+        to=phone,
+        message=message,
+    )
+
+    if not result.get("success"):
+        CommunicationLog.objects.create(
+            channel=CommunicationLog.CHANNEL_SMS,
+            status=CommunicationLog.STATUS_FAILED,
+            recipient_name=client_name,
+            recipient_contact=phone,
+            subject=f"Quotation QT-{quotation.id}",
+            message=message,
+            related_model="Quotation",
+            related_object_id=quotation.id,
+            provider="SMSPortal",
+            provider_response=result,
+            error_message=str(result.get("response")),
+            sent_by=request.user,
+        )
+
+        return JsonResponse({
+            "success": False,
+            "error": "SMS failed to send.",
+            "result": result,
+        }, status=400)
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_SMS,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=client_name,
+        recipient_contact=phone,
+        subject=f"Quotation QT-{quotation.id}",
+        message=message,
+        related_model="Quotation",
+        related_object_id=quotation.id,
+        provider="SMSPortal",
+        provider_response=result,
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "SMS sent successfully.",
+        "result": result,
+    })
+
+
+
+@login_required
+@require_POST
+def send_quotation_email_internal(request, pk):
+
+    quotation = get_object_or_404(
+        Quotation.objects
+        .select_related("client", "prospect")
+        .prefetch_related("items", "items__product", "items__category"),
+        pk=pk,
+    )
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({
+            "success": False,
+            "error": "Invalid JSON."
+        }, status=400)
+
+    email_to = (data.get("email") or "").strip()
+    recipient_name = (data.get("recipient_name") or "").strip()
+
+    if not email_to:
+        return JsonResponse({
+            "success": False,
+            "error": "No email provided."
+        }, status=400)
+
+    recipient = quotation.client or quotation.prospect
+
+    if not recipient:
+        return JsonResponse({
+            "success": False,
+            "error": "No client/prospect found."
+        }, status=400)
+
+    if not recipient_name:
+        recipient_name = (
+            getattr(recipient, "organization", None)
+            or getattr(recipient, "name", None)
+            or "Valued Customer"
+        )
+
+    items = list(quotation.items.all())
+
+    for item in items:
+        unit_price_excl = item.unit_price_excl or Decimal("0.00")
+        vat_percent = item.vat_percent or Decimal("0.00")
+        line_total_excl = item.line_total_excl or Decimal("0.00")
+        line_vat_amount = item.line_vat_amount or Decimal("0.00")
+
+        item.display_unit_price_inc = (
+            unit_price_excl + (unit_price_excl * vat_percent / Decimal("100"))
+        )
+
+        item.display_line_total_inc = line_total_excl + line_vat_amount
+
+    quotation_url = request.build_absolute_uri(
+        reverse("public-quotation-view", args=[quotation.public_token])
+    )
+
+    ctx = {
+        "quotation": quotation,
+        "recipient": recipient,
+        "items": items,
+        "recipient_name": recipient_name,
+        "support_email": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"),
+        "quotation_url": quotation_url,
+    }
+
+    text_body = render_to_string("email/quotation_email.txt", ctx)
+    html_body = render_to_string("email/quotation_email.html", ctx)
+
+    subject = f"The Daily Market – Quotation QT-{quotation.id}"
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "accounts@thedailymarket.co.za"),
+        to=[email_to],
+        headers={
+            "Reply-To": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za")
+        },
+    )
+
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_EMAIL,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=recipient_name,
+        recipient_contact=email_to,
+        subject=subject,
+        message=f"Quotation sent via email. Quotation ID: {quotation.id}",
+        related_model="Quotation",
+        related_object_id=quotation.id,
+        provider="Django Email",
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse({"success": True})
+
+
+@login_required
+@require_POST
+def send_invoice_email_internal(request, pk):
+
+    invoice = get_object_or_404(
+        Invoice.objects.select_related(
+            "client",
+            "order",
+        ).prefetch_related(
+            "order__items",
+            "order__items__product",
+        ),
+        pk=pk,
+    )
+
+    try:
+        data = json.loads(request.body)
+
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Invalid JSON.",
+            },
+            status=400,
+        )
+
+    email_to = (data.get("email") or "").strip()
+    recipient_name = (data.get("recipient_name") or "").strip()
+
+    if not email_to:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "No email provided.",
+            },
+            status=400,
+        )
+
+    client = invoice.client
+
+    items = list(invoice.order.items.all())
+
+    for item in items:
+
+        unit_price_excl = item.unit_price_excl or Decimal("0.00")
+        vat_percent = item.vat_percent or Decimal("0.00")
+        line_total_excl = item.line_total_excl or Decimal("0.00")
+        line_vat_amount = item.line_vat_amount or Decimal("0.00")
+
+        item.display_unit_price_inc = (
+            unit_price_excl
+            + (
+                unit_price_excl
+                * vat_percent
+                / Decimal("100")
+            )
+        )
+
+        item.display_line_total_inc = (
+            line_total_excl
+            + line_vat_amount
+        )
+
+    if not recipient_name:
+
+        profile = client.customer_profiles.select_related("user").first()
+
+        if profile and profile.user:
+            recipient_name = (
+                profile.user.get_full_name()
+                or profile.user.username
+            )
+
+        else:
+            recipient_name = client.name or "Valued Customer"
+
+    ctx = {
+        "invoice": invoice,
+        "client": client,
+        "items": items,
+        "recipient_name": recipient_name,
+        "support_email": getattr(
+            settings,
+            "SUPPORT_EMAIL",
+            "support@thedailymarket.co.za",
+        ),
+        "invoice_url": request.build_absolute_uri(
+            reverse(
+                "public-invoice-view",
+                args=[invoice.public_token],
+            )
+        ),
+    }
+
+    text_body = render_to_string(
+        "email/invoice_email.txt",
+        ctx,
+    )
+
+    html_body = render_to_string(
+        "email/invoice_email.html",
+        ctx,
+    )
+
+    subject = f"The Daily Market – Invoice INV-{invoice.id}"
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=getattr(
+            settings,
+            "DEFAULT_FROM_EMAIL",
+            "accounts@thedailymarket.co.za",
+        ),
+        to=[email_to],
+        headers={
+            "Reply-To": getattr(
+                settings,
+                "SUPPORT_EMAIL",
+                "support@thedailymarket.co.za",
+            )
+        },
+    )
+
+    msg.attach_alternative(
+        html_body,
+        "text/html",
+    )
+
+    msg.send(
+        fail_silently=False,
+    )
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_EMAIL,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=recipient_name,
+        recipient_contact=email_to,
+        subject=subject,
+        message=f"Invoice sent via email. Invoice ID: {invoice.id}",
+        related_model="Invoice",
+        related_object_id=invoice.id,
+        provider="Django Email",
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+        }
+    )
+
+@login_required
+@require_POST
+def send_invoice_whatsapp_view(request, pk):
+
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("client", "order"),
+        pk=pk,
+    )
+
+    client = invoice.client
+
+    phone = (
+        request.POST.get("phone")
+        or getattr(client, "whatsapp", "")
+        or getattr(client, "phone", "")
+        or ""
+    ).strip()
+
+    if not phone:
+        return JsonResponse({
+            "success": False,
+            "error": "No WhatsApp number found."
+        }, status=400)
+
+    phone = (
+        phone
+        .replace("+", "")
+        .replace(" ", "")
+        .replace("-", "")
+    )
+
+    client_name = (
+        getattr(client, "organization", None)
+        or getattr(client, "name", None)
+        or "Client"
+    )
+
+    link = (
+        f"{settings.SITE_URL}/invoices/public/"
+        f"{invoice.public_token}/"
+    )
+
+    result = send_invoice_whatsapp(
+        to=phone,
+        client_name=client_name,
+        invoice_number=f"INV-{invoice.id}",
+        amount=invoice.amount_due,
+        link=link,
+        invoice=invoice,
+    )
+
+    if not result.get("messages"):
+
+        error_message = (
+            result.get("error", {})
+            .get("message", "Unknown WhatsApp error")
+        )
+
+        CommunicationLog.objects.create(
+            channel=CommunicationLog.CHANNEL_WHATSAPP,
+            status=CommunicationLog.STATUS_FAILED,
+            recipient_name=client_name,
+            recipient_contact=phone,
+            subject=f"Invoice INV-{invoice.id}",
+            message=(
+                f"Failed WhatsApp invoice send.\n"
+                f"Invoice ID: {invoice.id}\n"
+                f"Link: {link}"
+            ),
+            related_model="Invoice",
+            related_object_id=invoice.id,
+            provider="Meta WhatsApp Cloud API",
+            provider_response=result,
+            error_message=error_message,
+            sent_by=request.user,
+        )
+
+        return JsonResponse({
+            "success": False,
+            "error": error_message,
+            "result": result,
+        }, status=400)
+
+    message_id = result["messages"][0].get("id")
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_WHATSAPP,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=client_name,
+        recipient_contact=phone,
+        subject=f"Invoice INV-{invoice.id}",
+        message=(
+            f"Invoice sent via WhatsApp.\n"
+            f"Invoice ID: {invoice.id}\n"
+            f"Link: {link}"
+        ),
+        related_model="Invoice",
+        related_object_id=invoice.id,
+        provider="Meta WhatsApp Cloud API",
+        provider_message_id=message_id,
+        provider_response=result,
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "Invoice sent successfully.",
+        "whatsapp_message_id": message_id,
+        "result": result,
+    })
+
+
+@login_required
+@require_POST
+def send_invoice_sms_view(request, pk):
+
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("client", "order"),
+        pk=pk,
+    )
+
+    client = invoice.client
+
+    phone = (
+        request.POST.get("phone")
+        or getattr(client, "phone", "")
+        or getattr(client, "whatsapp", "")
+        or ""
+    ).strip()
+
+    if not phone:
+        return JsonResponse({
+            "success": False,
+            "error": "No mobile number found."
+        }, status=400)
+
+    client_name = (
+        getattr(client, "organization", None)
+        or getattr(client, "name", None)
+        or "Client"
+    )
+
+    link = (
+        f"{settings.SITE_URL}/invoices/public/"
+        f"{invoice.public_token}/"
+    )
+
+    message = (
+        f"Hi {client_name}, your The Daily Market invoice "
+        f"INV-{invoice.id} is ready. "
+        f"Amount due R{invoice.amount_due:.2f}. "
+        f"View/pay: {link}"
+    )
+
+    result = send_sms(
+        to=phone,
+        message=message,
+    )
+
+    if not result.get("success"):
+
+        CommunicationLog.objects.create(
+            channel=CommunicationLog.CHANNEL_SMS,
+            status=CommunicationLog.STATUS_FAILED,
+            recipient_name=client_name,
+            recipient_contact=phone,
+            subject=f"Invoice INV-{invoice.id}",
+            message=message,
+            related_model="Invoice",
+            related_object_id=invoice.id,
+            provider="SMSPortal",
+            provider_response=result,
+            error_message=str(result.get("response")),
+            sent_by=request.user,
+        )
+
+        return JsonResponse({
+            "success": False,
+            "error": "SMS failed to send.",
+            "result": result,
+        }, status=400)
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_SMS,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=client_name,
+        recipient_contact=phone,
+        subject=f"Invoice INV-{invoice.id}",
+        message=message,
+        related_model="Invoice",
+        related_object_id=invoice.id,
+        provider="SMSPortal",
+        provider_response=result,
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "Invoice sent successfully via SMS.",
+        "result": result,
+    })

@@ -31,6 +31,7 @@ from communications.services.whatsapp import (
     send_invoice_whatsapp,
     send_invoice_payment_request_whatsapp,
 )
+from communications.services.smsportal import send_sms
 
 
 
@@ -1200,5 +1201,335 @@ def invoice_send_payment_request(request, pk):
         "whatsapp_message_id": message_id,
     })
 
+
+@login_required
+@staff_required
+@require_POST
+def send_invoice_sms_view(request, pk):
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("client", "order"),
+        pk=pk,
+    )
+
+    client = invoice.client
+
+    phone = (
+        request.POST.get("phone")
+        or getattr(client, "phone", "")
+        or getattr(client, "whatsapp", "")
+        or ""
+    ).strip()
+
+    if not phone:
+        return JsonResponse({
+            "success": False,
+            "error": "No mobile number found."
+        }, status=400)
+
+    client_name = (
+        getattr(client, "organization", None)
+        or getattr(client, "name", None)
+        or "Client"
+    )
+
+    link = (
+        f"{settings.SITE_URL}/invoices/public/"
+        f"{invoice.public_token}/"
+    )
+
+    message = (
+        f"Hi {client_name}, your The Daily Market invoice "
+        f"INV-{invoice.id} is ready. "
+        f"Amount due R{invoice.amount_due:.2f}. "
+        f"View/pay: {link}"
+    )
+
+    result = send_sms(
+        to=phone,
+        message=message,
+    )
+
+    if not result.get("success"):
+        CommunicationLog.objects.create(
+            channel=CommunicationLog.CHANNEL_SMS,
+            status=CommunicationLog.STATUS_FAILED,
+            recipient_name=client_name,
+            recipient_contact=phone,
+            subject=f"Invoice INV-{invoice.id}",
+            message=message,
+            related_model="Invoice",
+            related_object_id=invoice.id,
+            provider="SMSPortal",
+            provider_response=result,
+            error_message=str(result.get("response")),
+            sent_by=request.user,
+        )
+
+        return JsonResponse({
+            "success": False,
+            "error": "SMS failed to send.",
+            "result": result,
+        }, status=400)
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_SMS,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=client_name,
+        recipient_contact=phone,
+        subject=f"Invoice INV-{invoice.id}",
+        message=message,
+        related_model="Invoice",
+        related_object_id=invoice.id,
+        provider="SMSPortal",
+        provider_response=result,
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "Invoice sent successfully via SMS.",
+        "result": result,
+    })
+
+
+@login_required
+@staff_required
+@require_POST
+def send_invoice_payment_request_sms(request, pk):
+
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("client", "order"),
+        pk=pk,
+    )
+
+    client = invoice.client
+
+    if invoice.status == "paid":
+        return JsonResponse({
+            "success": False,
+            "error": "Invoice is already paid.",
+        }, status=400)
+
+    phone = (
+        request.POST.get("phone")
+        or getattr(client, "phone", "")
+        or getattr(client, "whatsapp", "")
+        or ""
+    ).strip()
+
+    if not phone:
+        return JsonResponse({
+            "success": False,
+            "error": "No mobile number found.",
+        }, status=400)
+
+    client_name = (
+        getattr(client, "organization", None)
+        or getattr(client, "name", None)
+        or "Client"
+    )
+
+    link = (
+        f"{settings.SITE_URL}/invoices/public/"
+        f"{invoice.public_token}/"
+    )
+
+    message = (
+        f"Hi {client_name}, payment request for The Daily Market "
+        f"INV-{invoice.id}. Amount due R{invoice.amount_due:.2f}. "
+        f"Pay/view: {link}"
+    )
+
+    result = send_sms(
+        to=phone,
+        message=message,
+    )
+
+    if not result.get("success"):
+        CommunicationLog.objects.create(
+            channel=CommunicationLog.CHANNEL_SMS,
+            status=CommunicationLog.STATUS_FAILED,
+            recipient_name=client_name,
+            recipient_contact=phone,
+            subject=f"Payment Request INV-{invoice.id}",
+            message=message,
+            related_model="Invoice",
+            related_object_id=invoice.id,
+            provider="SMSPortal",
+            provider_response=result,
+            error_message=str(result.get("response")),
+            sent_by=request.user,
+        )
+
+        return JsonResponse({
+            "success": False,
+            "error": "Payment request SMS failed to send.",
+            "result": result,
+        }, status=400)
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_SMS,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=client_name,
+        recipient_contact=phone,
+        subject=f"Payment Request INV-{invoice.id}",
+        message=message,
+        related_model="Invoice",
+        related_object_id=invoice.id,
+        provider="SMSPortal",
+        provider_response=result,
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "Payment request sent via SMS.",
+        "result": result,
+    })
+
+@login_required
+@staff_required
+@require_POST
+def send_invoice_payment_request_email(request, pk):
+
+    invoice = get_object_or_404(
+        Invoice.objects.select_related(
+            "client",
+            "order",
+        ).prefetch_related(
+            "order__items",
+            "order__items__product",
+        ),
+        pk=pk,
+    )
+
+    client = invoice.client
+
+    if invoice.status == "paid":
+        return JsonResponse({
+            "success": False,
+            "error": "Invoice is already paid.",
+        }, status=400)
+
+    try:
+        data = json.loads(request.body)
+
+    except json.JSONDecodeError:
+        return JsonResponse({
+            "success": False,
+            "error": "Invalid JSON.",
+        }, status=400)
+
+    email_to = (data.get("email") or "").strip()
+    recipient_name = (data.get("recipient_name") or "").strip()
+
+    if not email_to:
+        return JsonResponse({
+            "success": False,
+            "error": "No email provided.",
+        }, status=400)
+
+    if not recipient_name:
+        recipient_name = (
+            getattr(client, "organization", None)
+            or getattr(client, "name", None)
+            or "Valued Customer"
+        )
+
+    items = list(invoice.order.items.all())
+
+    for item in items:
+        unit_price_excl = item.unit_price_excl or Decimal("0.00")
+        vat_percent = item.vat_percent or Decimal("0.00")
+        line_total_excl = item.line_total_excl or Decimal("0.00")
+        line_vat_amount = item.line_vat_amount or Decimal("0.00")
+
+        item.display_unit_price_inc = (
+            unit_price_excl
+            + (
+                unit_price_excl
+                * vat_percent
+                / Decimal("100")
+            )
+        )
+
+        item.display_line_total_inc = (
+            line_total_excl
+            + line_vat_amount
+        )
+
+    link = request.build_absolute_uri(
+        reverse(
+            "public-invoice-view",
+            args=[invoice.public_token],
+        )
+    )
+
+    ctx = {
+        "invoice": invoice,
+        "client": client,
+        "items": items,
+        "recipient_name": recipient_name,
+        "support_email": getattr(
+            settings,
+            "SUPPORT_EMAIL",
+            "support@thedailymarket.co.za",
+        ),
+        "invoice_url": link,
+    }
+
+    text_body = render_to_string(
+        "email/invoice_payment_request.txt",
+        ctx,
+    )
+
+    html_body = render_to_string(
+        "email/invoice_payment_request.html",
+        ctx,
+    )
+
+    subject = f"Payment Request – Invoice INV-{invoice.id}"
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=getattr(
+            settings,
+            "DEFAULT_FROM_EMAIL",
+            "accounts@thedailymarket.co.za",
+        ),
+        to=[email_to],
+        headers={
+            "Reply-To": getattr(
+                settings,
+                "SUPPORT_EMAIL",
+                "support@thedailymarket.co.za",
+            )
+        },
+    )
+
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_EMAIL,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=recipient_name,
+        recipient_contact=email_to,
+        subject=subject,
+        message=f"Payment request sent for Invoice {invoice.id}. Link: {link}",
+        related_model="Invoice",
+        related_object_id=invoice.id,
+        provider="Django Email",
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "Payment request sent via email.",
+    })
 
 

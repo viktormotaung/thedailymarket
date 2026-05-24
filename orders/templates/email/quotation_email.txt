@@ -1,0 +1,26 @@
+Hi {{ recipient_name }},
+
+Please find your quotation QT-{{ quotation.id }} for {{ recipient.organization|default:recipient.name }}.
+
+Quotation Date: {{ quotation.created_at|date:"d M Y" }}
+Status: {{ quotation.get_status_display }}
+
+Items:
+{% for item in items %}
+- {{ item.product_name }}:
+  {{ item.quantity }} x
+  R{{ item.display_unit_price_inc|floatformat:2 }}
+  =
+  R{{ item.display_line_total_inc|floatformat:2 }}
+{% endfor %}
+
+Quotation Total:
+R{{ quotation.grand_total_inc|floatformat:2 }}
+
+View & Accept Quotation:
+{{ quotation_url }}
+
+If you need assistance, contact:
+{{ support_email|default:'support@thedailymarket.co.za' }}
+
+— The Daily Market Team

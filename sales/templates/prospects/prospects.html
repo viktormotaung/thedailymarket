@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Prospects - Seshibo Daily Market</title>
+  <title>Prospects - The Daily Market</title>
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
@@ -68,7 +68,7 @@
       </button>
 
       <a class="navbar-brand d-flex align-items-center" href="#">
-        <img src="{% static 'images/logo.png' %}" alt="Seshibo" style="height:40px;">
+        <img src="{% static 'images/logo.png' %}" alt="The" style="height:40px;">
       </a>
     </div>
   </nav>
@@ -81,7 +81,7 @@
     </div>
     <div class="offcanvas-body sidebar-skin">
       <div class="text-center mb-3">
-        <img src="{% static 'images/logo.png' %}" alt="Seshibo" class="logo-img">
+        <img src="{% static 'images/logo.png' %}" alt="The" class="logo-img">
       </div>
 
       <!-- Nav links: data-route links will close the offcanvas via JS (see script) -->
@@ -114,7 +114,7 @@
   <!-- DESKTOP SIDEBAR -->
   <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
     <div class="text-center mb-3">
-      <img src="{% static 'images/logo.png' %}" alt="Seshibo" class="logo-img">
+      <img src="{% static 'images/logo.png' %}" alt="The" class="logo-img">
     </div>
 
     <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
@@ -167,127 +167,326 @@
       {% endif %}
 
       <div class="card shadow-sm mb-3">
-        <div class="card-header bg-white py-2">
-          <form method="get" class="row g-2 align-items-end">
-            <div class="col-md-4">
-              <label for="search" class="form-label mb-1">Search</label>
-              <input
-                type="text"
-                id="search"
-                name="q"
-                class="form-control"
-                placeholder="Name, contact, notes..."
-                value="{{ request.GET.q|default_if_none:'' }}"
-              >
+        <div class="card-header bg-white py-3">
+
+          <form method="get">
+
+            <div class="row g-3 align-items-end">
+
+              <!-- SEARCH -->
+              <div class="col-lg-5">
+
+                <label for="search" class="form-label mb-1 fw-semibold">
+                  Search
+                </label>
+
+                <input
+                  type="text"
+                  id="search"
+                  name="q"
+                  class="form-control"
+                  placeholder="Name, organization, contact, notes..."
+                  value="{{ request.GET.q|default_if_none:'' }}"
+                >
+
+              </div>
+
+              <!-- STAGE -->
+              <div class="col-lg-3">
+
+                <label for="stage" class="form-label mb-1 fw-semibold">
+                  Stage
+                </label>
+
+                <select id="stage"
+                        name="stage"
+                        class="form-select">
+
+                  <option value="">
+                    All stages
+                  </option>
+
+                  <option value="NEW"
+                    {% if request.GET.stage == 'NEW' %}selected{% endif %}>
+                    New
+                  </option>
+
+                  <option value="CONTACTED"
+                    {% if request.GET.stage == 'CONTACTED' %}selected{% endif %}>
+                    Contacted
+                  </option>
+
+                  <option value="NEGOTIATION"
+                    {% if request.GET.stage == 'NEGOTIATION' %}selected{% endif %}>
+                    Negotiation
+                  </option>
+
+                  <option value="WON"
+                    {% if request.GET.stage == 'WON' %}selected{% endif %}>
+                    Won
+                  </option>
+
+                  <option value="LOST"
+                    {% if request.GET.stage == 'LOST' %}selected{% endif %}>
+                    Lost
+                  </option>
+
+                </select>
+
+              </div>
+
+              <!-- STATUS -->
+              <div class="col-lg-2">
+
+                <label for="status" class="form-label mb-1 fw-semibold">
+                  Status
+                </label>
+
+                <select id="status"
+                        name="status"
+                        class="form-select">
+
+                  <option value="">
+                    All
+                  </option>
+
+                  <option value="ACTIVE"
+                    {% if request.GET.status == 'ACTIVE' %}selected{% endif %}>
+                    Active
+                  </option>
+
+                  <option value="ARCHIVED"
+                    {% if request.GET.status == 'ARCHIVED' %}selected{% endif %}>
+                    Archived
+                  </option>
+
+                </select>
+
+              </div>
+
+              <!-- ACTIONS -->
+              <div class="col-lg-2">
+
+                <div class="d-grid gap-2">
+
+                  <button type="submit"
+                          class="btn btn-success">
+                    Apply Filters
+                  </button>
+
+                  <a href="{% url 'sales:sales-prospects' %}" class="btn btn-outline-secondary">
+                    Reset
+                  </a>
+
+                </div>
+
+              </div>
+
             </div>
 
-            <div class="col-md-3">
-              <label for="stage" class="form-label mb-1">Stage</label>
-              <select id="stage" name="stage" class="form-select">
-                <option value="">All stages</option>
-                <option value="NEW" {% if request.GET.stage == 'NEW' %}selected{% endif %}>New</option>
-                <option value="CONTACTED" {% if request.GET.stage == 'CONTACTED' %}selected{% endif %}>Contacted</option>
-                <option value="SAMPLES_GIVEN" {% if request.GET.stage == 'SAMPLES_GIVEN' %}selected{% endif %}>Samples given</option>
-                <option value="NEGOTIATION" {% if request.GET.stage == 'NEGOTIATION' %}selected{% endif %}>Negotiation</option>
-                <option value="WON" {% if request.GET.stage == 'WON' %}selected{% endif %}>Won</option>
-                <option value="LOST" {% if request.GET.stage == 'LOST' %}selected{% endif %}>Lost</option>
-              </select>
-            </div>
-
-            <div class="col-md-3">
-              <label for="has_samples" class="form-label mb-1">Samples</label>
-              <select id="has_samples" name="has_samples" class="form-select">
-                <option value="">All</option>
-                <option value="yes" {% if request.GET.has_samples == 'yes' %}selected{% endif %}>Has samples</option>
-                <option value="no" {% if request.GET.has_samples == 'no' %}selected{% endif %}>No samples</option>
-              </select>
-            </div>
-
-            <div class="col-md-2 text-md-end">
-              <button type="submit" class="btn btn-outline-success w-100">Apply</button>
-            </div>
           </form>
+
         </div>
 
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-striped table-bordered mb-0 align-middle">
-              <thead>
-                <tr>
-                  <th style="width:18%; font-size:13px;">Name</th>
-                  <th style="width:12%; font-size:13px;">Organization</th>
-                  <th style="width:12%; font-size:13px;">Suburb</th>
-                  <th style="width:10%; font-size:13px;">City</th>
-                  <th style="width:12%; font-size:13px;">Created</th>
-                  <th style="width:10%; font-size:13px;">Rep</th>
-                  <th style="width:8%;  font-size:13px;">Type</th>
-                  <th style="width:11%; font-size:13px;">Stage</th>
-                  <th style="width:10%; font-size:13px;">Status</th>
-                </tr>
-              </thead>
+        <div class="card">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <strong>Prospect List</strong>
 
-              <tbody>
-                {% if prospects %}
-                  {% for p in prospects %}
-                    <tr role="button" onclick="window.location.href='{% url 'sales:sales-prospect-detail' p.pk %}'">
-                      <td style="font-size:13px;">
-                        <strong>{{ p.name }}</strong><br>
-                        {% if p.organization %}<small class="text-muted">{{ p.organization }}</small>{% endif %}
-                      </td>
+            <span class="text-muted small">
+              {{ prospects|length }} record(s)
+            </span>
+          </div>
 
-                      <td style="font-size:13px;">{{ p.organization|default:"-" }}</td>
-                      <td style="font-size:13px;">{{ p.suburb|default:"-" }}</td>
-                      <td style="font-size:13px;">{{ p.city|default:"-" }}</td>
+          <div class="card-body p-0">
 
-                      <td style="font-size:13px;">
-                        {{ p.created_at|date:"Y-m-d" }}<br>
-                        <small class="text-muted">{{ p.created_at|naturaltime }}</small>
-                      </td>
+            <div class="table-responsive">
 
-                      <td style="font-size:13px;">
-                        {% if p.owner %}
-                          {{ p.owner.get_full_name|default:p.owner.username }}
-                        {% else %}
-                          <span class="text-muted">Unassigned</span>
-                        {% endif %}
-                      </td>
+              <table class="table table-striped table-bordered mb-0 align-middle">
 
-                      <td style="font-size:13px;">
-                        {% if p.potential_client_type %}
-                          {{ p.get_potential_client_type_display }}
-                        {% else %}
-                          <span class="text-muted">-</span>
-                        {% endif %}
-                      </td>
+                <thead>
+                  <tr>
+                    <th style="width:18%; font-size:13px;">Name</th>
+                    <th style="width:14%; font-size:13px;">Organization</th>
+                    <th style="width:12%; font-size:13px;">Suburb</th>
+                    <th style="width:10%; font-size:13px;">City</th>
+                    <th style="width:14%; font-size:13px;">Created</th>
+                    <th style="width:12%; font-size:13px;">Rep</th>
+                    <th style="width:10%; font-size:13px;">Type</th>
+                    <th style="width:10%; font-size:13px;">Stage</th>
+                    <th style="width:10%; font-size:13px;">Status</th>
+                  </tr>
+                </thead>
 
-                      
+                <tbody>
 
-                      <td style="font-size:13px;">
-                        <span class="badge bg-secondary">{{ p.get_stage_display }}</span>
-                      </td>
+                  {% if prospects %}
 
-                      <td style="font-size:13px;">
-                        {% if p.status == "ACTIVE" %}
-                          <span class="badge bg-success">Active</span>
-                        {% elif p.status == "ARCHIVED" %}
-                          <span class="badge bg-dark">Archived</span>
-                        {% else %}
-                          <span class="badge bg-secondary">{{ p.get_status_display }}</span>
-                        {% endif %}
+                    {% for p in prospects %}
+
+                      <tr class="clickable-row"
+                          data-href="{% url 'sales:sales-prospect-detail' p.pk %}"
+                          style="cursor:pointer;">
+
+                        <!-- NAME -->
+                        <td style="font-size:13px;">
+                          <div class="fw-semibold">
+                            {{ p.name }}
+                          </div>
+
+                          
+                        </td>
+
+                        <!-- ORGANIZATION -->
+                        <td style="font-size:13px;">
+                          {{ p.organization|default:"—" }}
+                        </td>
+
+                        <!-- SUBURB -->
+                        <td style="font-size:13px;">
+                          {{ p.suburb|default:"—" }}
+                        </td>
+
+                        <!-- CITY -->
+                        <td style="font-size:13px;">
+                          {{ p.city|default:"—" }}
+                        </td>
+
+                        <!-- CREATED -->
+                        <td style="font-size:13px;">
+                          {{ p.created_at|date:"Y-m-d H:i" }}
+                        </td>
+
+                        <!-- REP -->
+                        <td style="font-size:13px;">
+
+                          {% if p.owner %}
+                            {{ p.owner.get_full_name|default:p.owner.username }}
+                          {% else %}
+                            <span class="text-muted">
+                              Unassigned
+                            </span>
+                          {% endif %}
+
+                        </td>
+
+                        <!-- TYPE -->
+                        <td style="font-size:13px;">
+
+                          {% if p.potential_client_type %}
+                            {{ p.get_potential_client_type_display }}
+                          {% else %}
+                            —
+                          {% endif %}
+
+                        </td>
+
+                        <!-- STAGE -->
+                        <td style="font-size:13px;">
+
+                          {% if p.stage == "NEW" %}
+                            <span class="badge bg-secondary">
+                              New
+                            </span>
+
+                          {% elif p.stage == "CONTACTED" %}
+                            <span class="badge bg-primary">
+                              Contacted
+                            </span>
+
+                          {% elif p.stage == "SAMPLES_GIVEN" %}
+                            <span class="badge bg-info text-dark">
+                              Samples Given
+                            </span>
+
+                          {% elif p.stage == "NEGOTIATION" %}
+                            <span class="badge bg-warning text-dark">
+                              Negotiation
+                            </span>
+
+                          {% elif p.stage == "WON" %}
+                            <span class="badge bg-success">
+                              Won
+                            </span>
+
+                          {% elif p.stage == "LOST" %}
+                            <span class="badge bg-danger">
+                              Lost
+                            </span>
+
+                          {% else %}
+                            <span class="badge bg-secondary">
+                              {{ p.get_stage_display }}
+                            </span>
+                          {% endif %}
+
+                        </td>
+
+                        <!-- STATUS -->
+                        <td style="font-size:13px;">
+
+                          {% if p.status == "ACTIVE" %}
+                            <span class="badge bg-success">
+                              Active
+                            </span>
+
+                          {% elif p.status == "ARCHIVED" %}
+                            <span class="badge bg-dark">
+                              Archived
+                            </span>
+
+                          {% else %}
+                            <span class="badge bg-secondary">
+                              {{ p.get_status_display }}
+                            </span>
+                          {% endif %}
+
+                        </td>
+
+                      </tr>
+
+                    {% endfor %}
+
+                  {% else %}
+
+                    <tr>
+                      <td colspan="9"
+                          class="text-center text-muted py-4">
+                        No prospects found.
                       </td>
                     </tr>
-                  {% endfor %}
-                {% else %}
-                  <tr>
-                    <td colspan="10" class="text-center text-muted py-3" style="font-size:13px;">
-                      No prospects found. Try changing your filters.
-                    </td>
-                  </tr>
-                {% endif %}
-              </tbody>
-            </table>
+
+                  {% endif %}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
           </div>
         </div>
+
+        <script>
+        document.addEventListener("DOMContentLoaded", function () {
+
+          document.querySelectorAll(".clickable-row").forEach(row => {
+
+            row.addEventListener("click", function (e) {
+
+              if (e.target.closest("a, button")) return;
+
+              const href = this.dataset.href;
+
+              if (href) {
+                window.location.href = href;
+              }
+
+            });
+
+          });
+
+        });
+        </script>
       </div>
 
       {# pagination or summary could go here if you use paginator #}
