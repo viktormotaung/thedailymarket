@@ -367,4 +367,4 @@ SMSPORTAL_CLIENT_ID = "dailymarket_api"
 
 SMSPORTAL_API_SECRET = "TDM_SMS_2026!SecureAPI"
 
-SITE_URL = "http://127.0.0.1:8000"
+SITE_URL = "http://thedailymarket.co.za"
