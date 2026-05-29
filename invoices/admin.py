@@ -257,6 +257,21 @@ class MonthlyTargetAllocationInline(admin.TabularInline):
     model = MonthlyTargetAllocation
     extra = 1
 
+    fields = (
+        "sales_rep",
+        "monthly_target_value",
+        "client_target",
+        "monthly_target_reached_at",
+        "client_target_reached_at",
+    )
+
+    readonly_fields = (
+        "monthly_target_reached_at",
+        "client_target_reached_at",
+    )
+
+    autocomplete_fields = ("sales_rep",)
+
 
 # =========================================================
 # Monthly Target Admin
@@ -269,16 +284,64 @@ class MonthlyTargetAdmin(admin.ModelAdmin):
         "year",
         "quarter",
         "monthly_target",
+        "total_client_target",
+        "monthly_target_reached_at",
+        "client_target_reached_at",
         "created_at",
     )
 
-    list_filter = ("year", "quarter", "area")
-    search_fields = ("area",)
-    ordering = ("-year", "month")
+    list_filter = (
+        "year",
+        "quarter",
+        "area",
+    )
+
+    search_fields = (
+        "area",
+    )
+
+    ordering = (
+        "-year",
+        "month",
+    )
+
+    readonly_fields = (
+        "monthly_target_reached_at",
+        "client_target_reached_at",
+        "created_at",
+    )
+
+    fieldsets = (
+        ("Target Period", {
+            "fields": (
+                "area",
+                "month",
+                "year",
+                "quarter",
+            )
+        }),
+        ("Monthly Targets", {
+            "fields": (
+                "monthly_target",
+                "total_client_target",
+            )
+        }),
+        ("Target Achievement", {
+            "fields": (
+                "monthly_target_reached_at",
+                "client_target_reached_at",
+            )
+        }),
+        ("System Info", {
+            "fields": (
+                "created_at",
+            )
+        }),
+    )
 
     inlines = [MonthlyTargetAllocationInline]
 
-
+    
 # =========================================================
 # DailyOverdueSummary admin
 # =========================================================
@@ -292,11 +355,14 @@ class DailyOverdueSummaryAdmin(admin.ModelAdmin):
 # =========================================================
 # CommissionEntry admin
 # =========================================================
+
 @admin.register(CommissionEntry)
 class CommissionEntryAdmin(admin.ModelAdmin):
+
     list_display = (
         "id",
         "invoice_id",
+        "client",
         "segment",
         "rep",
         "supervisor",
@@ -313,11 +379,14 @@ class CommissionEntryAdmin(admin.ModelAdmin):
         "is_new_business",
         "rep",
         "supervisor",
+        "client",
         "invoice__segment",
     )
 
     search_fields = (
         "invoice__id",
+        "client__name",
+        "client__client_number",
         "rep__username",
         "rep__first_name",
         "rep__last_name",
@@ -326,17 +395,76 @@ class CommissionEntryAdmin(admin.ModelAdmin):
         "supervisor__last_name",
     )
 
-    readonly_fields = ("created_at",)
+    autocomplete_fields = (
+        "client",
+        "rep",
+        "supervisor",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "rep_amount",
+        "supervisor_amount",
+    )
+
+    ordering = ("-created_at",)
+
+    fieldsets = (
+        ("Commission Info", {
+            "fields": (
+                "invoice",
+                "client",
+                "is_new_business",
+            )
+        }),
+
+        ("Sales Structure", {
+            "fields": (
+                "rep",
+                "supervisor",
+            )
+        }),
+
+        ("Commission Calculation", {
+            "fields": (
+                "cost_total",
+                "rep_rate",
+                "rep_amount",
+                "supervisor_rate",
+                "supervisor_amount",
+            )
+        }),
+
+        ("System Info", {
+            "fields": (
+                "created_at",
+            )
+        }),
+    )
 
     def invoice_id(self, obj):
-        return obj.invoice.id
+        return obj.invoice.id if obj.invoice else "-"
     invoice_id.short_description = "Invoice"
 
     def segment(self, obj):
-        return obj.invoice.segment
+        return obj.invoice.segment if obj.invoice else "-"
     segment.short_description = "Segment"
 
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related(
+                "invoice",
+                "client",
+                "rep",
+                "supervisor",
+            )
+        )
+    
 
+
+    
 # =========================================================
 # MonthlyCommission admin
 # =========================================================

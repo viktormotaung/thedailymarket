@@ -70,7 +70,7 @@
       <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
       <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
       <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
-      <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+      <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets</a>
       <hr class="border-light">
       <form action="{% url 'logout' %}" method="post" class="m-0">
         {% csrf_token %}
@@ -92,7 +92,7 @@
     <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
     <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
     <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
-    <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+    <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets</a>
     <div class="mt-3">
       <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
         {% csrf_token %}

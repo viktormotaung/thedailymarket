@@ -1,7 +1,7 @@
 # clients/admin.py
+# clients/admin.py
 from django.contrib import admin
 from django.utils.html import format_html
-
 
 from .models import (
     Client,
@@ -11,18 +11,18 @@ from .models import (
     ProspectUpdate,
 )
 
+
 # ============================================================
 # CLIENT
 # ============================================================
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    # ---------------------------
-    # List view
-    # ---------------------------
     list_display = (
         "client_number",
         "display_name",
+        "sales_operator",
+        "area",
         "is_dummy",
         "client_type",
         "price_type",
@@ -38,6 +38,8 @@ class ClientAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
+        "sales_operator",
+        "area",
         "is_dummy",
         "status",
         "client_type",
@@ -60,6 +62,7 @@ class ClientAdmin(admin.ModelAdmin):
         "email",
         "phone",
         "whatsapp",
+        "sales_operator__name",
         "vat_number",
         "registration_identifier",
         "address_line1",
@@ -71,13 +74,10 @@ class ClientAdmin(admin.ModelAdmin):
     )
 
     ordering = ("name",)
-    list_select_related = ("account_manager",)
+    list_select_related = ("account_manager", "sales_operator", "funder")
     list_per_page = 50
     save_on_top = True
 
-    # ---------------------------
-    # Forms
-    # ---------------------------
     readonly_fields = (
         "client_number",
         "created_at",
@@ -86,7 +86,12 @@ class ClientAdmin(admin.ModelAdmin):
         "maps_link",
     )
 
-    autocomplete_fields = ("account_manager", "funder")
+    autocomplete_fields = (
+        "account_manager",
+        "sales_operator",
+        "funder",
+    )
+
     filter_horizontal = ("categories",)
 
     fieldsets = (
@@ -95,6 +100,7 @@ class ClientAdmin(admin.ModelAdmin):
                 ("client_number", "status"),
                 ("client_type", "client_size_tier"),
                 ("price_type",),
+                ("area", "sales_operator"),
                 ("account_type", "credit_status"),
                 ("account_manager", "funder"),
                 ("is_dummy",),
@@ -104,6 +110,7 @@ class ClientAdmin(admin.ModelAdmin):
             "fields": (
                 "name",
                 "organization",
+                "entity_type",
                 "contact_person",
                 ("email", "phone", "whatsapp"),
             )
@@ -128,22 +135,38 @@ class ClientAdmin(admin.ModelAdmin):
                 "maps_link",
             )
         }),
+        ("Delivery Preferences", {
+            "fields": (
+                "preferred_delivery_slot_1",
+                "preferred_delivery_slot_2",
+                "preferred_delivery_slot_3",
+            ),
+            "classes": ("collapse",),
+        }),
         ("Compliance", {
-            "fields": ("vat_number", "registration_identifier"),
+            "fields": (
+                "vat_number",
+                "registration_identifier",
+            ),
             "classes": ("collapse",),
         }),
         ("Categories & Spend", {
-            "fields": ("categories", "estimated_weekly_spend"),
+            "fields": (
+                "categories",
+                "estimated_weekly_spend",
+            ),
         }),
         ("Notes & Meta", {
-            "fields": ("notes", "last_order_at", "created_at", "updated_at"),
+            "fields": (
+                "notes",
+                "last_order_at",
+                "created_at",
+                "updated_at",
+            ),
             "classes": ("collapse",),
         }),
     )
 
-    # ==================================================
-    # 🔥 MULTI-DB FIX (THIS IS THE REAL SOLUTION)
-    # ==================================================
     def get_queryset(self, request):
         qs = super().get_queryset(request)
 
@@ -154,7 +177,9 @@ class ClientAdmin(admin.ModelAdmin):
 
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(
-            request, queryset, search_term
+            request,
+            queryset,
+            search_term,
         )
 
         if request.path.startswith("/dummy-admin/"):
@@ -164,9 +189,6 @@ class ClientAdmin(admin.ModelAdmin):
 
         return queryset, use_distinct
 
-    # ==================================================
-    # Helpers
-    # ==================================================
     @admin.display(description="Name / Org")
     def display_name(self, obj: Client):
         return obj.organization or obj.name
@@ -180,8 +202,9 @@ class ClientAdmin(admin.ModelAdmin):
         url = obj.google_maps_link()
         return format_html(
             '<a href="{}" target="_blank" rel="noopener">Open map</a>',
-            url
+            url,
         )
+
 
 # ============================================================
 # CLIENT COMPLIANCE
@@ -190,16 +213,27 @@ class ClientAdmin(admin.ModelAdmin):
 class ClientComplianceDocumentInline(admin.TabularInline):
     model = ClientComplianceDocument
     extra = 0
+
     fields = (
         "document_type",
         "file",
-        "is_verified",
+        "status",
+        "reviewed_by",
+        "reviewed_at",
         "uploaded_by",
         "uploaded_at",
         "notes",
     )
-    readonly_fields = ("uploaded_at",)
-    autocomplete_fields = ("uploaded_by",)
+
+    readonly_fields = (
+        "uploaded_at",
+    )
+
+    autocomplete_fields = (
+        "uploaded_by",
+        "reviewed_by",
+    )
+
     show_change_link = True
 
 
@@ -212,11 +246,13 @@ class ClientComplianceAdmin(admin.ModelAdmin):
         "vetted_at",
         "created_at",
     )
+
     list_filter = (
         "vetting_status",
         "vetted_by",
         ("created_at", admin.DateFieldListFilter),
     )
+
     search_fields = (
         "client__name",
         "client__organization",
@@ -224,16 +260,30 @@ class ClientComplianceAdmin(admin.ModelAdmin):
         "registration_identifier",
         "notes",
     )
-    autocomplete_fields = ("client", "vetted_by")
-    readonly_fields = ("created_at", "updated_at")
+
+    autocomplete_fields = (
+        "client",
+        "vetted_by",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+    )
+
     inlines = [ClientComplianceDocumentInline]
 
     fieldsets = (
         ("Client", {
-            "fields": ("client",),
+            "fields": (
+                "client",
+            ),
         }),
         ("Registration", {
-            "fields": ("registration_identifier", "vat_number"),
+            "fields": (
+                "registration_identifier",
+                "vat_number",
+            ),
         }),
         ("Vetting", {
             "fields": (
@@ -243,9 +293,50 @@ class ClientComplianceAdmin(admin.ModelAdmin):
             )
         }),
         ("Meta", {
-            "fields": ("created_at", "updated_at"),
+            "fields": (
+                "created_at",
+                "updated_at",
+            ),
             "classes": ("collapse",),
         }),
+    )
+
+
+@admin.register(ClientComplianceDocument)
+class ClientComplianceDocumentAdmin(admin.ModelAdmin):
+    list_display = (
+        "compliance",
+        "document_type",
+        "status",
+        "reviewed_by",
+        "reviewed_at",
+        "uploaded_by",
+        "uploaded_at",
+    )
+
+    list_filter = (
+        "document_type",
+        "status",
+        "reviewed_by",
+        "uploaded_by",
+        ("uploaded_at", admin.DateFieldListFilter),
+        ("reviewed_at", admin.DateFieldListFilter),
+    )
+
+    search_fields = (
+        "compliance__client__name",
+        "compliance__client__organization",
+        "notes",
+    )
+
+    autocomplete_fields = (
+        "compliance",
+        "reviewed_by",
+        "uploaded_by",
+    )
+
+    readonly_fields = (
+        "uploaded_at",
     )
 
 
@@ -269,21 +360,27 @@ class ProspectAdmin(admin.ModelAdmin):
         "organization",
         "stage",
         "status",
+        "sales_operator",
         "owner",
+        "area",
         "city",
         "province",
         "estimated_weekly_spend",
         "last_contact_at",
         "created_at",
     )
+
     list_filter = (
         "stage",
         "status",
+        "sales_operator",
         "owner",
+        "area",
         "province",
         ("created_at", admin.DateFieldListFilter),
         ("last_contact_at", admin.DateFieldListFilter),
     )
+
     search_fields = (
         "name",
         "organization",
@@ -291,12 +388,25 @@ class ProspectAdmin(admin.ModelAdmin):
         "email",
         "phone",
         "whatsapp",
+        "sales_operator__name",
         "city",
         "lead_source",
         "notes",
     )
-    autocomplete_fields = ("owner", "created_by", "client")
-    readonly_fields = ("created_at", "updated_at", "last_contact_at")
+
+    autocomplete_fields = (
+        "owner",
+        "sales_operator",
+        "created_by",
+        "client",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "last_contact_at",
+    )
+
     date_hierarchy = "created_at"
     list_per_page = 50
     save_on_top = True
@@ -306,6 +416,7 @@ class ProspectAdmin(admin.ModelAdmin):
         ("Ownership & Pipeline", {
             "fields": (
                 ("owner", "created_by"),
+                ("sales_operator", "area"),
                 ("stage", "status"),
                 ("last_contact_at", "next_follow_up_at"),
             )
@@ -314,28 +425,59 @@ class ProspectAdmin(admin.ModelAdmin):
             "fields": (
                 "name",
                 "organization",
+                "entity_type",
                 "contact_name",
                 ("email", "phone", "whatsapp"),
             )
         }),
         ("Location", {
-            "fields": (("suburb", "city", "province"),),
+            "fields": (
+                "address_line1",
+                "address_line2",
+                ("suburb", "city"),
+                ("province", "postal_code"),
+                "country",
+            ),
         }),
         ("Potential Value", {
             "fields": (
                 ("potential_client_type", "potential_size_tier"),
+                "categories",
                 "estimated_weekly_spend",
                 "lead_source",
             )
         }),
+        ("Delivery Preferences", {
+            "fields": (
+                "preferred_delivery_slot_1",
+                "preferred_delivery_slot_2",
+                "preferred_delivery_slot_3",
+            ),
+            "classes": ("collapse",),
+        }),
+        ("Early Compliance", {
+            "fields": (
+                "vat_number",
+                "registration_identifier",
+            ),
+            "classes": ("collapse",),
+        }),
         ("Conversion", {
-            "fields": ("client",),
+            "fields": (
+                "client",
+            ),
         }),
         ("Notes & Meta", {
-            "fields": ("notes", "created_at", "updated_at"),
+            "fields": (
+                "notes",
+                "created_at",
+                "updated_at",
+            ),
             "classes": ("collapse",),
         }),
     )
+
+    filter_horizontal = ("categories",)
 
 
 # ============================================================
@@ -356,6 +498,7 @@ class ProspectUpdateAdmin(admin.ModelAdmin):
         "has_photo",
         "short_notes",
     )
+
     list_filter = (
         "action_type",
         "outcome",
@@ -365,6 +508,7 @@ class ProspectUpdateAdmin(admin.ModelAdmin):
         ("action_at", admin.DateFieldListFilter),
         ("visit_date", admin.DateFieldListFilter),
     )
+
     search_fields = (
         "prospect__name",
         "prospect__organization",
@@ -375,10 +519,18 @@ class ProspectUpdateAdmin(admin.ModelAdmin):
         "visit_contact_name",
         "user__username",
     )
-    autocomplete_fields = ("prospect", "user")
+
+    autocomplete_fields = (
+        "prospect",
+        "user",
+    )
+
     date_hierarchy = "action_at"
     ordering = ("-action_at", "-created_at")
-    readonly_fields = ("created_at",)
+
+    readonly_fields = (
+        "created_at",
+    )
 
     fieldsets = (
         ("Interaction", {

@@ -122,5 +122,8 @@ urlpatterns = [
     path("invoices/<int:pk>/send-whatsapp/", views.send_invoice_whatsapp_view, name="sales-send-invoice-whatsapp",),
     path("invoices/<int:pk>/send-sms/", views.send_invoice_sms_view, name="sales-send-invoice-sms",),
 
+    path("commission/rep/<int:user_id>/", views.commission_rep_detail, name="sales-commission-rep-detail",),
+    path("tickets/create/", views.create_ticket, name="sales-create-ticket",),
+
 
 ]

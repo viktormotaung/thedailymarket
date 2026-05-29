@@ -6,6 +6,7 @@ from clients.models import Client
 from django.utils import timezone
 from datetime import timedelta
 from consumers.models import Consumer
+from decimal import Decimal
 
 
 def _online_window():
@@ -265,6 +266,29 @@ class SalesRepProfile(models.Model):
         help_text="Approval state of this profile.",
     )
 
+    sales_operator = models.ForeignKey(
+        "SalesOperator",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sales_reps",
+        help_text="Sales operator this sales rep belongs to."
+    )
+
+    base_commission_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Standard commission percentage paid to this sales rep."
+    )
+
+    bonus_commission_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Additional bonus commission percentage paid when targets or conditions are met."
+    )
+
     # store a HASH, not the raw code
     auth_code_hash = models.CharField(
         "authorisation code (hashed)",
@@ -365,3 +389,140 @@ class DriverProfile(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+
+class SalesOperator(models.Model):
+    """
+    Commercial sales operator / territory holder.
+    Used for outsourced sales structures, territory assignments,
+    and commission-linked operator management.
+    """
+
+    AREA_CHOICES = [
+        ("SOUTH_WEST", "South / West"),
+        ("EAST", "East"),
+        ("NORTH_CENTRAL", "North / Central"),
+        ("MIDVAAL", "Midvaal"),
+        ("PRETORIA", "Pretoria"),
+        ("OTHER", "Other"),
+    ]
+
+    name = models.CharField(
+        max_length=255,
+        unique=True,
+        help_text="Registered or trading name of the sales operator."
+    )
+
+    owner_1 = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="primary_sales_operators",
+        help_text="Primary owner/user linked to this operator."
+    )
+
+    owner_2 = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="secondary_sales_operators",
+        null=True,
+        blank=True,
+        help_text="Secondary owner/user linked to this operator (optional)."
+    )
+
+    territory = models.CharField(
+        max_length=20,
+        choices=AREA_CHOICES,
+        db_index=True,
+        help_text="Assigned operating territory."
+    )
+
+    # Address Information
+    address_line_1 = models.CharField(max_length=255)
+    address_line_2 = models.CharField(max_length=255, blank=True)
+
+    suburb = models.CharField(max_length=120)
+    city = models.CharField(max_length=120)
+
+    province = models.CharField(max_length=120)
+    postal_code = models.CharField(max_length=20)
+
+    # Banking Details
+    bank_name = models.CharField(max_length=120)
+    account_holder = models.CharField(max_length=255)
+
+    account_number = models.CharField(max_length=50)
+    branch_code = models.CharField(max_length=20)
+
+    ACCOUNT_TYPE_CHOICES = [
+        ("CHEQUE", "Cheque"),
+        ("SAVINGS", "Savings"),
+        ("BUSINESS", "Business"),
+    ]
+
+    account_type = models.CharField(
+        max_length=20,
+        choices=ACCOUNT_TYPE_CHOICES,
+        default="CHEQUE",
+    )
+
+    base_commission_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Standard commission percentage paid to this operator."
+    )
+
+    bonus_commission_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Additional bonus commission percentage paid when targets or conditions are met."
+    )
+
+    responsible_user_1 = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="primary_managed_sales_operators",
+        null=True,
+        blank=True,
+        help_text="Primary internal user responsible for managing this sales operator."
+    )
+
+    responsible_user_2 = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="secondary_managed_sales_operators",
+        null=True,
+        blank=True,
+        help_text="Secondary internal user responsible for managing this sales operator."
+    )
+
+    # Operational
+    is_active = models.BooleanField(default=True)
+
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Sales Operator"
+        verbose_name_plural = "Sales Operators"
+
+    def __str__(self):
+        return f"{self.name} ({self.get_territory_display()})"
+
+    @property
+    def full_address(self):
+        parts = [
+            self.address_line_1,
+            self.address_line_2,
+            self.suburb,
+            self.city,
+            self.province,
+            self.postal_code,
+        ]
+
+        return ", ".join([p for p in parts if p])

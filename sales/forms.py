@@ -1,177 +1,373 @@
 from django import forms
-from .models import SalesJobApplication
 
+from .models import JobApplication
 
-class SalesJobApplicationForm(forms.ModelForm):
-    """
-    Sales Job Application Form
-    Styled to match internal Daily Market system forms
-    All fields are required unless explicitly stated otherwise
-    """
+class JobApplicationForm(forms.ModelForm):
 
     OPTIONAL_FIELDS = [
-        "current_job",
-        "leadership_skills_description",
+        "race",
+        "gender",
+        "year_matriculated",
+        "qualifications",
+        "current_employment_status",
+        "leadership_experience",
+        "introduction_video_link",
     ]
 
     def __init__(self, *args, **kwargs):
+
         super().__init__(*args, **kwargs)
 
         for field_name, field in self.fields.items():
 
-            # -------------------------
+            # =====================================================
             # REQUIRED LOGIC
-            # -------------------------
-            field.required = field_name not in self.OPTIONAL_FIELDS
+            # =====================================================
 
-            # -------------------------
-            # BASE CSS CLASSES
-            # -------------------------
-            if isinstance(field.widget, forms.CheckboxInput):
-                css_classes = ["form-check-input"]
-            elif isinstance(field.widget, forms.Select):
-                css_classes = ["form-select"]
+            field.required = (
+                field_name not in self.OPTIONAL_FIELDS
+            )
+
+            # =====================================================
+            # CSS CLASSES
+            # =====================================================
+
+            if isinstance(
+                field.widget,
+                forms.CheckboxInput
+            ):
+
+                css_classes = [
+                    "form-check-input"
+                ]
+
+            elif isinstance(
+                field.widget,
+                forms.Select
+            ):
+
+                css_classes = [
+                    "form-select"
+                ]
+
             else:
-                css_classes = ["form-control"]
 
-            # -------------------------
-            # VALIDATION FEEDBACK
-            # -------------------------
+                css_classes = [
+                    "form-control"
+                ]
+
+            # =====================================================
+            # VALIDATION STYLING
+            # =====================================================
+
             if self.is_bound:
-                if field_name in self.errors:
-                    css_classes.append("is-invalid")
-                else:
-                    css_classes.append("is-valid")
 
-            field.widget.attrs["class"] = " ".join(css_classes)
+                if field_name in self.errors:
+
+                    css_classes.append(
+                        "is-invalid"
+                    )
+
+                else:
+
+                    css_classes.append(
+                        "is-valid"
+                    )
+
+            field.widget.attrs["class"] = (
+                " ".join(css_classes)
+            )
 
     class Meta:
-        model = SalesJobApplication
+
+        model = JobApplication
 
         fields = [
-            # -------------------------
-            # Personal info
-            # -------------------------
+
+            # =====================================================
+            # TERRITORY
+            # =====================================================
+
+            "territory",
+
+            # =====================================================
+            # BASIC PERSONAL INFORMATION
+            # =====================================================
+
             "first_name",
-            "last_name",
+            "surname",
+            "age",
+            "race",
+            "gender",
+            "phone_number",
+            "whatsapp_number",
             "email",
-            "date_of_birth",
-            "nationality",
-            "province",
-            "suburb",
-            "town_or_city",
-            "where_grew_up",
+            "current_location",
+            "year_matriculated",
+            "qualifications",
+            "current_employment_status",
+            "availability_to_start",
 
-            # -------------------------
-            # Sales background
-            # -------------------------
-            "sales_experience_summary",
-            "previous_workplaces",
-            "responsibilities",
-            "lessons_learned",
+            # =====================================================
+            # TRANSPORT & RESOURCES
+            # =====================================================
 
-            # -------------------------
-            # Sales thinking
-            # -------------------------
-            "client_identification_strategy",
-            "pitching_strategy",
-            "conversion_strategy",
-            "client_management_strategy",
-
-            # -------------------------
-            # Resources
-            # -------------------------
-            "resources_needed",
             "has_drivers_license",
             "has_vehicle_access",
-            "has_laptop_or_tablet",
+            "has_smartphone",
 
-            # -------------------------
-            # Work style & fit
-            # -------------------------
-            "can_work_in_team",
-            "leadership_skills_description",
-            "comfortable_township_clients",
-            "comfortable_suburban_clients",
-            "comfortable_remote_work",
-            "comfortable_startup_environment",
+            # =====================================================
+            # TERRITORY & COMMERCIAL THINKING
+            # =====================================================
 
-            # -------------------------
-            # Status
-            # -------------------------
-            "current_job",
-            "availability_to_start",
+            "territory_understanding",
+            "potential_client_types",
+            "first_30_day_strategy",
+
+            # =====================================================
+            # SALES & PROBLEM SOLVING
+            # =====================================================
+
+            "cheaper_supplier_response",
+            "client_retention_strategy",
+            "target_pressure_response",
+
+            # =====================================================
+            # LEADERSHIP & ACCOUNTABILITY
+            # =====================================================
+
+            "leadership_experience",
+            "unsupervised_problem_solving",
+            "performance_environment_understanding",
+
+            # =====================================================
+            # STARTUP & CULTURE FIT
+            # =====================================================
+
+            "startup_interest_reason",
+            "comfortable_performance_environment",
+            "motivation",
+
+            # =====================================================
+            # OPTIONAL VIDEO
+            # =====================================================
+
+            "introduction_video_link",
         ]
 
         widgets = {
-            # -------------------------
-            # Dates
-            # -------------------------
-            "date_of_birth": forms.DateInput(
-                attrs={"type": "date"}
+
+            # =====================================================
+            # LONG FORM ANSWERS
+            # =====================================================
+
+            "territory_understanding": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                }
             ),
 
-            # -------------------------
-            # Long-form answers
-            # -------------------------
-            "sales_experience_summary": forms.Textarea(attrs={"rows": 4}),
-            "previous_workplaces": forms.Textarea(attrs={"rows": 3}),
-            "responsibilities": forms.Textarea(attrs={"rows": 4}),
-            "lessons_learned": forms.Textarea(attrs={"rows": 3}),
+            "potential_client_types": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                }
+            ),
 
-            "client_identification_strategy": forms.Textarea(attrs={"rows": 4}),
-            "pitching_strategy": forms.Textarea(attrs={"rows": 4}),
-            "conversion_strategy": forms.Textarea(attrs={"rows": 4}),
-            "client_management_strategy": forms.Textarea(attrs={"rows": 4}),
+            "first_30_day_strategy": forms.Textarea(
+                attrs={
+                    "rows": 5,
+                }
+            ),
 
-            "resources_needed": forms.Textarea(attrs={"rows": 3}),
-            "leadership_skills_description": forms.Textarea(attrs={"rows": 3}),
+            "cheaper_supplier_response": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                }
+            ),
+
+            "client_retention_strategy": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                }
+            ),
+
+            "target_pressure_response": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                }
+            ),
+
+            "leadership_experience": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                }
+            ),
+
+            "unsupervised_problem_solving": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                }
+            ),
+
+            "performance_environment_understanding": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                }
+            ),
+
+            "startup_interest_reason": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                }
+            ),
+
+            "motivation": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                }
+            ),
         }
 
         labels = {
-            # -------------------------
-            # Personal
-            # -------------------------
+
+            # =====================================================
+            # TERRITORY
+            # =====================================================
+
+            "territory": "Which territory are you applying for?",
+
+            # =====================================================
+            # BASIC INFO
+            # =====================================================
+
+            "first_name": "First name",
+            "surname": "Surname",
+            "age": "Age",
+            "race": "Race",
+            "gender": "Gender",
+            "phone_number": "Phone number",
+            "whatsapp_number": "WhatsApp number",
             "email": "Email address",
-            "where_grew_up": "Where did you grow up?",
+            "current_location": (
+                "Current suburb / township / area"
+            ),
+            "year_matriculated": (
+                "Year matriculated"
+            ),
+            "qualifications": (
+                "Qualifications / certificates"
+            ),
+            "current_employment_status": (
+                "Current employment status"
+            ),
+            "availability_to_start": (
+                "When can you start?"
+            ),
 
-            # -------------------------
-            # Sales background
-            # -------------------------
-            "sales_experience_summary": "Describe your sales experience",
-            "previous_workplaces": "Where have you worked before?",
-            "responsibilities": "What responsibilities did you have?",
-            "lessons_learned": "What did you learn from these roles?",
+            # =====================================================
+            # TRANSPORT
+            # =====================================================
 
-            # -------------------------
-            # Sales thinking
-            # -------------------------
-            "client_identification_strategy": "How would you identify potential clients?",
-            "pitching_strategy": "How would you pitch FMCG products?",
-            "conversion_strategy": "How do you convert prospects into clients?",
-            "client_management_strategy": "How would you manage and retain clients?",
+            "has_drivers_license": (
+                "Do you have a valid driver's license?"
+            ),
 
-            # -------------------------
-            # Resources
-            # -------------------------
-            "resources_needed": "What resources do you need to perform well?",
-            "leadership_skills_description": "Describe your leadership skills or experience",
+            "has_vehicle_access": (
+                "Do you have access to a vehicle?"
+            ),
 
-            "has_drivers_license": "Do you have a valid driver’s license?",
-            "has_vehicle_access": "Do you have access to a vehicle?",
-            "has_laptop_or_tablet": "Do you have access to a laptop or tablet?",
+            "has_smartphone": (
+                "Do you have access to a smartphone?"
+            ),
 
-            # -------------------------
-            # Work style
-            # -------------------------
-            "comfortable_township_clients": "Comfortable working with township-based clients",
-            "comfortable_suburban_clients": "Comfortable working with suburban-based clients",
-            "comfortable_remote_work": "Comfortable working remotely",
-            "comfortable_startup_environment": "Comfortable working in a startup environment",
+            # =====================================================
+            # COMMERCIAL THINKING
+            # =====================================================
 
-            # -------------------------
-            # Status
-            # -------------------------
-            "availability_to_start": "How soon can you start?",
-            "current_job": "Current job (if any)",
+            "territory_understanding": (
+                "Name trader zones, business hubs or "
+                "areas within your territory where "
+                "you believe The Daily Market could "
+                "find clients."
+            ),
+
+            "potential_client_types": (
+                "What type of businesses or traders "
+                "would benefit most from "
+                "The Daily Market?"
+            ),
+
+            "first_30_day_strategy": (
+                "If you had to secure 10 recurring "
+                "clients within 30 days, "
+                "what would your approach be?"
+            ),
+
+            # =====================================================
+            # SALES THINKING
+            # =====================================================
+
+            "cheaper_supplier_response": (
+                "A client says another supplier "
+                "is cheaper than The Daily Market. "
+                "What would you do?"
+            ),
+
+            "client_retention_strategy": (
+                "A client buys once and never "
+                "orders again. "
+                "How would you handle this?"
+            ),
+
+            "target_pressure_response": (
+                "You have not reached target and "
+                "only 7 days remain in the month. "
+                "What would you do?"
+            ),
+
+            # =====================================================
+            # LEADERSHIP
+            # =====================================================
+
+            "leadership_experience": (
+                "Have you ever managed people, "
+                "coordinated a group or led a project?"
+            ),
+
+            "unsupervised_problem_solving": (
+                "Describe a difficult problem "
+                "you solved without supervision."
+            ),
+
+            "performance_environment_understanding": (
+                "What makes someone successful "
+                "in a performance-based environment?"
+            ),
+
+            # =====================================================
+            # STARTUP FIT
+            # =====================================================
+
+            "startup_interest_reason": (
+                "Why do you want to join a growing "
+                "startup business instead of a "
+                "traditional company?"
+            ),
+
+            "comfortable_performance_environment": (
+                "Are you comfortable working in a "
+                "performance-based environment?"
+            ),
+
+            "motivation": (
+                "What motivates you most?"
+            ),
+
+            # =====================================================
+            # VIDEO
+            # =====================================================
+
+            "introduction_video_link": (
+                "Optional introduction video link"
+            ),
         }

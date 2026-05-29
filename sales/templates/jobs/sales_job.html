@@ -6,15 +6,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sales Jobs – The Daily Market</title>
+  <title>Territory Sales Supervisor – The Daily Market</title>
 
-  <!-- Bootstrap -->
   <link
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
     rel="stylesheet"
   />
 
-  <!-- Page-specific styles only -->
   <style>
     .sales-jobs-container {
       max-width: 1200px;
@@ -45,23 +43,17 @@
       border-right: none;
     }
 
+    @media (max-width: 991px) {
+      .job-card {
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+      }
+    }
+
     .subtitle {
       font-size: 0.9rem;
       color: #666;
       margin-bottom: 1rem;
-    }
-
-    .rem-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 1rem 0;
-    }
-
-    .rem-table th,
-    .rem-table td {
-      border: 1px solid #ccc;
-      padding: 0.5rem;
-      text-align: left;
     }
 
     .note {
@@ -72,551 +64,472 @@
     .jobs-bottom {
       margin-top: 2rem;
     }
+
+    .form-section-title {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .btn-primary {
+      background-color: #0a5c39;
+      border-color: #0a5c39;
+    }
+
+    .btn-primary:hover {
+      background-color: #084a2f;
+      border-color: #084a2f;
+    }
   </style>
 </head>
 
 <body>
 
 <div class="sales-jobs-container">
-    <!-- ================= PAGE HEADER ================= -->
+
   <div class="mb-4 text-center">
-    <h1 class="mb-1">Sales Opportunities</h1>
+    <h1 class="mb-1">Territory Sales Supervisor Opportunity</h1>
     <p class="text-muted mb-0">
-      Join The Daily Market sales team
+      Help The Daily Market build and grow a sales territory in your area.
     </p>
   </div>
-    
-    <!-- ================= TOP ROW ================= -->
-    <div class="jobs-top">
 
-        <!-- ================= SALES SUPERVISOR ================= -->
-        <section class="job-card">
-        <h2>Sales Supervisor</h2>
-        <p class="subtitle">Full Role &amp; Remuneration Spec</p>
-
-        <h5>Role Purpose</h5>
-        <p>
-            Build, manage, and stabilise a field sales team that delivers
-            consistent, paying clients and predictable revenue.
-        </p>
-
-        <h5>Core Responsibilities</h5>
-        <ul>
-            <li>Recruit, onboard, and manage Sales Representatives</li>
-            <li>Set weekly sales and activity targets</li>
-            <li>Coach reps in the field</li>
-            <li>Oversee key client accounts</li>
-            <li>Enforce pricing and payment discipline</li>
-        </ul>
-
-        <h5>Earned Basic (Monthly)</h5>
-        <table class="rem-table">
-            <thead>
-            <tr>
-                <th>Consistent Clients</th>
-                <th>Earned Basic</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr><td>0 – 4</td><td>R0</td></tr>
-            <tr><td>5 – 9</td><td>R2,500</td></tr>
-            <tr><td>10 – 14</td><td>R5,000</td></tr>
-            <tr><td>15 – 19</td><td>R7,500</td></tr>
-            <tr><td>20+</td><td>R10,000</td></tr>
-            </tbody>
-        </table>
-
-        
-        </section>
-
-        <!-- ================= SALES REPRESENTATIVE ================= -->
-        <section class="job-card">
-        <h2>Sales Representative</h2>
-        <p class="subtitle">Full Role &amp; Remuneration Spec</p>
-
-        <h5>Role Purpose</h5>
-        <p>
-            Acquire new clients, manage assigned accounts,
-            and drive repeat orders in the field.
-        </p>
-
-        <h5>Core Responsibilities</h5>
-        <ul>
-            <li>Prospect and approach potential clients</li>
-            <li>Convert leads into paying clients</li>
-            <li>Maintain assigned client relationships</li>
-            <li>Drive repeat ordering</li>
-            <li>Follow up on payments</li>
-        </ul>
-
-        <h5>Remuneration</h5>
-        <p class="mb-1">
-            <strong>Probation:</strong> Commission only
-        </p>
-        <p class="mb-0">
-            <strong>Commission:</strong> Paid on net paid sales
-        </p>
-        </section>
-    </div>
-
-    <div class="jobs-bottom">
-
-        <section class="application-section">
-            <h2>Apply for This Opportunity</h2>
-            <p class="text-muted mb-4">
-            Please complete the form below. There are no right or wrong answers —
-            we are interested in how you think and work.
-            </p>
-
-            <form method="post" novalidate>
-            {% csrf_token %}
-
-            {% if form.non_field_errors %}
-                <div class="alert alert-danger">
-                {{ form.non_field_errors }}
-                </div>
-            {% endif %}
-
-            <div class="row g-3">
-
-                <!-- ================= PERSONAL INFORMATION ================= -->
-                <div class="col-lg-6">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header"><strong>Personal Information</strong></div>
-                    <div class="card-body">
-
-                    <div class="row g-3">
-
-                        <!-- First Name -->
-                        <div class="col-md-6">
-                        <label class="form-label">First name</label>
-                        {% if form.is_bound %}
-                            {% if form.first_name.errors %}
-                            {{ form.first_name|add_class:"is-invalid" }}
-                            {% else %}
-                            {{ form.first_name|add_class:"is-valid" }}
-                            {% endif %}
-                        {% else %}
-                            {{ form.first_name }}
-                        {% endif %}
-                        {% for error in form.first_name.errors %}
-                            <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                        </div>
-
-                        <!-- Last Name -->
-                        <div class="col-md-6">
-                        <label class="form-label">Last name</label>
-                        {% if form.is_bound %}
-                            {% if form.last_name.errors %}
-                            {{ form.last_name|add_class:"is-invalid" }}
-                            {% else %}
-                            {{ form.last_name|add_class:"is-valid" }}
-                            {% endif %}
-                        {% else %}
-                            {{ form.last_name }}
-                        {% endif %}
-                        {% for error in form.last_name.errors %}
-                            <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                        </div>
-
-                    </div>
-
-                    <!-- Email -->
-                    <div class="row g-3 mt-2">
-                        <div class="col-md-12">
-                            <label class="form-label">Email address</label>
-                            {% if form.is_bound %}
-                            {% if form.email.errors %}
-                                {{ form.email|add_class:"is-invalid" }}
-                            {% else %}
-                                {{ form.email|add_class:"is-valid" }}
-                            {% endif %}
-                            {% else %}
-                            {{ form.email }}
-                            {% endif %}
-                            {% for error in form.email.errors %}
-                            <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-
-
-                    <div class="row g-3 mt-2">
-
-                        <!-- DOB -->
-                        <div class="col-md-6">
-                        <label class="form-label">Date of birth</label>
-                        {% if form.is_bound %}
-                            {% if form.date_of_birth.errors %}
-                            {{ form.date_of_birth|add_class:"is-invalid" }}
-                            {% else %}
-                            {{ form.date_of_birth|add_class:"is-valid" }}
-                            {% endif %}
-                        {% else %}
-                            {{ form.date_of_birth }}
-                        {% endif %}
-                        {% for error in form.date_of_birth.errors %}
-                            <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                        </div>
-
-                        <!-- Nationality -->
-                        <div class="col-md-6">
-                        <label class="form-label">Nationality</label>
-                        {% if form.is_bound %}
-                            {% if form.nationality.errors %}
-                            {{ form.nationality|add_class:"is-invalid" }}
-                            {% else %}
-                            {{ form.nationality|add_class:"is-valid" }}
-                            {% endif %}
-                        {% else %}
-                            {{ form.nationality }}
-                        {% endif %}
-                        {% for error in form.nationality.errors %}
-                            <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                        </div>
-
-                    </div>
-
-                    <div class="row g-3 mt-2">
-
-                        <!-- Province -->
-                        <div class="col-md-6">
-                        <label class="form-label">Province</label>
-                        {% if form.is_bound %}
-                            {% if form.province.errors %}
-                            {{ form.province|add_class:"is-invalid" }}
-                            {% else %}
-                            {{ form.province|add_class:"is-valid" }}
-                            {% endif %}
-                        {% else %}
-                            {{ form.province }}
-                        {% endif %}
-                        {% for error in form.province.errors %}
-                            <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                        </div>
-
-                        <!-- Town -->
-                        <div class="col-md-6">
-                        <label class="form-label">Town / City</label>
-                        {% if form.is_bound %}
-                            {% if form.town_or_city.errors %}
-                            {{ form.town_or_city|add_class:"is-invalid" }}
-                            {% else %}
-                            {{ form.town_or_city|add_class:"is-valid" }}
-                            {% endif %}
-                        {% else %}
-                            {{ form.town_or_city }}
-                        {% endif %}
-                        {% for error in form.town_or_city.errors %}
-                            <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                        </div>
-
-                    </div>
-
-                    <div class="row g-3 mt-2">
-
-                        <!-- Suburb -->
-                        <div class="col-md-6">
-                        <label class="form-label">Suburb</label>
-                        {% if form.is_bound %}
-                            {% if form.suburb.errors %}
-                            {{ form.suburb|add_class:"is-invalid" }}
-                            {% else %}
-                            {{ form.suburb|add_class:"is-valid" }}
-                            {% endif %}
-                        {% else %}
-                            {{ form.suburb }}
-                        {% endif %}
-                        {% for error in form.suburb.errors %}
-                            <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                        </div>
-
-                        <!-- Grew Up -->
-                        <div class="col-md-6">
-                        <label class="form-label">Where did you grow up?</label>
-                        {% if form.is_bound %}
-                            {% if form.where_grew_up.errors %}
-                            {{ form.where_grew_up|add_class:"is-invalid" }}
-                            {% else %}
-                            {{ form.where_grew_up|add_class:"is-valid" }}
-                            {% endif %}
-                        {% else %}
-                            {{ form.where_grew_up }}
-                        {% endif %}
-                        {% for error in form.where_grew_up.errors %}
-                            <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                        </div>
-
-                    </div>
-
-                    </div>
-                </div>
-                </div>
-                <!-- ================= SALES BACKGROUND ================= -->
-                <div class="col-lg-6">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header"><strong>Sales Background</strong></div>
-                    <div class="card-body">
-
-                    <div class="mb-3">
-                        <label class="form-label">Describe your sales experience</label>
-                        {% if form.is_bound %}
-                        {% if form.sales_experience_summary.errors %}
-                            {{ form.sales_experience_summary|add_class:"is-invalid" }}
-                        {% else %}
-                            {{ form.sales_experience_summary|add_class:"is-valid" }}
-                        {% endif %}
-                        {% else %}
-                        {{ form.sales_experience_summary }}
-                        {% endif %}
-                        {% for error in form.sales_experience_summary.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Where have you worked before?</label>
-                        {% if form.is_bound %}
-                        {% if form.previous_workplaces.errors %}
-                            {{ form.previous_workplaces|add_class:"is-invalid" }}
-                        {% else %}
-                            {{ form.previous_workplaces|add_class:"is-valid" }}
-                        {% endif %}
-                        {% else %}
-                        {{ form.previous_workplaces }}
-                        {% endif %}
-                        {% for error in form.previous_workplaces.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">What responsibilities did you have?</label>
-                        {% if form.is_bound %}
-                        {% if form.responsibilities.errors %}
-                            {{ form.responsibilities|add_class:"is-invalid" }}
-                        {% else %}
-                            {{ form.responsibilities|add_class:"is-valid" }}
-                        {% endif %}
-                        {% else %}
-                        {{ form.responsibilities }}
-                        {% endif %}
-                        {% for error in form.responsibilities.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="mb-0">
-                        <label class="form-label">What did you learn from these roles?</label>
-                        {% if form.is_bound %}
-                        {% if form.lessons_learned.errors %}
-                            {{ form.lessons_learned|add_class:"is-invalid" }}
-                        {% else %}
-                            {{ form.lessons_learned|add_class:"is-valid" }}
-                        {% endif %}
-                        {% else %}
-                        {{ form.lessons_learned }}
-                        {% endif %}
-                        {% for error in form.lessons_learned.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    </div>
-                </div>
-                </div>
-                <!-- ================= SALES THINKING ================= -->
-                <div class="col-12">
-                <div class="card shadow-sm">
-                    <div class="card-header"><strong>Sales Thinking (FMCG)</strong></div>
-                    <div class="card-body">
-
-                    <!-- Client Identification -->
-                    <div class="mb-3">
-                        <label class="form-label">How would you identify potential clients?</label>
-                        {% if form.is_bound %}
-                        {% if form.client_identification_strategy.errors %}
-                            {{ form.client_identification_strategy|add_class:"is-invalid" }}
-                        {% else %}
-                            {{ form.client_identification_strategy|add_class:"is-valid" }}
-                        {% endif %}
-                        {% else %}
-                        {{ form.client_identification_strategy }}
-                        {% endif %}
-                        {% for error in form.client_identification_strategy.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <!-- Pitching -->
-                    <div class="mb-3">
-                        <label class="form-label">How would you pitch FMCG products?</label>
-                        {% if form.is_bound %}
-                        {% if form.pitching_strategy.errors %}
-                            {{ form.pitching_strategy|add_class:"is-invalid" }}
-                        {% else %}
-                            {{ form.pitching_strategy|add_class:"is-valid" }}
-                        {% endif %}
-                        {% else %}
-                        {{ form.pitching_strategy }}
-                        {% endif %}
-                        {% for error in form.pitching_strategy.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <!-- Conversion -->
-                    <div class="mb-3">
-                        <label class="form-label">How do you convert prospects into clients?</label>
-                        {% if form.is_bound %}
-                        {% if form.conversion_strategy.errors %}
-                            {{ form.conversion_strategy|add_class:"is-invalid" }}
-                        {% else %}
-                            {{ form.conversion_strategy|add_class:"is-valid" }}
-                        {% endif %}
-                        {% else %}
-                        {{ form.conversion_strategy }}
-                        {% endif %}
-                        {% for error in form.conversion_strategy.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <!-- Client Management -->
-                    <div class="mb-0">
-                        <label class="form-label">How would you manage and retain clients?</label>
-                        {% if form.is_bound %}
-                        {% if form.client_management_strategy.errors %}
-                            {{ form.client_management_strategy|add_class:"is-invalid" }}
-                        {% else %}
-                            {{ form.client_management_strategy|add_class:"is-valid" }}
-                        {% endif %}
-                        {% else %}
-                        {{ form.client_management_strategy }}
-                        {% endif %}
-                        {% for error in form.client_management_strategy.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    </div>
-                </div>
-                </div>
-
-                <!-- ================= RESOURCES ================= -->
-                <div class="col-lg-6">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header"><strong>Resources</strong></div>
-                    <div class="card-body">
-
-                    <div class="mb-3">
-                        <label class="form-label">What resources do you need to perform well?</label>
-                        {% if form.is_bound %}
-                        {% if form.resources_needed.errors %}
-                            {{ form.resources_needed|add_class:"is-invalid" }}
-                        {% else %}
-                            {{ form.resources_needed|add_class:"is-valid" }}
-                        {% endif %}
-                        {% else %}
-                        {{ form.resources_needed }}
-                        {% endif %}
-                        {% for error in form.resources_needed.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="form-check mb-2">
-                        {{ form.has_drivers_license }} <label class="form-check-label">Valid driver’s license</label>
-                    </div>
-
-                    <div class="form-check mb-2">
-                        {{ form.has_vehicle_access }} <label class="form-check-label">Access to a vehicle</label>
-                    </div>
-
-                    <div class="form-check">
-                        {{ form.has_laptop_or_tablet }} <label class="form-check-label">Access to a laptop or tablet</label>
-                    </div>
-
-                    </div>
-                </div>
-                </div>
-                <!-- ================= WORK STYLE & AVAILABILITY ================= -->
-                <div class="col-lg-6">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header"><strong>Work Style & Availability</strong></div>
-                    <div class="card-body">
-
-                    <div class="form-check mb-2">
-                        {{ form.can_work_in_team }} <label class="form-check-label">Comfortable working in a team</label>
-                    </div>
-
-                    <div class="form-check mb-2">
-                        {{ form.comfortable_township_clients }} <label class="form-check-label">Comfortable with township clients</label>
-                    </div>
-
-                    <div class="form-check mb-2">
-                        {{ form.comfortable_suburban_clients }} <label class="form-check-label">Comfortable with suburban clients</label>
-                    </div>
-
-                    <div class="form-check mb-2">
-                        {{ form.comfortable_remote_work }} <label class="form-check-label">Comfortable working remotely</label>
-                    </div>
-
-                    <div class="form-check mb-3">
-                        {{ form.comfortable_startup_environment }} <label class="form-check-label">Comfortable in a startup</label>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Leadership skills or experience</label>
-                        {{ form.leadership_skills_description }}
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Current job (if any)</label>
-                        {{ form.current_job }}
-                    </div>
-
-                    <div class="mb-0">
-                        <label class="form-label">How soon can you start?</label>
-                        {{ form.availability_to_start }}
-                    </div>
-
-                    </div>
-                </div>
-                </div>
-
-
-
-
-
-                <!-- ================= SUBMIT ================= -->
-                <div class="col-12 d-flex justify-content-center mt-4">
-                <button type="submit" class="btn btn-primary btn-lg px-5">
-                    Submit Application
-                </button>
-                </div>
-
+  <div class="jobs-top">
+
+    <section class="job-card">
+      <h2>About the Opportunity</h2>
+      <p class="subtitle">Startup growth role</p>
+
+      <h5>About The Daily Market</h5>
+      <p>
+        The Daily Market is a growing online wholesale distribution business
+        supplying food products to traders, vendors, restaurants, caterers,
+        small food businesses and other recurring buyers.
+      </p>
+
+      <p>
+        We are still in our early growth stage. This opportunity is best suited
+        for someone who wants to grow with the business, build a territory from
+        the ground up and become part of a long-term commercial growth story.
+      </p>
+
+      <h5>The Ideal Person</h5>
+      <ul>
+        <li>Young, energetic and hungry to grow</li>
+        <li>Based in or close to the territory they will supervise</li>
+        <li>Understands local traders, vendors and small businesses</li>
+        <li>Can work from home and in the field without daily supervision</li>
+        <li>Confident speaking to business owners and traders</li>
+        <li>Willing to recruit, guide and manage sales representatives</li>
+        <li>Problem-solver who can work in a startup environment</li>
+        <li>Comfortable with performance-based income</li>
+      </ul>
+    </section>
+
+    <section class="job-card">
+      <h2>Role & Remuneration</h2>
+      <p class="subtitle">Commission-first structure with growth pathway</p>
+
+      <h5>Key Responsibilities</h5>
+      <ul>
+        <li>Supervise and grow an assigned sales territory</li>
+        <li>Recruit, onboard and manage sales representatives</li>
+        <li>Identify traders, vendors and small businesses in the area</li>
+        <li>Ensure reps are prospecting, following up and bringing in clients</li>
+        <li>Help secure recurring clients for The Daily Market</li>
+        <li>Track sales activity, client feedback and territory performance</li>
+        <li>Report weekly on prospects, active clients, orders and challenges</li>
+        <li>Protect The Daily Market pricing, brand and client experience</li>
+      </ul>
+
+      <h5>Remuneration</h5>
+      <p class="note">
+        Important: This is commission-only for the first 3 months until the end
+        of probation.
+      </p>
+
+      <p>
+        During probation, the Territory Sales Supervisor earns
+        <strong>30% of the total commission generated in their territory</strong>.
+      </p>
+
+      <p>
+        After successful probation, a basic salary may be introduced based on
+        performance, scorecard results and territory growth.
+      </p>
+
+      <h5>Additional Earnings</h5>
+      <ul>
+        <li>Territory commission share</li>
+        <li>Target-based bonuses</li>
+        <li>Growth incentives for recurring clients</li>
+        <li>Future basic salary after successful probation</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <div class="jobs-bottom">
+
+    <section class="application-section">
+      <h2>Apply for This Opportunity</h2>
+      <p class="text-muted mb-4">
+        Please complete the form below. We are interested in how you think,
+        solve problems and approach territory growth.
+      </p>
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        <div class="row g-3">
+
+          <div class="col-12">
+            <div class="card shadow-sm">
+              <div class="card-header">
+                <strong>Territory</strong>
+              </div>
+              <div class="card-body">
+                <label class="form-label">{{ form.territory.label }}</label>
+                {{ form.territory }}
+                {% for error in form.territory.errors %}
+                  <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
+              </div>
             </div>
-            
-            </form>
+          </div>
 
-        </section>
-    </div>
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header">
+                <strong>Personal Information</strong>
+              </div>
+              <div class="card-body">
 
-    
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">{{ form.first_name.label }}</label>
+                    {{ form.first_name }}
+                    {% for error in form.first_name.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
 
+                  <div class="col-md-6">
+                    <label class="form-label">{{ form.surname.label }}</label>
+                    {{ form.surname }}
+                    {% for error in form.surname.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
 
+                  <div class="col-md-4">
+                    <label class="form-label">{{ form.age.label }}</label>
+                    {{ form.age }}
+                    {% for error in form.age.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
 
-<!-- Bootstrap JS -->
+                  <div class="col-md-4">
+                    <label class="form-label">{{ form.race.label }}</label>
+                    {{ form.race }}
+                    {% for error in form.race.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label">{{ form.gender.label }}</label>
+                    {{ form.gender }}
+                    {% for error in form.gender.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">{{ form.phone_number.label }}</label>
+                    {{ form.phone_number }}
+                    {% for error in form.phone_number.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">{{ form.whatsapp_number.label }}</label>
+                    {{ form.whatsapp_number }}
+                    {% for error in form.whatsapp_number.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="col-md-12">
+                    <label class="form-label">{{ form.email.label }}</label>
+                    {{ form.email }}
+                    {% for error in form.email.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="col-md-12">
+                    <label class="form-label">{{ form.current_location.label }}</label>
+                    {{ form.current_location }}
+                    {% for error in form.current_location.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">{{ form.year_matriculated.label }}</label>
+                    {{ form.year_matriculated }}
+                    {% for error in form.year_matriculated.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">{{ form.availability_to_start.label }}</label>
+                    {{ form.availability_to_start }}
+                    {% for error in form.availability_to_start.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="col-md-12">
+                    <label class="form-label">{{ form.qualifications.label }}</label>
+                    {{ form.qualifications }}
+                    {% for error in form.qualifications.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="col-md-12">
+                    <label class="form-label">{{ form.current_employment_status.label }}</label>
+                    {{ form.current_employment_status }}
+                    {% for error in form.current_employment_status.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header">
+                <strong>Transport & Resources</strong>
+              </div>
+              <div class="card-body">
+
+                <div class="form-check mb-3">
+                  {{ form.has_drivers_license }}
+                  <label class="form-check-label">
+                    {{ form.has_drivers_license.label }}
+                  </label>
+                  {% for error in form.has_drivers_license.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="form-check mb-3">
+                  {{ form.has_vehicle_access }}
+                  <label class="form-check-label">
+                    {{ form.has_vehicle_access.label }}
+                  </label>
+                  {% for error in form.has_vehicle_access.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="form-check mb-3">
+                  {{ form.has_smartphone }}
+                  <label class="form-check-label">
+                    {{ form.has_smartphone.label }}
+                  </label>
+                  {% for error in form.has_smartphone.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="alert alert-light border mt-4 mb-0">
+                  <strong>Note:</strong> This role requires regular communication,
+                  follow-ups, territory activity and reporting. A smartphone and
+                  WhatsApp access are important.
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="card shadow-sm">
+              <div class="card-header">
+                <strong>Territory & Commercial Thinking</strong>
+              </div>
+              <div class="card-body">
+
+                <div class="mb-3">
+                  <label class="form-label">{{ form.territory_understanding.label }}</label>
+                  {{ form.territory_understanding }}
+                  {% for error in form.territory_understanding.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">{{ form.potential_client_types.label }}</label>
+                  {{ form.potential_client_types }}
+                  {% for error in form.potential_client_types.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="mb-0">
+                  <label class="form-label">{{ form.first_30_day_strategy.label }}</label>
+                  {{ form.first_30_day_strategy }}
+                  {% for error in form.first_30_day_strategy.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="card shadow-sm">
+              <div class="card-header">
+                <strong>Sales & Problem Solving</strong>
+              </div>
+              <div class="card-body">
+
+                <div class="mb-3">
+                  <label class="form-label">{{ form.cheaper_supplier_response.label }}</label>
+                  {{ form.cheaper_supplier_response }}
+                  {% for error in form.cheaper_supplier_response.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">{{ form.client_retention_strategy.label }}</label>
+                  {{ form.client_retention_strategy }}
+                  {% for error in form.client_retention_strategy.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="mb-0">
+                  <label class="form-label">{{ form.target_pressure_response.label }}</label>
+                  {{ form.target_pressure_response }}
+                  {% for error in form.target_pressure_response.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header">
+                <strong>Leadership & Accountability</strong>
+              </div>
+              <div class="card-body">
+
+                <div class="mb-3">
+                  <label class="form-label">{{ form.leadership_experience.label }}</label>
+                  {{ form.leadership_experience }}
+                  {% for error in form.leadership_experience.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">{{ form.unsupervised_problem_solving.label }}</label>
+                  {{ form.unsupervised_problem_solving }}
+                  {% for error in form.unsupervised_problem_solving.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="mb-0">
+                  <label class="form-label">{{ form.performance_environment_understanding.label }}</label>
+                  {{ form.performance_environment_understanding }}
+                  {% for error in form.performance_environment_understanding.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header">
+                <strong>Startup & Culture Fit</strong>
+              </div>
+              <div class="card-body">
+
+                <div class="mb-3">
+                  <label class="form-label">{{ form.startup_interest_reason.label }}</label>
+                  {{ form.startup_interest_reason }}
+                  {% for error in form.startup_interest_reason.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="form-check mb-3">
+                  {{ form.comfortable_performance_environment }}
+                  <label class="form-check-label">
+                    {{ form.comfortable_performance_environment.label }}
+                  </label>
+                  {% for error in form.comfortable_performance_environment.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">{{ form.motivation.label }}</label>
+                  {{ form.motivation }}
+                  {% for error in form.motivation.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="mb-0">
+                  <label class="form-label">{{ form.introduction_video_link.label }}</label>
+                  {{ form.introduction_video_link }}
+                  {% for error in form.introduction_video_link.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 d-flex justify-content-center mt-4">
+            <button type="submit" class="btn btn-primary btn-lg px-5">
+              Submit Application
+            </button>
+          </div>
+
+        </div>
+      </form>
+    </section>
+
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>

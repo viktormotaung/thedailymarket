@@ -83,6 +83,15 @@ class Client(models.Model):
         help_text="Internal staff member managing this client.",
     )
 
+    sales_operator = models.ForeignKey(
+        "profiles.SalesOperator",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="clients",
+        help_text="Sales operator responsible for this client.",
+    )
+
     PRICING_TYPE = [
         ("Retail", "Retail"),
         ("Wholesale", "Wholesale"),
@@ -119,9 +128,12 @@ class Client(models.Model):
     ]
 
     AREA_CHOICES = [
-        ("NORTH_CENTRAL", "North/Central"),
-        ("SOUTH_WEST", "South/West"),
+        ("SOUTH_WEST", "South / West"),
         ("EAST", "East"),
+        ("NORTH_CENTRAL", "North / Central"),
+        ("MIDVAAL", "Midvaal"),
+        ("PRETORIA", "Pretoria"),
+        ("OTHER", "Other"),
     ]
 
     DELIVERY_SLOT_CHOICES = [
@@ -604,11 +616,13 @@ class Prospect(models.Model):
     ]
 
     AREA_CHOICES = [
-        ("NORTH_CENTRAL", "North/Central"),
-        ("SOUTH_WEST", "South/West"),
+        ("SOUTH_WEST", "South / West"),
         ("EAST", "East"),
+        ("NORTH_CENTRAL", "North / Central"),
+        ("MIDVAAL", "Midvaal"),
+        ("PRETORIA", "Pretoria"),
+        ("OTHER", "Other"),
     ]
-
     
 
     stage = models.CharField(
@@ -643,6 +657,15 @@ class Prospect(models.Model):
         blank=True,
         related_name="prospects",
         help_text="Sales rep responsible for this prospect.",
+    )
+
+    sales_operator = models.ForeignKey(
+        "profiles.SalesOperator",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="prospects",
+        help_text="Sales operator responsible for this prospect.",
     )
 
     created_by = models.ForeignKey(
@@ -881,6 +904,7 @@ class Prospect(models.Model):
 
         client = Client.objects.create(
             account_manager=self.owner,
+            sales_operator=self.sales_operator,
 
             is_dummy=False,
 

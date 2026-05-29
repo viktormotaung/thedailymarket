@@ -3,7 +3,14 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import StaffProfile, CustomerProfile, SalesRepProfile, SalesRole, DriverProfile
+from .models import (
+    StaffProfile,
+    CustomerProfile,
+    SalesRepProfile,
+    SalesRole,
+    DriverProfile,
+    SalesOperator,
+)
 
 User = get_user_model()
 
@@ -26,23 +33,36 @@ class StaffProfileAdminForm(forms.ModelForm):
 
     class Meta:
         model = StaffProfile
-        fields = ("user", "job_title", "phone", "notes", "status", "department", "can_access_sales")
+        fields = (
+            "user",
+            "job_title",
+            "phone",
+            "notes",
+            "status",
+            "department",
+            "can_access_sales",
+        )
 
     def clean(self):
         cleaned = super().clean()
         c1 = cleaned.get("new_auth_code")
         c2 = cleaned.get("confirm_auth_code")
+
         if c1 or c2:
             if c1 != c2:
                 raise forms.ValidationError("Authorisation codes do not match.")
+
         return cleaned
 
     def save(self, commit=True):
         obj: StaffProfile = super().save(commit=False)
+
         if self.cleaned_data.get("new_auth_code"):
             obj.set_auth_code(self.cleaned_data["new_auth_code"], save=False)
+
         if commit:
             obj.save()
+
         return obj
 
 
@@ -66,7 +86,13 @@ class StaffProfileAdmin(admin.ModelAdmin):
         "last_seen_at",
         "user_last_login",
     )
-    list_filter = ("status", "department", "can_access_sales")
+
+    list_filter = (
+        "status",
+        "department",
+        "can_access_sales",
+    )
+
     search_fields = (
         "user__username",
         "user__first_name",
@@ -75,6 +101,7 @@ class StaffProfileAdmin(admin.ModelAdmin):
         "phone",
         "status",
     )
+
     autocomplete_fields = ("user",)
 
     fieldsets = (
@@ -140,6 +167,145 @@ class StaffProfileAdmin(admin.ModelAdmin):
 
 
 # ----------------------------
+# SalesOperator admin
+# ----------------------------
+@admin.register(SalesOperator)
+class SalesOperatorAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "territory",
+        "owner_1",
+        "owner_2",
+        "responsible_user_1",
+        "responsible_user_2",
+        "base_commission_pct",
+        "bonus_commission_pct",
+        "is_active",
+        "created_at",
+    )
+
+    list_filter = (
+        "territory",
+        "is_active",
+        "account_type",
+    )
+
+    search_fields = (
+        "name",
+        "owner_1__username",
+        "owner_1__first_name",
+        "owner_1__last_name",
+        "owner_2__username",
+        "owner_2__first_name",
+        "owner_2__last_name",
+        "responsible_user_1__username",
+        "responsible_user_1__first_name",
+        "responsible_user_1__last_name",
+        "responsible_user_2__username",
+        "responsible_user_2__first_name",
+        "responsible_user_2__last_name",
+        "suburb",
+        "city",
+        "province",
+        "bank_name",
+        "account_holder",
+    )
+
+    autocomplete_fields = (
+        "owner_1",
+        "owner_2",
+        "responsible_user_1",
+        "responsible_user_2",
+    )
+
+    readonly_fields = (
+        "full_address_display",
+        "created_at",
+        "updated_at",
+    )
+
+    fieldsets = (
+        (
+            "Operator Details",
+            {
+                "fields": (
+                    "name",
+                    "territory",
+                    "is_active",
+                    "notes",
+                )
+            },
+        ),
+        (
+            "Ownership",
+            {
+                "fields": (
+                    "owner_1",
+                    "owner_2",
+                )
+            },
+        ),
+        (
+            "Responsible Internal Users",
+            {
+                "fields": (
+                    "responsible_user_1",
+                    "responsible_user_2",
+                )
+            },
+        ),
+        (
+            "Commission",
+            {
+                "fields": (
+                    "base_commission_pct",
+                    "bonus_commission_pct",
+                )
+            },
+        ),
+        (
+            "Address",
+            {
+                "fields": (
+                    "address_line_1",
+                    "address_line_2",
+                    "suburb",
+                    "city",
+                    "province",
+                    "postal_code",
+                    "full_address_display",
+                )
+            },
+        ),
+        (
+            "Banking Details",
+            {
+                "fields": (
+                    "bank_name",
+                    "account_holder",
+                    "account_number",
+                    "branch_code",
+                    "account_type",
+                )
+            },
+        ),
+        (
+            "Timestamps",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
+    )
+
+    @admin.display(description="Full address")
+    def full_address_display(self, obj):
+        return obj.full_address
+
+
+# ----------------------------
 # SalesRepProfile admin form
 # ----------------------------
 class SalesRepProfileAdminForm(forms.ModelForm):
@@ -157,24 +323,39 @@ class SalesRepProfileAdminForm(forms.ModelForm):
 
     class Meta:
         model = SalesRepProfile
-        # department + supervisor are managed elsewhere / read-only here
-        fields = ("user", "staff_profile", "supervisor", "notes", "status")
+        fields = (
+            "user",
+            "staff_profile",
+            "sales_operator",
+            "base_commission_pct",
+            "bonus_commission_pct",
+            "supervisor",
+            "roles",
+            "notes",
+            "status",
+        )
 
     def clean(self):
         cleaned = super().clean()
         c1 = cleaned.get("new_auth_code")
         c2 = cleaned.get("confirm_auth_code")
+
         if c1 or c2:
             if c1 != c2:
                 raise forms.ValidationError("Authorisation codes do not match.")
+
         return cleaned
 
     def save(self, commit=True):
         obj: SalesRepProfile = super().save(commit=False)
+
         if self.cleaned_data.get("new_auth_code"):
             obj.set_auth_code(self.cleaned_data["new_auth_code"], save=False)
+
         if commit:
             obj.save()
+            self.save_m2m()
+
         return obj
 
 
@@ -188,23 +369,41 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
     list_display = (
         "user_full_name",
         "user_username",
+        "sales_operator",
         "department",
         "supervisor",
+        "base_commission_pct",
+        "bonus_commission_pct",
         "status",
         "updated_at",
         "online_now",
         "last_seen_at",
         "user_last_login",
     )
-    list_filter = ("status", "department")
+
+    list_filter = (
+        "status",
+        "department",
+        "sales_operator",
+    )
+
     search_fields = (
         "user__username",
         "user__first_name",
         "user__last_name",
+        "sales_operator__name",
         "department",
         "status",
     )
-    autocomplete_fields = ("user", "staff_profile", "supervisor")
+
+    autocomplete_fields = (
+        "user",
+        "staff_profile",
+        "sales_operator",
+        "supervisor",
+    )
+
+    filter_horizontal = ("roles",)
 
     fieldsets = (
         (
@@ -213,10 +412,21 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
                 "fields": (
                     "user",
                     "staff_profile",
+                    "sales_operator",
                     "supervisor",
                     "department",
+                    "roles",
                     "notes",
                     "status",
+                )
+            },
+        ),
+        (
+            "Commission",
+            {
+                "fields": (
+                    "base_commission_pct",
+                    "bonus_commission_pct",
                 )
             },
         ),
@@ -235,7 +445,7 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
     )
 
     readonly_fields = (
-        "department",  # department is fixed as "Sales" in model, so read-only here
+        "department",
         "auth_code_hash",
         "last_seen_at",
         "user_last_login_display",
@@ -275,26 +485,53 @@ class StaffProfileInline(admin.StackedInline):
     model = StaffProfile
     can_delete = False
     extra = 0
-    fields = ("job_title", "phone", "department", "can_access_sales", "notes", "status", "last_seen_at", "auth_code_hash")
-    readonly_fields = ("auth_code_hash", "last_seen_at")
+
+    fields = (
+        "job_title",
+        "phone",
+        "department",
+        "can_access_sales",
+        "notes",
+        "status",
+        "last_seen_at",
+        "auth_code_hash",
+    )
+
+    readonly_fields = (
+        "auth_code_hash",
+        "last_seen_at",
+    )
 
 
 @admin.register(SalesRole)
 class SalesRoleAdmin(admin.ModelAdmin):
-    list_display = ("name", "code")
-    search_fields = ("name", "code")
-    ordering = ("name",)
+    list_display = (
+        "name",
+        "code",
+    )
+
+    search_fields = (
+        "name",
+        "code",
+    )
+
+    ordering = (
+        "name",
+    )
 
 
 class SalesRepProfileInline(admin.StackedInline):
     model = SalesRepProfile
-    fk_name = "user"  # IMPORTANT: SalesRepProfile has two FKs to User
+    fk_name = "user"
     can_delete = False
     extra = 0
 
     fields = (
         "staff_profile",
-        "roles",              # ✅ NEW (multi-select)
+        "sales_operator",
+        "base_commission_pct",
+        "bonus_commission_pct",
+        "roles",
         "supervisor",
         "department",
         "status",
@@ -309,8 +546,13 @@ class SalesRepProfileInline(admin.StackedInline):
         "last_seen_at",
     )
 
-    filter_horizontal = ("roles",)  # ✅ clean multi-select UI
+    autocomplete_fields = (
+        "staff_profile",
+        "sales_operator",
+        "supervisor",
+    )
 
+    filter_horizontal = ("roles",)
 
 
 # Re-register User with the inlines
@@ -322,7 +564,10 @@ except admin.sites.NotRegistered:
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    inlines = (StaffProfileInline, SalesRepProfileInline)
+    inlines = (
+        StaffProfileInline,
+        SalesRepProfileInline,
+    )
 
 
 # ----------------------------
@@ -341,33 +586,57 @@ class CustomerProfileAdmin(admin.ModelAdmin):
         "last_seen_at",
         "user_last_login",
     )
-    list_filter = ("profile_type", "status")
+
+    list_filter = (
+        "profile_type",
+        "status",
+    )
+
     search_fields = (
         "user__username",
         "user__first_name",
         "user__last_name",
         "phone",
-     
         "status",
     )
-    autocomplete_fields = ("client",)
+
+    autocomplete_fields = (
+        "user",
+        "client",
+    )
 
     fieldsets = (
-        (None, {"fields": ("user", "profile_type", "status", "client")}),
+        (
+            None,
+            {
+                "fields": (
+                    "user",
+                    "profile_type",
+                    "status",
+                    "client",
+                    "consumer",
+                )
+            },
+        ),
         (
             "Contact",
             {
                 "fields": (
                     "display_name",
                     "phone",
-                    
                 )
             },
         ),
         ("Presence", {"fields": ("last_seen_at", "user_last_login_display")}),
         ("Timestamps", {"fields": ("created_at", "updated_at")}),
     )
-    readonly_fields = ("last_seen_at", "user_last_login_display", "created_at", "updated_at")
+
+    readonly_fields = (
+        "last_seen_at",
+        "user_last_login_display",
+        "created_at",
+        "updated_at",
+    )
 
     @admin.display(boolean=True, description="Online", ordering="last_seen_at")
     def online_now(self, obj: CustomerProfile):
@@ -384,6 +653,9 @@ class CustomerProfileAdmin(admin.ModelAdmin):
     user_last_login_display.admin_order_field = "user__last_login"
 
 
+# ----------------------------
+# DriverProfile admin
+# ----------------------------
 @admin.register(DriverProfile)
 class DriverProfileAdmin(admin.ModelAdmin):
     list_display = (
@@ -403,19 +675,42 @@ class DriverProfileAdmin(admin.ModelAdmin):
         "user__last_name",
     )
 
+    autocomplete_fields = (
+        "user",
+        "staff_profile",
+    )
+
     readonly_fields = (
         "created_at",
         "updated_at",
     )
 
     fieldsets = (
-        ("Driver", {
-            "fields": ("user", "staff_profile", "status"),
-        }),
-        ("Notes", {
-            "fields": ("notes",),
-        }),
-        ("Timestamps", {
-            "fields": ("created_at", "updated_at"),
-        }),
+        (
+            "Driver",
+            {
+                "fields": (
+                    "user",
+                    "staff_profile",
+                    "status",
+                )
+            },
+        ),
+        (
+            "Notes",
+            {
+                "fields": (
+                    "notes",
+                )
+            },
+        ),
+        (
+            "Timestamps",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
     )

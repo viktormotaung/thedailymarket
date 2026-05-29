@@ -713,7 +713,7 @@ class CommissionEntry(models.Model):
     - cost_total: total cost of products on invoice (snapshot).
     - rep_rate / rep_amount: commission for sales rep.
     - supervisor_rate / supervisor_amount: commission for supervisor (optional).
-    - is_new_business: whether this is the client's first paid invoice.
+    - is_new_business: whether this commission qualifies for the above-target new-business bonus.
     """
 
     COMMISSION_RATE_CHOICES = [
@@ -724,6 +724,7 @@ class CommissionEntry(models.Model):
         (Decimal("3.00"), "3%"),
         (Decimal("3.50"), "3.5%"),
         (Decimal("4.00"), "4%"),
+        (Decimal("5.00"), "5%"),
     ]
 
     rep = models.ForeignKey(
@@ -742,6 +743,15 @@ class CommissionEntry(models.Model):
         blank=True,
         related_name="supervisor_commission_entries",
         help_text="Snapshot of the supervisor at commission time (optional).",
+    )
+
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="commission_entries",
+        help_text="Snapshot of the client associated with this commission entry."
     )
 
     invoice = models.OneToOneField(
@@ -764,7 +774,7 @@ class CommissionEntry(models.Model):
         max_digits=5,
         decimal_places=2,
         choices=COMMISSION_RATE_CHOICES,
-        default=Decimal("3.50"),  # default 3.5% (new business)
+        default=Decimal("2.50"),  # default 2.5% (new business)
         help_text="Commission percent for sales rep (on cost).",
     )
     rep_amount = models.DecimalField(
@@ -833,9 +843,57 @@ class CommissionEntry(models.Model):
             self.supervisor_amount = Decimal("0.00")
 
     def save(self, *args, **kwargs):
+        """
+        Before saving:
+        - If client is missing, copy it from the linked invoice.
+        - Keep commission amounts in sync.
+        """
+
+        if not self.client and self.invoice_id:
+            invoice = getattr(self, "invoice", None)
+
+            if invoice and invoice.client_id:
+                self.client = invoice.client
+
         # Always keep amounts in sync with rates, cost_total and supervisor
         self.recompute_amounts()
+
         super().save(*args, **kwargs)
+
+
+
+
+@receiver(post_save, sender=CommissionEntry)
+def commission_entry_post_save_update_targets(sender, instance: CommissionEntry, **kwargs):
+    """
+    After a commission entry is saved:
+    - update/check the rep's MonthlyTargetAllocation timestamps
+    - update/check the area MonthlyTarget timestamps
+    """
+
+    invoice = instance.invoice
+    rep = instance.rep
+
+    if not invoice or not invoice.paid_date or not rep:
+        return
+
+    paid_day = invoice.paid_date
+    month_code = paid_day.strftime("%b").upper()[:3]
+
+    allocation = (
+        MonthlyTargetAllocation.objects
+        .filter(
+            sales_rep=rep,
+            monthly_target__year=paid_day.year,
+            monthly_target__month=month_code,
+            monthly_target__area=invoice.client.area,
+        )
+        .first()
+    )
+
+    if allocation:
+        allocation.check_and_set_target_reached()
+        allocation.monthly_target.check_and_set_target_reached()
 
 
 # ====================================================================
@@ -930,17 +988,104 @@ def weeks_in_month(year: int, month: int) -> Decimal:
     return Decimal(str(math.ceil(days / 7)))
 
 
-def invoice_is_new_business(invoice: Invoice) -> bool:
+def invoice_qualifies_for_new_business_bonus(invoice: Invoice, rep) -> bool:
     """
-    True if this is the client's first paid invoice (based on paid_date ordering).
-    Called after invoice.paid_date is set.
+    A commission entry qualifies as new-business bonus only if:
+
+    1. The invoice has a paid_date.
+    2. A rep exists.
+    3. This is the client's first commission-generating invoice
+       for this rep in this month.
+    4. The rep's unique monthly client count is ABOVE their client target.
+
+    Example:
+        client_target = 8
+
+        Client 1-8  -> is_new_business = False
+        Client 9+   -> is_new_business = True
     """
-    if not invoice.paid_date:
+
+    if not invoice.paid_date or not rep:
         return False
-    prior_exists = invoice.client.invoices.filter(
-        paid_date__lt=invoice.paid_date
-    ).exclude(pk=invoice.pk).exists()
-    return not prior_exists
+
+    paid_day = invoice.paid_date
+    first_day = date(paid_day.year, paid_day.month, 1)
+    last_day = date(
+        paid_day.year,
+        paid_day.month,
+        monthrange(paid_day.year, paid_day.month)[1]
+    )
+
+    client = invoice.client
+
+    # --------------------------------------------------
+    # 1. Only count the client once per rep/month
+    # --------------------------------------------------
+    prior_client_commission_exists = (
+        CommissionEntry.objects
+        .filter(
+            rep=rep,
+            invoice__client=client,
+            invoice__paid_date__gte=first_day,
+            invoice__paid_date__lte=last_day,
+        )
+        .exclude(invoice=invoice)
+        .exists()
+    )
+
+    if prior_client_commission_exists:
+        return False
+
+    # --------------------------------------------------
+    # 2. Find this rep's monthly target allocation
+    # --------------------------------------------------
+    allocation = (
+        MonthlyTargetAllocation.objects
+        .filter(
+            sales_rep=rep,
+            monthly_target__year=paid_day.year,
+            monthly_target__month=paid_day.strftime("%b").upper()[:3],
+            monthly_target__area=client.area,
+        )
+        .first()
+    )
+
+    if not allocation:
+        return False
+
+    # --------------------------------------------------
+    # 3. Count unique commission-generating clients
+    #    for the rep/month, including this invoice
+    # --------------------------------------------------
+    unique_client_count = (
+        CommissionEntry.objects
+        .filter(
+            rep=rep,
+            invoice__paid_date__gte=first_day,
+            invoice__paid_date__lte=last_day,
+            invoice__client__area=client.area,
+        )
+        .values("invoice__client_id")
+        .distinct()
+        .count()
+    )
+
+    # If this commission entry does not exist yet, include current client manually
+    current_client_already_counted = (
+        CommissionEntry.objects
+        .filter(
+            rep=rep,
+            invoice__client=client,
+            invoice__paid_date__gte=first_day,
+            invoice__paid_date__lte=last_day,
+        )
+        .exists()
+    )
+
+    if not current_client_already_counted:
+        unique_client_count += 1
+
+    return unique_client_count > allocation.client_target
 
 
 def compute_invoice_cost_excl(invoice: Invoice) -> Decimal:
@@ -989,31 +1134,29 @@ def resolve_rep_and_supervisor_for_invoice(invoice: Invoice):
 
 def create_or_update_commission_entry_for_invoice(invoice: Invoice) -> CommissionEntry:
     """
-    Create or update CommissionEntry for a fully paid invoice, based on COST (not selling price).
+    Create or update CommissionEntry for a fully paid invoice.
 
-    - Base = sum(Product.cost_price * quantity) over all order items.
-    - If invoice is new business -> rep_rate = 3.5% (on cost).
-    - If repeat business        -> rep_rate = 2.5% (on cost).
-    - Supervisor uses 1% on cost (if linked via SalesRepProfile.supervisor).
+    New logic:
+    - Rep is resolved from client.account_manager.
+    - Client only counts once per month once they have a commission-generating invoice.
+    - is_new_business=True only when rep has exceeded their monthly client target.
+    - New-business bonus rate = 5%.
+    - Normal recurring rate = 2.5%.
     """
-    # 1) Resolve rep and supervisor
+
     rep, supervisor = resolve_rep_and_supervisor_for_invoice(invoice)
 
-    # 2) New vs repeat
-    is_new = invoice_is_new_business(invoice)
-
-    # 3) Cost base
     cost_total = compute_invoice_cost_excl(invoice)
 
-    # 4) Pick commission rates
-    rep_rate_pct = Decimal("3.50") if is_new else Decimal("2.50")
+    is_new = invoice_qualifies_for_new_business_bonus(invoice, rep)
+
+    rep_rate_pct = Decimal("5.00") if is_new else Decimal("2.50")
     supervisor_rate_pct = Decimal("1.00")
 
-    # 5) Create / update entry.
-    #    We do NOT pass amounts here – save() will recompute them.
     ce, _ = CommissionEntry.objects.using(invoice._state.db).update_or_create(
         invoice=invoice,
         defaults={
+            "client": invoice.client,
             "rep": rep,
             "supervisor": supervisor,
             "cost_total": cost_total,
@@ -1022,6 +1165,7 @@ def create_or_update_commission_entry_for_invoice(invoice: Invoice) -> Commissio
             "is_new_business": is_new,
         },
     )
+
     return ce
 
 
@@ -1145,6 +1289,16 @@ class UtilizationSegment(models.Model):
 # =========================================================
 
 class MonthlyTarget(models.Model):
+    """
+    Master monthly target for a territory/area.
+
+    Example:
+        North/Central - May 2026
+            Total Revenue Target: R300,000
+            Total Client Target: 24
+
+    Rep allocations are handled by MonthlyTargetAllocation.
+    """
 
     MONTH_CHOICES = [
         ("JAN", "January"),
@@ -1171,9 +1325,12 @@ class MonthlyTarget(models.Model):
     ]
 
     AREA_CHOICES = [
-        ("NORTH_CENTRAL", "North/Central"),
-        ("SOUTH_WEST", "South/West"),
+        ("SOUTH_WEST", "South / West"),
         ("EAST", "East"),
+        ("NORTH_CENTRAL", "North / Central"),
+        ("MIDVAAL", "Midvaal"),
+        ("PRETORIA", "Pretoria"),
+        ("OTHER", "Other"),
     ]
 
     month = models.CharField(max_length=3, choices=MONTH_CHOICES)
@@ -1181,7 +1338,29 @@ class MonthlyTarget(models.Model):
     quarter = models.CharField(max_length=2, choices=QUARTER_CHOICES)
     area = models.CharField(max_length=20, choices=AREA_CHOICES)
 
-    monthly_target = models.DecimalField(max_digits=14, decimal_places=2)
+    monthly_target = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Total rand value target for this month and area."
+    )
+
+    total_client_target = models.PositiveIntegerField(
+        default=0,
+        help_text="Total new recurring client target for this month and area."
+    )
+
+    monthly_target_reached_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when the total monthly revenue target was reached."
+    )
+
+    client_target_reached_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when the total client target was reached."
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -1192,21 +1371,26 @@ class MonthlyTarget(models.Model):
     def __str__(self):
         return f"{self.get_area_display()} - {self.get_month_display()} {self.year}"
 
-    # -----------------------------------------------------
-    # HELPER METHODS
-    # -----------------------------------------------------
-
     def get_month_number(self):
         month_map = {
-            "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4,
-            "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8,
-            "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
+            "JAN": 1,
+            "FEB": 2,
+            "MAR": 3,
+            "APR": 4,
+            "MAY": 5,
+            "JUN": 6,
+            "JUL": 7,
+            "AUG": 8,
+            "SEP": 9,
+            "OCT": 10,
+            "NOV": 11,
+            "DEC": 12,
         }
         return month_map[self.month]
 
     def get_total_days(self):
         return calendar.monthrange(self.year, self.get_month_number())[1]
-    
+
     def get_total_working_days(self):
         month_number = self.get_month_number()
         total_days = calendar.monthrange(self.year, month_number)[1]
@@ -1221,7 +1405,6 @@ class MonthlyTarget(models.Model):
         for day in range(1, total_days + 1):
             current_date = date(self.year, month_number, day)
 
-            # Monday–Friday AND not a public holiday
             if current_date.weekday() < 5 and current_date not in holidays:
                 working_days += 1
 
@@ -1230,136 +1413,120 @@ class MonthlyTarget(models.Model):
     def get_daily_target(self):
         working_days = self.get_total_working_days()
 
-        return (self.monthly_target / Decimal(working_days)).quantize(Decimal("0.01"))
+        if working_days <= 0:
+            return Decimal("0.00")
 
-    def validate_allocations(self):
-        total = sum(a.percentage for a in self.allocations.all())
-        if total != Decimal("100.00"):
-            raise ValueError("Total allocation must equal 100%")
-        
-    def get_segment_actuals(self):
-        """
-        Returns actual paid invoice totals per segment for this month,
-        filtered by territory area.
-        """
+        return (
+            self.monthly_target / Decimal(working_days)
+        ).quantize(Decimal("0.01"))
 
-        from django.db.models import Sum
-
+    def get_period_dates(self):
         month_number = self.get_month_number()
 
         first_day = date(self.year, month_number, 1)
         last_day = date(self.year, month_number, self.get_total_days())
 
-        actuals = {}
+        return first_day, last_day
 
-        for allocation in self.allocations.all():
+    def get_actual_revenue(self):
+        """
+        Total paid invoice revenue for this area and month.
+        """
 
-            segment = allocation.segment
+        first_day, last_day = self.get_period_dates()
 
-            total = (
-                segment.invoices
-                .filter(
-                    status="paid",
-                    paid_date__gte=first_day,
-                    paid_date__lte=last_day,
-                    order__client__area=self.area  # 🔥 THIS IS THE KEY
-                )
-                .aggregate(s=Sum("order_total_inc"))["s"]
-                or Decimal("0.00")
+        total = (
+            Invoice.objects.filter(
+                status="paid",
+                paid_date__gte=first_day,
+                paid_date__lte=last_day,
+                client__area=self.area,
+            ).aggregate(
+                s=Sum("order_total_inc")
+            )["s"]
+            or Decimal("0.00")
+        )
+
+        return total.quantize(Decimal("0.01"))
+
+    def get_actual_clients(self):
+        """
+        Total unique commission-generating clients for this area and month.
+        """
+
+        first_day, last_day = self.get_period_dates()
+
+        return (
+            CommissionEntry.objects
+            .filter(
+                invoice__paid_date__gte=first_day,
+                invoice__paid_date__lte=last_day,
+                invoice__client__area=self.area,
             )
+            .values("invoice__client_id")
+            .distinct()
+            .count()
+        )
 
-            actuals[segment.name] = total.quantize(Decimal("0.01"))
+    def get_revenue_gap(self):
+        return (
+            self.monthly_target - self.get_actual_revenue()
+        ).quantize(Decimal("0.01"))
 
-        return actuals
-    
-    def get_segment_performance(self):
+    def get_client_gap(self):
+        return max(
+            self.total_client_target - self.get_actual_clients(),
+            0
+        )
+
+    def get_revenue_percentage(self):
+        if self.monthly_target <= 0:
+            return Decimal("0.00")
+
+        return (
+            self.get_actual_revenue()
+            / self.monthly_target
+            * Decimal("100")
+        ).quantize(Decimal("0.01"))
+
+    def get_client_percentage(self):
+        if self.total_client_target <= 0:
+            return Decimal("0.00")
+
+        return (
+            Decimal(self.get_actual_clients())
+            / Decimal(self.total_client_target)
+            * Decimal("100")
+        ).quantize(Decimal("0.01"))
+
+    def check_and_set_target_reached(self):
         """
-        Returns target vs actual vs gap per segment.
+        Automatically sets timestamps once area-level targets are achieved.
         """
 
-        breakdown = self.get_segment_breakdown()
-        actuals = self.get_segment_actuals()
+        changed = False
 
-        performance = {}
+        if (
+            not self.monthly_target_reached_at
+            and self.get_actual_revenue() >= self.monthly_target
+        ):
+            self.monthly_target_reached_at = now()
+            changed = True
 
-        for segment_name, data in breakdown.items():
+        if (
+            not self.client_target_reached_at
+            and self.get_actual_clients() >= self.total_client_target
+        ):
+            self.client_target_reached_at = now()
+            changed = True
 
-            target = data["monthly_allocation"]
-            actual = actuals.get(segment_name, Decimal("0.00"))
-            gap = (actual - target).quantize(Decimal("0.01"))
-
-            performance[segment_name] = {
-                "target": target,
-                "actual": actual,
-                "gap": gap,
-                "percentage_achieved": (
-                    (actual / target) * Decimal("100")
-                ).quantize(Decimal("0.01")) if target > 0 else Decimal("0.00")
-            }
-
-        return performance
-
-    def get_segment_breakdown(self):
-        """
-        Returns full breakdown per segment:
-        - Monthly allocation
-        - Daily pacing
-        - ISO weekly breakdown
-        """
-
-        month_number = self.get_month_number()
-        total_days = self.get_total_working_days()
-        daily_master_target = self.get_daily_target()
-
-        first_day = date(self.year, month_number, 1)
-        last_day = date(self.year, month_number, self.get_total_days())
-
-        breakdown = {}
-
-        for allocation in self.allocations.all():
-
-            segment = allocation.segment
-            percentage = allocation.percentage
-
-            # Monthly allocation per segment
-            monthly_alloc = (
-                self.monthly_target * (percentage / Decimal("100"))
-            ).quantize(Decimal("0.01"))
-
-            # Daily allocation per segment
-            segment_daily_target = (
-                monthly_alloc / Decimal(total_days)
-            ).quantize(Decimal("0.01"))
-
-            # ISO weekly breakdown
-            current = first_day
-            weeks = {}
-
-            while current <= last_day:
-                iso_year, iso_week, _ = current.isocalendar()
-                key = f"{iso_year}-W{iso_week}"
-
-                if key not in weeks:
-                    weeks[key] = 0
-
-                weeks[key] += 1
-                current += timedelta(days=1)
-
-            # Convert days per week into monetary allocation
-            for week in weeks:
-                weeks[week] = (
-                    Decimal(weeks[week]) * segment_daily_target
-                ).quantize(Decimal("0.01"))
-
-            breakdown[segment.name] = {
-                "cycle_days": segment.cycle_days,
-                "percentage": percentage,
-                "monthly_allocation": monthly_alloc,
-                "daily_target": segment_daily_target,
-                "weekly_breakdown": weeks,
-            }
-
-        return breakdown
+        if changed:
+            self.save(
+                update_fields=[
+                    "monthly_target_reached_at",
+                    "client_target_reached_at",
+                ]
+            )
 
 
 # =========================================================
@@ -1368,43 +1535,191 @@ class MonthlyTarget(models.Model):
 
 class MonthlyTargetAllocation(models.Model):
     """
-    Defines % split of MonthlyTarget across segments.
+    Individual sales rep allocation for a MonthlyTarget.
+
     Example:
-        Daily 30%
-        3 Day 30%
-        7 Day 40%
+        North/Central Monthly Target:
+            - Total Revenue Target: R300,000
+            - Total Client Target: 24
+
+        Rep Allocations:
+            Rep A -> R100,000 / 8 clients
+            Rep B -> R100,000 / 8 clients
+            Rep C -> R100,000 / 8 clients
     """
 
     monthly_target = models.ForeignKey(
-        MonthlyTarget,
+        "MonthlyTarget",
         on_delete=models.CASCADE,
-        related_name="allocations"
+        related_name="rep_allocations"
     )
 
-    segment = models.ForeignKey(
-        UtilizationSegment,
-        on_delete=models.PROTECT
+    sales_rep = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="monthly_target_allocations",
+        null=True,
+        blank=True,
+        help_text="Sales rep assigned to this monthly target allocation."
     )
 
-    percentage = models.DecimalField(
-        max_digits=5,
+    monthly_target_value = models.DecimalField(
+        max_digits=14,
         decimal_places=2,
-        help_text="Allocation percentage of total monthly target"
+        default=Decimal("0.00"),
+        help_text="Rand value target assigned to this sales rep for the month."
     )
+
+    client_target = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of new recurring clients this sales rep must achieve for the month."
+    )
+
+    monthly_target_reached_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when the sales rep reached their monthly revenue target."
+    )
+
+    client_target_reached_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when the sales rep reached their client target."
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("monthly_target", "segment")
-        ordering = ["segment__cycle_days"]
-
-    def get_allocated_amount(self):
-        return (
-            self.monthly_target.monthly_target
-            * (self.percentage / Decimal("100"))
-        ).quantize(Decimal("0.01"))
+        unique_together = ("monthly_target", "sales_rep")
+        ordering = ["sales_rep__first_name", "sales_rep__last_name"]
 
     def __str__(self):
-        return f"{self.segment.name} - {self.percentage}%"
-    
+        rep_name = (
+            self.sales_rep.get_full_name()
+            or self.sales_rep.get_username()
+        ) if self.sales_rep else "Unassigned"
+
+        return (
+            f"{rep_name} | "
+            f"{self.monthly_target.get_month_display()} "
+            f"{self.monthly_target.year}"
+        )
+
+    def get_period_dates(self):
+        return self.monthly_target.get_period_dates()
+
+    def get_actual_revenue(self):
+        """
+        Actual paid invoice revenue generated by this rep
+        within the MonthlyTarget period.
+        """
+
+        if not self.sales_rep:
+            return Decimal("0.00")
+
+        first_day, last_day = self.get_period_dates()
+
+        total = (
+            Invoice.objects.filter(
+                status="paid",
+                paid_date__gte=first_day,
+                paid_date__lte=last_day,
+                client__account_manager=self.sales_rep,
+                client__area=self.monthly_target.area,
+            ).aggregate(
+                s=Sum("order_total_inc")
+            )["s"]
+            or Decimal("0.00")
+        )
+
+        return total.quantize(Decimal("0.01"))
+
+    def get_actual_clients(self):
+        """
+        Number of unique commission-generating clients for this rep
+        within the MonthlyTarget period.
+        """
+
+        if not self.sales_rep:
+            return 0
+
+        first_day, last_day = self.get_period_dates()
+
+        return (
+            CommissionEntry.objects
+            .filter(
+                rep=self.sales_rep,
+                invoice__paid_date__gte=first_day,
+                invoice__paid_date__lte=last_day,
+                invoice__client__area=self.monthly_target.area,
+            )
+            .values("invoice__client_id")
+            .distinct()
+            .count()
+        )
+
+    def get_revenue_gap(self):
+        return (
+            self.monthly_target_value - self.get_actual_revenue()
+        ).quantize(Decimal("0.01"))
+
+    def get_client_gap(self):
+        return max(
+            self.client_target - self.get_actual_clients(),
+            0
+        )
+
+    def get_revenue_percentage(self):
+        if self.monthly_target_value <= 0:
+            return Decimal("0.00")
+
+        return (
+            self.get_actual_revenue()
+            / self.monthly_target_value
+            * Decimal("100")
+        ).quantize(Decimal("0.01"))
+
+    def get_client_percentage(self):
+        if self.client_target <= 0:
+            return Decimal("0.00")
+
+        return (
+            Decimal(self.get_actual_clients())
+            / Decimal(self.client_target)
+            * Decimal("100")
+        ).quantize(Decimal("0.01"))
+
+    def check_and_set_target_reached(self):
+        """
+        Automatically sets timestamps once rep-level targets are achieved.
+        """
+
+        changed = False
+
+        if (
+            not self.monthly_target_reached_at
+            and self.get_actual_revenue() >= self.monthly_target_value
+        ):
+            self.monthly_target_reached_at = now()
+            changed = True
+
+        if (
+            not self.client_target_reached_at
+            and self.get_actual_clients() >= self.client_target
+        ):
+            self.client_target_reached_at = now()
+            changed = True
+
+        if changed:
+            self.save(
+                update_fields=[
+                    "monthly_target_reached_at",
+                    "client_target_reached_at",
+                    "updated_at",
+                ]
+            )
+
 
 class PaymentLog(models.Model):
     PROVIDER_CHOICES = [

@@ -11,7 +11,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from clients.models import Prospect, ProspectUpdate, Client
 from clients.forms import ProspectForm, ProspectUpdateForm
 from django.utils.timezone import localdate
-from invoices.models import CommissionEntry, MonthlyCommission  # adjust import path if needed
+from invoices.models import CommissionEntry, Invoice, MonthlyTarget, MonthlyTargetAllocation, MonthlyCommission
 from products.models import Category, Product
 from orders.models import Order, OrderItem, Quotation, QuotationItem
 from django import forms
@@ -33,7 +33,7 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
-
+from tasks.forms import TicketCreateForm
 from communications.services.whatsapp import send_whatsapp_message
 import json
 from invoices.forms import MonthlyTargetForm
@@ -53,7 +53,7 @@ from django.contrib.auth import get_user_model
 from django.db.models.functions import Coalesce
 from invoices.models import Invoice
 from django.utils.timezone import now
-from tasks.models import Task
+from tasks.models import Task, Ticket
 from django.contrib import messages
 from django.http import Http404
 from django.core.mail import send_mail
@@ -63,11 +63,12 @@ from credit.models import CreditAccount
 from clients.forms import ClientEditForm
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
-from .forms import SalesJobApplicationForm
+from .forms import JobApplicationForm
 from datetime import date
 from decimal import Decimal
 import calendar
-
+from django.db.models import Sum, DecimalField
+from django.db.models.functions import Coalesce
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
@@ -2789,14 +2790,13 @@ def prev_year_month(year, month, offset=1):
 
 @login_required
 def commission(request):
-
-    # =========================
-    # DATE / FILTERS
-    # =========================
     today = localdate()
 
     selected_month = int(request.GET.get("month", today.month))
     selected_year = int(request.GET.get("year", today.year))
+    selected_area = request.GET.get("area", "")
+
+    month_code = calendar.month_abbr[selected_month].upper()
 
     first_day = date(selected_year, selected_month, 1)
     last_day = date(
@@ -2805,7 +2805,9 @@ def commission(request):
         calendar.monthrange(selected_year, selected_month)[1],
     )
 
-    # Previous month (for trend)
+    # =========================
+    # PREVIOUS PERIOD SETUP
+    # =========================
     prev_month = selected_month - 1 or 12
     prev_year = selected_year if selected_month != 1 else selected_year - 1
 
@@ -2816,240 +2818,609 @@ def commission(request):
         calendar.monthrange(prev_year, prev_month)[1],
     )
 
+    if selected_year == today.year and selected_month == today.month:
+        comparison_start = prev_first_day
+        comparison_day = min(
+            today.day,
+            calendar.monthrange(prev_year, prev_month)[1],
+        )
+        comparison_end = date(prev_year, prev_month, comparison_day)
+    else:
+        comparison_start = prev_first_day
+        comparison_end = prev_last_day
+
+    def build_change(current, previous):
+        current = current or Decimal("0.00")
+        previous = previous or Decimal("0.00")
+
+        if not isinstance(current, Decimal):
+            current = Decimal(str(current))
+
+        if not isinstance(previous, Decimal):
+            previous = Decimal(str(previous))
+
+        diff = current - previous
+
+        if previous > 0:
+            pct = ((diff / previous) * Decimal("100")).quantize(Decimal("0.01"))
+        elif current > 0:
+            pct = Decimal("100.00")
+        else:
+            pct = Decimal("0.00")
+
+        if diff > 0:
+            direction = "up"
+        elif diff < 0:
+            direction = "down"
+        else:
+            direction = "flat"
+
+        return {
+            "direction": direction,
+            "amount": diff.quantize(Decimal("0.01")),
+            "percent": pct,
+        }
+
     # =========================
-    # BASE QUERYSETS
+    # BASE COMMISSION QUERY
     # =========================
-    base_qs = CommissionEntry.objects.select_related(
-        "invoice",
-        "invoice__client",
-        "rep",
-    ).filter(
-        invoice__status="paid",
-        invoice__paid_date__gte=first_day,
-        invoice__paid_date__lte=last_day,
+    commission_entries = (
+        CommissionEntry.objects
+        .select_related(
+            "invoice",
+            "invoice__client",
+            "client",
+            "rep",
+            "supervisor",
+        )
+        .filter(
+            created_at__date__gte=first_day,
+            created_at__date__lte=last_day,
+        )
+        .order_by("-created_at")
     )
 
-    prev_qs = CommissionEntry.objects.select_related(
-        "invoice",
-        "invoice__client",
-        "rep",
-    ).filter(
-        invoice__status="paid",
-        invoice__paid_date__gte=prev_first_day,
-        invoice__paid_date__lte=prev_last_day,
-    )
+    if selected_area:
+        commission_entries = commission_entries.filter(
+            client__area=selected_area
+        )
 
     # =========================
-    # UTILIZATION
+    # PREVIOUS COMMISSION QUERY
     # =========================
-    actual_utilization = (
-        base_qs.aggregate(t=Sum("cost_total"))["t"]
+    previous_commission_entries = (
+        CommissionEntry.objects
+        .select_related(
+            "invoice",
+            "invoice__client",
+            "client",
+            "rep",
+            "supervisor",
+        )
+        .filter(
+            created_at__date__gte=comparison_start,
+            created_at__date__lte=comparison_end,
+        )
+    )
+
+    if selected_area:
+        previous_commission_entries = previous_commission_entries.filter(
+            client__area=selected_area
+        )
+
+    # =========================
+    # TARGETS
+    # =========================
+    monthly_targets = MonthlyTarget.objects.filter(
+        year=selected_year,
+        month=month_code,
+    )
+
+    if selected_area:
+        monthly_targets = monthly_targets.filter(area=selected_area)
+
+    monthly_target = (
+        monthly_targets.aggregate(t=Sum("monthly_target"))["t"]
         or Decimal("0.00")
     )
 
-    # =========================
-    # TARGET
-    # =========================
-    monthly_target_obj = MonthlyTarget.objects.filter(
-        year=selected_year,
-        month=calendar.month_abbr[selected_month].upper(),
-    ).first()
-
-    monthly_target = (
-        monthly_target_obj.monthly_target
-        if monthly_target_obj else Decimal("0.00")
+    client_target = (
+        monthly_targets.aggregate(t=Sum("total_client_target"))["t"]
+        or 0
     )
 
-    achievement_pct = (
-        (actual_utilization / monthly_target) * Decimal("100")
+    # =========================
+    # TOTAL COMMISSION PAYABLE
+    # =========================
+    commission_totals = commission_entries.aggregate(
+        rep_total=Coalesce(
+            Sum("rep_amount"),
+            Decimal("0.00"),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        ),
+        supervisor_total=Coalesce(
+            Sum("supervisor_amount"),
+            Decimal("0.00"),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        ),
+    )
+
+    total_commission_payable = (
+        commission_totals["rep_total"]
+        + commission_totals["supervisor_total"]
+    ).quantize(Decimal("0.01"))
+
+    new_business_bonus_total = (
+        commission_entries
+        .filter(is_new_business=True)
+        .aggregate(t=Sum("rep_amount"))["t"]
+        or Decimal("0.00")
+    )
+
+    total_revenue = (
+        commission_entries.aggregate(
+            t=Sum("invoice__order_total_inc")
+        )["t"]
+        or Decimal("0.00")
+    )
+
+    total_clients = (
+        commission_entries
+        .values("client_id")
+        .exclude(client_id=None)
+        .distinct()
+        .count()
+    )
+
+    # =========================
+    # PREVIOUS PERIOD KPI VALUES
+    # =========================
+    previous_commission_totals = previous_commission_entries.aggregate(
+        rep_total=Coalesce(
+            Sum("rep_amount"),
+            Decimal("0.00"),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        ),
+        supervisor_total=Coalesce(
+            Sum("supervisor_amount"),
+            Decimal("0.00"),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        ),
+    )
+
+    previous_commission_payable = (
+        previous_commission_totals["rep_total"]
+        + previous_commission_totals["supervisor_total"]
+    ).quantize(Decimal("0.01"))
+
+    previous_revenue = (
+        previous_commission_entries.aggregate(
+            t=Sum("invoice__order_total_inc")
+        )["t"]
+        or Decimal("0.00")
+    )
+
+    previous_clients = (
+        previous_commission_entries
+        .values("client_id")
+        .exclude(client_id=None)
+        .distinct()
+        .count()
+    )
+
+    previous_new_business_bonus = (
+        previous_commission_entries
+        .filter(is_new_business=True)
+        .aggregate(t=Sum("rep_amount"))["t"]
+        or Decimal("0.00")
+    )
+
+    commission_payable_change = build_change(
+        total_commission_payable,
+        previous_commission_payable,
+    )
+
+    revenue_change = build_change(
+        total_revenue,
+        previous_revenue,
+    )
+
+    clients_change = build_change(
+        Decimal(total_clients),
+        Decimal(previous_clients),
+    )
+
+    new_business_bonus_change = build_change(
+        new_business_bonus_total,
+        previous_new_business_bonus,
+    )
+
+    actual_revenue = total_revenue
+    actual_clients = total_clients
+
+    revenue_target_pct = (
+        (actual_revenue / monthly_target) * Decimal("100")
         if monthly_target > 0 else Decimal("0.00")
     )
 
-    # =========================
-    # WORKING DAYS
-    # =========================
-    working_days = (
-        monthly_target_obj.get_total_working_days()
-        if monthly_target_obj else 0
+    client_target_pct = (
+        (Decimal(actual_clients) / Decimal(client_target)) * Decimal("100")
+        if client_target > 0 else Decimal("0.00")
     )
 
+    revenue_gap = max(monthly_target - actual_revenue, Decimal("0.00"))
+    clients_needed_for_bonus = max(client_target - actual_clients, 0)
+    bonus_active = actual_clients > client_target if client_target else False
+
+    # =========================
+    # WORKING DAYS / DAILY PACING
+    # =========================
+    working_days = 0
+
+    for target in monthly_targets:
+        try:
+            working_days = max(working_days, target.get_total_working_days())
+        except Exception:
+            pass
+
+    if working_days <= 0:
+        working_days = 1
+
+    if today.year == selected_year and today.month == selected_month:
+        current_day_limit = today.day
+    else:
+        current_day_limit = last_day.day
+
     days_passed = 0
-    for d in range(1, today.day + 1):
+    for d in range(1, current_day_limit + 1):
         current = date(selected_year, selected_month, d)
         if current.weekday() < 5:
             days_passed += 1
 
     days_remaining = max(working_days - days_passed, 0)
 
+    weeks_in_month = Decimal("4.00")
+
+    weekly_average = (
+        actual_revenue / weeks_in_month
+        if actual_revenue > 0 else Decimal("0.00")
+    ).quantize(Decimal("0.01"))
+
+    required_per_week = (
+        revenue_gap / weeks_in_month
+        if revenue_gap > 0 else Decimal("0.00")
+    ).quantize(Decimal("0.01"))
+
     # =========================
-    # DAILY TARGET
+    # REP PERFORMANCE TABLE
     # =========================
-    daily_target = (
-        monthly_target / Decimal(working_days)
-        if working_days > 0 else Decimal("0.00")
+    rep_commission_summary = []
+
+    allocations = (
+        MonthlyTargetAllocation.objects
+        .select_related("sales_rep", "monthly_target")
+        .filter(
+            monthly_target__year=selected_year,
+            monthly_target__month=month_code,
+        )
     )
 
-    # =========================
-    # TARGET REMAINING
-    # =========================
-    target_remaining = monthly_target - actual_utilization
+    if selected_area:
+        allocations = allocations.filter(monthly_target__area=selected_area)
 
-    required_per_day = (
-        target_remaining / Decimal(days_remaining)
-        if days_remaining > 0 else Decimal("0.00")
-    )
+    for allocation in allocations:
+        rep = allocation.sales_rep
 
-    # =========================
-    # TODAY
-    # =========================
-    today_actual = (
-        CommissionEntry.objects.filter(
-            invoice__status="paid",
-            invoice__paid_date=today,
-        ).aggregate(t=Sum("cost_total"))["t"]
-        or Decimal("0.00")
-    )
+        if not rep:
+            continue
 
-    today_target = daily_target
-    today_gap = today_actual - today_target
+        rep_entries = commission_entries.filter(rep=rep)
 
-    # =========================
-    # SUPERVISOR SUMMARY (FIXED)
-    # =========================
-    supervisor_summary = []
-
-    supervisor_ids = SalesRepProfile.objects.exclude(
-        supervisor=None
-    ).values_list("supervisor", flat=True).distinct()
-
-    for sup_id in supervisor_ids:
-
-        supervisor = User.objects.get(id=sup_id)
-
-        team_reps = SalesRepProfile.objects.filter(supervisor=supervisor)
-        rep_ids = team_reps.values_list("user_id", flat=True)
-
-        sup_qs = base_qs.filter(rep__id__in=rep_ids)
-
-        sup_total = (
-            sup_qs.aggregate(t=Sum("cost_total"))["t"]
+        rep_revenue = (
+            rep_entries.aggregate(t=Sum("invoice__order_total_inc"))["t"]
             or Decimal("0.00")
         )
 
-        daily_avg = (
-            sup_total / Decimal(working_days)
-            if working_days > 0 else Decimal("0.00")
+        rep_clients = (
+            rep_entries
+            .values("client_id")
+            .exclude(client_id=None)
+            .distinct()
+            .count()
         )
 
-        percent = (
-            (sup_total / monthly_target) * Decimal("100")
-            if monthly_target > 0 else Decimal("0.00")
+        base_commission = (
+            rep_entries
+            .filter(is_new_business=False)
+            .aggregate(t=Sum("rep_amount"))["t"]
+            or Decimal("0.00")
         )
 
-        supervisor_summary.append({
-            "user_id": supervisor.id,   # ✅ ADD THIS
-            "first_name": supervisor.first_name,
-            "last_name": supervisor.last_name,
-            "area": "",
-            "daily_avg": daily_avg,
-            "percent": percent,
+        bonus_commission = (
+            rep_entries
+            .filter(is_new_business=True)
+            .aggregate(t=Sum("rep_amount"))["t"]
+            or Decimal("0.00")
+        )
+
+        total_rep_commission = base_commission + bonus_commission
+
+        revenue_pct = (
+            (rep_revenue / allocation.monthly_target_value) * Decimal("100")
+            if allocation.monthly_target_value > 0 else Decimal("0.00")
+        )
+
+        full_name = rep.get_full_name() or rep.username
+
+        rep_commission_summary.append({
+            "rep_id": rep.id,
+            "rep_name": full_name,
+            "role": "Sales Rep",
+            "area": allocation.monthly_target.get_area_display(),
+            "revenue": rep_revenue,
+            "revenue_target": allocation.monthly_target_value,
+            "revenue_pct": revenue_pct,
+            "clients": rep_clients,
+            "client_target": allocation.client_target,
+            "base_commission": base_commission,
+            "bonus_commission": bonus_commission,
+            "total_commission": total_rep_commission,
+        })
+
+    rep_commission_summary = sorted(
+        rep_commission_summary,
+        key=lambda x: (
+            x["total_commission"],
+            x["bonus_commission"],
+            x["revenue"],
+            x["clients"],
+        ),
+        reverse=True,
+    )
+
+    for index, row in enumerate(rep_commission_summary, start=1):
+        row["ranking"] = index
+
+    # =========================
+    # AREA PERFORMANCE VIEW
+    # =========================
+    area_performance_summary = []
+
+    area_targets = monthly_targets
+
+    for target in area_targets:
+        area_code = target.area
+        area_label = target.get_area_display()
+
+        area_entries = commission_entries.filter(
+            client__area=area_code
+        )
+
+        rep_count = (
+            area_entries
+            .exclude(rep=None)
+            .values("rep_id")
+            .distinct()
+            .count()
+        )
+
+        total_clients_area = (
+            area_entries
+            .exclude(client=None)
+            .values("client_id")
+            .distinct()
+            .count()
+        )
+
+        area_revenue = (
+            area_entries.aggregate(t=Sum("invoice__order_total_inc"))["t"]
+            or Decimal("0.00")
+        )
+
+        rep_commission_total = (
+            area_entries.aggregate(t=Sum("rep_amount"))["t"]
+            or Decimal("0.00")
+        )
+
+        supervisor_commission_total = (
+            area_entries.aggregate(t=Sum("supervisor_amount"))["t"]
+            or Decimal("0.00")
+        )
+
+        total_commission_area = (
+            rep_commission_total + supervisor_commission_total
+        ).quantize(Decimal("0.01"))
+
+        area_performance_summary.append({
+            "area": area_label,
+            "rep_count": rep_count,
+            "clients": total_clients_area,
+            "revenue": area_revenue,
+            "rep_commission_total": rep_commission_total,
+            "supervisor_commission_total": supervisor_commission_total,
+            "total_commission": total_commission_area,
         })
 
     # =========================
-    # REP SUMMARY + TREND (FIXED)
+    # PERFORMANCE TREND GRAPH
+    # Revenue / Commission / Active Clients / Orders
     # =========================
-    rep_summary = []
+    performance_trend_labels = []
+    performance_trend_revenue = []
+    performance_trend_commission = []
+    performance_trend_clients = []
+    performance_trend_orders = []
 
-    reps = SalesRepProfile.objects.filter(
-        status="active"
-    ).select_related("user")
+    for month in range(1, 13):
+        start = date(selected_year, month, 1)
+        end = date(
+            selected_year,
+            month,
+            calendar.monthrange(selected_year, month)[1],
+        )
 
-    for rep in reps:
+        month_entries = (
+            CommissionEntry.objects
+            .select_related("invoice", "client", "rep", "supervisor")
+            .filter(
+                created_at__date__gte=start,
+                created_at__date__lte=end,
+            )
+        )
 
-        rep_id = rep.user.id
+        if selected_area:
+            month_entries = month_entries.filter(client__area=selected_area)
 
-        current_total = (
-            base_qs.filter(rep__id=rep_id)
-            .aggregate(t=Sum("cost_total"))["t"]
+        month_revenue = (
+            month_entries.aggregate(
+                t=Sum("invoice__order_total_inc")
+            )["t"]
             or Decimal("0.00")
         )
 
-        prev_total = (
-            prev_qs.filter(rep__id=rep_id)
-            .aggregate(t=Sum("cost_total"))["t"]
+        month_commission_totals = month_entries.aggregate(
+            rep_total=Coalesce(
+                Sum("rep_amount"),
+                Decimal("0.00"),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+            supervisor_total=Coalesce(
+                Sum("supervisor_amount"),
+                Decimal("0.00"),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+        )
+
+        month_commission = (
+            month_commission_totals["rep_total"]
+            + month_commission_totals["supervisor_total"]
+        ).quantize(Decimal("0.01"))
+
+        month_clients = (
+            month_entries
+            .exclude(client=None)
+            .values("client_id")
+            .distinct()
+            .count()
+        )
+
+        month_orders = (
+            month_entries
+            .exclude(invoice=None)
+            .values("invoice_id")
+            .distinct()
+            .count()
+        )
+
+        performance_trend_labels.append(calendar.month_abbr[month])
+        performance_trend_revenue.append(float(month_revenue))
+        performance_trend_commission.append(float(month_commission))
+        performance_trend_clients.append(month_clients)
+        performance_trend_orders.append(month_orders)
+
+    # =========================
+    # PAYROLL ROWS
+    # =========================
+    payroll_rows = []
+
+    monthly_commissions = MonthlyCommission.objects.filter(
+        year=selected_year,
+        month=selected_month,
+    ).select_related("rep")
+
+    if selected_area:
+        rep_ids_in_area = [
+            row["rep_id"]
+            for row in rep_commission_summary
+        ]
+        monthly_commissions = monthly_commissions.filter(rep_id__in=rep_ids_in_area)
+
+    for mc in monthly_commissions:
+        adjustments_total = (
+            mc.adjustments.aggregate(t=Sum("amount"))["t"]
             or Decimal("0.00")
         )
 
-        current_avg = (
-            current_total / Decimal(working_days)
-            if working_days > 0 else Decimal("0.00")
-        )
-
-        prev_avg = (
-            prev_total / Decimal(working_days)
-            if working_days > 0 else Decimal("0.00")
-        )
-
-        if prev_avg == 0:
-            trend = "flat"
-            trend_percent = Decimal("0.00")
-        else:
-            diff = current_avg - prev_avg
-            trend_percent = (diff / prev_avg) * Decimal("100")
-
-            if diff > 0:
-                trend = "up"
-            elif diff < 0:
-                trend = "down"
-            else:
-                trend = "flat"
-
-        rep_summary.append({
-            "user_id": rep.user.id,   # 🔥 THIS IS THE FIX
-            "first_name": rep.user.first_name,
-            "last_name": rep.user.last_name,
-            "area": "",
-            "daily_avg": current_avg,
-            "trend": trend,
-            "trend_percent": trend_percent,
+        payroll_rows.append({
+            "rep_id": mc.rep_id,
+            "rep_name": mc.rep.get_full_name() or mc.rep.username,
+            "base_commission": mc.recurring_commission_total,
+            "bonus_commission": mc.new_business_commission,
+            "adjustments": adjustments_total,
+            "total_payout": mc.total_payout + adjustments_total,
+            "paid": mc.paid,
+            "paid_on": mc.paid_on,
         })
 
     # =========================
-    # MONTH FILTER OPTIONS
+    # FILTER OPTIONS
     # =========================
     months = [
         {"value": i, "label": calendar.month_name[i]}
         for i in range(1, 13)
     ]
 
-    years = list(range(today.year - 2, today.year + 2))
+    years = list(range(today.year - 2, today.year + 3))
+
+    areas = [
+        {"value": code, "label": label}
+        for code, label in MonthlyTarget.AREA_CHOICES
+    ]
 
     # =========================
-    # CONTEXT
+    # EMAIL MODAL COMPATIBILITY
     # =========================
+    target_rep = None
+    filter_date_from = first_day
+    filter_date_to = last_day
+
     context = {
         "selected_month": selected_month,
         "selected_year": selected_year,
+        "selected_area": selected_area,
         "months": months,
         "years": years,
+        "areas": areas,
 
+        "total_commission_payable": total_commission_payable,
+        "total_revenue": total_revenue,
+        "total_clients": total_clients,
+        "new_business_bonus_total": new_business_bonus_total,
+
+        "commission_payable_change": commission_payable_change,
+        "revenue_change": revenue_change,
+        "clients_change": clients_change,
+        "new_business_bonus_change": new_business_bonus_change,
+        "comparison_start": comparison_start,
+        "comparison_end": comparison_end,
+
+        "actual_revenue": actual_revenue,
         "monthly_target": monthly_target,
-        "actual_utilization": actual_utilization,
-        "achievement_pct": achievement_pct,
+        "revenue_target_pct": revenue_target_pct,
+        "revenue_gap": revenue_gap,
+        "required_per_week": required_per_week,
+        "weekly_average": weekly_average,
 
-        "working_days": working_days,
-        "days_passed": days_passed,
-        "days_remaining": days_remaining,
+        "actual_clients": actual_clients,
+        "client_target": client_target,
+        "client_target_pct": client_target_pct,
+        "bonus_active": bonus_active,
+        "clients_needed_for_bonus": clients_needed_for_bonus,
 
-        "daily_target": daily_target,
-        "target_remaining": target_remaining,
-        "required_per_day": required_per_day,
+        "rep_commission_summary": rep_commission_summary,
+        "commission_entries": commission_entries[:20],
+        "area_performance_summary": area_performance_summary,
+        "payroll_rows": payroll_rows,
 
-        "today_target": today_target,
-        "today_gap": today_gap,
+        "target_rep": target_rep,
+        "filter_date_from": filter_date_from,
+        "filter_date_to": filter_date_to,
 
-        "supervisor_summary": supervisor_summary,
-        "rep_summary": rep_summary,
+        "performance_trend_labels": performance_trend_labels,
+        "performance_trend_revenue": performance_trend_revenue,
+        "performance_trend_commission": performance_trend_commission,
+        "performance_trend_clients": performance_trend_clients,
+        "performance_trend_orders": performance_trend_orders,
     }
 
     return render(request, "commission/commission.html", context)
@@ -3206,10 +3577,17 @@ def supervisor_detail(request, user_id):
     # =========================
     target_remaining = monthly_target - team_total
 
-    required_per_day = (
-        target_remaining / Decimal(days_remaining)
-        if days_remaining > 0 else Decimal("0.00")
-    )
+    weeks_in_month = Decimal("4.00")
+
+    weekly_average = (
+        actual_revenue / weeks_in_month
+        if actual_revenue > 0 else Decimal("0.00")
+    ).quantize(Decimal("0.01"))
+
+    required_per_week = (
+        revenue_gap / weeks_in_month
+        if revenue_gap > 0 else Decimal("0.00")
+    ).quantize(Decimal("0.01"))
 
     # =========================
     # TEAM SIZE
@@ -3305,7 +3683,8 @@ def supervisor_detail(request, user_id):
         "trend_percent": trend_percent,
 
         "target_remaining": target_remaining,
-        "required_per_day": required_per_day,
+        "required_per_week": required_per_week,
+        "weekly_average": weekly_average,
 
         "team_size": team_size,
         "team_reps": team_reps,
@@ -3468,10 +3847,17 @@ def rep_detail(request, user_id):
     # =========================
     target_remaining = monthly_target - current_total
 
-    required_per_day = (
-        target_remaining / Decimal(days_remaining)
-        if days_remaining > 0 else Decimal("0.00")
-    )
+    weeks_in_month = Decimal("4.00")
+
+    weekly_average = (
+        actual_revenue / weeks_in_month
+        if actual_revenue > 0 else Decimal("0.00")
+    ).quantize(Decimal("0.01"))
+
+    required_per_week = (
+        revenue_gap / weeks_in_month
+        if revenue_gap > 0 else Decimal("0.00")
+    ).quantize(Decimal("0.01"))
 
     # =========================
     # INVOICES (🔥 KEY PART)
@@ -3708,140 +4094,77 @@ def _parse_date_local(date_str: str):
 
 @login_required
 def tickets(request):
-    """
-    Staff task board with filters:
-    - q: search in title/description
-    - status: PENDING|OPEN|CLOSED
-    - priority: LOW|MEDIUM|HIGH|URGENT
-    - department: Department choices
-    - mine=1: only tasks assigned to me
-    - period: 7|14|30|60 (days back, by created_at)
-    - due_from/due_to: YYYY-MM-DD range on due_at
-    - order: created_at|-created_at|due_at|-due_at|priority|-priority|status|-status|department|-department|title|-title
-    - page, per_page
-    """
-    qs = Task.objects.select_related("assigned_to", "content_type")
+    qs = (
+        Ticket.objects
+        .select_related("client", "created_by", "closed_by")
+        .order_by("-created_at")
+    )
 
-    # --- Query params ---
     q = (request.GET.get("q") or "").strip()
     status = (request.GET.get("status") or "").strip()
     priority = (request.GET.get("priority") or "").strip()
     department = (request.GET.get("department") or "").strip()
-    mine = request.GET.get("mine") == "1"
-    period = (request.GET.get("period") or "").strip()
-    due_from = (request.GET.get("due_from") or "").strip()
-    due_to = (request.GET.get("due_to") or "").strip()
+    ticket_type = (request.GET.get("ticket_type") or "").strip()
 
-    # Search
     if q:
-        qs = qs.filter(Q(title__icontains=q) | Q(description__icontains=q))
+        qs = qs.filter(
+            Q(title__icontains=q)
+            | Q(description__icontains=q)
+            | Q(requester_name__icontains=q)
+            | Q(requester_email__icontains=q)
+            | Q(requester_phone__icontains=q)
+            | Q(client__name__icontains=q)
+            | Q(client__organization__icontains=q)
+        )
 
-    # Choice filters
     if status:
         qs = qs.filter(status=status)
+
     if priority:
         qs = qs.filter(priority=priority)
+
     if department:
         qs = qs.filter(department=department)
-    if mine:
-        qs = qs.filter(assigned_to=request.user)
 
-    # Period (created_at)
-    if period.isdigit() and int(period) in (7, 14, 30, 60):
-        qs = qs.filter(created_at__gte=timezone.now() - timedelta(days=int(period)))
+    if ticket_type:
+        qs = qs.filter(ticket_type=ticket_type)
 
-    # Due range (due_at)
-    if due_from:
-        start_from, _ = _parse_date_local(due_from)
-        if start_from:
-            qs = qs.filter(due_at__gte=start_from)
-    if due_to:
-        _, end_to = _parse_date_local(due_to)
-        if end_to:
-            qs = qs.filter(due_at__lte=end_to)
+    stats_qs = Ticket.objects.all()
 
-    # Ordering
-    allowed_order = {
-        "created_at", "-created_at",
-        "due_at", "-due_at",
-        "priority", "-priority",
-        "status", "-status",
-        "department", "-department",
-        "title", "-title",
-    }
-    order = request.GET.get("order") or "-created_at"
-    if order not in allowed_order:
-        order = "-created_at"
-    qs = qs.order_by(order)
-
-    # Stats (global, not filtered)
-    now = timezone.now()
-    base = Task.objects.all()
     stats = {
-        "total": base.count(),
-        "mine": base.filter(assigned_to=request.user).count(),
-        "open": base.filter(status__in=[Task.Status.PENDING, Task.Status.OPEN]).count(),
-        "closed": base.filter(status=Task.Status.CLOSED).count(),
-        "overdue": base.filter(
-            due_at__lt=now,
-            status__in=[Task.Status.PENDING, Task.Status.OPEN],
-        ).count(),
-        "by_status": dict(base.values_list("status").annotate(c=Count("id"))),
-        "by_department": dict(base.values_list("department").annotate(c=Count("id"))),
+        "total": stats_qs.count(),
+        "new": stats_qs.filter(status=Ticket.Status.NEW).count(),
+        "open": stats_qs.filter(status=Ticket.Status.OPEN).count(),
+        "pending": stats_qs.filter(status=Ticket.Status.PENDING).count(),
+        "resolved": stats_qs.filter(status=Ticket.Status.RESOLVED).count(),
+        "closed": stats_qs.filter(status=Ticket.Status.CLOSED).count(),
     }
 
-    # Pagination
-    per_page_qs = request.GET.get("per_page")
-    try:
-        per_page = max(1, min(int(per_page_qs or 25), 200))
-    except Exception:
-        per_page = 25
-
-    paginator = Paginator(qs, per_page)
-    page_number = request.GET.get("page") or 1
+    paginator = Paginator(qs, 25)
+    page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
-    # Optional flash messages
-    success_message = request.GET.get("ok") or ""
-    error_message = request.GET.get("err") or ""
-
-    ctx = {
-        "page_obj": page_obj,
+    context = {
         "object_list": page_obj.object_list,
+        "page_obj": page_obj,
         "stats": stats,
         "filters": {
             "q": q,
             "status": status,
             "priority": priority,
             "department": department,
-            "mine": mine,
-            "period": period,
-            "due_from": due_from,
-            "due_to": due_to,
-            "order": order,
-            "per_page": per_page,
+            "ticket_type": ticket_type,
         },
         "choices": {
-            "status": Task.Status.choices,
-            "priority": Task.Priority.choices,
-            "department": Task.Department.choices,
+            "status": Ticket.Status.choices,
+            "priority": Ticket.Priority.choices,
+            "department": Ticket.Department.choices,
+            "ticket_type": Ticket.TicketType.choices,
         },
-        "ui": {
-            "period_options": [7, 14, 30, 60],
-            "order_options": [
-                "created_at", "-created_at",
-                "due_at", "-due_at",
-                "priority", "-priority",
-                "status", "-status",
-                "department", "-department",
-                "title", "-title",
-            ],
-            "per_page_options": [10, 25, 50, 100, 200],
-        },
-        "success_message": success_message,
-        "error_message": error_message,
     }
-    return render(request, "tickets/tickets.html", ctx)
+
+    return render(request, "tickets/tickets.html", context)
+
 
 
 @login_required
@@ -4012,7 +4335,7 @@ def sales_job(request):
     """
 
     if request.method == "POST":
-        form = SalesJobApplicationForm(request.POST)
+        form = JobApplicationForm(request.POST)
 
         if form.is_valid():
             application = form.save()
@@ -4025,7 +4348,7 @@ def sales_job(request):
                 }
             )
     else:
-        form = SalesJobApplicationForm()
+        form = JobApplicationForm()
 
     return render(
         request,
@@ -4593,3 +4916,251 @@ def send_invoice_sms_view(request, pk):
         "message": "Invoice sent successfully via SMS.",
         "result": result,
     })
+
+
+
+@login_required
+def commission_rep_detail(request, user_id):
+    today = localdate()
+
+    selected_month = int(request.GET.get("month", today.month))
+    selected_year = int(request.GET.get("year", today.year))
+    selected_area = request.GET.get("area", "")
+
+    month_code = calendar.month_abbr[selected_month].upper()
+
+    first_day = date(selected_year, selected_month, 1)
+    last_day = date(
+        selected_year,
+        selected_month,
+        calendar.monthrange(selected_year, selected_month)[1],
+    )
+
+    rep_user = get_object_or_404(User, id=user_id)
+
+    commission_entries = (
+        CommissionEntry.objects
+        .select_related("invoice", "client", "rep", "supervisor")
+        .filter(
+            rep=rep_user,
+            created_at__date__gte=first_day,
+            created_at__date__lte=last_day,
+        )
+        .order_by("-created_at")
+    )
+
+    if selected_area:
+        commission_entries = commission_entries.filter(client__area=selected_area)
+
+    rep_total = (
+        commission_entries.aggregate(t=Sum("rep_amount"))["t"]
+        or Decimal("0.00")
+    )
+
+    bonus_total = (
+        commission_entries
+        .filter(is_new_business=True)
+        .aggregate(t=Sum("rep_amount"))["t"]
+        or Decimal("0.00")
+    )
+
+    revenue_total = (
+        commission_entries.aggregate(t=Sum("invoice__order_total_inc"))["t"]
+        or Decimal("0.00")
+    )
+
+    client_count = (
+        commission_entries
+        .values("client_id")
+        .exclude(client_id=None)
+        .distinct()
+        .count()
+    )
+
+    # =========================
+    # CLIENT TARGET PROGRESS
+    # =========================
+    allocation = (
+        MonthlyTargetAllocation.objects
+        .select_related("monthly_target")
+        .filter(
+            sales_rep=rep_user,
+            monthly_target__year=selected_year,
+            monthly_target__month=month_code,
+        )
+    )
+
+    if selected_area:
+        allocation = allocation.filter(monthly_target__area=selected_area)
+
+    allocation = allocation.first()
+
+    client_target = allocation.client_target if allocation else 0
+
+    client_target_pct = (
+        (Decimal(client_count) / Decimal(client_target)) * Decimal("100")
+        if client_target > 0 else Decimal("0.00")
+    )
+
+    clients_needed_for_bonus = max(client_target - client_count, 0)
+    bonus_active = client_count > client_target if client_target else False
+
+    # =========================
+    # COMMISSION TREND - FULL SELECTED YEAR
+    # =========================
+    commission_trend_labels = []
+    commission_trend_data = []
+
+    selected_trend_index = selected_month - 1
+
+    for month in range(1, 13):
+        start = date(selected_year, month, 1)
+        end = date(selected_year, month, calendar.monthrange(selected_year, month)[1])
+
+        qs = CommissionEntry.objects.filter(
+            rep=rep_user,
+            created_at__date__gte=start,
+            created_at__date__lte=end,
+        )
+
+        totals = qs.aggregate(
+            rep_total=Coalesce(
+                Sum("rep_amount"),
+                Decimal("0.00"),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+            supervisor_total=Coalesce(
+                Sum("supervisor_amount"),
+                Decimal("0.00"),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+        )
+
+        month_total = (
+            totals["rep_total"] + totals["supervisor_total"]
+        ).quantize(Decimal("0.01"))
+
+        commission_trend_labels.append(
+            f"{calendar.month_abbr[month]} {selected_year}"
+        )
+
+        commission_trend_data.append(float(month_total))
+
+    # =========================
+    # FILTER OPTIONS
+    # =========================
+    months = [
+        {"value": i, "label": calendar.month_name[i]}
+        for i in range(1, 13)
+    ]
+
+    years = list(range(today.year - 2, today.year + 3))
+
+    context = {
+        "rep_user": rep_user,
+        "commission_entries": commission_entries,
+
+        "selected_month": selected_month,
+        "selected_year": selected_year,
+        "selected_area": selected_area,
+        "selected_month_name": calendar.month_name[selected_month],
+
+        "months": months,
+        "years": years,
+
+        "rep_total": rep_total,
+        "bonus_total": bonus_total,
+        "revenue_total": revenue_total,
+        "client_count": client_count,
+
+        "client_target": client_target,
+        "client_target_pct": client_target_pct,
+        "clients_needed_for_bonus": clients_needed_for_bonus,
+        "bonus_active": bonus_active,
+
+        "commission_trend_labels": commission_trend_labels,
+        "commission_trend_data": commission_trend_data,
+        "selected_trend_index": selected_trend_index,
+    }
+
+    return render(request, "commission/commission_rep_detail.html", context)
+
+
+@login_required
+def create_ticket(request):
+
+    if request.method == "POST":
+
+        form = TicketCreateForm(
+            request.POST
+        )
+
+        if form.is_valid():
+
+            ticket = form.save(
+                commit=False
+            )
+
+            ticket.created_by = request.user
+            ticket.source = Ticket.Source.INTERNAL
+            ticket.status = Ticket.Status.NEW
+
+            if ticket.status == Ticket.Status.OPEN:
+                ticket.opened_at = timezone.now()
+
+            ticket.save()
+
+            messages.success(
+                request,
+                "Ticket created successfully."
+            )
+
+            return redirect(
+                "sales:view-ticket",
+                pk=ticket.pk
+            )
+
+        messages.error(
+            request,
+            "Please correct the errors below."
+        )
+
+    else:
+
+        sales_operator = None
+
+        try:
+            sales_rep_profile = request.user.sales_rep_profile
+
+            sales_operator = getattr(
+                sales_rep_profile,
+                "sales_operator",
+                None,
+            )
+
+        except Exception:
+            sales_operator = None
+
+        initial = {
+            "requester_name": (
+                request.user.get_full_name()
+                or request.user.username
+            ),
+            "requester_email": request.user.email,
+            "sales_operator": sales_operator,
+        }
+
+        form = TicketCreateForm(
+            initial=initial
+        )
+
+    context = {
+        "form": form,
+        "page_title": "Create Ticket",
+    }
+
+    return render(
+        request,
+        "tickets/create_ticket.html",
+        context,
+    )

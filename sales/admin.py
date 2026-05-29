@@ -5,164 +5,159 @@ from django.conf import settings
 from django.urls import path
 from django.shortcuts import redirect
 from django.utils.html import format_html
-from .models import SalesJobApplication
+
+from .models import JobApplication
 
 
-@admin.register(SalesJobApplication)
-class SalesJobApplicationAdmin(admin.ModelAdmin):
+@admin.register(JobApplication)
+class JobApplicationAdmin(admin.ModelAdmin):
 
-    # =========================
-    # LIST VIEW (TABLE)
-    # =========================
     list_display = (
         "first_name",
-        "last_name",
-        "province",
-        "town_or_city",
+        "surname",
+        "age",
+        "gender",
+        "race",
+        "territory",
+        "current_location",
+        "application_status",
         "overall_rating",
-        "reviewed",
+        "submitted_at",
     )
 
     list_editable = (
+        "application_status",
         "overall_rating",
-        "reviewed",
     )
 
     list_filter = (
-        "province",
-        "reviewed",
-        "shortlisted",
-        "overall_rating",
+        "territory",
+        "application_status",
+        "gender",
+        "race",
+        "comfortable_performance_environment",
+        "has_drivers_license",
+        "has_vehicle_access",
         "submitted_at",
     )
 
     search_fields = (
         "first_name",
-        "last_name",
+        "surname",
         "email",
-        "town_or_city",
-        "suburb",
+        "phone_number",
+        "whatsapp_number",
+        "current_location",
+        "territory_understanding",
+        "potential_client_types",
     )
 
-    ordering = ("-overall_rating", "-submitted_at")
+    ordering = (
+        "-overall_rating",
+        "-submitted_at",
+    )
+
     list_per_page = 25
     date_hierarchy = "submitted_at"
-    readonly_fields = ("submitted_at",)
 
-    # =========================================================
-    # ADD CUSTOM BULK EMAIL BUTTON TO ADMIN LIST PAGE
-    # =========================================================
-    def get_urls(self):
-        urls = super().get_urls()
-        custom_urls = [
-            path(
-                "run-bulk-email/",
-                self.admin_site.admin_view(self.run_bulk_email),
-                name="run_bulk_email",
-            ),
-        ]
-        return custom_urls + urls
+    readonly_fields = (
+        "submitted_at",
+        "updated_at",
+    )
 
-    def changelist_view(self, request, extra_context=None):
-        extra_context = extra_context or {}
-        extra_context["bulk_email_button"] = format_html(
-            '<a class="button" '
-            'style="background:#0a5c39;color:white;padding:8px 15px;'
-            'border-radius:4px;text-decoration:none;margin-left:10px;" '
-            'href="run-bulk-email/">Run Bulk Email (Auto by Rating)</a>'
-        )
-        return super().changelist_view(request, extra_context=extra_context)
+    fieldsets = (
+        ("Application Status", {
+            "fields": (
+                "application_status",
+                "overall_rating",
+                "evaluator_notes",
+            )
+        }),
 
-    # =========================================================
-    # BULK EMAIL LOGIC
-    # =========================================================
-    def run_bulk_email(self, request):
+        ("Territory", {
+            "fields": (
+                "territory",
+            )
+        }),
 
-        applications = (
-            SalesJobApplication.objects
-            .exclude(overall_rating__isnull=True)
-            .exclude(email__isnull=True)
-            .exclude(email="")
-        )
+        ("Basic Personal Information", {
+            "fields": (
+                "first_name",
+                "surname",
+                "age",
+                "race",
+                "gender",
+                "phone_number",
+                "whatsapp_number",
+                "email",
+                "current_location",
+                "year_matriculated",
+                "qualifications",
+                "current_employment_status",
+                "availability_to_start",
+            )
+        }),
 
-        invite_count = 0
-        reject_count = 0
+        ("Transport & Resources", {
+            "fields": (
+                "has_drivers_license",
+                "has_vehicle_access",
+                "has_smartphone",
+            )
+        }),
 
-        for candidate in applications:
+        ("Territory & Commercial Thinking", {
+            "fields": (
+                "territory_understanding",
+                "potential_client_types",
+                "first_30_day_strategy",
+            )
+        }),
 
-            # =========================
-            # INTERVIEW INVITE (3–5)
-            # =========================
-            if candidate.overall_rating >= 3:
+        ("Sales & Problem Solving", {
+            "fields": (
+                "cheaper_supplier_response",
+                "client_retention_strategy",
+                "target_pressure_response",
+            )
+        }),
 
-                ctx = {
-                    "candidate": candidate,
-                    "calendly_link": "https://calendly.com/victor-thedailymarket/the-daily-market-interview",
-                }
+        ("Leadership & Accountability", {
+            "fields": (
+                "leadership_experience",
+                "unsupervised_problem_solving",
+                "performance_environment_understanding",
+            )
+        }),
 
-                subject = "The Daily Market – Schedule Your 15-Minute Interview"
+        ("Startup & Culture Fit", {
+            "fields": (
+                "startup_interest_reason",
+                "comfortable_performance_environment",
+                "motivation",
+            )
+        }),
 
-                text_body = render_to_string(
-                    "email/interview_invite.txt",
-                    ctx
-                )
+        ("Optional Video Submission", {
+            "fields": (
+                "introduction_video_link",
+            )
+        }),
 
-                html_body = render_to_string(
-                    "email/interview_invite.html",
-                    ctx
-                )
+        ("Internal Scoring", {
+            "fields": (
+                "territory_fit_score",
+                "communication_score",
+                "commercial_thinking_score",
+                "leadership_potential_score",
+                "startup_fit_score",
+            )
+        }),
 
-                msg = EmailMultiAlternatives(
-                    subject=subject,
-                    body=text_body,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    to=[candidate.email],
-                    headers={"Reply-To": settings.SUPPORT_EMAIL},
-                )
-
-                msg.attach_alternative(html_body, "text/html")
-                msg.send(fail_silently=False)
-
-                invite_count += 1
-
-            # =========================
-            # REJECTION EMAIL (1–2)
-            # =========================
-            elif candidate.overall_rating <= 2:
-
-                ctx = {"candidate": candidate}
-
-                subject = "The Daily Market – Update on Your Application"
-
-                text_body = render_to_string(
-                    "email/application_rejected.txt",
-                    ctx
-                )
-
-                html_body = render_to_string(
-                    "email/application_rejected.html",
-                    ctx
-                )
-
-                msg = EmailMultiAlternatives(
-                    subject=subject,
-                    body=text_body,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    to=[candidate.email],
-                    headers={"Reply-To": settings.SUPPORT_EMAIL},
-                )
-
-                msg.attach_alternative(html_body, "text/html")
-                msg.send(fail_silently=False)
-
-                reject_count += 1
-
-        self.message_user(
-            request,
-            f"Bulk email complete. "
-            f"{invite_count} interview invites sent, "
-            f"{reject_count} rejection emails sent.",
-            messages.SUCCESS,
-        )
-
-        return redirect("../")
+        ("System Fields", {
+            "fields": (
+                "submitted_at",
+                "updated_at",
+            )
+        }),
+    )

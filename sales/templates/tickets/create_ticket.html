@@ -182,222 +182,183 @@
   <main class="content">
     <div class="container-fluid">
 
-      <!-- Header -->
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-2">
-
+        <!-- Header -->
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-2">
         <div>
-          <h2 class="mb-0">Create Ticket</h2>
-          <div class="text-muted small">
-            Create and track internal issues, client requests, complaints, operational incidents, and support enquiries.
-          </div>
+            <h2 class="mb-0">Create Ticket</h2>
+            <div class="text-muted small">
+            Create an internal or client-related support ticket.
+            </div>
         </div>
 
         <div class="d-flex gap-2">
-
-          <a href="{% url 'sales:sales-tickets' %}"
+            <a href="{% url 'sales:sales-tickets' %}"
             class="btn btn-outline-secondary btn-sm">
             Back to Tickets
-          </a>
-
+            </a>
+        </div>
         </div>
 
-      </div>
-
-      <!-- Messages -->
-      {% if messages %}
+        <!-- Messages -->
+        {% if messages %}
         {% for message in messages %}
-          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
             {{ message }}
-
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
                     aria-label="Close"></button>
-          </div>
+            </div>
         {% endfor %}
-      {% endif %}
+        {% endif %}
 
-      <!-- Form Card -->
-      <div class="card border-0 shadow-sm">
-
-        <div class="card-header bg-white">
-          <strong>Ticket Information</strong>
-        </div>
-
+        <!-- Form -->
+        <div class="card border-0 shadow-sm">
         <div class="card-body">
 
-          <form method="post" novalidate>
+            <form method="post">
             {% csrf_token %}
 
             {% if form.non_field_errors %}
-              <div class="alert alert-danger">
+                <div class="alert alert-danger">
                 {{ form.non_field_errors }}
-              </div>
+                </div>
             {% endif %}
 
             <div class="row g-3">
 
-              <!-- Title -->
-              <div class="col-12">
+                <!-- Title -->
+                <div class="col-12">
                 <label class="form-label">Title</label>
-
                 {{ form.title }}
 
                 {% if form.title.errors %}
-                  <div class="text-danger small mt-1">
+                    <div class="text-danger small mt-1">
                     {{ form.title.errors }}
-                  </div>
+                    </div>
                 {% endif %}
-              </div>
+                </div>
 
-              <!-- Description -->
-              <div class="col-12">
+                <!-- Description -->
+                <div class="col-12">
                 <label class="form-label">Description</label>
-
                 {{ form.description }}
 
                 {% if form.description.errors %}
-                  <div class="text-danger small mt-1">
+                    <div class="text-danger small mt-1">
                     {{ form.description.errors }}
-                  </div>
+                    </div>
                 {% endif %}
-              </div>
+                </div>
 
-              <!-- Status Row -->
-              <div class="col-md-4">
+                <!-- Priority -->
+                <div class="col-md-4">
                 <label class="form-label">Priority</label>
-
                 {{ form.priority }}
 
                 {% if form.priority.errors %}
-                  <div class="text-danger small mt-1">
+                    <div class="text-danger small mt-1">
                     {{ form.priority.errors }}
-                  </div>
+                    </div>
                 {% endif %}
-              </div>
+                </div>
 
-              <div class="col-md-4">
+                <!-- Department -->
+                <div class="col-md-4">
                 <label class="form-label">Department</label>
-
                 {{ form.department }}
 
                 {% if form.department.errors %}
-                  <div class="text-danger small mt-1">
+                    <div class="text-danger small mt-1">
                     {{ form.department.errors }}
-                  </div>
+                    </div>
                 {% endif %}
-              </div>
+                </div>
 
-              <div class="col-md-4">
+                <!-- Ticket Type -->
+                <div class="col-md-4">
                 <label class="form-label">Ticket Type</label>
-
                 {{ form.ticket_type }}
 
                 {% if form.ticket_type.errors %}
-                  <div class="text-danger small mt-1">
+                    <div class="text-danger small mt-1">
                     {{ form.ticket_type.errors }}
-                  </div>
+                    </div>
                 {% endif %}
-              </div>
+                </div>
 
-              <!-- Requester -->
-              <div class="col-md-4">
+                <!-- Requester Name -->
+                <div class="col-md-4">
                 <label class="form-label">Requester Name</label>
-
                 {{ form.requester_name }}
 
                 {% if form.requester_name.errors %}
-                  <div class="text-danger small mt-1">
+                    <div class="text-danger small mt-1">
                     {{ form.requester_name.errors }}
-                  </div>
+                    </div>
                 {% endif %}
-              </div>
+                </div>
 
-              <div class="col-md-4">
+                <!-- Requester Email -->
+                <div class="col-md-4">
                 <label class="form-label">Requester Email</label>
-
                 {{ form.requester_email }}
 
                 {% if form.requester_email.errors %}
-                  <div class="text-danger small mt-1">
+                    <div class="text-danger small mt-1">
                     {{ form.requester_email.errors }}
-                  </div>
+                    </div>
                 {% endif %}
-              </div>
+                </div>
 
-              <div class="col-md-4">
+                <!-- Requester Phone -->
+                <div class="col-md-4">
                 <label class="form-label">Requester Phone</label>
-
                 {{ form.requester_phone }}
 
                 {% if form.requester_phone.errors %}
-                  <div class="text-danger small mt-1">
+                    <div class="text-danger small mt-1">
                     {{ form.requester_phone.errors }}
-                  </div>
+                    </div>
                 {% endif %}
-              </div>
+                </div>
 
-              <!-- Relations -->
-              <div class="col-md-6">
-                <label class="form-label">
-                  Linked Client
-                </label>
-
+                <!-- Client -->
+                <div class="col-12">
+                <label class="form-label">Linked Client (Optional)</label>
                 {{ form.client }}
 
-                <div class="form-text">
-                  Optional client linked to this ticket.
-                </div>
-
                 {% if form.client.errors %}
-                  <div class="text-danger small mt-1">
+                    <div class="text-danger small mt-1">
                     {{ form.client.errors }}
-                  </div>
+                    </div>
                 {% endif %}
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">
-                  Sales Operator
-                </label>
-
-                {{ form.sales_operator }}
-
-                <div class="form-text">
-                  Optional operator responsible for this ticket.
                 </div>
-
-                {% if form.sales_operator.errors %}
-                  <div class="text-danger small mt-1">
-                    {{ form.sales_operator.errors }}
-                  </div>
-                {% endif %}
-              </div>
 
             </div>
 
-            <!-- Footer Buttons -->
+            <!-- Buttons -->
             <div class="d-flex justify-content-end gap-2 mt-4">
 
-              <a href="{% url 'sales:sales-tickets' %}"
+                <a href="{% url 'sales:sales-tickets' %}"
                 class="btn btn-outline-secondary">
                 Cancel
-              </a>
+                </a>
 
-              <button type="submit"
-                      class="btn btn-success">
+                <button type="submit"
+                        class="btn btn-success">
                 Create Ticket
-              </button>
+                </button>
 
             </div>
 
-          </form>
+            </form>
 
         </div>
-      </div>
+        </div>
 
     </div>
-  </main>
+    </main>
 
   <!-- SWITCH PLATFORM MODAL -->
   <div class="modal fade"

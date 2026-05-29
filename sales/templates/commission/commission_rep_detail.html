@@ -1,0 +1,720 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Commission - The Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    /* --- Desktop: fixed (non-movable) sidebar --- */
+    /* Desktop layout (lg and up): sidebar + content side-by-side */
+    @media (min-width: 992px) {
+      body { display: flex; min-height: 100vh; }
+      .sidebar-desktop {
+        width: 220px;
+        height: 100vh;
+        position: fixed;
+        top: 0;
+        left: 0;
+        overflow: hidden; /* prevents scrolling */
+      }
+      .content {
+        flex: 1;
+        margin-left: 220px; /* same as sidebar width */
+      }
+    }
+    .form-select-sm {
+      min-width: 180px;
+    }
+
+    /* Shared styles */
+    .sidebar-skin { background-color: #0b5c39; color: #fff; padding: 1rem; }
+    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+    .logo-img { max-height: 80px; width: auto; }
+    .content { background: #f8f9fa; padding: 20px; }
+    .sidebar-skin .nav-link.ps-4 { font-size: .95rem; opacity: .95; }
+    .card-compact { padding: 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .filter-bar { gap: .5rem; align-items:center; }
+    .table-hover tbody tr { cursor: pointer; }
+    .clickable-row {
+      cursor: pointer;
+    }
+
+    .clickable-row:hover {
+      background: #f8f9fa;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MOBILE/TABLET TOP BAR -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  <!-- MOBILE OFFCANVAS MENU -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header sidebar-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body sidebar-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
+      <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
+      <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
+      <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
+      <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+      <hr class="border-light">
+      <form action="{% url 'logout' %}" method="post" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light w-100">Sign out</button>
+      </form>
+      <hr class="border-light">
+
+      <a href="#"
+        class="nav-link"
+        data-bs-toggle="modal"
+        data-bs-target="#switchPlatformModal">
+        Switch Platform
+      </a>
+    </div>
+  </div>
+
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+
+    <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
+    <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
+    <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
+    <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
+    <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
+    <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
+    <div class="mt-3">
+      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+        {% csrf_token %}
+        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+      </form>
+    </div>
+    <hr class="border-light">
+
+    <a href="#"
+      class="nav-link"
+      data-bs-toggle="modal"
+      data-bs-target="#switchPlatformModal">
+      Switch Platform
+    </a>
+  </aside>
+
+  
+
+    <main class="content container-fluid">
+
+        <!-- ===================== -->
+        <!-- PAGE HEADER -->
+        <!-- ===================== -->
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-3">
+
+            <div>
+            <h2 class="fw-bold mb-1">
+                {{ rep_user.get_full_name|default:rep_user.username }}
+            </h2>
+
+            <p class="text-muted mb-0">
+                Commission performance for {{ selected_month_name }} {{ selected_year }}
+            </p>
+            </div>
+
+            <div>
+            <a href="{% url 'sales:sales-commission' %}?month={{ selected_month }}&year={{ selected_year }}{% if selected_area %}&area={{ selected_area }}{% endif %}"
+                class="btn btn-outline-dark">
+                Back to Commission Centre
+            </a>
+            </div>
+
+        </div>
+
+
+        <!-- ===================== -->
+        <!-- FILTERS -->
+        <!-- ===================== -->
+        <div class="card p-3 mb-4 border-0 shadow-sm">
+        <form method="get" class="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-end">
+
+            <select name="month" class="form-select form-select-sm">
+            {% for m in months %}
+                <option value="{{ m.value }}" {% if m.value == selected_month %}selected{% endif %}>
+                {{ m.label }}
+                </option>
+            {% endfor %}
+            </select>
+
+            <select name="year" class="form-select form-select-sm">
+            {% for y in years %}
+                <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>
+                {{ y }}
+                </option>
+            {% endfor %}
+            </select>
+
+            <button class="btn btn-primary btn-sm px-4">
+            Apply
+            </button>
+
+        </form>
+        </div>
+
+
+        <!-- ===================== -->
+        <!-- REP KPI CARDS -->
+        <!-- ===================== -->
+        <div class="row g-3 mb-4">
+
+            <div class="col-md-3">
+            <div class="card p-3 h-100 border-0 shadow-sm">
+                <small class="text-muted">Commission Earned</small>
+
+                <h3 class="mb-1 fw-bold">
+                R{{ rep_total|default:0|floatformat:2|intcomma }}
+                </h3>
+
+                <small class="text-muted">
+                Standard + bonus commission
+                </small>
+            </div>
+            </div>
+
+            <div class="col-md-3">
+            <div class="card p-3 h-100 border-0 shadow-sm">
+                <small class="text-muted">Bonus Unlocked</small>
+
+                <h3 class="mb-1 fw-bold text-success">
+                R{{ bonus_total|default:0|floatformat:2|intcomma }}
+                </h3>
+
+                <small class="text-muted">
+                New business bonus earnings
+                </small>
+            </div>
+            </div>
+
+            <div class="col-md-3">
+            <div class="card p-3 h-100 border-0 shadow-sm">
+                <small class="text-muted">Revenue Generated</small>
+
+                <h3 class="mb-1 fw-bold">
+                R{{ revenue_total|default:0|floatformat:2|intcomma }}
+                </h3>
+
+                <small class="text-muted">
+                Paid invoices linked to rep
+                </small>
+            </div>
+            </div>
+
+            <div class="col-md-3">
+            <div class="card p-3 h-100 border-0 shadow-sm">
+                <small class="text-muted">Buying Clients</small>
+
+                <h3 class="mb-1 fw-bold">
+                {{ client_count|default:0 }}
+                </h3>
+
+                <small class="text-muted">
+                Unique commission-generating clients
+                </small>
+            </div>
+            </div>
+
+        </div>
+
+
+        <!-- ===================== -->
+        <!-- CLIENT TARGET PROGRESS -->
+        <!-- ===================== -->
+        <div class="card p-4 mb-4 border-0 shadow-sm">
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+            <h5 class="mb-0 fw-bold">Client Target Progress</h5>
+
+            <small class="text-muted">
+                {{ client_count|default:0 }}
+                /
+                {{ client_target|default:0 }} clients
+            </small>
+            </div>
+
+            <span class="fw-semibold">
+            {{ client_target_pct|default:0|floatformat:2 }}%
+            </span>
+        </div>
+
+        <div class="progress mb-3" style="height: 8px;">
+            <div
+            class="progress-bar bg-success"
+            style="width: {{ client_target_pct|default:0 }}%;">
+            </div>
+        </div>
+
+        <div class="alert border bg-light mb-0">
+
+            {% if bonus_active %}
+
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                <div>
+                <div class="fw-bold text-success mb-1">
+                    Bonus Commission Active
+                </div>
+
+                <div class="text-muted">
+                    Client target achieved. New business payouts are now unlocked for this month.
+                </div>
+                </div>
+
+                <div class="text-end">
+                <div class="small text-muted">Bonus Earnings</div>
+
+                <div class="fw-bold text-success">
+                    R{{ bonus_total|default:0|floatformat:2|intcomma }}
+                </div>
+                </div>
+            </div>
+
+            {% else %}
+
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                <div>
+                <div class="fw-bold mb-1">
+                    Bonus Commission Locked
+                </div>
+
+                <div class="text-muted">
+                    {{ clients_needed_for_bonus|default:0 }}
+                    more client(s) needed before bonus commission activates.
+                </div>
+                </div>
+
+                <div class="text-end">
+                <div class="small text-muted">Current Progress</div>
+
+                <div class="fw-bold">
+                    {{ client_count|default:0 }} / {{ client_target|default:0 }}
+                </div>
+                </div>
+            </div>
+
+            <div class="mt-3 pt-3 border-top">
+                {% if client_target_pct >= 75 %}
+                <small class="text-success fw-semibold">
+                    You're close. One strong week could unlock bonus territory.
+                </small>
+                {% elif client_target_pct >= 50 %}
+                <small class="text-primary fw-semibold">
+                    Momentum is building. Keep pushing client acquisition.
+                </small>
+                {% elif client_target_pct > 0 %}
+                <small class="text-warning fw-semibold">
+                    Early progress made. Consistency now matters.
+                </small>
+                {% else %}
+                <small class="text-muted fw-semibold">
+                    No bonus progress yet. First activated client changes everything.
+                </small>
+                {% endif %}
+            </div>
+
+            {% endif %}
+
+        </div>
+
+        </div>
+
+
+        <!-- ===================== -->
+        <!-- 12 MONTH COMMISSION TREND -->
+        <!-- ===================== -->
+        <div class="card p-4 mb-4 border-0 shadow-sm">
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h5 class="mb-0 fw-bold">Commission Trend</h5>
+                <small class="text-muted">
+                Rep commission generated over the last 12 months.
+                </small>
+            </div>
+            </div>
+
+            <div style="height: 320px;">
+            <canvas id="commissionTrendChart"></canvas>
+            </div>
+
+        </div>
+
+
+        <!-- ===================== -->
+        <!-- COMMISSION ENTRIES TABLE -->
+        <!-- ===================== -->
+        <div class="card border-0 shadow-sm">
+
+            <div class="card-body">
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                <h4 class="fw-bold mb-1">
+                    Commission Entries
+                </h4>
+
+                <p class="text-muted mb-0">
+                    Invoice-level commission activity for this rep.
+                </p>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+
+                <table class="table align-middle table-hover">
+
+                <thead class="table-light">
+                    <tr>
+                    <th>Date</th>
+                    <th>Invoice</th>
+                    <th>Client</th>
+                    <th>Cost</th>
+                    <th>Rate</th>
+                    <th>Commission</th>
+                    <th>Type</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for entry in commission_entries %}
+
+                    <tr>
+
+                    <td>
+                        {{ entry.created_at|date:"d M Y" }}
+                    </td>
+
+                    <td>
+                        #{{ entry.invoice.id }}
+                    </td>
+
+                    <td>
+                        {{ entry.client.name|default:"—" }}
+                    </td>
+
+                    
+
+                    <td>
+                        R{{ entry.cost_total|default:0|floatformat:2|intcomma }}
+                    </td>
+
+                    <td>
+                        {{ entry.rep_rate|default:0|floatformat:2 }}%
+                    </td>
+
+                    <td class="fw-semibold">
+                        R{{ entry.rep_amount|default:0|floatformat:2|intcomma }}
+                    </td>
+
+                    <td>
+                        {% if entry.is_new_business %}
+                        <span class="badge bg-success">
+                            Bonus
+                        </span>
+                        {% else %}
+                        <span class="badge bg-secondary">
+                            Standard
+                        </span>
+                        {% endif %}
+                    </td>
+
+                    </tr>
+
+                    {% empty %}
+
+                    <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        No commission entries found for this period.
+                    </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+                </table>
+
+            </div>
+
+            </div>
+
+        </div>
+
+        </main>
+
+    <!-- SWITCH PLATFORM MODAL -->
+    <div class="modal fade"
+        id="switchPlatformModal"
+        tabindex="-1"
+        aria-labelledby="switchPlatformModalLabel"
+        aria-hidden="true">
+
+        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+            <div class="modal-header justify-content-center position-relative">
+            <h5 class="modal-title w-100 text-center" id="switchPlatformModalLabel">
+                Switch Platform
+            </h5>
+            <button type="button"
+                    class="btn-close position-absolute"
+                    style="right:1rem; top:1rem;"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body text-center">
+            <p class="mb-3 text-muted">Choose a platform to continue:</p>
+
+            <div class="d-grid gap-2">
+
+                <!-- Main Staff Portal -->
+                <a
+                href="{% url 'staff-dashboard' %}"
+                class="btn btn-outline-primary{% if not can_staff_portal %} disabled{% endif %}"
+                {% if not can_staff_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+                >
+                Main Staff Portal
+                </a>
+
+                <!-- Funder Portal -->
+                <a
+                href="{% url 'funder-dashboard' %}"
+                class="btn btn-outline-primary{% if not can_lender_portal %} disabled{% endif %}"
+                {% if not can_lender_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+                >
+                Funder Portal
+                </a>
+
+                <!-- Sales Portal -->
+                <a
+                href="{% url 'sales:sales-dashboard' %}"
+                class="btn btn-outline-primary{% if not can_sales_portal %} disabled{% endif %}"
+                {% if not can_sales_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+                >
+                Sales Portal
+                </a>
+
+                <!-- Logistics Portal -->
+                <a
+                href="{% url 'logistics:logistics-dashboard' %}"
+                class="btn btn-outline-primary{% if not can_logistics_portal %} disabled{% endif %}"
+                {% if not can_logistics_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+                >
+                Logistics Portal
+                </a>
+
+            </div>
+            </div>
+
+            <div class="modal-footer justify-content-center border-0">
+            <small class="text-muted">
+                Platforms you don’t have access to are disabled.
+            </small>
+            </div>
+
+        </div>
+        </div>
+    </div>
+
+    <!-- Email Statement Modal -->
+    <div class="modal fade" id="emailStatementModal" tabindex="-1" aria-labelledby="emailStatementModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+        <form method="post" action="{% url 'sales:email-commission-statement' %}">
+            {% csrf_token %}
+            <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="emailStatementModalLabel">Send Commission Statement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+
+            <div class="modal-body">
+                <p>
+                You are about to send the commission statement for 
+                {% if target_rep %}
+                    <strong>{{ target_rep.get_full_name|default:target_rep.username }}</strong>
+                {% else %}
+                    <strong class="text-muted">—</strong>
+                {% endif %}
+
+                for the period <strong>{{ filter_date_from|date:"d M Y" }} — {{ filter_date_to|date:"d M Y" }}</strong>.
+                </p>
+
+                <div class="mb-3">
+                <label for="email" class="form-label">Recipient Email</label>
+                <input type="email" name="email" id="email" class="form-control" value="{{ target_rep.email }}" required>
+                <small class="text-muted">You can change this to a manager or supervisor email.</small>
+                </div>
+
+                <input type="hidden" name="rep_id" value="{{ target_rep.id }}">
+                <input type="hidden" name="from_date" value="{{ filter_date_from|date:'Y-m-d' }}">
+                <input type="hidden" name="to_date" value="{{ filter_date_to|date:'Y-m-d' }}">
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Send Statement</button>
+            </div>
+            </div>
+        </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const ctx = document.getElementById("commissionTrendChart");
+
+        if (!ctx) return;
+
+        new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: {{ commission_trend_labels|safe }},
+            datasets: [{
+                label: "Commission",
+                data: {{ commission_trend_data|safe }},
+                tension: 0.35,
+                fill: true,
+
+                pointRadius: function(context) {
+                    return context.dataIndex === {{ selected_trend_index }} ? 7 : 3;
+                },
+
+                pointHoverRadius: function(context) {
+                    return context.dataIndex === {{ selected_trend_index }} ? 9 : 5;
+                },
+
+                pointBackgroundColor: function(context) {
+                    return context.dataIndex === {{ selected_trend_index }} ? "red" : undefined;
+                },
+
+                pointBorderColor: function(context) {
+                    return context.dataIndex === {{ selected_trend_index }} ? "red" : undefined;
+                }
+                }]
+            },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                callbacks: {
+                label: function(context) {
+                    return "R" + context.raw.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                    });
+                }
+                }
+            }
+            },
+            scales: {
+            y: {
+                ticks: {
+                callback: function(value) {
+                    return "R" + value.toLocaleString();
+                }
+                }
+            }
+            }
+        }
+        });
+    });
+    </script>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const agentSelect = document.querySelector("select[name='agent']");
+        const emailButton = document.querySelector("[data-bs-target='#emailStatementModal']");
+        const emailInput = document.querySelector("#emailStatementModal input[name='email']");
+        const modal = document.getElementById("emailStatementModal");
+
+        function updateEmailButton() {
+        const selectedOption = agentSelect ? agentSelect.options[agentSelect.selectedIndex] : null;
+        if (!selectedOption || selectedOption.value === "" || selectedOption.disabled) {
+            emailButton.classList.add("disabled");
+            emailButton.setAttribute("disabled", "disabled");
+        } else {
+            emailButton.classList.remove("disabled");
+            emailButton.removeAttribute("disabled");
+            if (emailInput) emailInput.value = selectedOption.dataset.email || "";
+        }
+        }
+
+        updateEmailButton();
+        if (agentSelect) agentSelect.addEventListener("change", updateEmailButton);
+
+        if (modal) {
+        const form = modal.querySelector("form");
+        if (form) {
+            form.addEventListener("submit", function(e) {
+            const recipient = emailInput.value.trim();
+            if (!recipient) {
+                e.preventDefault();
+                alert("Please enter a valid recipient email.");
+                emailInput.focus();
+                return false;
+            }
+            if (!confirm(`Send commission statement to ${recipient}?`)) e.preventDefault();
+            });
+        }
+        }
+    });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".clickable-row").forEach(function (row) {
+            row.addEventListener("click", function () {
+            window.location.href = row.dataset.href;
+            });
+        });
+        });
+    </script>
+
+
+</body>
+</html>

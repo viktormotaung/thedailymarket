@@ -1,135 +1,254 @@
 from django.db import models
 
+class JobApplication(models.Model):
 
-class SalesJobApplication(models.Model):
-    # =========================
-    # BASIC PERSONAL INFO
-    # =========================
-    INTERVIEW_STATUS_CHOICES = [
-        ("NONE", "Not Invited"),
-        ("INVITED", "Invited to Interview"),
-        ("BOOKED", "Interview Booked"),
-        ("COMPLETED", "Interview Completed"),
+    RACE_CHOICES = [
+        ("AFRICAN", "African / Black"),
+        ("COLOURED", "Coloured"),
+        ("INDIAN", "Indian / Asian"),
+        ("WHITE", "White"),
+        ("OTHER", "Other"),
+        ("PREFER_NOT_TO_SAY", "Prefer Not To Say"),
     ]
 
-    interview_status = models.CharField(
-        max_length=20,
-        choices=INTERVIEW_STATUS_CHOICES,
-        default="NONE"
+    GENDER_CHOICES = [
+        ("MALE", "Male"),
+        ("FEMALE", "Female"),
+        ("OTHER", "Other"),
+        ("PREFER_NOT_TO_SAY", "Prefer Not To Say"),
+    ]
+
+    # =========================================================
+    # TERRITORY
+    # =========================================================
+
+    TERRITORY_CHOICES = [
+        ("SOUTH_WEST", "South / West"),
+        ("NORTH_CENTRAL", "North / Central"),
+    ]
+
+    territory = models.CharField(
+        max_length=30,
+        choices=TERRITORY_CHOICES,
     )
+
+    # =========================================================
+    # BASIC PERSONAL INFORMATION
+    # =========================================================
 
     first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
 
-    email = models.EmailField(
-        max_length=254,
-        help_text="Primary contact email address"
-    )
+    surname = models.CharField(max_length=100)
 
-    date_of_birth = models.DateField(null=True, blank=True)
-    nationality = models.CharField(max_length=100)
+    age = models.PositiveIntegerField()
 
-    province = models.CharField(max_length=100)
-    suburb = models.CharField(max_length=150)
-    town_or_city = models.CharField(max_length=150)
+    # =========================================================
+    # DEMOGRAPHICS
+    # =========================================================
 
-    where_grew_up = models.CharField(
-        max_length=255,
-        help_text="Town / area where the applicant grew up",
-    )
+    
 
-    # =========================
-    # SALES BACKGROUND
-    # =========================
-    sales_experience_summary = models.TextField(
-        help_text="Overall sales experience summary"
-    )
-
-    previous_workplaces = models.TextField(
-        help_text="Places they have worked before"
-    )
-
-    responsibilities = models.TextField(
-        help_text="Key responsibilities held in previous roles"
-    )
-
-    lessons_learned = models.TextField(
-        help_text="What they learned from previous roles"
-    )
-
-    # =========================
-    # SALES THINKING (VERY IMPORTANT)
-    # =========================
-    client_identification_strategy = models.TextField(
-        help_text="How they would identify potential clients"
-    )
-
-    pitching_strategy = models.TextField(
-        help_text="How they would pitch FMCG products"
-    )
-
-    conversion_strategy = models.TextField(
-        help_text="How they convert prospects into customers"
-    )
-
-    client_management_strategy = models.TextField(
-        help_text="How they manage and retain clients"
-    )
-
-    # =========================
-    # RESOURCES & TOOLS
-    # =========================
-    resources_needed = models.TextField(
-        help_text="Resources they believe they need to perform well"
-    )
-
-    has_drivers_license = models.BooleanField(default=False)
-    has_vehicle_access = models.BooleanField(default=False)
-    has_laptop_or_tablet = models.BooleanField(default=False)
-
-    # =========================
-    # WORK STYLE & FIT
-    # =========================
-    can_work_in_team = models.BooleanField(default=True)
-
-    leadership_skills_description = models.TextField(
-        help_text="Leadership experience or skills",
+    race = models.CharField(
+        max_length=30,
+        choices=RACE_CHOICES,
         blank=True,
     )
 
-    comfortable_township_clients = models.BooleanField(default=False)
-    comfortable_suburban_clients = models.BooleanField(default=False)
+    gender = models.CharField(
+        max_length=30,
+        choices=GENDER_CHOICES,
+        blank=True,
+    )
+    
+    phone_number = models.CharField(
+        max_length=30,
+    )
 
-    comfortable_remote_work = models.BooleanField(default=False)
-    comfortable_startup_environment = models.BooleanField(default=False)
+    whatsapp_number = models.CharField(
+        max_length=30,
+        blank=True,
+    )
 
-    # =========================
-    # CURRENT STATUS
-    # =========================
-    current_job = models.CharField(
+    email = models.EmailField()
+
+    current_location = models.CharField(
+        max_length=255,
+        help_text="Current suburb / township / area where applicant lives",
+    )
+
+    year_matriculated = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    qualifications = models.TextField(
+        blank=True,
+        help_text="Qualifications, certificates or courses completed",
+    )
+
+    current_employment_status = models.CharField(
         max_length=255,
         blank=True,
-        help_text="Current job, if any",
     )
 
     availability_to_start = models.CharField(
         max_length=100,
-        help_text="How soon they can start (e.g. immediately, 2 weeks)",
+        help_text="Example: Immediately, 2 weeks, 1 month",
     )
 
-    # =========================
-    # SYSTEM FIELDS
-    # =========================
-    submitted_at = models.DateTimeField(auto_now_add=True)
+    # =========================================================
+    # TRANSPORT & RESOURCES
+    # =========================================================
 
-    reviewed = models.BooleanField(default=False)
-    shortlisted = models.BooleanField(default=False)
+    has_drivers_license = models.BooleanField(
+        default=False,
+    )
 
-    # =========================
-    # OVERALL EVALUATION
-    # =========================
+    has_vehicle_access = models.BooleanField(
+        default=False,
+    )
 
-    RATING_CHOICES = [
+    has_smartphone = models.BooleanField(
+        default=True,
+    )
+
+    # =========================================================
+    # TERRITORY & COMMERCIAL THINKING
+    # =========================================================
+
+    territory_understanding = models.TextField(
+        help_text=(
+            "Name areas, trader zones or business hubs "
+            "within your territory where you believe "
+            "The Daily Market could find clients."
+        )
+    )
+
+    potential_client_types = models.TextField(
+        help_text=(
+            "What type of businesses or traders do you think "
+            "would benefit most from The Daily Market?"
+        )
+    )
+
+    first_30_day_strategy = models.TextField(
+        help_text=(
+            "If you had to secure 10 recurring clients "
+            "within 30 days, what would your approach be?"
+        )
+    )
+
+    # =========================================================
+    # SALES & PROBLEM SOLVING
+    # =========================================================
+
+    cheaper_supplier_response = models.TextField(
+        help_text=(
+            "A client says another supplier is cheaper "
+            "than The Daily Market. What would you do?"
+        )
+    )
+
+    client_retention_strategy = models.TextField(
+        help_text=(
+            "A client buys once and never orders again. "
+            "How would you handle this situation?"
+        )
+    )
+
+    target_pressure_response = models.TextField(
+        help_text=(
+            "You have not reached your target and only "
+            "7 days remain in the month. What would you do?"
+        )
+    )
+
+    # =========================================================
+    # LEADERSHIP & ACCOUNTABILITY
+    # =========================================================
+
+    leadership_experience = models.TextField(
+        blank=True,
+        help_text=(
+            "Have you ever managed people, coordinated "
+            "a group or led a project? Explain."
+        )
+    )
+
+    unsupervised_problem_solving = models.TextField(
+        help_text=(
+            "Describe a difficult problem you solved "
+            "without supervision."
+        )
+    )
+
+    performance_environment_understanding = models.TextField(
+        help_text=(
+            "What makes someone successful in a "
+            "performance-based environment?"
+        )
+    )
+
+    # =========================================================
+    # STARTUP & CULTURE FIT
+    # =========================================================
+
+    startup_interest_reason = models.TextField(
+        help_text=(
+            "Why do you want to join a growing startup "
+            "business instead of a traditional company?"
+        )
+    )
+
+    comfortable_performance_environment = models.BooleanField(
+        default=True,
+    )
+
+    motivation = models.TextField(
+        help_text=(
+            "What motivates you most: "
+            "income, growth opportunity, leadership, "
+            "building something meaningful, or something else?"
+        )
+    )
+
+    # =========================================================
+    # OPTIONAL VIDEO SUBMISSION
+    # =========================================================
+
+    introduction_video_link = models.URLField(
+        blank=True,
+        help_text=(
+            "Optional: Link to a short introduction video "
+            "(Google Drive, YouTube, Dropbox, etc.)"
+        )
+    )
+
+    # =========================================================
+    # APPLICATION STATUS
+    # =========================================================
+
+    APPLICATION_STATUS_CHOICES = [
+        ("NEW", "New"),
+        ("UNDER_REVIEW", "Under Review"),
+        ("SHORTLISTED", "Shortlisted"),
+        ("INTERVIEW", "Interview"),
+        ("FIELD_TEST", "Field Test"),
+        ("REJECTED", "Rejected"),
+        ("APPROVED", "Approved"),
+    ]
+
+    application_status = models.CharField(
+        max_length=30,
+        choices=APPLICATION_STATUS_CHOICES,
+        default="NEW",
+    )
+
+    # =========================================================
+    # INTERNAL SCORING
+    # =========================================================
+
+    SCORE_CHOICES = [
         (1, "1 - Very Weak"),
         (2, "2 - Weak"),
         (3, "3 - Average"),
@@ -137,21 +256,70 @@ class SalesJobApplication(models.Model):
         (5, "5 - Exceptional"),
     ]
 
-    overall_rating = models.IntegerField(
-        choices=RATING_CHOICES,
+    territory_fit_score = models.IntegerField(
+        choices=SCORE_CHOICES,
         null=True,
         blank=True,
-        help_text="Internal rating from 1 (Very Weak) to 5 (Exceptional)"
+    )
+
+    communication_score = models.IntegerField(
+        choices=SCORE_CHOICES,
+        null=True,
+        blank=True,
+    )
+
+    commercial_thinking_score = models.IntegerField(
+        choices=SCORE_CHOICES,
+        null=True,
+        blank=True,
+    )
+
+    leadership_potential_score = models.IntegerField(
+        choices=SCORE_CHOICES,
+        null=True,
+        blank=True,
+    )
+
+    startup_fit_score = models.IntegerField(
+        choices=SCORE_CHOICES,
+        null=True,
+        blank=True,
+    )
+
+    overall_rating = models.IntegerField(
+        choices=SCORE_CHOICES,
+        null=True,
+        blank=True,
     )
 
     evaluator_notes = models.TextField(
         blank=True,
-        help_text="Internal notes about this candidate"
     )
 
+    # =========================================================
+    # SYSTEM FIELDS
+    # =========================================================
+
+    submitted_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    # =========================================================
+    # META
+    # =========================================================
 
     class Meta:
         ordering = ["-submitted_at"]
 
+    # =========================================================
+    # STRING REPRESENTATION
+    # =========================================================
+
     def __str__(self):
-        return f"{self.first_name} {self.last_name}"
+        return f"{self.first_name} {self.surname}"
+    
+

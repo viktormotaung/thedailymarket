@@ -309,6 +309,15 @@ class Ticket(models.Model):
         related_name="tickets",
     )
 
+    sales_operator = models.ForeignKey(
+        "profiles.SalesOperator",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tickets",
+        help_text="Sales operator linked to this ticket.",
+    )
+
     # Optional creator / closer
     created_by = models.ForeignKey(
         User,

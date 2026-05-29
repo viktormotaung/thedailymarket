@@ -13,9 +13,6 @@ from .models import (
 )
 
 
-# =========================
-# Shared helpers / filters
-# =========================
 class TaskOverdueFilter(admin.SimpleListFilter):
     title = "Overdue"
     parameter_name = "overdue"
@@ -62,9 +59,6 @@ class NotificationOpenedFilter(admin.SimpleListFilter):
         return queryset
 
 
-# =========================
-# Inlines
-# =========================
 class TaskCommentInline(admin.TabularInline):
     model = TaskComment
     extra = 0
@@ -81,9 +75,6 @@ class TicketCommentInline(admin.TabularInline):
     autocomplete_fields = ("author",)
 
 
-# =========================
-# Task Admin
-# =========================
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     inlines = [TaskCommentInline]
@@ -102,7 +93,9 @@ class TaskAdmin(admin.ModelAdmin):
         "related_link",
         "created_at",
     )
+
     list_display_links = ("title",)
+
     list_editable = (
         "status",
         "priority",
@@ -111,6 +104,7 @@ class TaskAdmin(admin.ModelAdmin):
         "source",
         "assigned_to",
     )
+
     ordering = ("-created_at",)
 
     list_filter = (
@@ -132,6 +126,7 @@ class TaskAdmin(admin.ModelAdmin):
         "description",
         "ticket__title",
     )
+
     date_hierarchy = "created_at"
 
     autocomplete_fields = (
@@ -152,63 +147,44 @@ class TaskAdmin(admin.ModelAdmin):
     )
 
     fieldsets = (
-        (
-            "Task",
-            {
-                "fields": (
-                    "title",
-                    "description",
-                    ("status", "priority"),
-                    ("department", "task_type", "source"),
-                )
-            },
-        ),
-        (
-            "Ownership",
-            {
-                "fields": (
-                    ("created_by", "assigned_to", "closed_by"),
-                )
-            },
-        ),
-        (
-            "Ticket Link",
-            {
-                "fields": (
-                    "ticket",
-                    "ticket_link_readonly",
-                )
-            },
-        ),
-        (
-            "Timing",
-            {
-                "fields": (
-                    ("due_at", "opened_at", "completed_at"),
-                    "is_overdue_display",
-                )
-            },
-        ),
-        (
-            "Relation",
-            {
-                "description": "Link this task to any object in the system, such as a Client, Order, Invoice, or Delivery.",
-                "fields": (
-                    "content_type",
-                    "object_id",
-                    "related_link_readonly",
-                ),
-            },
-        ),
-        (
-            "Audit",
-            {
-                "classes": ("collapse",),
-                "fields": (
-                    ("created_at", "updated_at"),
-                ),
-            },
-        ),
+        ("Task", {
+            "fields": (
+                "title",
+                "description",
+                ("status", "priority"),
+                ("department", "task_type", "source"),
+            )
+        }),
+        ("Ownership", {
+            "fields": (
+                ("created_by", "assigned_to", "closed_by"),
+            )
+        }),
+        ("Ticket Link", {
+            "fields": (
+                "ticket",
+                "ticket_link_readonly",
+            )
+        }),
+        ("Timing", {
+            "fields": (
+                ("due_at", "opened_at", "completed_at"),
+                "is_overdue_display",
+            )
+        }),
+        ("Relation", {
+            "fields": (
+                "content_type",
+                "object_id",
+                "related_link_readonly",
+            ),
+        }),
+        ("Audit", {
+            "classes": ("collapse",),
+            "fields": (
+                ("created_at", "updated_at"),
+            ),
+        }),
     )
 
     actions = (
@@ -305,9 +281,6 @@ class TaskAdmin(admin.ModelAdmin):
         self.message_user(request, f"{count} task(s) marked as Closed.")
 
 
-# =========================
-# Task Comment Admin
-# =========================
 @admin.register(TaskComment)
 class TaskCommentAdmin(admin.ModelAdmin):
     list_display = ("id", "task", "author", "created_at")
@@ -318,9 +291,6 @@ class TaskCommentAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
 
 
-# =========================
-# Ticket Admin
-# =========================
 @admin.register(Ticket)
 class TicketAdmin(admin.ModelAdmin):
     inlines = [TicketCommentInline]
@@ -334,18 +304,22 @@ class TicketAdmin(admin.ModelAdmin):
         "ticket_type",
         "source",
         "client",
+        "sales_operator",
         "requester_name",
         "tasks_count",
         "related_link",
         "created_at",
     )
+
     list_display_links = ("title",)
+
     list_editable = (
         "status",
         "priority",
         "department",
         "ticket_type",
     )
+
     ordering = ("-created_at",)
 
     list_filter = (
@@ -354,6 +328,8 @@ class TicketAdmin(admin.ModelAdmin):
         "department",
         "ticket_type",
         "source",
+        "client",
+        "sales_operator",
         "created_at",
         "opened_at",
         "resolved_at",
@@ -368,11 +344,14 @@ class TicketAdmin(admin.ModelAdmin):
         "requester_phone",
         "client__name",
         "client__organization",
+        "sales_operator__name",
     )
+
     date_hierarchy = "created_at"
 
     autocomplete_fields = (
         "client",
+        "sales_operator",
         "created_by",
         "closed_by",
     )
@@ -388,62 +367,44 @@ class TicketAdmin(admin.ModelAdmin):
     )
 
     fieldsets = (
-        (
-            "Ticket",
-            {
-                "fields": (
-                    "title",
-                    "description",
-                    ("status", "priority"),
-                    ("department", "ticket_type", "source"),
-                )
-            },
-        ),
-        (
-            "Requester",
-            {
-                "fields": (
-                    ("requester_name", "requester_email", "requester_phone"),
-                    "client",
-                )
-            },
-        ),
-        (
-            "Workflow",
-            {
-                "fields": (
-                    ("created_by", "closed_by"),
-                    "tasks_links_readonly",
-                )
-            },
-        ),
-        (
-            "Relation",
-            {
-                "fields": (
-                    "content_type",
-                    "object_id",
-                    "related_link_readonly",
-                )
-            },
-        ),
-        (
-            "Timing",
-            {
-                "fields": (
-                    ("opened_at", "resolved_at", "closed_at"),
-                )
-            },
-        ),
-        (
-            "Audit",
-            {
-                "classes": ("collapse",),
-                "fields": (
-                    ("created_at", "updated_at"),
-                ),
-            },
-        ),
+        ("Ticket", {
+            "fields": (
+                "title",
+                "description",
+                ("status", "priority"),
+                ("department", "ticket_type", "source"),
+            )
+        }),
+        ("Requester", {
+            "fields": (
+                ("requester_name", "requester_email", "requester_phone"),
+                ("client", "sales_operator"),
+            )
+        }),
+        ("Workflow", {
+            "fields": (
+                ("created_by", "closed_by"),
+                "tasks_links_readonly",
+            )
+        }),
+        ("Relation", {
+            "fields": (
+                "content_type",
+                "object_id",
+                "related_link_readonly",
+            )
+        }),
+        ("Timing", {
+            "fields": (
+                ("opened_at", "resolved_at", "closed_at"),
+            )
+        }),
+        ("Audit", {
+            "classes": ("collapse",),
+            "fields": (
+                ("created_at", "updated_at"),
+            ),
+        }),
     )
 
     actions = (
@@ -464,10 +425,12 @@ class TicketAdmin(admin.ModelAdmin):
             return format_html('<span style="opacity:.6;">Save first to see linked tasks.</span>')
 
         tasks = obj.tasks.all()[:10]
+
         if not tasks:
             return format_html('<span style="opacity:.6;">No linked tasks.</span>')
 
         links = []
+
         for task in tasks:
             try:
                 url = reverse("admin:tasks_task_change", args=[task.pk])
@@ -476,6 +439,7 @@ class TicketAdmin(admin.ModelAdmin):
                 links.append(task.title)
 
         content = "<br>".join(links)
+
         if obj.tasks.count() > 10:
             content += "<br><span style='opacity:.7;'>…more tasks linked</span>"
 
@@ -555,22 +519,44 @@ class TicketAdmin(admin.ModelAdmin):
         self.message_user(request, f"{count} ticket(s) marked as Closed.")
 
 
-# =========================
-# Ticket Comment Admin
-# =========================
 @admin.register(TicketComment)
 class TicketCommentAdmin(admin.ModelAdmin):
-    list_display = ("id", "ticket", "author", "is_internal", "created_at")
-    list_filter = ("is_internal", "author", "created_at")
-    search_fields = ("body", "ticket__title")
-    autocomplete_fields = ("ticket", "author")
-    readonly_fields = ("created_at",)
-    ordering = ("-created_at",)
+    list_display = (
+        "id",
+        "ticket",
+        "author",
+        "is_internal",
+        "created_at",
+    )
+
+    list_filter = (
+        "is_internal",
+        "author",
+        "created_at",
+    )
+
+    search_fields = (
+        "body",
+        "ticket__title",
+        "ticket__client__name",
+        "ticket__client__organization",
+        "ticket__sales_operator__name",
+    )
+
+    autocomplete_fields = (
+        "ticket",
+        "author",
+    )
+
+    readonly_fields = (
+        "created_at",
+    )
+
+    ordering = (
+        "-created_at",
+    )
 
 
-# =========================
-# Notification Admin
-# =========================
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
     list_display = (
@@ -584,9 +570,11 @@ class NotificationAdmin(admin.ModelAdmin):
         "related_link",
         "created_at",
     )
+
     list_editable = (
         "is_opened",
     )
+
     ordering = ("-created_at",)
 
     list_filter = (
@@ -618,40 +606,30 @@ class NotificationAdmin(admin.ModelAdmin):
     )
 
     fieldsets = (
-        (
-            "Notification",
-            {
-                "fields": (
-                    ("scope", "notification_type"),
-                    ("recipient", "department"),
-                )
-            },
-        ),
-        (
-            "Open State",
-            {
-                "fields": (
-                    ("is_opened", "opened_at", "opened_by"),
-                )
-            },
-        ),
-        (
-            "Relation",
-            {
-                "fields": (
-                    "content_type",
-                    "object_id",
-                    "related_link_readonly",
-                )
-            },
-        ),
-        (
-            "Audit",
-            {
-                "classes": ("collapse",),
-                "fields": ("created_at",),
-            },
-        ),
+        ("Notification", {
+            "fields": (
+                ("scope", "notification_type"),
+                ("recipient", "department"),
+            )
+        }),
+        ("Open State", {
+            "fields": (
+                ("is_opened", "opened_at", "opened_by"),
+            )
+        }),
+        ("Relation", {
+            "fields": (
+                "content_type",
+                "object_id",
+                "related_link_readonly",
+            )
+        }),
+        ("Audit", {
+            "classes": ("collapse",),
+            "fields": (
+                "created_at",
+            ),
+        }),
     )
 
     actions = (

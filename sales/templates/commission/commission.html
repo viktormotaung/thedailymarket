@@ -44,6 +44,13 @@
     .card-compact { padding: 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
     .filter-bar { gap: .5rem; align-items:center; }
     .table-hover tbody tr { cursor: pointer; }
+    .clickable-row {
+      cursor: pointer;
+    }
+
+    .clickable-row:hover {
+      background: #f8f9fa;
+    }
   </style>
 </head>
 <body>
@@ -128,34 +135,19 @@
   <main class="content container-fluid">
 
     <!-- ===================== -->
-    <!-- CENTERED HEADER -->
+    <!-- PAGE HEADER + FILTERS -->
     <!-- ===================== -->
-    <div class="text-center mb-4">
+    <div class="card p-3 mb-4">
+      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
 
-      <h3 class="mb-1">Performance Dashboard</h3>
+        <div>
+          <h3 class="mb-1">Commission Centre</h3>
+          <small class="text-muted">
+            Track earnings, targets, new business bonuses, and sales performance.
+          </small>
+        </div>
 
-      <small class="text-muted d-block">
-        Welcome, {{ request.user.first_name }} {{ request.user.last_name }}
-      </small>
-
-      <a href="{% url 'sales:sales-target-list' %}" class="btn btn-outline-dark btn-sm">
-        Targets
-      </a>
-
-    </div>
-
-
-    <!-- ===================== -->
-    <!-- MAIN CARD -->
-    <!-- ===================== -->
-    <div class="card p-4">
-
-      <!-- ===================== -->
-      <!-- FILTER INSIDE CARD -->
-      <!-- ===================== -->
-      <div class="d-flex justify-content-end mb-4">
-
-        <form method="get" class="d-flex gap-2 align-items-center">
+        <form method="get" class="d-flex flex-column flex-md-row gap-2 align-items-md-center">
 
           <select name="month" class="form-select form-select-sm">
             {% for m in months %}
@@ -173,340 +165,461 @@
             {% endfor %}
           </select>
 
-          <button class="btn btn-primary btn-sm">Apply</button>
+          <select name="area" class="form-select form-select-sm">
+            <option value="">All Areas</option>
+            {% for a in areas %}
+              <option value="{{ a.value }}" {% if a.value == selected_area %}selected{% endif %}>
+                {{ a.label }}
+              </option>
+            {% endfor %}
+          </select>
+
+          <button class="btn btn-primary btn-sm px-4">Apply</button>
 
         </form>
 
       </div>
+    </div>
 
 
-      <!-- ===================== -->
-      <!-- ROW 1: OVERVIEW -->
-      <!-- ===================== -->
-      <div class="row g-3 mb-4 align-items-stretch">
+    <!-- ===================== -->
+    <!-- ADMIN / BUSINESS KPI CARDS -->
+    <!-- ===================== -->
+    <div class="row g-3 mb-4">
 
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Monthly Target</small>
-            <h4 class="mb-0">R{{ monthly_target|default:0|floatformat:0 }}</h4>
-          </div>
+      <!-- Total Commission Payable -->
+      <div class="col-md-3">
+        <div class="card p-3 h-100">
+          <small class="text-muted">Total Commission Payable</small>
+
+          <h4 class="mb-1">
+            R{{ total_commission_payable|default:0|floatformat:2|intcomma }}
+          </h4>
+
+          <small class="
+            {% if commission_payable_change.direction == 'up' %}
+              text-success
+            {% elif commission_payable_change.direction == 'down' %}
+              text-danger
+            {% else %}
+              text-muted
+            {% endif %}
+          ">
+            {% if commission_payable_change.direction == "up" %}
+              ↑ {{ commission_payable_change.percent|floatformat:2 }}%
+            {% elif commission_payable_change.direction == "down" %}
+              ↓ {{ commission_payable_change.percent|floatformat:2 }}%
+            {% else %}
+              — {{ commission_payable_change.percent|floatformat:2 }}%
+            {% endif %}
+            vs previous period
+          </small>
         </div>
+      </div>
 
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Actual Utilization</small>
-            <h4 class="mb-0">R{{ actual_utilization|default:0|floatformat:0 }}</h4>
-          </div>
+      <!-- Revenue Generated -->
+      <div class="col-md-3">
+        <div class="card p-3 h-100">
+          <small class="text-muted">Revenue Generated</small>
+
+          <h4 class="mb-1">
+            R{{ total_revenue|default:0|floatformat:2|intcomma }}
+          </h4>
+
+          <small class="
+            {% if revenue_change.direction == 'up' %}
+              text-success
+            {% elif revenue_change.direction == 'down' %}
+              text-danger
+            {% else %}
+              text-muted
+            {% endif %}
+          ">
+            {% if revenue_change.direction == "up" %}
+              ↑ {{ revenue_change.percent|floatformat:2 }}%
+            {% elif revenue_change.direction == "down" %}
+              ↓ {{ revenue_change.percent|floatformat:2 }}%
+            {% else %}
+              — {{ revenue_change.percent|floatformat:2 }}%
+            {% endif %}
+            vs previous period
+          </small>
         </div>
+      </div>
 
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Achievement</small>
-            <h4 class="mb-0">{{ achievement_pct|default:0 }}%</h4>
-            <div class="progress mt-2" style="height:6px;">
-              <div class="progress-bar" style="width: {{ achievement_pct|default:0 }}%;"></div>
+      <!-- Unique Clients -->
+      <div class="col-md-3">
+        <div class="card p-3 h-100">
+          <small class="text-muted">Unique Clients</small>
+
+          <h4 class="mb-1">
+            {{ total_clients|default:0 }}
+          </h4>
+
+          <small class="
+            {% if clients_change.direction == 'up' %}
+              text-success
+            {% elif clients_change.direction == 'down' %}
+              text-danger
+            {% else %}
+              text-muted
+            {% endif %}
+          ">
+            {% if clients_change.direction == "up" %}
+              ↑ {{ clients_change.percent|floatformat:2 }}%
+            {% elif clients_change.direction == "down" %}
+              ↓ {{ clients_change.percent|floatformat:2 }}%
+            {% else %}
+              — {{ clients_change.percent|floatformat:2 }}%
+            {% endif %}
+            vs previous period
+          </small>
+        </div>
+      </div>
+
+      <!-- New Business Bonus -->
+      <div class="col-md-3">
+        <div class="card p-3 h-100 border-success">
+          <small class="text-muted">New Business Bonus</small>
+
+          <h4 class="mb-1 text-success">
+            R{{ new_business_bonus_total|default:0|floatformat:2|intcomma }}
+          </h4>
+
+          <small class="
+            {% if new_business_bonus_change.direction == 'up' %}
+              text-success
+            {% elif new_business_bonus_change.direction == 'down' %}
+              text-danger
+            {% else %}
+              text-muted
+            {% endif %}
+          ">
+            {% if new_business_bonus_change.direction == "up" %}
+              ↑ {{ new_business_bonus_change.percent|floatformat:2 }}%
+            {% elif new_business_bonus_change.direction == "down" %}
+              ↓ {{ new_business_bonus_change.percent|floatformat:2 }}%
+            {% else %}
+              — {{ new_business_bonus_change.percent|floatformat:2 }}%
+            {% endif %}
+            vs previous period
+          </small>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ===================== -->
+    <!-- TARGET PROGRESS -->
+    <!-- ===================== -->
+    <div class="row g-3 mb-4">
+
+      <div class="col-lg-6">
+        <div class="card p-4 h-100">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <h5 class="mb-0">Revenue Target Progress</h5>
+              <small class="text-muted">
+                R{{ actual_revenue|default:0|floatformat:0|intcomma }}
+                /
+                R{{ monthly_target|default:0|floatformat:0|intcomma }}
+              </small>
+            </div>
+            <span class="fw-semibold">{{ revenue_target_pct|default:0|floatformat:2 }}%</span>
+          </div>
+
+          <div class="progress mb-3" style="height: 8px;">
+            <div class="progress-bar" style="width: {{ revenue_target_pct|default:0 }}%;"></div>
+          </div>
+
+          <div class="row text-center">
+            <div class="col">
+              <small class="text-muted">Remaining</small>
+              <div class="fw-semibold">R{{ revenue_gap|default:0|floatformat:0|intcomma }}</div>
+            </div>
+            <div class="col">
+              <small class="text-muted">Required / Week</small>
+              <div class="fw-semibold">R{{ required_per_week|default:0|floatformat:2|intcomma }}</div>
+            </div>
+            <div class="col">
+              <small class="text-muted">Weekly Avg</small>
+              <div class="fw-semibold">R{{ weekly_average|default:0|floatformat:2|intcomma }}</div>
             </div>
           </div>
         </div>
-
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Daily Target</small>
-            <h4 class="mb-0">R{{ daily_target|default:0|floatformat:0 }}</h4>
-          </div>
-        </div>
-
       </div>
 
-
-      <!-- ===================== -->
-      <!-- ROW 2: CONTROL -->
-      <!-- ===================== -->
-      <div class="row g-3 mb-4 align-items-stretch">
-
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Working Days</small>
-            <h4 class="mb-0">{{ working_days }}</h4>
+      <div class="col-lg-6">
+        <div class="card p-4 h-100">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <h5 class="mb-0">Client Target Progress</h5>
+              <small class="text-muted">
+                {{ actual_clients|default:0 }}
+                /
+                {{ client_target|default:0 }} clients
+              </small>
+            </div>
+            <span class="fw-semibold">{{ client_target_pct|default:0|floatformat:2 }}%</span>
           </div>
-        </div>
 
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Days Passed</small>
-            <h4 class="mb-0">{{ days_passed }}</h4>
+          <div class="progress mb-3" style="height: 8px;">
+            <div class="progress-bar bg-success" style="width: {{ client_target_pct|default:0 }}%;"></div>
           </div>
-        </div>
 
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Days Remaining</small>
-            <h4 class="mb-0">{{ days_remaining }}</h4>
-          </div>
+          {% if bonus_active %}
+            <div class="alert alert-success mb-0 py-2">
+              🔥 Bonus clients are now active. Every qualifying new client above target can earn the higher rate.
+            </div>
+          {% else %}
+            <div class="alert alert-light border mb-0 py-2">
+              {{ clients_needed_for_bonus|default:0 }} more client(s) needed before bonus commission activates.
+            </div>
+          {% endif %}
         </div>
-
-        <div class="col-md-3">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between border-danger">
-            <small class="text-muted">Required Per Day</small>
-            <h4 class="mb-0 text-danger">
-              R{{ required_per_day|default:0|floatformat:0 }}
-            </h4>
-          </div>
-        </div>
-
       </div>
 
+    </div>
 
-      <!-- ===================== -->
-      <!-- ROW 3: PERFORMANCE -->
-      <!-- ===================== -->
-      <div class="row g-3 align-items-stretch">
 
-        <div class="col-md-4">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Target Remaining</small>
-            <h4 class="mb-0">
-              R{{ target_remaining|default:0|floatformat:0 }}
-            </h4>
-          </div>
+    <!-- ===================== -->
+    <!-- REP / SUPERVISOR PERFORMANCE TABLE -->
+    <!-- ===================== -->
+    <div class="card p-4 mb-4">
+
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+        <div>
+          <h5 class="mb-0">Rep Performance</h5>
+          <small class="text-muted">Targets, client count, commission, and bonus visibility.</small>
         </div>
 
-        <div class="col-md-4">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between">
-            <small class="text-muted">Today Target</small>
-            <h4 class="mb-0">
-              R{{ today_target|default:0|floatformat:0 }}
-            </h4>
-          </div>
-        </div>
+        <a href="{% url 'sales:sales-target-list' %}" class="btn btn-outline-dark btn-sm">
+          Manage Targets
+        </a>
+      </div>
 
-        <div class="col-md-4">
-          <div class="card p-3 h-100 d-flex flex-column justify-content-between border-warning">
-            <small class="text-muted">Today Gap</small>
-            <h4 class="mb-0 text-warning">
-              R{{ today_gap|default:0|floatformat:0 }}
-            </h4>
-          </div>
-        </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th style="width: 90px;">Rank</th>
+              <th>Rep</th>
+              <th>Area</th>
+              <th>Commission</th>
+              <th>Bonus</th>
+              <th>Total</th>
+            </tr>
+          </thead>
 
+          <tbody>
+            {% for r in rep_commission_summary %}
+
+            <tr
+              class="clickable-row"
+              data-href="{% url 'sales:sales-commission-rep-detail' r.rep_id %}?month={{ selected_month }}&year={{ selected_year }}{% if selected_area %}&area={{ selected_area }}{% endif %}"
+            >
+
+              <td>
+                {% if r.ranking == 1 %}
+                  <span class="badge bg-warning text-dark px-3 py-2">#1</span>
+                {% elif r.ranking == 2 %}
+                  <span class="badge bg-secondary px-3 py-2">#2</span>
+                {% elif r.ranking == 3 %}
+                  <span class="badge bg-dark px-3 py-2">#3</span>
+                {% else %}
+                  <span class="fw-semibold">#{{ r.ranking }}</span>
+                {% endif %}
+              </td>
+
+              <td>
+                <div class="fw-semibold">{{ r.rep_name }}</div>
+              </td>
+
+              <td>{{ r.area|default:"—" }}</td>
+
+              <td>R{{ r.base_commission|default:0|floatformat:2|intcomma }}</td>
+
+              <td>
+                {% if r.bonus_commission > 0 %}
+                  <span class="text-success fw-semibold">
+                    R{{ r.bonus_commission|floatformat:2|intcomma }}
+                  </span>
+                {% else %}
+                  <span class="text-muted">R0.00</span>
+                {% endif %}
+              </td>
+
+              <td class="fw-semibold">
+                R{{ r.total_commission|default:0|floatformat:2|intcomma }}
+              </td>
+
+            </tr>
+
+            {% empty %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">
+                No commission data available for this period.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
 
     </div>
 
     
+
+
     <!-- ===================== -->
-    <!-- TEAM PERFORMANCE -->
+    <!-- AREA PERFORMANCE VIEW -->
     <!-- ===================== -->
-    <div class="mt-4">
+    <div class="card p-4 mb-4">
 
-      <!-- ===================== -->
-      <!-- SUPERVISORS -->
-      <!-- ===================== -->
-      <div class="card p-4 mb-4">
-
-        <!-- HEADER -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="mb-0">Supervisors</h5>
-
-          <form method="get" class="d-flex gap-2">
-
-            <select name="supervisor" class="form-select form-select-sm">
-              <option value="">All</option>
-              {% for s in supervisors %}
-                <option value="{{ s.id }}" {% if s.id == selected_supervisor %}selected{% endif %}>
-                  {{ s.name }}
-                </option>
-              {% endfor %}
-            </select>
-
-            <select name="month" class="form-select form-select-sm">
-              {% for m in months %}
-                <option value="{{ m.value }}" {% if m.value == selected_month %}selected{% endif %}>
-                  {{ m.label }}
-                </option>
-              {% endfor %}
-            </select>
-
-            <button class="btn btn-sm btn-primary">Apply</button>
-
-          </form>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h5 class="mb-0">Area Performance</h5>
+          <small class="text-muted">
+            Area-level view of reps, clients, revenue, and commission exposure.
+          </small>
         </div>
-
-        <!-- TABLE -->
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-
-            <thead>
-              <tr>
-                <th>Supervisor</th>
-                <th>Area</th>
-                <th>Daily Avg</th>
-                <th>% of Monthly Target</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {% for s in supervisor_summary %}
-              <tr 
-                style="cursor:pointer;"
-                {% if s.user_id %}
-                onclick="window.location.href='{% url 'sales:supervisor-detail' s.user_id %}'"
-                {% endif %}
-              >
-
-                <!-- NAME -->
-                <td>
-                  {{ s.first_name }} {{ s.last_name }}
-                </td>
-
-                <!-- AREA -->
-                <td>
-                  {{ s.area }}
-                </td>
-
-                <!-- DAILY AVERAGE -->
-                <td>
-                  R{{ s.daily_avg|floatformat:0 }}
-                </td>
-
-                <!-- % OF TARGET -->
-                <td>
-                  <span 
-                    class="
-                      {% if s.percent >= 100 %}
-                        text-success
-                      {% elif s.percent >= 80 %}
-                        text-warning
-                      {% else %}
-                        text-danger
-                      {% endif %}
-                      fw-semibold
-                    "
-                  >
-                    {{ s.percent|floatformat:0 }}%
-                  </span>
-                </td>
-
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="4" class="text-center text-muted py-4">
-                  No supervisor data available
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-
-          </table>
-        </div>
-
       </div>
 
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>Reps</th>
+              <th>Clients</th>
+              <th>Revenue</th>
+              <th>Rep Commission</th>
+              <th>Supervisor Commission</th>
+              <th>Total Commission</th>
+            </tr>
+          </thead>
 
-      <!-- ===================== -->
-      <!-- REPS -->
-      <!-- ===================== -->
-      <div class="card p-4">
+          <tbody>
+            {% for a in area_performance_summary %}
+            <tr>
+              <td>{{ a.area }}</td>
+              <td>{{ a.rep_count|default:0 }}</td>
+              <td>{{ a.clients|default:0 }}</td>
+              <td>R{{ a.revenue|default:0|floatformat:2|intcomma }}</td>
+              <td>R{{ a.rep_commission_total|default:0|floatformat:2|intcomma }}</td>
+              <td>R{{ a.supervisor_commission_total|default:0|floatformat:2|intcomma }}</td>
+              <td class="fw-semibold">
+                R{{ a.total_commission|default:0|floatformat:2|intcomma }}
+              </td>
+            </tr>
 
-        <!-- HEADER -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="mb-0">Reps / Agents</h5>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">
+                No area performance data available.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
 
-          <form method="get" class="d-flex gap-2">
+    </div>
 
-            <select name="rep" class="form-select form-select-sm">
-              <option value="">All</option>
-              {% for r in reps %}
-                <option value="{{ r.id }}" {% if r.id == selected_rep %}selected{% endif %}>
-                  {{ r.name }}
-                </option>
-              {% endfor %}
-            </select>
 
-            <select name="month" class="form-select form-select-sm">
-              {% for m in months %}
-                <option value="{{ m.value }}" {% if m.value == selected_month %}selected{% endif %}>
-                  {{ m.label }}
-                </option>
-              {% endfor %}
-            </select>
+    <!-- ===================== -->
+    <!-- PERFORMANCE TREND GRAPH -->
+    <!-- ===================== -->
+    <div class="card p-4 mb-4">
 
-            <button class="btn btn-sm btn-primary">Apply</button>
-
-          </form>
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+        <div>
+          <h5 class="mb-0">Performance Trend</h5>
+          <small class="text-muted">
+            Switch between revenue, commission, active clients, and orders by month.
+          </small>
         </div>
 
-        <!-- TABLE -->
-        <!-- TABLE -->
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
+        <select id="performanceTrendMetric" class="form-select form-select-sm" style="max-width: 220px;">
+          <option value="revenue">Revenue</option>
+          <option value="commission">Commission</option>
+          <option value="clients">Active Clients</option>
+          <option value="orders">Orders</option>
+        </select>
+      </div>
 
-            <thead>
-              <tr>
-                <th>Rep</th>
-                <th>Area</th>
-                <th>Daily Avg</th>
-                <th>Trend</th>
-              </tr>
-            </thead>
+      <div style="height: 340px;">
+        <canvas id="performanceTrendChart"></canvas>
+      </div>
 
-            <tbody>
-              {% for r in rep_summary %}
-              <tr style="cursor:pointer;">
+    </div>
 
-                <!-- NAME -->
-                <td>
-                  {% if r.user_id %}
-                    <a href="{% url 'sales:rep-detail' r.user_id %}" class="text-decoration-none text-dark">
-                      {{ r.first_name }} {{ r.last_name }}
-                    </a>
-                  {% else %}
-                    {{ r.first_name }} {{ r.last_name }}
-                  {% endif %}
-                </td>
 
-                <!-- AREA -->
-                <td>
-                  {{ r.area|default:"—" }}
-                </td>
+    <!-- ===================== -->
+    <!-- PAYROLL CONTROL -->
+    <!-- ===================== -->
+    <div class="card p-4">
 
-                <!-- DAILY AVERAGE -->
-                <td>
-                  R{{ r.daily_avg|floatformat:0 }}
-                </td>
-
-                <!-- TREND -->
-                <td>
-                  {% if r.trend == "up" %}
-                    <span class="text-success fw-semibold">
-                      ▲ +{{ r.trend_percent|floatformat:0 }}%
-                    </span>
-
-                  {% elif r.trend == "down" %}
-                    <span class="text-danger fw-semibold">
-                      ▼ {{ r.trend_percent|floatformat:0 }}%
-                    </span>
-
-                  {% else %}
-                    <span class="text-muted fw-semibold">
-                      ▬ 0%
-                    </span>
-                  {% endif %}
-                </td>
-
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="4" class="text-center text-muted py-4">
-                  No rep data available
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-
-          </table>
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+        <div>
+          <h5 class="mb-0">Payroll Control</h5>
+          <small class="text-muted">Review, adjust, approve, and mark commission payouts.</small>
         </div>
 
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#emailStatementModal">
+            Email Statement
+          </button>
+          <button class="btn btn-dark btn-sm">
+            Export Payroll
+          </button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Rep</th>
+              <th>Base Commission</th>
+              <th>Bonus</th>
+              <th>Adjustments</th>
+              <th>Total Payout</th>
+              <th>Status</th>
+              <th>Paid On</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for p in payroll_rows %}
+            <tr>
+              <td>{{ p.rep_name }}</td>
+              <td>R{{ p.base_commission|default:0|floatformat:0|intcomma }}</td>
+              <td>R{{ p.bonus_commission|default:0|floatformat:0|intcomma }}</td>
+              <td>R{{ p.adjustments|default:0|floatformat:0|intcomma }}</td>
+              <td class="fw-semibold">
+                R{{ p.total_payout|default:0|floatformat:0|intcomma }}
+              </td>
+              <td>
+                {% if p.paid %}
+                  <span class="badge bg-success">Paid</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark">Pending</span>
+                {% endif %}
+              </td>
+              <td>{{ p.paid_on|date:"d M Y"|default:"—" }}</td>
+            </tr>
+
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">
+                No payroll records available.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
 
     </div>
@@ -633,6 +746,105 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const ctx = document.getElementById("performanceTrendChart");
+      const selector = document.getElementById("performanceTrendMetric");
+
+      if (!ctx || !selector) return;
+
+      const labels = {{ performance_trend_labels|safe }};
+
+      const datasets = {
+        revenue: {
+          label: "Revenue",
+          data: {{ performance_trend_revenue|safe }},
+          prefix: "R",
+          suffix: "",
+        },
+        commission: {
+          label: "Commission",
+          data: {{ performance_trend_commission|safe }},
+          prefix: "R",
+          suffix: "",
+        },
+        clients: {
+          label: "Active Clients",
+          data: {{ performance_trend_clients|safe }},
+          prefix: "",
+          suffix: " clients",
+        },
+        orders: {
+          label: "Orders",
+          data: {{ performance_trend_orders|safe }},
+          prefix: "",
+          suffix: " orders",
+        }
+      };
+
+      function formatValue(value, metric) {
+        const config = datasets[metric];
+
+        if (metric === "revenue" || metric === "commission") {
+          return config.prefix + Number(value).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          });
+        }
+
+        return Number(value).toLocaleString() + config.suffix;
+      }
+
+      const chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: datasets.revenue.label,
+            data: datasets.revenue.data,
+            tension: 0.35,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return datasets[selector.value].label + ": " + formatValue(context.raw, selector.value);
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              ticks: {
+                callback: function(value) {
+                  return formatValue(value, selector.value);
+                }
+              }
+            }
+          }
+        }
+      });
+
+      selector.addEventListener("change", function () {
+        const selected = selector.value;
+
+        chart.data.datasets[0].label = datasets[selected].label;
+        chart.data.datasets[0].data = datasets[selected].data;
+
+        chart.update();
+      });
+    });
+  </script>
   <script>
   document.addEventListener("DOMContentLoaded", function() {
     const agentSelect = document.querySelector("select[name='agent']");
@@ -671,6 +883,15 @@
       }
     }
   });
+  </script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      document.querySelectorAll(".clickable-row").forEach(function (row) {
+        row.addEventListener("click", function () {
+          window.location.href = row.dataset.href;
+        });
+      });
+    });
   </script>
 
 
