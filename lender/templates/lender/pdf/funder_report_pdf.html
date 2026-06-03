@@ -1,0 +1,556 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 18px;
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 11px;
+            color: #111827;
+            background: #ffffff;
+        }
+
+        .top-line {
+            height: 4px;
+            background: #0b5c39;
+            margin: -18px -18px 20px -18px;
+        }
+
+        .header-table {
+            width: 100%;
+            margin-bottom: 16px;
+            border-collapse: collapse;
+        }
+
+        .header-table td {
+            border: none;
+            padding: 0;
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        .subtitle {
+            color: #64748b;
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        .badge {
+            border: 1px solid #d9dee3;
+            border-radius: 12px;
+            padding: 6px 10px;
+            font-size: 10px;
+            color: #0b5c39;
+        }
+
+        .muted {
+            color: #64748b;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .narrative {
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 16px;
+        }
+
+        .narrative-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .narrative-table td {
+            border: none;
+            padding: 0;
+            vertical-align: top;
+        }
+
+        .pill {
+            display: inline-block;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 6px 10px;
+            font-size: 10px;
+            color: #111827;
+            background: #f8fafc;
+            white-space: nowrap;
+        }
+
+        .narrative-title {
+            font-size: 15px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .kpi-table {
+            width: 100%;
+            margin-bottom: 16px;
+            border-collapse: separate;
+            border-spacing: 10px 0;
+        }
+
+        .kpi-table td {
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 14px;
+            width: 25%;
+            vertical-align: top;
+        }
+
+        .kpi-label {
+            font-size: 10px;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #111827;
+            line-height: 1.1;
+        }
+
+        .kpi-note {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 8px;
+        }
+
+        .section {
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 12px 14px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        table.report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+        }
+
+        .report-table th {
+            background: #f8fafc;
+            color: #111827;
+            padding: 9px;
+            border-bottom: 1px solid #cbd5e1;
+            font-size: 10px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .report-table td {
+            padding: 9px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 10px;
+            color: #111827;
+        }
+
+        .report-table .text-right {
+            text-align: right;
+        }
+
+        .total-row td {
+            background: #f8fafc;
+            font-weight: bold;
+        }
+
+        .footer {
+            margin-top: 18px;
+            font-size: 9px;
+            color: #64748b;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="top-line"></div>
+
+    <table class="header-table">
+        <tr>
+            <td>
+                <div class="title">
+                    {{ funder.name }} · Funder Report
+                </div>
+
+                <div class="subtitle">
+                    Monthly capital performance summary for {{ selected_year }}
+                </div>
+            </td>
+
+            <td class="text-right">
+                <span class="badge">
+                    
+                </span>
+            </td>
+        </tr>
+    </table>
+
+    <div class="narrative">
+        <table class="narrative-table">
+            <tr>
+                <td style="width: 145px;">
+                    <span class="pill">
+                        Capital Activity
+                    </span>
+                </td>
+
+                <td>
+                    <div class="narrative-title">
+                        How the funder’s money worked
+                    </div>
+
+                    <div class="muted">
+                        This report shows how much of the funder’s allocated capital was used,
+                        how much return it generated, and the average working rate achieved month-to-month.
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <table class="kpi-table">
+        <tr>
+            <td>
+                <div class="kpi-label">
+                    Allocated Capital
+                </div>
+
+                <div class="kpi-value">
+                    R{{ total_allocated|floatformat:2|intcomma }}
+                </div>
+
+                <div class="kpi-note">
+                    Capital assigned to clients.
+                </div>
+            </td>
+
+            <td>
+                <div class="kpi-label">
+                    Credit Utilized
+                </div>
+
+                <div class="kpi-value">
+                    R{{ annual_visible_usage|floatformat:2|intcomma }}
+                </div>
+
+                <div class="kpi-note">
+                    Capped usable funder activity.
+                </div>
+            </td>
+
+            <td>
+                <div class="kpi-label">
+                    Return Generated
+                </div>
+
+                <div class="kpi-value">
+                    R{{ annual_return|floatformat:2|intcomma }}
+                </div>
+
+                <div class="kpi-note">
+                    Total return from utilization.
+                </div>
+            </td>
+
+            <td>
+                <div class="kpi-label">
+                    Average Working Rate
+                </div>
+
+                <div class="kpi-value">
+                    {{ annual_average_working_rate|floatformat:2 }}%
+                </div>
+
+                <div class="kpi-note">
+                    {{ annual_utilization_multiple|floatformat:2 }}x capital movement.
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="section">
+        <div class="section-header">
+            <div class="section-title">
+                Month-to-Month Capital Performance
+            </div>
+
+            <div class="muted">
+                Shows monthly credit utilization, generated return, and average working rate.
+            </div>
+        </div>
+
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th class="text-right">Raw Usage</th>
+                    <th class="text-right">Capped Utilization</th>
+                    <th class="text-right">Return</th>
+                    <th class="text-right">Utilization %</th>
+                    <th class="text-right">Working Rate</th>
+                    <th class="text-right">Capital Movement</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for row in monthly_rows %}
+                    <tr>
+                        <td>
+                            <strong>{{ row.month|date:"F Y" }}</strong>
+                        </td>
+
+                        <td class="text-right">
+                            R{{ row.raw_usage|floatformat:2|intcomma }}
+                        </td>
+
+                        <td class="text-right">
+                            R{{ row.visible_usage|floatformat:2|intcomma }}
+                        </td>
+
+                        <td class="text-right">
+                            R{{ row.return_generated|floatformat:2|intcomma }}
+                        </td>
+
+                        <td class="text-right">
+                            {{ row.utilization_pct|floatformat:2 }}%
+                        </td>
+
+                        <td class="text-right">
+                            {{ row.average_working_rate|floatformat:2 }}%
+                        </td>
+
+                        <td class="text-right">
+                            {{ row.utilization_multiple|floatformat:2 }}x
+                        </td>
+                    </tr>
+                {% endfor %}
+
+                <tr class="total-row">
+                    <td>
+                        Annual Total
+                    </td>
+
+                    <td class="text-right">
+                        R{{ annual_raw_usage|floatformat:2|intcomma }}
+                    </td>
+
+                    <td class="text-right">
+                        R{{ annual_visible_usage|floatformat:2|intcomma }}
+                    </td>
+
+                    <td class="text-right">
+                        R{{ annual_return|floatformat:2|intcomma }}
+                    </td>
+
+                    <td class="text-right">
+                        {{ annual_utilization_pct|floatformat:2 }}%
+                    </td>
+
+                    <td class="text-right">
+                        {{ annual_average_working_rate|floatformat:2 }}%
+                    </td>
+
+                    <td class="text-right">
+                        {{ annual_utilization_multiple|floatformat:2 }}x
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <div class="section-title">
+                Allocated Clients
+            </div>
+
+            <div class="muted">
+                Clients through which the funder’s capital is currently working.
+            </div>
+        </div>
+
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th>Client</th>
+                    <th class="text-right">Allocated Amount</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for allocation in allocations %}
+                    <tr>
+                        <td>
+                            {{ allocation.client }}
+                        </td>
+
+                        <td class="text-right">
+                            R{{ allocation.amount|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+                {% endfor %}
+
+                <tr class="total-row">
+                    <td>
+                        Total
+                    </td>
+
+                    <td class="text-right">
+                        R{{ total_allocated|floatformat:2|intcomma }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Executive Written Report -->
+    <div class="section">
+
+        <div class="section-header">
+
+            <div class="section-title">
+                Executive Performance Summary
+            </div>
+
+            <div class="muted">
+                Institutional overview and capital performance analysis.
+            </div>
+
+        </div>
+
+        <div style="padding:16px; line-height:1.8; font-size:11px;">
+
+            <p>
+                During the <strong>{{ selected_year }}</strong> reporting period,
+                <strong>{{ funder.name }}</strong> allocated
+                <strong>R{{ total_allocated|floatformat:2|intcomma }}</strong>
+                in operational capital into
+                <strong>The Daily Market</strong> credit ecosystem.
+            </p>
+
+            <p>
+                To date, the allocated capital generated total capped utilization
+                activity of
+                <strong>R{{ annual_visible_usage|floatformat:2|intcomma }}</strong>,
+                representing an overall capital movement multiple of approximately
+                <strong>{{ annual_utilization_multiple|floatformat:2 }}x</strong>
+                against the original allocated capital amount.
+            </p>
+
+            <p>
+                The deployed capital generated total returns of
+                <strong>R{{ annual_return|floatformat:2|intcomma }}</strong>
+                at an average operational working rate of
+                <strong>{{ annual_average_working_rate|floatformat:2 }}%</strong>.
+            </p>
+
+            <p>
+                Based on the original allocated capital amount of
+                <strong>R{{ total_allocated|floatformat:2|intcomma }}</strong>,
+                the current generated returns represent approximately
+                <strong>{{ growth_percentage|floatformat:2 }}%</strong>
+                growth on the original capital deployed.
+            </p>
+
+            <p>
+                This results in an estimated current capital value of approximately
+                <strong>
+                    R{{ current_capital_value|floatformat:2|intcomma }}
+                </strong>,
+                before any withdrawals, reallocations, reinvestment adjustments,
+                or future capital deployments.
+            </p>
+
+            {% if strongest_month %}
+            <p>
+                Operational performance was strongest during
+                <strong>{{ strongest_month.month|date:"F Y" }}</strong>,
+                where capped utilization activity reached
+                <strong>
+                    R{{ strongest_month.visible_usage|floatformat:2|intcomma }}
+                </strong>,
+                generating returns of
+                <strong>
+                    R{{ strongest_month.return_generated|floatformat:2|intcomma }}
+                </strong>.
+            </p>
+            {% endif %}
+
+            <p>
+                Across the active reporting period,
+                capital deployment demonstrated ongoing operational recycling
+                through The Daily Market credit environment, reflecting
+                sustained utilization activity and continued return generation
+                from deployed capital.
+            </p>
+
+            <p>
+                Based on the current operational performance trend and average
+                monthly return generation observed during the active reporting
+                period, projected annualized returns are estimated at approximately
+                <strong>
+                    R{{ projected_year_end_return|floatformat:2|intcomma }}
+                </strong>
+                by year-end, should current utilization levels and working rates
+                remain consistent.
+            </p>
+
+            <p>
+                Under the current operational trajectory,
+                projected year-end capital value is estimated to reach approximately
+                <strong>
+                    R{{ projected_year_end_capital|floatformat:2|intcomma }}
+                </strong>,
+                representing projected annual growth of approximately
+                <strong>
+                    {{ projected_growth_pct|floatformat:2 }}%
+                </strong>
+                relative to the original allocated capital amount.
+            </p>
+
+            <p style="margin-bottom:0;">
+                Overall, the reporting period demonstrates active capital
+                deployment, healthy utilization turnover, operational recycling
+                efficiency, and sustained return generation within
+                <strong>The Daily Market</strong> operational credit ecosystem.
+            </p>
+
+        </div>
+
+    </div>
+
+    <div class="footer">
+        © {% now "Y" %} The Daily Market · Built for transparency.
+    </div>
+
+</body>
+</html>

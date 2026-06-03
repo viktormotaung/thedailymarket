@@ -432,3 +432,431 @@ def payfast_notify(request):
             pass
 
     return HttpResponse("OK")
+
+
+def build_funder_report_context(request):
+    from calendar import monthrange
+    from datetime import date
+    from decimal import Decimal
+
+    from django.db.models import Sum
+    from django.db.models.functions import Coalesce
+
+    from credit.models import (
+        Funder,
+        FunderAllocation,
+        FunderWeekSummary,
+        FunderMember,
+    )
+
+    today = date.today()
+    year_raw = request.GET.get("year")
+
+    try:
+        selected_year = int(year_raw) if year_raw else today.year
+    except ValueError:
+        selected_year = today.year
+
+    dummy_user = User.objects.using("dummy").filter(
+        username__iexact=request.user.username
+    ).first()
+
+    funder_options = []
+
+    if request.user.is_staff:
+        db = request.GET.get("mode") or "dummy"
+
+        if db not in ["default", "dummy"]:
+            db = "dummy"
+
+        funders = (
+            Funder.objects.using(db)
+            .all()
+            .order_by("name")
+        )
+
+        funder_options = [
+            {
+                "id": f.id,
+                "name": f.name,
+                "db": db,
+            }
+            for f in funders
+        ]
+
+    else:
+        dummy_memberships = []
+
+        if dummy_user:
+            dummy_memberships = list(
+                FunderMember.objects.using("dummy")
+                .filter(user=dummy_user, is_active=True)
+                .select_related("funder")
+            )
+
+        default_memberships = list(
+            FunderMember.objects.using("default")
+            .filter(user=request.user, is_active=True)
+            .select_related("funder")
+        )
+
+        if dummy_memberships:
+            db = "dummy"
+            memberships = dummy_memberships
+        else:
+            db = "default"
+            memberships = default_memberships
+
+        if not memberships:
+            return None, "No funder access found."
+
+        funder_options = [
+            {
+                "id": m.funder.id,
+                "name": m.funder.name,
+                "db": db,
+            }
+            for m in memberships
+        ]
+
+    selected_funder_id = request.GET.get("funder")
+
+    if selected_funder_id:
+        funder = (
+            Funder.objects.using(db)
+            .filter(id=selected_funder_id)
+            .first()
+        )
+    else:
+        first_option = funder_options[0] if funder_options else None
+
+        funder = (
+            Funder.objects.using(db)
+            .filter(id=first_option["id"])
+            .first()
+            if first_option
+            else None
+        )
+
+    if not funder:
+        return None, "No funder found."
+
+    allocations = (
+        FunderAllocation.objects.using(db)
+        .filter(funder_id=funder.id)
+        .select_related("client")
+        .order_by("client__name")
+    )
+
+    total_allocated = allocations.aggregate(
+        total=Coalesce(Sum("amount"), Decimal("0.00"))
+    )["total"] or Decimal("0.00")
+
+    monthly_rows = []
+
+    annual_raw_usage = Decimal("0.00")
+    annual_visible_usage = Decimal("0.00")
+    annual_return = Decimal("0.00")
+
+    for month in range(1, 13):
+        month_start = date(selected_year, month, 1)
+        month_end = date(
+            selected_year,
+            month,
+            monthrange(selected_year, month)[1],
+        )
+
+        weeks = (
+            FunderWeekSummary.objects.using(db)
+            .filter(
+                funder_id=funder.id,
+                week_start__gte=month_start,
+                week_start__lte=month_end,
+            )
+        )
+
+        totals = weeks.aggregate(
+            raw_usage=Coalesce(
+                Sum("raw_weekly_usage"),
+                Decimal("0.00"),
+            ),
+            visible_usage=Coalesce(
+                Sum("visible_utilization_total"),
+                Decimal("0.00"),
+            ),
+            return_generated=Coalesce(
+                Sum("weekly_return"),
+                Decimal("0.00"),
+            ),
+        )
+
+        raw_usage = totals["raw_usage"] or Decimal("0.00")
+        visible_usage = totals["visible_usage"] or Decimal("0.00")
+        return_generated = totals["return_generated"] or Decimal("0.00")
+
+        utilization_pct = Decimal("0.00")
+        utilization_multiple = Decimal("0.00")
+        average_working_rate = Decimal("0.00")
+
+        if total_allocated > 0:
+            utilization_pct = (
+                visible_usage / total_allocated
+            ) * Decimal("100")
+
+            utilization_multiple = (
+                visible_usage / total_allocated
+            )
+
+        if visible_usage > 0:
+            average_working_rate = (
+                return_generated / visible_usage
+            ) * Decimal("100")
+
+        monthly_rows.append({
+            "month": month_start,
+            "raw_usage": raw_usage,
+            "visible_usage": visible_usage,
+            "return_generated": return_generated,
+            "utilization_pct": utilization_pct,
+            "utilization_multiple": utilization_multiple,
+            "average_working_rate": average_working_rate,
+        })
+
+        annual_raw_usage += raw_usage
+        annual_visible_usage += visible_usage
+        annual_return += return_generated
+
+    annual_utilization_pct = Decimal("0.00")
+    annual_utilization_multiple = Decimal("0.00")
+    annual_average_working_rate = Decimal("0.00")
+
+    if total_allocated > 0:
+        annual_utilization_pct = (
+            annual_visible_usage / total_allocated
+        ) * Decimal("100")
+
+        annual_utilization_multiple = (
+            annual_visible_usage / total_allocated
+        )
+
+    if annual_visible_usage > 0:
+        annual_average_working_rate = (
+            annual_return / annual_visible_usage
+        ) * Decimal("100")
+
+    # --------------------------------------------------
+    # Growth and projection calculations
+    # --------------------------------------------------
+    growth_percentage = Decimal("0.00")
+    current_capital_value = total_allocated
+    monthly_avg_return = Decimal("0.00")
+    projected_year_end_return = Decimal("0.00")
+    projected_year_end_capital = total_allocated
+    projected_growth_pct = Decimal("0.00")
+
+    active_months = len([
+        row for row in monthly_rows
+        if row["return_generated"] > 0
+    ])
+
+    if total_allocated > 0:
+        growth_percentage = (
+            annual_return / total_allocated
+        ) * Decimal("100")
+
+        current_capital_value = (
+            total_allocated + annual_return
+        )
+
+        if active_months > 0:
+            monthly_avg_return = (
+                annual_return / Decimal(active_months)
+            )
+
+            projected_year_end_return = (
+                monthly_avg_return * Decimal("12")
+            )
+
+            projected_year_end_capital = (
+                total_allocated + projected_year_end_return
+            )
+
+            projected_growth_pct = (
+                projected_year_end_return / total_allocated
+            ) * Decimal("100")
+
+    # --------------------------------------------------
+    # Strongest month
+    # --------------------------------------------------
+    strongest_month = None
+
+    active_rows = [
+        row for row in monthly_rows
+        if row["return_generated"] > 0
+    ]
+
+    if active_rows:
+        strongest_month = max(
+            active_rows,
+            key=lambda row: row["return_generated"],
+        )
+
+    # --------------------------------------------------
+    # Executive written report
+    # --------------------------------------------------
+    if strongest_month:
+        strongest_month_text = (
+            f"{strongest_month['month'].strftime('%B %Y')} represented "
+            f"the strongest performance month, with capped utilization of "
+            f"R{strongest_month['visible_usage']:,.2f} and return generated "
+            f"of R{strongest_month['return_generated']:,.2f}."
+        )
+    else:
+        strongest_month_text = (
+            "No active return-generating month was recorded during this period."
+        )
+
+    executive_summary = (
+        f"During the {selected_year} reporting period, {funder.name} "
+        f"allocated R{total_allocated:,.2f} in operational capital into "
+        f"The Daily Market credit ecosystem.\n\n"
+
+        f"To date, the allocated capital has generated total capped utilization "
+        f"activity of R{annual_visible_usage:,.2f}, representing a capital "
+        f"movement multiple of approximately {annual_utilization_multiple:.2f}x "
+        f"against the original allocated amount.\n\n"
+
+        f"The deployed capital generated total returns of R{annual_return:,.2f} "
+        f"at an average working rate of {annual_average_working_rate:.2f}%.\n\n"
+
+        f"Based on the original allocated capital amount of R{total_allocated:,.2f}, "
+        f"the current generated return represents approximately "
+        f"{growth_percentage:.2f}% growth on the original capital deployed. "
+        f"This results in an estimated current capital value of approximately "
+        f"R{current_capital_value:,.2f}, before any withdrawals, reallocations, "
+        f"or reinvestment adjustments.\n\n"
+
+        f"{strongest_month_text}\n\n"
+
+        f"Based on the current operational performance trend and average monthly "
+        f"return generation observed during the active reporting period, projected "
+        f"annualized returns are estimated at approximately "
+        f"R{projected_year_end_return:,.2f} by year-end, provided current utilization "
+        f"levels and working rates remain consistent.\n\n"
+
+        f"Under the current operational trajectory, the projected year-end capital "
+        f"value is estimated to reach approximately "
+        f"R{projected_year_end_capital:,.2f}, representing projected annual growth "
+        f"of approximately {projected_growth_pct:.2f}% relative to the original "
+        f"capital allocation.\n\n"
+
+        f"Overall, the reporting period demonstrates capital deployment, utilization "
+        f"turnover, and return generation within The Daily Market operational credit "
+        f"environment."
+    )
+
+    context = {
+        "funder": funder,
+        "funder_options": funder_options,
+        "selected_funder_id": str(funder.id),
+        "selected_year": selected_year,
+        "mode": db,
+
+        "allocations": allocations,
+        "total_allocated": total_allocated,
+
+        "monthly_rows": monthly_rows,
+
+        "annual_raw_usage": annual_raw_usage,
+        "annual_visible_usage": annual_visible_usage,
+        "annual_return": annual_return,
+        "annual_utilization_pct": annual_utilization_pct,
+        "annual_utilization_multiple": annual_utilization_multiple,
+        "annual_average_working_rate": annual_average_working_rate,
+
+        "growth_percentage": growth_percentage,
+        "current_capital_value": current_capital_value,
+        "active_months": active_months,
+        "monthly_avg_return": monthly_avg_return,
+        "projected_year_end_return": projected_year_end_return,
+        "projected_year_end_capital": projected_year_end_capital,
+        "projected_growth_pct": projected_growth_pct,
+        "strongest_month": strongest_month,
+        "executive_summary": executive_summary,
+    }
+
+    return context, None
+
+
+@login_required
+def funder_report(request):
+    context, error = build_funder_report_context(request)
+
+    if error:
+        messages.error(request, error)
+        return redirect(reverse("funder-dashboard"))
+
+    return render(
+        request,
+        "lender/funder_report.html",
+        context,
+    )
+
+
+@login_required
+def funder_report_pdf(request):
+    from io import BytesIO
+
+    from django.http import HttpResponse
+    from django.template.loader import get_template
+
+    from xhtml2pdf import pisa
+
+    context, error = build_funder_report_context(request)
+
+    if error:
+        messages.error(request, error)
+        return redirect(reverse("funder-dashboard"))
+
+    template = get_template(
+        "lender/pdf/funder_report_pdf.html"
+    )
+
+    html = template.render(context)
+
+    result = BytesIO()
+
+    pdf = pisa.pisaDocument(
+        BytesIO(html.encode("UTF-8")),
+        result,
+    )
+
+    if pdf.err:
+        return HttpResponse(
+            "Error generating PDF",
+            status=500,
+        )
+
+    safe_funder_name = (
+        str(context["funder"].name)
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
+    )
+
+    filename = (
+        f"{safe_funder_name}"
+        f"_report_"
+        f"{context['selected_year']}.pdf"
+    )
+
+    response = HttpResponse(
+        result.getvalue(),
+        content_type="application/pdf",
+    )
+
+    response["Content-Disposition"] = (
+        f'attachment; filename="{filename}"'
+    )
+
+    return response
