@@ -487,543 +487,472 @@
 
   </aside>
 
-  {# ---------- MAIN CONTENT ---------- #}
-  <main class="content">
-    <h2 class="text-center">Staff Profile</h2>
+    {# ---------- MAIN CONTENT ---------- #}
+    <main class="content">
 
-    
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h3 class="mb-0">
+                    Driver Profile
+                </h3>
 
-    <!-- ========================= -->
-    <!-- TABS -->
-    <!-- ========================= -->
-    <ul class="nav nav-tabs mb-3" id="staffTabs" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="all-tab" data-bs-toggle="tab"
-                data-bs-target="#all" type="button" role="tab">
-          All Staff
-        </button>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#sales" type="button">
-          Sales Staff
-        </button>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#logistics" type="button">
-          Logistics Staff
-        </button>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#warehouse" type="button">
-          Warehouse Staff
-        </button>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#future1" type="button">
-          Future 1
-        </button>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#future2" type="button">
-          Future 2
-        </button>
-      </li>
-    </ul>
-
-    <!-- ========================= -->
-    <!-- TAB CONTENT -->
-    <!-- ========================= -->
-    <div class="tab-content">
-
-      <!-- ========================= -->
-      <!-- ALL STAFF (CURRENT CONTENT) -->
-      <!-- ========================= -->
-      <div class="tab-pane fade show active" id="all" role="tabpanel">
-        <div class="d-flex justify-content-center mb-3">
-
-          <a href="{% if can_write %}{% url 'staff_profile_create' %}{% else %}#{% endif %}"
-            class="btn btn-success {% if not can_write %}disabled{% endif %}"
-            {% if not can_write %}
-              aria-disabled="true"
-              title="View-only access"
-            {% endif %}>
-
-            Add Profile
-
-          </a>
-
-        </div>
-
-        <!-- 🔽 EVERYTHING BELOW IS YOUR EXISTING CARD UNCHANGED -->
-        <div class="card shadow-sm">
-          <div class="card-header bg-white py-2">
-            <form method="get" class="row g-2 align-items-end">
-              <div class="col-md-6">
-                <input type="text" name="q" class="form-control form-control-sm"
-                      placeholder="Search name, username, phone, job title…"
-                      value="{{ request.GET.q|default:'' }}">
-              </div>
-              <div class="col-md-3">
-                <select name="status" class="form-select form-select-sm">
-                  <option value="">Status: All</option>
-                  <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
-                  <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
-                  <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>Inactive</option>
-                </select>
-              </div>
-              <div class="col-md-3 d-flex justify-content-end">
-                <button class="btn btn-sm btn-primary px-3" type="submit">Filter</button>
-                <a class="btn btn-sm btn-outline-secondary px-3 ms-2"
-                  href="{% url 'staff_profile' %}">Clear</a>
-              </div>
-            </form>
-          </div>
-
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-striped table-bordered mb-0">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Name</th>
-                    <th>Username</th>
-                    <th>Job Title</th>
-                    <th>Phone</th>
-                    <th>Status</th>
-                    <th>Online</th>
-                    <th>Last Seen</th>
-                    <th>Last Login</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for sp in staff_list %}
-                  <tr onclick="window.location.href='{% url 'staff_profile_view' sp.pk %}'"
-                      style="cursor:pointer;">
-                    <td>{{ forloop.counter0|add:page_start }}</td>
-                    <td>{{ sp.user.get_full_name|default:sp.user.username }}</td>
-                    <td>{{ sp.user.username }}</td>
-                    <td>{{ sp.job_title|default:"—" }}</td>
-                    <td>{{ sp.phone|default:"—" }}</td>
-                    <td>
-                      <span class="badge
-                        {% if sp.status == 'active' %}bg-success
-                        {% elif sp.status == 'pending' %}bg-warning text-dark
-                        {% else %}bg-secondary{% endif %}">
-                        {{ sp.status|title }}
-                      </span>
-                    </td>
-                    <td>
-                      <span class="badge {% if sp.is_online %}bg-success{% else %}bg-secondary{% endif %}">
-                        {{ sp.is_online|yesno:"Online,Offline" }}
-                      </span>
-                    </td>
-                    <td>{{ sp.last_seen_at|naturaltime|default:"—" }}</td>
-                    <td>{{ sp.user.last_login|date:"Y-m-d H:i"|default:"—" }}</td>
-                  </tr>
-                  {% empty %}
-                  <tr>
-                    <td colspan="9" class="text-center text-muted">
-                      No staff profiles found.
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {% if page_obj %}
-          <div class="card-footer bg-white">
-            <nav>
-              <ul class="pagination pagination-sm justify-content-center mb-0">
-
-                {% if page_obj.has_previous %}
-                  <li class="page-item">
-                    <a class="page-link"
-                      href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
-                      « First
-                    </a>
-                  </li>
-                  <li class="page-item">
-                    <a class="page-link"
-                      href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
-                      ‹ Prev
-                    </a>
-                  </li>
-                {% else %}
-                  <li class="page-item disabled"><span class="page-link">« First</span></li>
-                  <li class="page-item disabled"><span class="page-link">‹ Prev</span></li>
-                {% endif %}
-
-                <li class="page-item disabled">
-                  <span class="page-link">
-                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-                  </span>
-                </li>
-
-                {% if page_obj.has_next %}
-                  <li class="page-item">
-                    <a class="page-link"
-                      href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
-                      Next ›
-                    </a>
-                  </li>
-                  <li class="page-item">
-                    <a class="page-link"
-                      href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
-                      Last »
-                    </a>
-                  </li>
-                {% else %}
-                  <li class="page-item disabled"><span class="page-link">Next ›</span></li>
-                  <li class="page-item disabled"><span class="page-link">Last »</span></li>
-                {% endif %}
-
-              </ul>
-            </nav>
-          </div>
-          {% endif %}
-
-        </div>
-      </div>
-
-      <!-- ========================= -->
-      <!-- OTHER TABS (PLACEHOLDERS) -->
-      <!-- ========================= -->
-      <div class="tab-pane fade" id="sales" role="tabpanel">
-
-        <div class="d-flex justify-content-center mb-3">
-
-          <a href="{% if can_write %}{% url 'sales_staff_profile_create' %}{% else %}#{% endif %}"
-            class="btn btn-success {% if not can_write %}disabled{% endif %}"
-            {% if not can_write %}
-              aria-disabled="true"
-              title="View-only access"
-            {% endif %}>
-
-            Add Profile
-
-          </a>
-
-        </div>
-
-        <div class="card shadow-sm border-0">
-
-            <div class="card-header bg-white d-flex align-items-center justify-content-between">
-                <h6 class="mb-0 fw-bold">
-                    Sales Staff
-                </h6>
-
-                <span class="text-muted small">
-                    {{ sales_staff|length }} sales staff member{{ sales_staff|length|pluralize }}
-                </span>
+                <small class="text-muted">
+                    {{ user_obj.get_full_name|default:user_obj.username }}
+                </small>
             </div>
 
-            <div class="card-body p-0">
-
-                <div class="table-responsive">
-
-                    <table class="table table-hover table-bordered align-middle mb-0">
-
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width:60px;">#</th>
-                                <th>Name</th>
-                                <th>Username</th>
-                                <th>Job Title</th>
-                                <th>Sales Operator</th>
-                                <th>Department</th>
-                                <th>Status</th>
-                                <th>Online</th>
-                                <th>Last Seen</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-
-                            {% for sales_rep in sales_staff %}
-
-                                <tr onclick="window.location.href='{% url 'sales_staff_profile_view' sales_rep.staff_profile.pk %}'"
-                                    style="cursor:pointer;">
-
-                                    <td>
-                                        {{ forloop.counter }}
-                                    </td>
-
-                                    <td>
-                                        <div class="fw-semibold">
-                                            {{ sales_rep.user.get_full_name|default:sales_rep.user.username }}
-                                        </div>
-
-                                        {% if sales_rep.roles.all %}
-                                            <div class="mt-1">
-                                                {% for role in sales_rep.roles.all %}
-                                                    <span class="badge rounded-pill bg-secondary">
-                                                        {{ role.name }}
-                                                    </span>
-                                                {% empty %}
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </td>
-
-                                    <td>
-                                        {{ sales_rep.user.username }}
-                                    </td>
-
-                                    <td>
-                                        {% if sales_rep.staff_profile %}
-                                            {{ sales_rep.staff_profile.job_title|default:"—" }}
-                                        {% else %}
-                                            —
-                                        {% endif %}
-                                    </td>
-
-                                    <td>
-                                        {% if sales_rep.sales_operator %}
-                                            {{ sales_rep.sales_operator.name }}
-                                        {% else %}
-                                            —
-                                        {% endif %}
-                                    </td>
-
-                                    <td>
-                                        {{ sales_rep.department|default:"SALES" }}
-                                    </td>
-
-                                    <td>
-                                        <span class="badge
-                                            {% if sales_rep.status == 'active' %}
-                                                bg-success
-                                            {% elif sales_rep.status == 'pending' %}
-                                                bg-warning text-dark
-                                            {% else %}
-                                                bg-secondary
-                                            {% endif %}
-                                        ">
-                                            {{ sales_rep.status|title }}
-                                        </span>
-                                    </td>
-
-                                    <td>
-                                        <span class="badge
-                                            {% if sales_rep.is_online %}
-                                                bg-success
-                                            {% else %}
-                                                bg-secondary
-                                            {% endif %}
-                                        ">
-                                            {{ sales_rep.is_online|yesno:"Online,Offline" }}
-                                        </span>
-                                    </td>
-
-                                    <td>
-                                        {% if sales_rep.last_seen_at %}
-                                            {{ sales_rep.last_seen_at|naturaltime }}
-                                        {% else %}
-                                            —
-                                        {% endif %}
-                                    </td>
-
-                                </tr>
-
-                            {% empty %}
-
-                                <tr>
-                                    <td colspan="9"
-                                        class="text-center text-muted py-4">
-
-                                        No sales staff profiles found.
-
-                                    </td>
-                                </tr>
-
-                            {% endfor %}
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>
-
-        </div>
-
-      </div>
-
-      <div class="tab-pane fade" id="logistics" role="tabpanel">
-
-        <div class="d-flex justify-content-center mb-3">
-
-            <a href="{% if can_write %}{% url 'driver_profile_create' %}{% else %}#{% endif %}"
-              class="btn btn-success {% if not can_write %}disabled{% endif %}"
-              {% if not can_write %}
-                    aria-disabled="true"
-                    title="View-only access"
-              {% endif %}>
-
-                Add Driver
-
+            <a href="{% url 'staff_profile' %}"
+            class="btn btn-outline-secondary btn-sm">
+                ← Back to Staff
             </a>
+        </div>
+
+        <!-- SUMMARY CARDS -->
+        <div class="row g-3 mb-4">
+
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body text-center">
+                        <div class="text-muted small">Total Runs</div>
+                        <h4 class="mb-0">{{ run_summary.total_runs|default:0 }}</h4>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body text-center">
+                        <div class="text-muted small">Total Stops</div>
+                        <h4 class="mb-0">{{ stop_summary.total_stops|default:0 }}</h4>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body text-center">
+                        <div class="text-muted small">Total Distance</div>
+                        <h4 class="mb-0">{{ run_summary.total_distance|default:"0.00" }} km</h4>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body text-center">
+                        <div class="text-muted small">Total Cost</div>
+                        <h4 class="mb-0">R{{ run_summary.total_overall_cost|default:"0.00" }}</h4>
+                    </div>
+                </div>
+            </div>
 
         </div>
 
-        <div class="card shadow-sm border-0">
+        <!-- TABS -->
+        <ul class="nav nav-tabs mb-3" role="tablist">
 
-            <div class="card-header bg-white d-flex align-items-center justify-content-between">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active"
+                        data-bs-toggle="tab"
+                        data-bs-target="#driver-profile"
+                        type="button">
+                    Driver Profile
+                </button>
+            </li>
 
-                <h6 class="mb-0 fw-bold">
-                    Logistics Staff
-                </h6>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link"
+                        data-bs-toggle="tab"
+                        data-bs-target="#delivery-runs"
+                        type="button">
+                    Delivery Runs
+                </button>
+            </li>
 
-                <span class="text-muted small">
-                    {{ logistics_staff|length }} logistics staff member{{ logistics_staff|length|pluralize }}
-                </span>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link"
+                        data-bs-toggle="tab"
+                        data-bs-target="#delivery-stops"
+                        type="button">
+                    Delivery Stops
+                </button>
+            </li>
 
-            </div>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link"
+                        data-bs-toggle="tab"
+                        data-bs-target="#rates"
+                        type="button">
+                    Rates
+                </button>
+            </li>
 
-            <div class="card-body p-0">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link"
+                        data-bs-toggle="tab"
+                        data-bs-target="#django-user"
+                        type="button">
+                    Django User
+                </button>
+            </li>
 
-                <div class="table-responsive">
+        </ul>
 
-                    <table class="table table-hover table-bordered align-middle mb-0">
+        <div class="tab-content bg-white border rounded-bottom p-3 shadow-sm">
 
-                        <thead class="table-light">
+            <!-- DRIVER PROFILE TAB -->
+            <div class="tab-pane fade show active" id="driver-profile">
 
-                            <tr>
-                                <th style="width:60px;">#</th>
-                                <th>Name</th>
-                                <th>Username</th>
-                                <th>Job Title</th>
-                                <th>Phone</th>
-                                <th>Department</th>
-                                <th>Status</th>
-                                <th>Online</th>
-                                <th>Last Seen</th>
-                            </tr>
+                <div class="row g-3">
 
-                        </thead>
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-3">Driver Details</h6>
 
-                        <tbody>
+                                <dl class="row mb-0">
+                                    <dt class="col-5">Name</dt>
+                                    <dd class="col-7">
+                                        {{ user_obj.get_full_name|default:user_obj.username }}
+                                    </dd>
 
-                            {% for driver in logistics_staff %}
+                                    <dt class="col-5">Username</dt>
+                                    <dd class="col-7">{{ user_obj.username }}</dd>
 
-                                <tr onclick="window.location.href='{% url 'driver_profile_view' driver.staff_profile.pk %}'"
-                                    style="cursor:pointer;">
+                                    <dt class="col-5">Job Title</dt>
+                                    <dd class="col-7">{{ sp.job_title|default:"—" }}</dd>
 
-                                    <td>
-                                        {{ forloop.counter }}
-                                    </td>
+                                    <dt class="col-5">Phone</dt>
+                                    <dd class="col-7">{{ sp.phone|default:"—" }}</dd>
 
-                                    <td>
+                                    <dt class="col-5">Department</dt>
+                                    <dd class="col-7">{{ sp.department|default:"LOGISTICS" }}</dd>
 
-                                        <div class="fw-semibold">
-                                            {{ driver.user.get_full_name|default:driver.user.username }}
-                                        </div>
-
-                                    </td>
-
-                                    <td>
-                                        {{ driver.user.username }}
-                                    </td>
-
-                                    <td>
-
-                                        {% if driver.staff_profile %}
-                                            {{ driver.staff_profile.job_title|default:"—" }}
-                                        {% else %}
-                                            —
-                                        {% endif %}
-
-                                    </td>
-
-                                    <td>
-
-                                        {% if driver.staff_profile %}
-                                            {{ driver.staff_profile.phone|default:"—" }}
-                                        {% else %}
-                                            —
-                                        {% endif %}
-
-                                    </td>
-
-                                    <td>
-
-                                        {% if driver.staff_profile.department %}
-                                            {{ driver.staff_profile.department }}
-                                        {% else %}
-                                            LOGISTICS
-                                        {% endif %}
-
-                                    </td>
-
-                                    <td>
-
+                                    <dt class="col-5">Driver Status</dt>
+                                    <dd class="col-7">
                                         <span class="badge
-                                            {% if driver.status == 'active' %}
+                                            {% if driver_profile.status == 'active' %}
                                                 bg-success
-                                            {% elif driver.status == 'pending' %}
+                                            {% elif driver_profile.status == 'pending' %}
                                                 bg-warning text-dark
-                                            {% elif driver.status == 'suspended' %}
+                                            {% elif driver_profile.status == 'suspended' %}
                                                 bg-danger
                                             {% else %}
                                                 bg-secondary
                                             {% endif %}
                                         ">
-
-                                            {{ driver.status|title }}
-
+                                            {{ driver_profile.status|title }}
                                         </span>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
 
-                                    </td>
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-3">Activity</h6>
 
+                                <dl class="row mb-0">
+                                    <dt class="col-5">Online</dt>
+                                    <dd class="col-7">
+                                        <span class="badge {% if sp.is_online %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {{ sp.is_online|yesno:"Online,Offline" }}
+                                        </span>
+                                    </dd>
+
+                                    <dt class="col-5">Last Seen</dt>
+                                    <dd class="col-7">
+                                        {% if sp.last_seen_at %}
+                                            {{ sp.last_seen_at|naturaltime }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </dd>
+
+                                    <dt class="col-5">Last Login</dt>
+                                    <dd class="col-7">
+                                        {{ user_obj.last_login|date:"Y-m-d H:i"|default:"—" }}
+                                    </dd>
+
+                                    <dt class="col-5">Created</dt>
+                                    <dd class="col-7">
+                                        {{ driver_profile.created_at|date:"Y-m-d H:i" }}
+                                    </dd>
+
+                                    <dt class="col-5">Updated</dt>
+                                    <dd class="col-7">
+                                        {{ driver_profile.updated_at|date:"Y-m-d H:i" }}
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-3">Notes</h6>
+
+                                {% if driver_profile.notes %}
+                                    <div style="white-space: pre-wrap;">
+                                        {{ driver_profile.notes }}
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">No notes available.</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- DELIVERY RUNS TAB -->
+            <div class="tab-pane fade" id="delivery-runs">
+
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Service Date</th>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Vehicle</th>
+                                <th>Stops</th>
+                                <th>Distance</th>
+                                <th>Driver Cost</th>
+                                <th>Assistant Cost</th>
+                                <th>Total Cost</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for run in delivery_runs %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ run.service_date|date:"Y-m-d" }}</td>
+                                    <td>{{ run.name|default:"—" }}</td>
                                     <td>
-
                                         <span class="badge
-                                            {% if driver.staff_profile.is_online %}
+                                            {% if run.status == 'complete' %}
                                                 bg-success
+                                            {% elif run.status == 'en_route' %}
+                                                bg-primary
+                                            {% elif run.status == 'planned' %}
+                                                bg-info text-dark
+                                            {% elif run.status == 'cancelled' %}
+                                                bg-danger
                                             {% else %}
                                                 bg-secondary
                                             {% endif %}
                                         ">
-
-                                            {{ driver.staff_profile.is_online|yesno:"Online,Offline" }}
-
+                                            {{ run.status|title }}
                                         </span>
-
                                     </td>
+                                    <td>{{ run.vehicle|default:"—" }}</td>
+                                    <td>{{ run.stop_count|default:0 }}</td>
+                                    <td>{{ run.total_distance_km|default:"0.00" }} km</td>
+                                    <td>R{{ run.driver_total_cost|default:"0.00" }}</td>
+                                    <td>R{{ run.assistant_total_cost|default:"0.00" }}</td>
+                                    <td>R{{ run.overall_total_cost|default:"0.00" }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="10" class="text-center text-muted py-4">
+                                        No delivery runs found for this driver.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
 
+            </div>
+
+            <!-- DELIVERY STOPS TAB -->
+            <div class="tab-pane fade" id="delivery-stops">
+
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Run Date</th>
+                                <th>Sequence</th>
+                                <th>Type</th>
+                                <th>Customer / Supplier</th>
+                                <th>Status</th>
+                                <th>Address</th>
+                                <th>Distance</th>
+                                <th>Drive Min</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for stop in delivery_stops %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ stop.run.service_date|date:"Y-m-d" }}</td>
+                                    <td>{{ stop.sequence|default:"—" }}</td>
+                                    <td>{{ stop.get_stop_type_display }}</td>
+                                    <td>{{ stop.customer_name|default:"—" }}</td>
                                     <td>
+                                        <span class="badge
+                                            {% if stop.status == 'delivered' %}
+                                                bg-success
+                                            {% elif stop.status == 'en_route' %}
+                                                bg-primary
+                                            {% elif stop.status == 'assigned' %}
+                                                bg-info text-dark
+                                            {% elif stop.status == 'failed' %}
+                                                bg-danger
+                                            {% else %}
+                                                bg-secondary
+                                            {% endif %}
+                                        ">
+                                            {{ stop.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>{{ stop.address_one_line|default:"—" }}</td>
+                                    <td>{{ stop.distance_km|default:"0.00" }} km</td>
+                                    <td>{{ stop.drive_min|default:"—" }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted py-4">
+                                        No delivery stops found for this driver.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
 
-                                        {% if driver.staff_profile.last_seen_at %}
-                                            {{ driver.staff_profile.last_seen_at|naturaltime }}
+            </div>
+
+            <!-- RATES TAB -->
+            <div class="tab-pane fade" id="rates">
+
+                <div class="row g-3">
+
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-3">Active Internal Delivery Rate</h6>
+
+                                {% if internal_rate %}
+                                    <dl class="row mb-0">
+                                        <dt class="col-6">Name</dt>
+                                        <dd class="col-6">{{ internal_rate.name }}</dd>
+
+                                        <dt class="col-6">Driver / KM</dt>
+                                        <dd class="col-6">R{{ internal_rate.driver_per_km }}</dd>
+
+                                        <dt class="col-6">Assistant / KM</dt>
+                                        <dd class="col-6">R{{ internal_rate.assistant_per_km }}</dd>
+
+                                        <dt class="col-6">Total / KM</dt>
+                                        <dd class="col-6">R{{ internal_rate.total_per_km }}</dd>
+                                    </dl>
+                                {% else %}
+                                    <span class="text-muted">No active internal rate found.</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-3">Active External Delivery Rate</h6>
+
+                                {% if external_rate %}
+                                    <dl class="row mb-0">
+                                        <dt class="col-6">Name</dt>
+                                        <dd class="col-6">{{ external_rate.name }}</dd>
+
+                                        <dt class="col-6">Driver / KM</dt>
+                                        <dd class="col-6">R{{ external_rate.driver_per_km }}</dd>
+
+                                        <dt class="col-6">Assistant / KM</dt>
+                                        <dd class="col-6">R{{ external_rate.assistant_per_km }}</dd>
+
+                                        <dt class="col-6">Total / KM</dt>
+                                        <dd class="col-6">R{{ external_rate.total_per_km }}</dd>
+                                    </dl>
+                                {% else %}
+                                    <span class="text-muted">No active external rate found.</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- DJANGO USER TAB -->
+            <div class="tab-pane fade" id="django-user">
+
+                <div class="row g-3">
+
+                    <div class="col-lg-7">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-3">Account</h6>
+
+                                <dl class="row mb-0">
+                                    <dt class="col-4">Username</dt>
+                                    <dd class="col-8">{{ user_obj.username }}</dd>
+
+                                    <dt class="col-4">Email</dt>
+                                    <dd class="col-8">
+                                        {% if user_obj.email %}
+                                            <a href="mailto:{{ user_obj.email }}">{{ user_obj.email }}</a>
                                         {% else %}
                                             —
                                         {% endif %}
+                                    </dd>
 
-                                    </td>
+                                    <dt class="col-4">Active</dt>
+                                    <dd class="col-8">{{ user_obj.is_active|yesno:"Yes,No" }}</dd>
 
-                                </tr>
+                                    <dt class="col-4">Staff</dt>
+                                    <dd class="col-8">{{ user_obj.is_staff|yesno:"Yes,No" }}</dd>
 
-                            {% empty %}
+                                    <dt class="col-4">Superuser</dt>
+                                    <dd class="col-8">{{ user_obj.is_superuser|yesno:"Yes,No" }}</dd>
 
-                                <tr>
+                                    <dt class="col-4">Date Joined</dt>
+                                    <dd class="col-8">{{ user_obj.date_joined|date:"Y-m-d H:i" }}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
 
-                                    <td colspan="9"
-                                        class="text-center text-muted py-4">
+                    <div class="col-lg-5">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-3">Groups</h6>
 
-                                        No logistics staff profiles found.
-
-                                    </td>
-
-                                </tr>
-
-                            {% endfor %}
-
-                        </tbody>
-
-                    </table>
+                                {% if user_groups %}
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% for g in user_groups %}
+                                            <span class="badge rounded-pill bg-secondary">
+                                                {{ g.name }}
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">No groups assigned.</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
 
                 </div>
 
@@ -1031,22 +960,7 @@
 
         </div>
 
-      </div>
-
-      <div class="tab-pane fade" id="warehouse">
-        <div class="alert alert-info">Warehouse staff view coming soon.</div>
-      </div>
-
-      <div class="tab-pane fade" id="future1">
-        <div class="alert alert-secondary">Future use.</div>
-      </div>
-
-      <div class="tab-pane fade" id="future2">
-        <div class="alert alert-secondary">Future use.</div>
-      </div>
-
-    </div>
-  </main>
+    </main>
 
   <!-- SWITCH PLATFORM MODAL -->
   <div class="modal fade"

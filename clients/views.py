@@ -1,7 +1,7 @@
 from django import forms
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Q
+from django.db.models import Q, Count
 from .models import Client, ClientCompliance, ClientComplianceDocument
 from products.models import Category
 from django.contrib import messages
@@ -15,9 +15,9 @@ from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from clients.models import Client, ClientCompliance, ClientComplianceDocument
+from clients.models import Client, ClientCompliance, ClientComplianceDocument, Prospect, ProspectUpdate
 from clients.models import GAUTENG_CITY_CHOICES
-
+from clients.forms import ProspectForm, ProspectUpdateForm
 from tasks.models import Task
 from credit.models import CreditAccount
 from django.contrib.contenttypes.models import ContentType
@@ -25,6 +25,8 @@ from decimal import Decimal
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from .forms import ClientEditForm, ClientComplianceForm, ClientComplianceDocumentForm, ClientComplianceDocumentStatusForm, ClientForm, ClientOperationsForm
+
+
 def _bs(extra_class=None):
     """
     Bootstrap helper for form widgets.
@@ -688,3 +690,233 @@ def client_edit_operations(request, pk):
             "form": form,
         },
     )
+
+
+
+@login_required
+def prospects(request):
+    """
+    Sales prospects pipeline:
+    - GET: list prospects with search, stage filter, and status filter.
+    - No sample filtering or sample stats.
+    """
+
+    qs = (
+        Prospect.objects
+        .select_related("owner")
+    )
+
+    # -------------------------------------------------
+    # SEARCH
+    # -------------------------------------------------
+    q = (request.GET.get("q") or "").strip()
+
+    if q:
+        qs = qs.filter(
+            Q(name__icontains=q)
+            | Q(organization__icontains=q)
+            | Q(contact_name__icontains=q)
+            | Q(notes__icontains=q)
+            | Q(suburb__icontains=q)
+            | Q(city__icontains=q)
+        )
+
+    # -------------------------------------------------
+    # STAGE FILTER
+    # -------------------------------------------------
+    stage_filter = (request.GET.get("stage") or "").strip().upper()
+
+    valid_stages = {
+        code
+        for code, _ in Prospect.STAGE_CHOICES
+    }
+
+    if stage_filter and stage_filter in valid_stages:
+        qs = qs.filter(stage=stage_filter)
+
+    # -------------------------------------------------
+    # STATUS FILTER
+    # -------------------------------------------------
+    status_filter = (request.GET.get("status") or "").strip().upper()
+
+    valid_statuses = {
+        code
+        for code, _ in Prospect.STATUS_CHOICES
+    }
+
+    if status_filter and status_filter in valid_statuses:
+        qs = qs.filter(status=status_filter)
+
+    # -------------------------------------------------
+    # TOTAL AFTER FILTERS
+    # -------------------------------------------------
+    prospects_total = qs.count()
+
+    # -------------------------------------------------
+    # PIPELINE SUMMARY
+    # -------------------------------------------------
+    stage_label_map = dict(Prospect.STAGE_CHOICES)
+
+    pipeline_raw = (
+        qs.values("stage")
+        .annotate(count=Count("id"))
+        .order_by("stage")
+    )
+
+    pipeline_summary = [
+        {
+            "stage": row["stage"],
+            "stage_label": stage_label_map.get(
+                row["stage"],
+                row["stage"],
+            ),
+            "count": row["count"],
+        }
+        for row in pipeline_raw
+    ]
+
+    # -------------------------------------------------
+    # FINAL QUERYSET
+    # -------------------------------------------------
+    prospects_qs = (
+        qs
+        .order_by("-created_at")
+        .distinct()
+    )
+
+    context = {
+        "prospects": prospects_qs,
+        "prospects_total": prospects_total,
+        "pipeline_summary": pipeline_summary,
+        "today": timezone.localdate(),
+    }
+
+    return render(
+        request,
+        "clients/prospects.html",
+        context,
+    )
+
+
+
+@login_required
+def prospect_detail(request, pk: int):
+    """
+    Single prospect view with:
+    - pipeline progress bar
+    - current stage + owner
+    - activity timeline
+    - data for the tabs on the detail page
+    """
+    # Load prospect + related objects efficiently
+    prospect = get_object_or_404(
+        Prospect.objects
+        .select_related("owner", "client")          # owner + linked client
+        .prefetch_related("updates__user"),         # all updates + who logged them
+        pk=pk,
+    )
+
+    # Full timeline of updates, newest first (used in Contact / Site / Negotiation)
+    updates = (
+        prospect.updates
+        .select_related("user")
+        .order_by("-action_at", "-created_at")
+    )
+
+    # Timeline for the "Timeline" tab: oldest → newest
+    updates_timeline = (
+        prospect.updates
+        .select_related("user")
+        .order_by("action_at", "created_at")
+    )
+
+    # Generic form (if/when you use it)
+    update_form = ProspectUpdateForm(current_stage=prospect.stage)
+
+    # -------------------------------
+    # Stage / pipeline progress data
+    # -------------------------------
+    stage_order = ["NEW", "CONTACTED", "SITE_VISIT", "NEGOTIATION", "WON"]
+    stage_labels = dict(Prospect.STAGE_CHOICES)
+
+    try:
+        current_idx = stage_order.index(prospect.stage)
+    except ValueError:
+        current_idx = -1  # e.g. LOST
+
+    max_idx = len(stage_order) - 1
+    if current_idx >= 0 and max_idx > 0:
+        progress_percent = int(round((current_idx / max_idx) * 100))
+    else:
+        progress_percent = 0
+
+    stage_states = []
+    for idx, code in enumerate(stage_order):
+        label = stage_labels.get(code, code.title())
+        if current_idx == -1:
+            state = "pending"
+        elif idx < current_idx:
+            state = "done"
+        elif idx == current_idx:
+            state = "active"
+        else:
+            state = "pending"
+
+        stage_states.append({
+            "code": code,
+            "label": label,
+            "state": state,
+        })
+
+    # -------------------------------
+    # Subsets for stage tabs
+    # -------------------------------
+    contact_updates = updates.filter(action_type__in=["CALL", "WHATSAPP", "EMAIL"])
+    site_visit_updates = updates.filter(action_type__in=["VISIT", "SAMPLE"])
+    negotiation_updates = updates.filter(action_type="NEGOTIATION")
+
+    # -------------------------------
+    # Reopen + button-enable logic
+    # -------------------------------
+    # Reopen allowed only when WON/LOST and not yet a client
+    can_reopen = (prospect.stage in ["WON", "LOST"]) and (prospect.client is None)
+
+    # Stage outcome buttons:
+    # - Contact buttons active only while stage is NEW or CONTACTED and not closed
+    # - Site-visit buttons active only while stage is SITE_VISIT and not closed
+    # - Negotiation buttons active only while stage is NEGOTIATION and not closed
+    can_use_contact_stage_buttons = (not prospect.is_closed) and (
+        prospect.stage in ["NEW", "CONTACTED"]
+    )
+    can_use_site_visit_stage_buttons = (not prospect.is_closed) and (
+        prospect.stage == "SITE_VISIT"
+    )
+    can_use_negotiation_stage_buttons = (not prospect.is_closed) and (
+        prospect.stage == "NEGOTIATION"
+    )
+
+    context = {
+        "prospect": prospect,
+        "updates": updates,
+        "updates_timeline": updates_timeline,
+        "update_form": update_form,
+        "stage_states": stage_states,
+        "progress_percent": progress_percent,
+        "today": timezone.localdate(),
+
+        # subsets
+        "contact_updates": contact_updates,
+        "site_visit_updates": site_visit_updates,
+        "negotiation_updates": negotiation_updates,
+
+        # button flags
+        "can_reopen": can_reopen,
+        "can_use_contact_stage_buttons": can_use_contact_stage_buttons,
+        "can_use_site_visit_stage_buttons": can_use_site_visit_stage_buttons,
+        "can_use_negotiation_stage_buttons": can_use_negotiation_stage_buttons,
+    }
+    return render(request, "clients/prospect_detail.html", context)
+
+
+
+

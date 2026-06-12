@@ -5,7 +5,10 @@ urlpatterns = [
     path("", views.client_list, name="staff-clients"),
     path("new/", views.client_create, name="client-create"),
     path("<int:pk>/edit/", views.client_edit, name="client-edit"),
-    # ✅ Client Compliance Edit
+
+    path("prospects/", views.prospects, name="staff-prospects"),
+    path("prospects/<int:pk>/", views.prospect_detail, name="staff-prospect-detail"),
+
     path(
         "<int:pk>/compliance/edit/",
         views.client_compliance_edit,
@@ -13,4 +16,6 @@ urlpatterns = [
     ),
     path("<int:pk>/view/", views.client_view, name="client-view"),
     path("<int:pk>/operations/edit/", views.client_edit_operations, name="client-edit-operations"),
+    
+
 ]

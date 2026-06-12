@@ -284,8 +284,19 @@
                     <input type="email" class="form-control" id="email" name="email">
                 </div>
                 <div class="mb-2">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control" id="password" name="password" required>
+                  <label for="password" class="form-label">
+                      Password
+                  </label>
+
+                  <input type="password"
+                        class="form-control bg-light"
+                        id="password"
+                        placeholder="Password will be auto-generated and sent via SMS"
+                        disabled>
+
+                  <div class="form-text">
+                      A secure temporary password will automatically be generated and sent to the staff member via SMS.
+                  </div>
                 </div>
                 </div>
 

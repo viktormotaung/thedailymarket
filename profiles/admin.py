@@ -10,6 +10,7 @@ from .models import (
     SalesRole,
     DriverProfile,
     SalesOperator,
+    Department,
 )
 
 User = get_user_model()
@@ -39,7 +40,8 @@ class StaffProfileAdminForm(forms.ModelForm):
             "phone",
             "notes",
             "status",
-            "department",
+            "primary_department",
+            "departments",
             "can_access_sales",
         )
 
@@ -77,7 +79,7 @@ class StaffProfileAdmin(admin.ModelAdmin):
         "user_full_name",
         "user_username",
         "job_title",
-        "department",
+        "primary_department",
         "can_access_sales",
         "phone",
         "updated_at",
@@ -89,7 +91,8 @@ class StaffProfileAdmin(admin.ModelAdmin):
 
     list_filter = (
         "status",
-        "department",
+        "primary_department",
+        "departments",
         "can_access_sales",
     )
 
@@ -112,7 +115,8 @@ class StaffProfileAdmin(admin.ModelAdmin):
                     "user",
                     "job_title",
                     "phone",
-                    "department",
+                    "primary_department",
+                    "departments",
                     "can_access_sales",
                     "notes",
                     "status",
@@ -414,7 +418,8 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
                     "staff_profile",
                     "sales_operator",
                     "supervisor",
-                    "department",
+                    "primary_department",
+                    "departments",
                     "roles",
                     "notes",
                     "status",
@@ -489,7 +494,8 @@ class StaffProfileInline(admin.StackedInline):
     fields = (
         "job_title",
         "phone",
-        "department",
+        "primary_department",
+        "departments",
         "can_access_sales",
         "notes",
         "status",
@@ -713,4 +719,27 @@ class DriverProfileAdmin(admin.ModelAdmin):
                 )
             },
         ),
+    )
+
+
+
+
+
+@admin.register(Department)
+class DepartmentAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "name",
+        "code",
+        "manager",
+        "is_active",
+    )
+
+    search_fields = (
+        "name",
+        "code",
+    )
+
+    filter_horizontal = (
+        "members",
     )

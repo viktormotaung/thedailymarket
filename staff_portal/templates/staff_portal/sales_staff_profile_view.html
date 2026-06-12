@@ -1,44 +1,26 @@
+{% load static humanize %}
+
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Products - Seshibo Daily Market</title>
+  <title>Staff Profile - Seshibo Daily Market</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
+    /* Desktop layout (lg and up): sidebar + content side-by-side */
     @media (min-width: 992px) {
-      html, body { height: 100%; }
-      body { display: block; overflow: hidden; }
-
+      body {
+        display: flex;
+        min-height: 100vh;
+      }
       .sidebar-desktop {
-        position: fixed;
-        top: 0; left: 0; bottom: 0;
         width: 220px;
-        overflow-y: auto;
-        z-index: 1020;
+        min-height: 100vh;
       }
-
       .content {
-        margin-left: 220px;
-        height: 100vh;
-        overflow: auto;
-      }
-    }
-
-    /* Mobile: fixed top bar, only content scrolls */
-    @media (max-width: 991.98px) {
-      html, body { height: 100%; overflow: hidden; }
-
-      .navbar.d-lg-none {
-        position: fixed; top: 0; left: 0; right: 0; z-index: 1040;
-      }
-
-      .content {
-        margin-top: 56px; /* adjust if your navbar is taller */
-        height: calc(100dvh - 56px);
-        overflow: auto;
-        height: calc(100vh - 56px);
+        flex: 1;
       }
     }
 
@@ -59,7 +41,7 @@
       border-radius: 4px;
       padding-left: 8px;
     }
-    /* nested deliveries links */
+    /* nested links */
     .sidebar-skin .nav-link.ps-4 { font-size:.95rem; opacity:.95; }
 
     .logo-img { max-height: 80px; width: auto; }
@@ -68,32 +50,6 @@
       background: #f8f9fa;
       padding: 20px;
       min-height: 100vh; /* ensures nice background on mobile too */
-    }
-
-    .card {
-      height: calc(100vh - 180px);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .card-body {
-      flex-grow: 1;
-      overflow: auto;
-      padding: 0;
-    }
-
-    .table-container {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .table thead th {
-      position: sticky;
-      top: 0;
-      background-color: white;
-      z-index: 10;
-      border-bottom: 2px solid #dee2e6;
     }
   </style>
 </head>
@@ -142,7 +98,7 @@
         </a>
       </h6>
 
-    <hr class="border-light">
+      <hr class="border-light">
 
       {% with current=request.resolver_match.url_name %}
 
@@ -531,164 +487,493 @@
 
   </aside>
 
-  {% block content %}
-  <main class="content">
+    {# ---------- MAIN CONTENT ---------- #}
+    <main class="content">
 
-    <h2 class="text-center mb-3">Products</h2>
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
 
-    <!-- ACTION BUTTONS -->
-    <div class="d-flex justify-content-center gap-2 mb-3">
+            <div class="d-flex align-items-center gap-3">
 
-      <!-- Add Product (write) -->
-      <a href="{% if can_write %}{% url 'product-create' %}{% else %}#{% endif %}"
-        class="btn btn-success {% if not can_write %}disabled{% endif %}"
-        {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
-        Add Product
-      </a>
+                <div class="profile-avatar">
 
-      <!-- Import from Excel (write / modal) -->
-      <button
-        type="button"
-        class="btn btn-outline-primary"
-        {% if not can_write %}
-          disabled
-          title="View-only access"
-        {% else %}
-          data-bs-toggle="modal"
-          data-bs-target="#importModal"
-        {% endif %}
-      >
-        Import from Excel
-      </button>
+                    {{ user_obj.first_name|slice:":1"|default:user_obj.username|slice:":1" }}{{ user_obj.last_name|slice:":1" }}
 
-      <button type="button"
-              class="btn btn-outline-success"
-              data-bs-toggle="modal"
-              data-bs-target="#priceListModal">
-        Download Price List
-      </button>
+                </div>
 
-    </div>
+                <div>
 
+                    <h2 class="mb-1 fw-bold">
+                        {{ user_obj.get_full_name|default:user_obj.username }}
+                    </h2>
 
-    <div class="card shadow-sm">
-      <div class="card-header bg-white py-2">
-        <form method="get" class="row g-2 align-items-center">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
 
-          <div class="col-md-4">
-            <select name="category" class="form-select form-select-sm">
-              <option value="">All Categories</option>
-              {% for c in filter_categories %}
-                <option value="{{ c.id }}" {% if request.GET.category == c.id|stringformat:"s" %}selected{% endif %}>
-                  {{ c.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
+                        <span class="badge
+                            {% if sp.status == 'active' %}
+                                bg-success
+                            {% elif sp.status == 'pending' %}
+                                bg-warning text-dark
+                            {% else %}
+                                bg-secondary
+                            {% endif %}
+                        ">
+                            {{ sp.status|title }}
+                        </span>
 
-          <div class="col-md-4">
-            <select name="supplier" class="form-select form-select-sm">
-              <option value="">All Suppliers</option>
-              {% for s in filter_suppliers %}
-                <option value="{{ s.id }}" {% if request.GET.supplier == s.id|stringformat:"s" %}selected{% endif %}>
-                  {{ s.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
+                        {% if sales_profile %}
+                            <span class="badge bg-dark">
+                                Sales Staff
+                            </span>
+                        {% endif %}
 
-          <div class="col-md-4 d-flex justify-content-end gap-2">
-            <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-            <a href="{% url 'staff-products' %}" class="btn btn-sm btn-outline-secondary">Clear</a>
-          </div>
+                        <span class="text-muted">
+                            {{ sp.job_title|default:"No Job Title" }}
+                        </span>
 
-        </form>
-      </div>
+                    </div>
 
-      <div class="card-body">
-        <table class="table table-striped table-bordered mb-0">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>SKU</th>
-              <th>Product</th>
-              <th>Category</th>
-              <th>UOM</th>
-              <th>Suppliers</th>
-              <th>Retail (incl)</th>
-              <th>Wholesale (incl)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in rows %}
-              {% with p=row.product %}
-              <tr onclick="window.location.href='{% url 'product-view' p.id %}'" style="cursor:pointer;">
-                <td>{{ forloop.counter }}</td>
-                <td>{{ p.sku }}</td>
-                <td>{{ p.name }}</td>
-                <td>{{ p.category.name }}</td>
-                <td>{{ p.get_uom_display }}</td>
-                <td>{{ row.active_supplier_count }}</td>
-                <td>{% if row.min_retail_inc %}R{{ row.min_retail_inc|floatformat:2 }}{% else %}—{% endif %}</td>
-                <td>{% if row.min_wholesale_inc %}R{{ row.min_wholesale_inc|floatformat:2 }}{% else %}—{% endif %}</td>
-              </tr>
-              {% endwith %}
-            {% empty %}
-              <tr>
-                <td colspan="8" class="text-center text-muted">No products found.</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
+                </div>
 
-  </main>
-  {% endblock %}
-
-  <!-- Import Products Modal -->
-  <div class="modal fade" id="importModal" tabindex="-1">
-    <div class="modal-dialog">
-      <div class="modal-content">
-
-        <div class="modal-header">
-          <h5 class="modal-title">Import Products (Excel)</h5>
-          <button class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-
-        <div class="modal-body">
-
-          <!-- RESULT BOXES -->
-          <div id="importError" class="alert alert-danger d-none"></div>
-          <div id="importSuccess" class="alert alert-success d-none"></div>
-
-          <!-- PROGRESS BAR (ADDITION) -->
-          <div id="importProgress" class="d-none">
-            <div class="progress mb-2">
-              <div
-                id="progressBar"
-                class="progress-bar progress-bar-striped progress-bar-animated"
-                style="width: 0%">
-              </div>
             </div>
-            <small id="progressText" class="text-muted">Preparing import…</small>
-          </div>
 
-          <form id="excelImportForm">
-            {% csrf_token %}
-            <input type="file" name="excel_file" class="form-control" required>
-          </form>
+            <div class="d-flex gap-2">
+
+                <a href="{% url 'sales_staff_profile_edit' sp.pk %}"
+                    class="btn btn-success">
+                    Edit Sales Profile
+                </a>
+
+                <a href="{% url 'staff_profile' %}"
+                   class="btn btn-outline-secondary">
+                    ← Back
+                </a>
+
+            </div>
 
         </div>
 
-        <div class="modal-footer">
-          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button class="btn btn-success" id="uploadBtn">Upload & Import</button>
+        <ul class="nav nav-tabs">
+
+            <li class="nav-item">
+                <button class="nav-link active"
+                        data-bs-toggle="tab"
+                        data-bs-target="#sales-profile"
+                        type="button">
+
+                    Sales Profile
+
+                </button>
+            </li>
+
+            <li class="nav-item">
+                <button class="nav-link"
+                        data-bs-toggle="tab"
+                        data-bs-target="#django-user"
+                        type="button">
+
+                    Django User
+
+                </button>
+            </li>
+
+        </ul>
+
+        <div class="tab-content border border-top-0 p-4 shadow-sm">
+
+            <div class="tab-pane fade show active"
+                 id="sales-profile">
+
+                {% if sales_profile %}
+
+                    <div class="row g-4">
+
+                        <div class="col-lg-6">
+
+                            <div class="card profile-card shadow-sm h-100">
+
+                                <div class="card-body">
+
+                                    <div class="section-title mb-3">
+                                        Sales Information
+                                    </div>
+
+                                    <div class="row mb-3">
+
+                                        <div class="col-5 info-label">
+                                            Department
+                                        </div>
+
+                                        <div class="col-7 info-value">
+                                            {{ sales_profile.department|default:"—" }}
+                                        </div>
+
+                                    </div>
+
+                                    <div class="row mb-3">
+
+                                        <div class="col-5 info-label">
+                                            Sales Operator
+                                        </div>
+
+                                        <div class="col-7 info-value">
+
+                                            {% if sales_profile.sales_operator %}
+                                                {{ sales_profile.sales_operator.name }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+
+                                        </div>
+
+                                    </div>
+
+                                    <div class="row mb-3">
+
+                                        <div class="col-5 info-label">
+                                            Supervisor
+                                        </div>
+
+                                        <div class="col-7 info-value">
+
+                                            {% if sales_profile.supervisor %}
+                                                {{ sales_profile.supervisor.get_full_name|default:sales_profile.supervisor.username }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+
+                                        </div>
+
+                                    </div>
+
+                                    <div class="row mb-0">
+
+                                        <div class="col-5 info-label">
+                                            Phone
+                                        </div>
+
+                                        <div class="col-7 info-value">
+                                            {{ sp.phone|default:"—" }}
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="col-lg-6">
+
+                            <div class="card profile-card shadow-sm h-100">
+
+                                <div class="card-body">
+
+                                    <div class="section-title mb-3">
+                                        Commission Structure
+                                    </div>
+
+                                    <div class="row mb-3">
+
+                                        <div class="col-6 info-label">
+                                            Base Commission
+                                        </div>
+
+                                        <div class="col-6 info-value">
+                                            {{ sales_profile.base_commission_pct }}%
+                                        </div>
+
+                                    </div>
+
+                                    <div class="row mb-3">
+
+                                        <div class="col-6 info-label">
+                                            Bonus Commission
+                                        </div>
+
+                                        <div class="col-6 info-value">
+                                            {{ sales_profile.bonus_commission_pct }}%
+                                        </div>
+
+                                    </div>
+
+                                    <div class="row mb-3">
+
+                                        <div class="col-6 info-label">
+                                            Created
+                                        </div>
+
+                                        <div class="col-6 info-value">
+                                            {{ sales_profile.created_at|date:"Y-m-d H:i" }}
+                                        </div>
+
+                                    </div>
+
+                                    <div class="row mb-0">
+
+                                        <div class="col-6 info-label">
+                                            Updated
+                                        </div>
+
+                                        <div class="col-6 info-value">
+                                            {{ sales_profile.updated_at|date:"Y-m-d H:i" }}
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="col-lg-6">
+
+                            <div class="card profile-card shadow-sm h-100">
+
+                                <div class="card-body">
+
+                                    <div class="section-title mb-3">
+                                        Sales Roles
+                                    </div>
+
+                                    {% if sales_roles %}
+
+                                        <div class="d-flex flex-wrap gap-2">
+
+                                            {% for role in sales_roles %}
+
+                                                <span class="badge rounded-pill bg-success">
+                                                    {{ role.name }}
+                                                </span>
+
+                                            {% endfor %}
+
+                                        </div>
+
+                                    {% else %}
+
+                                        <div class="text-muted">
+                                            No sales roles assigned.
+                                        </div>
+
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="col-lg-6">
+
+                            <div class="card profile-card shadow-sm h-100">
+
+                                <div class="card-body">
+
+                                    <div class="section-title mb-3">
+                                        Notes
+                                    </div>
+
+                                    {% if sales_profile.notes %}
+
+                                        <div style="white-space: pre-wrap;">
+                                            {{ sales_profile.notes }}
+                                        </div>
+
+                                    {% else %}
+
+                                        <div class="text-muted">
+                                            No notes available.
+                                        </div>
+
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                {% else %}
+
+                    <div class="alert alert-warning mb-0">
+
+                        This staff member does not yet have a linked
+                        SalesRepProfile.
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+            <div class="tab-pane fade"
+                 id="django-user">
+
+                <div class="row g-4">
+
+                    <div class="col-lg-7">
+
+                        <div class="card profile-card shadow-sm h-100">
+
+                            <div class="card-body">
+
+                                <div class="section-title mb-3">
+                                    Account Information
+                                </div>
+
+                                <div class="row mb-3">
+
+                                    <div class="col-4 info-label">
+                                        Username
+                                    </div>
+
+                                    <div class="col-8 info-value">
+                                        {{ user_obj.username }}
+                                    </div>
+
+                                </div>
+
+                                <div class="row mb-3">
+
+                                    <div class="col-4 info-label">
+                                        Email
+                                    </div>
+
+                                    <div class="col-8 info-value">
+
+                                        {% if user_obj.email %}
+                                            <a href="mailto:{{ user_obj.email }}">
+                                                {{ user_obj.email }}
+                                            </a>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+
+                                    </div>
+
+                                </div>
+
+                                <div class="row mb-3">
+
+                                    <div class="col-4 info-label">
+                                        Active
+                                    </div>
+
+                                    <div class="col-8 info-value">
+                                        {{ user_obj.is_active|yesno:"Yes,No" }}
+                                    </div>
+
+                                </div>
+
+                                <div class="row mb-3">
+
+                                    <div class="col-4 info-label">
+                                        Staff
+                                    </div>
+
+                                    <div class="col-8 info-value">
+                                        {{ user_obj.is_staff|yesno:"Yes,No" }}
+                                    </div>
+
+                                </div>
+
+                                <div class="row mb-3">
+
+                                    <div class="col-4 info-label">
+                                        Superuser
+                                    </div>
+
+                                    <div class="col-8 info-value">
+                                        {{ user_obj.is_superuser|yesno:"Yes,No" }}
+                                    </div>
+
+                                </div>
+
+                                <div class="row mb-3">
+
+                                    <div class="col-4 info-label">
+                                        Date Joined
+                                    </div>
+
+                                    <div class="col-8 info-value">
+                                        {{ user_obj.date_joined|date:"Y-m-d H:i" }}
+                                    </div>
+
+                                </div>
+
+                                <div class="row mb-0">
+
+                                    <div class="col-4 info-label">
+                                        Last Login
+                                    </div>
+
+                                    <div class="col-8 info-value">
+
+                                        {% if user_obj.last_login %}
+                                            {{ user_obj.last_login|naturaltime }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="col-lg-5">
+
+                        <div class="card profile-card shadow-sm h-100">
+
+                            <div class="card-body">
+
+                                <div class="section-title mb-3">
+                                    Django Groups
+                                </div>
+
+                                {% if user_groups %}
+
+                                    <div class="d-flex flex-wrap gap-2">
+
+                                        {% for g in user_groups %}
+
+                                            <span class="badge rounded-pill bg-secondary">
+                                                {{ g.name }}
+                                            </span>
+
+                                        {% endfor %}
+
+                                    </div>
+
+                                {% else %}
+
+                                    <div class="text-muted">
+                                        No groups assigned.
+                                    </div>
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
         </div>
 
-      </div>
-    </div>
-  </div>
+    </main>
 
   <!-- SWITCH PLATFORM MODAL -->
   <div class="modal fade"
@@ -765,153 +1050,7 @@
     </div>
   </div>
 
-  <div class="modal fade" id="priceListModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-scrollable">
-      <div class="modal-content">
-
-        <form method="get" action="{% url 'download-price-list' %}">
-
-          <div class="modal-header">
-            <h5 class="modal-title">Download Price List</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-
-          <div class="modal-body">
-
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" id="selectAllSubcategories">
-              <label class="form-check-label fw-semibold" for="selectAllSubcategories">
-                Select All
-              </label>
-            </div>
-
-            <hr>
-
-            {% for sub in price_list_subcategories %}
-              <div class="form-check">
-                <input class="form-check-input subcategory-check"
-                      type="checkbox"
-                      name="subcategories"
-                      value="{{ sub.id }}"
-                      id="sub{{ sub.id }}">
-                <label class="form-check-label" for="sub{{ sub.id }}">
-                  {{ sub.parent.name }} → {{ sub.name }}
-                </label>
-              </div>
-            {% empty %}
-              <p class="text-muted mb-0">No subcategories found.</p>
-            {% endfor %}
-
-          </div>
-
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-              Cancel
-            </button>
-            <button type="submit" class="btn btn-success">
-              Confirm Download
-            </button>
-          </div>
-
-        </form>
-
-      </div>
-    </div>
-  </div>
-
-  <script>
-  document.getElementById("selectAllSubcategories").addEventListener("change", function () {
-    document.querySelectorAll(".subcategory-check").forEach(function (box) {
-      box.checked = document.getElementById("selectAllSubcategories").checked;
-    });
-  });
-  </script>
-
-  <!-- ================= IMPORT SCRIPT (ENHANCED UX ONLY) ================= -->
-
-  <script>
-    document.getElementById("uploadBtn").addEventListener("click", function () {
-
-      const form = document.getElementById("excelImportForm");
-      const errorBox = document.getElementById("importError");
-      const successBox = document.getElementById("importSuccess");
-      const progressWrap = document.getElementById("importProgress");
-      const progressBar = document.getElementById("progressBar");
-      const progressText = document.getElementById("progressText");
-      const uploadBtn = document.getElementById("uploadBtn");
-
-      errorBox.classList.add("d-none");
-      successBox.classList.add("d-none");
-
-      progressWrap.classList.remove("d-none");
-      progressBar.style.width = "5%";
-      progressText.textContent = "Uploading file…";
-
-      uploadBtn.disabled = true;
-
-      const formData = new FormData(form);
-
-      // Fake progress animation (UX best practice)
-      let pct = 5;
-      const interval = setInterval(() => {
-        if (pct < 90) {
-          pct += Math.random() * 8;
-          progressBar.style.width = pct + "%";
-        }
-      }, 400);
-
-      fetch("{% url 'product-import' %}", {
-        method: "POST",
-        body: formData,
-        headers: {
-          "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
-        }
-      })
-      .then(res => res.json())
-      .then(data => {
-        clearInterval(interval);
-        progressBar.style.width = "100%";
-        progressBar.classList.remove("progress-bar-animated");
-        progressBar.classList.add("bg-success");
-        progressText.textContent = "Import completed";
-
-        uploadBtn.disabled = false;
-
-        if (data.success) {
-          successBox.innerHTML = `
-            <strong>✔ Import completed successfully</strong><br><br>
-            Products created: <b>${data.data.created}</b><br>
-            Products updated: <b>${data.data.updated}</b>
-          `;
-          successBox.classList.remove("d-none");
-        } else {
-          throw new Error(data.error || "Unknown import error");
-        }
-      })
-      .catch(err => {
-        clearInterval(interval);
-        progressBar.classList.remove("progress-bar-animated");
-        progressBar.classList.add("bg-danger");
-        progressText.textContent = "Import failed";
-        uploadBtn.disabled = false;
-
-        errorBox.innerHTML = `<strong>Import failed</strong><br>${err.message}`;
-        errorBox.classList.remove("d-none");
-      });
-    });
-
-    // ✅ REFRESH PAGE WHEN MODAL IS CLOSED
-    const importModal = document.getElementById("importModal");
-    importModal.addEventListener("hidden.bs.modal", function () {
-      window.location.reload();
-    });
-  </script>
-
-
-
-
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
 </body>
 </html>

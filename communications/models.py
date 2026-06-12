@@ -290,3 +290,6 @@ class WhatsAppMessage(models.Model):
 
     def __str__(self):
         return f"{self.template_name} -> {self.recipient}"
+    
+
+

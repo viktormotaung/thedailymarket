@@ -16,6 +16,8 @@ urlpatterns = [
     path("variants/<int:pk>/edit/", views.variant_edit, name="variant-edit"),  # optional
     # products/urls.py
     path("products/import/", views.product_import, name="product-import"),
+    path("products/dashboard/", views.product_dashboard, name="product_dashboard",), 
+    path("price-list/download/", views.download_price_list, name="download-price-list"),
     
 
 ]

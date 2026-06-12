@@ -16,6 +16,22 @@ from django.db import transaction
 from django.db.models import (
     Count, Sum, F, Q, Value, DecimalField, IntegerField, Prefetch
 )
+from django.db.models import Count, Sum
+
+from deliveries.models import (
+    DeliveryRun,
+    DeliveryStop,
+    InternalDeliveryRate,
+    ExternalDeliveryRate,
+)
+from profiles.models import StaffProfile, SalesRepProfile, DriverProfile
+from profiles.forms import DriverProfileForm
+from django.contrib.auth.hashers import check_password
+import requests
+from django.utils.crypto import get_random_string
+from django.contrib.auth import get_user_model
+from profiles.models import SalesRepProfile, SalesRole, SalesOperator
+from django.contrib.auth.models import User
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce, TruncDay, Cast
 from django.http import HttpRequest, HttpResponse
@@ -27,6 +43,7 @@ from django.utils.html import strip_tags
 from clients.models import Client
 from profiles.models import StaffProfile, CustomerProfile
 from .forms import StaffProfileForm, UserBasicsForm, CustomerProfileEditForm
+from profiles.forms import SalesRepProfileForm
 from collections import Counter
 from credit.models import CreditAccount
 from transactions.models import Transaction
@@ -36,6 +53,7 @@ from tasks.models import Task  # adjust if your Task app name differs
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
+from django.core.mail import EmailMultiAlternatives
 
 # ---------------------------
 # Auth helpers
@@ -217,6 +235,10 @@ def dashboard(request):
     return render(request, "staff_portal/dashboard.html", context)
 
 # ---------------------------
+
+
+
+
 @login_required
 @staff_required
 def my_profile(request: HttpRequest) -> HttpResponse:
@@ -230,12 +252,24 @@ def my_profile(request: HttpRequest) -> HttpResponse:
     }
     return render(request, "staff_portal/my_profile.html", ctx)
 
+
+
+
 @login_required
 @staff_required
 def staff_profile(request):
     q = (request.GET.get("q") or "").strip()
     status = (request.GET.get("status") or "").strip()
-    qs = StaffProfile.objects.select_related("user").all()
+
+    # =========================
+    # ALL STAFF
+    # =========================
+    qs = (
+        StaffProfile.objects
+        .select_related("user")
+        .all()
+    )
+
     if q:
         qs = qs.filter(
             Q(user__username__icontains=q) |
@@ -244,18 +278,264 @@ def staff_profile(request):
             Q(job_title__icontains=q) |
             Q(phone__icontains=q)
         )
+
     if status in {"active", "pending", "inactive"}:
         qs = qs.filter(status=status)
-    qs = qs.order_by("user__first_name", "user__last_name", "user__username")
+
+    qs = qs.order_by(
+        "user__first_name",
+        "user__last_name",
+        "user__username"
+    )
+
     paginator = Paginator(qs, 25)
     page_obj = paginator.get_page(request.GET.get("page") or 1)
-    page_start = (page_obj.number - 1) * paginator.per_page + 1
+    page_start = ((page_obj.number - 1) * paginator.per_page) + 1
+
+    # =========================
+    # SALES STAFF
+    # =========================
+    sales_staff = (
+        SalesRepProfile.objects
+        .select_related(
+            "user",
+            "staff_profile",
+            "sales_operator",
+            "supervisor",
+        )
+        .prefetch_related("roles")
+        .order_by(
+            "user__first_name",
+            "user__last_name",
+            "user__username",
+        )
+    )
+
+    if q:
+        sales_staff = sales_staff.filter(
+            Q(user__username__icontains=q) |
+            Q(user__first_name__icontains=q) |
+            Q(user__last_name__icontains=q) |
+            Q(staff_profile__job_title__icontains=q) |
+            Q(staff_profile__phone__icontains=q) |
+            Q(sales_operator__name__icontains=q)
+        )
+
+    if status in {"active", "pending", "inactive"}:
+        sales_staff = sales_staff.filter(status=status)
+
+    # =========================
+    # LOGISTICS STAFF / DRIVERS
+    # =========================
+    logistics_staff = (
+        DriverProfile.objects
+        .select_related(
+            "user",
+            "staff_profile",
+        )
+        .order_by(
+            "user__first_name",
+            "user__last_name",
+            "user__username",
+        )
+    )
+
+    if q:
+        logistics_staff = logistics_staff.filter(
+            Q(user__username__icontains=q) |
+            Q(user__first_name__icontains=q) |
+            Q(user__last_name__icontains=q) |
+            Q(staff_profile__job_title__icontains=q) |
+            Q(staff_profile__phone__icontains=q)
+        )
+
+    if status in {"active", "pending", "inactive"}:
+        logistics_staff = logistics_staff.filter(status=status)
+
     ctx = {
         "staff_list": page_obj.object_list,
         "page_obj": page_obj,
         "page_start": page_start,
+        "sales_staff": sales_staff,
+        "logistics_staff": logistics_staff,
     }
-    return render(request, "staff_portal/staff_profile.html", ctx)
+
+    return render(
+        request,
+        "staff_portal/staff_profile.html",
+        ctx
+    )
+
+
+@login_required
+@staff_required
+def driver_profile_create(request):
+    staff_profiles = (
+        StaffProfile.objects
+        .select_related("user")
+        .filter(driver_profile__isnull=True)
+        .order_by(
+            "user__first_name",
+            "user__last_name",
+            "user__username"
+        )
+    )
+
+    if request.method == "POST":
+        form = DriverProfileForm(request.POST)
+        staff_profile_id = request.POST.get("staff_profile")
+
+        if not staff_profile_id:
+            messages.error(request, "Please select a staff member.")
+            return redirect("driver_profile_create")
+
+        sp = get_object_or_404(
+            StaffProfile.objects.select_related("user"),
+            pk=staff_profile_id
+        )
+
+        if DriverProfile.objects.filter(staff_profile=sp).exists():
+            messages.error(request, "This staff member already has a driver profile.")
+            return redirect("driver_profile_create")
+
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    driver_profile = form.save(commit=False)
+                    driver_profile.user = sp.user
+                    driver_profile.staff_profile = sp
+                    driver_profile.save()
+
+                    sp.department = "LOGISTICS"
+                    sp.save(
+                        update_fields=[
+                            "department",
+                            "updated_at",
+                        ]
+                    )
+
+                messages.success(
+                    request,
+                    "Driver profile created successfully."
+                )
+
+                return redirect(
+                    "staff_profile"
+                )
+
+            except Exception as e:
+                messages.error(
+                    request,
+                    f"Error creating driver profile: {e}"
+                )
+
+        else:
+            messages.error(
+                request,
+                "Please correct the errors below."
+            )
+
+    else:
+        form = DriverProfileForm()
+
+    return render(
+        request,
+        "staff_portal/driver_profile_create.html",
+        {
+            "form": form,
+            "staff_profiles": staff_profiles,
+        }
+    )
+
+
+
+@login_required
+@staff_required
+def driver_profile_view(request, staff_pk):
+    sp = get_object_or_404(
+        StaffProfile.objects.select_related("user"),
+        pk=staff_pk
+    )
+
+    user_obj = sp.user
+
+    driver_profile = get_object_or_404(
+        DriverProfile.objects.select_related(
+            "user",
+            "staff_profile",
+        ),
+        staff_profile=sp
+    )
+
+    delivery_runs = (
+        DeliveryRun.objects
+        .select_related("vehicle")
+        .prefetch_related("stops")
+        .filter(driver=user_obj)
+        .order_by("-service_date", "-id")
+    )
+
+    delivery_stops = (
+        DeliveryStop.objects
+        .select_related(
+            "run",
+            "order",
+            "supplier",
+        )
+        .filter(run__driver=user_obj)
+        .order_by("-run__service_date", "run_id", "sequence", "id")
+    )
+
+    internal_rate = (
+        InternalDeliveryRate.objects
+        .filter(is_active=True)
+        .first()
+    )
+
+    external_rate = (
+        ExternalDeliveryRate.objects
+        .filter(is_active=True)
+        .first()
+    )
+
+    run_summary = delivery_runs.aggregate(
+        total_runs=Count("id"),
+        total_distance=Sum("total_distance_km"),
+        total_driver_cost=Sum("driver_total_cost"),
+        total_assistant_cost=Sum("assistant_total_cost"),
+        total_overall_cost=Sum("overall_total_cost"),
+    )
+
+    stop_summary = delivery_stops.aggregate(
+        total_stops=Count("id"),
+    )
+
+    user_groups = (
+        user_obj.groups
+        .all()
+        .order_by("name")
+    )
+
+    return render(
+        request,
+        "staff_portal/driver_profile_view.html",
+        {
+            "sp": sp,
+            "user_obj": user_obj,
+            "driver_profile": driver_profile,
+            "delivery_runs": delivery_runs,
+            "delivery_stops": delivery_stops,
+            "internal_rate": internal_rate,
+            "external_rate": external_rate,
+            "run_summary": run_summary,
+            "stop_summary": stop_summary,
+            "user_groups": user_groups,
+        }
+    )
+
+
+
+
 
 def staff_profile_view(request, pk: int):
     sp = get_object_or_404(StaffProfile.objects.select_related("user"), pk=pk)
@@ -282,77 +562,706 @@ def staff_profile_view(request, pk: int):
         },
     )
 
+
+
 @login_required
 @staff_required
-def staff_profile_edit(request, pk: int):
-    sp = get_object_or_404(StaffProfile.objects.select_related("user"), pk=pk)
+def sales_staff_profile_view(request, staff_pk):
+    sp = get_object_or_404(
+        StaffProfile.objects.select_related("user"),
+        pk=staff_pk
+    )
+
     user_obj = sp.user
-    if request.method == "POST":
-        staff_form = StaffProfileForm(request.POST, instance=sp, prefix="sp")
-        user_form = UserBasicsForm(request.POST, instance=user_obj, prefix="usr")
-        if staff_form.is_valid() and user_form.is_valid():
-            staff_form.save()
-            user_form.save()
-            return redirect(reverse("staff_profile_view", kwargs={"pk": sp.pk}))
-    else:
-        staff_form = StaffProfileForm(instance=sp, prefix="sp")
-        user_form = UserBasicsForm(instance=user_obj, prefix="usr")
+
+    sales_profile = (
+        SalesRepProfile.objects
+        .select_related(
+            "user",
+            "staff_profile",
+            "sales_operator",
+            "supervisor",
+        )
+        .prefetch_related("roles")
+        .filter(
+            staff_profile=sp
+        )
+        .first()
+    )
+
+    user_groups = (
+        user_obj.groups
+        .all()
+        .order_by("name")
+    )
+
+    sales_roles = []
+
+    if sales_profile:
+        sales_roles = (
+            sales_profile.roles
+            .all()
+            .order_by("name")
+        )
+
     return render(
         request,
-        "staff_portal/staff_profile_edit.html",
-        {"sp": sp, "user_obj": user_obj, "staff_form": staff_form, "user_form": user_form},
+        "staff_portal/sales_staff_profile_view.html",
+        {
+            "sp": sp,
+            "user_obj": user_obj,
+            "sales_profile": sales_profile,
+            "sales_roles": sales_roles,
+            "user_groups": user_groups,
+        },
+    )
+
+
+
+@login_required
+@staff_required
+def sales_staff_profile_edit(request, staff_pk):
+    sp = get_object_or_404(
+        StaffProfile.objects.select_related("user"),
+        pk=staff_pk
+    )
+
+    user_obj = sp.user
+
+    sales_profile, created = SalesRepProfile.objects.get_or_create(
+        staff_profile=sp,
+        defaults={
+            "user": user_obj,
+            "status": sp.status,
+            "department": "SALES",
+        }
+    )
+
+    if request.method == "POST":
+
+        # =========================
+        # USER
+        # =========================
+        first_name = (request.POST.get("first_name") or "").strip()
+        last_name = (request.POST.get("last_name") or "").strip()
+        email = (request.POST.get("email") or "").strip()
+
+        # =========================
+        # STAFF PROFILE
+        # =========================
+        job_title = (request.POST.get("job_title") or "").strip()
+        phone = (request.POST.get("phone") or "").strip()
+        staff_status = (request.POST.get("staff_status") or "").strip()
+        notes = (request.POST.get("notes") or "").strip()
+
+        # =========================
+        # SALES PROFILE
+        # =========================
+        sales_status = (request.POST.get("sales_status") or "").strip()
+        department = (request.POST.get("department") or "").strip()
+
+        sales_operator_id = request.POST.get("sales_operator")
+        supervisor_id = request.POST.get("supervisor")
+
+        base_commission_pct = (
+            request.POST.get("base_commission_pct") or 0
+        )
+
+        bonus_commission_pct = (
+            request.POST.get("bonus_commission_pct") or 0
+        )
+
+        role_ids = request.POST.getlist("roles")
+
+        try:
+
+            with transaction.atomic():
+
+                # =========================
+                # UPDATE USER
+                # =========================
+                user_obj.first_name = first_name
+                user_obj.last_name = last_name
+                user_obj.email = email
+
+                user_obj.save(
+                    update_fields=[
+                        "first_name",
+                        "last_name",
+                        "email",
+                    ]
+                )
+
+                # =========================
+                # UPDATE STAFF PROFILE
+                # =========================
+                sp.job_title = job_title
+                sp.phone = phone
+                sp.status = staff_status
+                sp.notes = notes
+
+                sp.can_access_sales = True
+                sp.department = "SALES"
+
+                sp.save(
+                    update_fields=[
+                        "job_title",
+                        "phone",
+                        "status",
+                        "notes",
+                        "can_access_sales",
+                        "department",
+                        "updated_at",
+                    ]
+                )
+
+                # =========================
+                # UPDATE SALES PROFILE
+                # =========================
+                sales_profile.status = sales_status
+                sales_profile.department = department or "SALES"
+
+                sales_profile.base_commission_pct = (
+                    Decimal(base_commission_pct or 0)
+                )
+
+                sales_profile.bonus_commission_pct = (
+                    Decimal(bonus_commission_pct or 0)
+                )
+
+                # =========================
+                # SALES OPERATOR
+                # =========================
+                if sales_operator_id:
+                    sales_profile.sales_operator_id = sales_operator_id
+                else:
+                    sales_profile.sales_operator = None
+
+                # =========================
+                # SUPERVISOR
+                # =========================
+                if supervisor_id:
+                    sales_profile.supervisor_id = supervisor_id
+                else:
+                    sales_profile.supervisor = None
+
+                sales_profile.save()
+
+                # =========================
+                # ROLES
+                # =========================
+                sales_profile.roles.set(role_ids)
+
+            messages.success(
+                request,
+                "Sales staff profile updated successfully."
+            )
+
+            return redirect(
+                "sales_staff_profile_view",
+                staff_pk=sp.pk
+            )
+
+        except Exception as e:
+
+            messages.error(
+                request,
+                f"Error updating sales staff profile: {e}"
+            )
+
+    sales_operators = (
+        SalesOperator.objects
+        .all()
+        .order_by("name")
+    )
+
+    supervisors = (
+        get_user_model()
+        .objects
+        .filter(is_staff=True)
+        .order_by("first_name", "last_name", "username")
+    )
+
+    sales_roles = (
+        SalesRole.objects
+        .all()
+        .order_by("name")
+    )
+
+    ctx = {
+        "sp": sp,
+        "user_obj": user_obj,
+        "sales_profile": sales_profile,
+
+        "sales_operators": sales_operators,
+        "supervisors": supervisors,
+        "sales_roles": sales_roles,
+    }
+
+    return render(
+        request,
+        "staff_portal/sales_staff_profile_edit.html",
+        ctx
+    )
+
+
+
+@login_required
+@staff_required
+def sales_staff_profile_create(request):
+    staff_profiles = (
+        StaffProfile.objects
+        .select_related("user")
+        .filter(sales_profile__isnull=True)
+        .order_by("user__first_name", "user__last_name", "user__username")
+    )
+
+    if request.method == "POST":
+        form = SalesRepProfileForm(request.POST)
+        staff_profile_id = request.POST.get("staff_profile")
+
+        if not staff_profile_id:
+            messages.error(request, "Please select a staff member.")
+            return redirect("sales_staff_profile_create")
+
+        sp = get_object_or_404(
+            StaffProfile.objects.select_related("user"),
+            pk=staff_profile_id
+        )
+
+        if SalesRepProfile.objects.filter(staff_profile=sp).exists():
+            messages.error(request, "This staff member already has a sales rep profile.")
+            return redirect("sales_staff_profile_create")
+
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    sales_profile = form.save(commit=False)
+                    sales_profile.user = sp.user
+                    sales_profile.staff_profile = sp
+                    sales_profile.department = "SALES"
+                    sales_profile.save()
+
+                    form.save_m2m()
+
+                    sp.department = "SALES"
+                    sp.can_access_sales = True
+                    sp.save(
+                        update_fields=[
+                            "department",
+                            "can_access_sales",
+                            "updated_at",
+                        ]
+                    )
+
+                messages.success(request, "Sales rep profile created successfully.")
+
+                return redirect(
+                    "sales_staff_profile_view",
+                    staff_pk=sp.pk
+                )
+
+            except Exception as e:
+                messages.error(request, f"Error creating sales rep profile: {e}")
+
+        else:
+            messages.error(request, "Please correct the errors below.")
+
+    else:
+        form = SalesRepProfileForm()
+
+    return render(
+        request,
+        "staff_portal/sales_staff_profile_create.html",
+        {
+            "form": form,
+            "staff_profiles": staff_profiles,
+        }
     )
 
 @login_required
 @staff_required
-def staff_profile_create(request):
-    if request.method == "POST":
-        username = request.POST.get("username")
-        first_name = request.POST.get("first_name", "")
-        last_name = request.POST.get("last_name", "")
-        email = request.POST.get("email", "")
-        password = request.POST.get("password")
+def staff_profile_edit(request, pk: int):
+    sp = get_object_or_404(
+        StaffProfile.objects.select_related("user"),
+        pk=pk
+    )
 
-        job_title = request.POST.get("job_title", "")
-        phone = request.POST.get("phone", "")
-        status = request.POST.get("status", "pending")
-        notes = request.POST.get("notes", "")
+    user_obj = sp.user
+
+    all_groups = Group.objects.all().order_by("name")
+
+    if request.method == "POST":
+        staff_form = StaffProfileForm(
+            request.POST,
+            instance=sp,
+            prefix="sp"
+        )
+
+        user_form = UserBasicsForm(
+            request.POST,
+            instance=user_obj,
+            prefix="usr"
+        )
+
+        selected_group_ids = request.POST.getlist("groups")
+
+        if staff_form.is_valid() and user_form.is_valid():
+            with transaction.atomic():
+                staff_form.save()
+                user_form.save()
+
+                user_obj.groups.set(selected_group_ids)
+
+            messages.success(
+                request,
+                "Staff profile updated successfully."
+            )
+
+            return redirect(
+                reverse("staff_profile_view", kwargs={"pk": sp.pk})
+            )
+
+        messages.error(request, "Please correct the errors below.")
+
+    else:
+        staff_form = StaffProfileForm(
+            instance=sp,
+            prefix="sp"
+        )
+
+        user_form = UserBasicsForm(
+            instance=user_obj,
+            prefix="usr"
+        )
+
+    user_groups = user_obj.groups.all().order_by("name")
+
+    return render(
+        request,
+        "staff_portal/staff_profile_edit.html",
+        {
+            "sp": sp,
+            "user_obj": user_obj,
+            "staff_form": staff_form,
+            "user_form": user_form,
+            "user_groups": user_groups,
+            "all_groups": all_groups,
+        },
+    )
+
+
+@login_required
+@staff_required
+def staff_profile_send_password_sms(request, pk):
+    sp = get_object_or_404(
+        StaffProfile.objects.select_related("user"),
+        pk=pk
+    )
+
+    if request.method != "POST":
+        return redirect("staff_profile_view", pk=sp.pk)
+
+    auth_code = (request.POST.get("auth_code") or "").strip()
+
+    if not auth_code.isdigit() or len(auth_code) != 5:
+        messages.error(request, "Authorisation code must be exactly 5 digits.")
+        return redirect("staff_profile_view", pk=sp.pk)
+
+    # This is the logged-in support/admin staff member
+    request_staff = getattr(request.user, "staff_profile", None)
+
+    if not request_staff:
+        messages.error(request, "Your staff profile could not be found.")
+        return redirect("staff_profile_view", pk=sp.pk)
+
+    if not request_staff.auth_code_hash:
+        messages.error(request, "Your account does not have an authorisation code set.")
+        return redirect("staff_profile_view", pk=sp.pk)
+
+    if not request_staff.verify_auth_code(auth_code):
+        messages.error(request, "Invalid authorisation code.")
+        return redirect("staff_profile_view", pk=sp.pk)
+
+    # This is the target staff member whose password is being reset
+    user = sp.user
+
+    new_password = get_random_string(
+        5,
+        allowed_chars="23456789"
+    )
+
+    user.set_password(new_password)
+    user.save(update_fields=["password"])
+
+    sms_sent, sms_message = send_staff_password_sms(
+        phone=sp.phone,
+        username=user.username,
+        password=new_password,
+    )
+
+    if sms_sent:
+        messages.success(request, "Temporary password generated and sent via SMS.")
+    else:
+        messages.warning(request, f"Password was updated, but SMS failed. {sms_message}")
+
+    return redirect("staff_profile_view", pk=sp.pk)
+
+
+@login_required
+@staff_required
+def staff_profile_send_password_email(request, pk):
+    sp = get_object_or_404(
+        StaffProfile.objects.select_related("user"),
+        pk=pk
+    )
+
+    if request.method != "POST":
+        return redirect("staff_profile_view", pk=sp.pk)
+
+    auth_code = (request.POST.get("auth_code") or "").strip()
+
+    if not auth_code.isdigit() or len(auth_code) != 5:
+        messages.error(request, "Authorisation code must be exactly 5 digits.")
+        return redirect("staff_profile_view", pk=sp.pk)
+
+    # This is the logged-in support/admin staff member
+    request_staff = getattr(request.user, "staff_profile", None)
+
+    if not request_staff:
+        messages.error(request, "Your staff profile could not be found.")
+        return redirect("staff_profile_view", pk=sp.pk)
+
+    if not request_staff.auth_code_hash:
+        messages.error(request, "Your account does not have an authorisation code set.")
+        return redirect("staff_profile_view", pk=sp.pk)
+
+    if not request_staff.verify_auth_code(auth_code):
+        messages.error(request, "Invalid authorisation code.")
+        return redirect("staff_profile_view", pk=sp.pk)
+
+    # This is the target staff member whose password is being reset
+    user = sp.user
+
+    if not user.email:
+        messages.error(request, "This staff member does not have an email address.")
+        return redirect("staff_profile_view", pk=sp.pk)
+
+    new_password = get_random_string(
+        5,
+        allowed_chars="23456789"
+    )
+
+    user.set_password(new_password)
+    user.save(update_fields=["password"])
+
+    subject = "The Daily Market - Temporary Staff Login Password"
+
+    body = (
+        f"Hi {user.get_full_name() or user.username},\n\n"
+        "Your staff login password has been reset.\n\n"
+        f"Username: {user.username}\n"
+        f"Temporary Password: {new_password}\n\n"
+        "Please log in and change your password."
+    )
+
+    EmailMultiAlternatives(
+        subject=subject,
+        body=body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+    ).send(fail_silently=False)
+
+    messages.success(request, "Temporary password generated and sent via email.")
+
+    return redirect("staff_profile_view", pk=sp.pk)
+
+
+
+def normalize_sa_number(phone):
+    phone = (phone or "").strip().replace(" ", "").replace("-", "")
+
+    if phone.startswith("0"):
+        phone = "27" + phone[1:]
+
+    if phone.startswith("+"):
+        phone = phone[1:]
+
+    return phone
+
+
+def send_staff_password_sms(phone, username, password):
+    client_id = getattr(settings, "SMSPORTAL_CLIENT_ID", "")
+    api_secret = getattr(settings, "SMSPORTAL_API_SECRET", "")
+
+    if not client_id or not api_secret:
+        return False, "SMSPortal credentials are missing."
+
+    phone = normalize_sa_number(phone)
+
+    if not phone:
+        return False, "No phone number provided."
+
+    message = (
+        "The Daily Market staff profile created. "
+        f"Username: {username}. "
+        f"Temporary password: {password}. "
+        "Please log in and change your password."
+    )
+
+    url = "https://rest.smsportal.com/v1/bulkmessages"
+
+    payload = {
+        "messages": [
+            {
+                "content": message,
+                "destination": phone,
+            }
+        ]
+    }
+
+    try:
+        response = requests.post(
+            url,
+            json=payload,
+            auth=(client_id, api_secret),
+            timeout=20,
+        )
+
+        if response.status_code in [200, 201, 202]:
+            return True, "SMS sent successfully."
+
+        return False, f"SMS failed: {response.status_code} - {response.text}"
+
+    except Exception as e:
+        return False, f"SMS error: {e}"
+
+
+@login_required
+@staff_required
+def staff_profile_create(request):
+    User = get_user_model()
+
+    if request.method == "POST":
+        username = (request.POST.get("username") or "").strip()
+        first_name = (request.POST.get("first_name") or "").strip()
+        last_name = (request.POST.get("last_name") or "").strip()
+        email = (request.POST.get("email") or "").strip()
+
+        job_title = (request.POST.get("job_title") or "").strip()
+        phone = (request.POST.get("phone") or "").strip()
+        status = request.POST.get("status") or "pending"
+        notes = (request.POST.get("notes") or "").strip()
+
         link_sales = request.POST.get("link_sales") == "on"
 
-        # Use transaction to ensure atomic save
+        if not username:
+            messages.error(request, "Username is required.")
+            return render(request, "staff_portal/staff_profile_create.html")
+
+        if not phone:
+            messages.error(request, "Phone number is required so the password can be sent by SMS.")
+            return render(request, "staff_portal/staff_profile_create.html")
+
+        if User.objects.using("default").filter(username=username).exists():
+            messages.error(request, "A user with this username already exists in the main database.")
+            return render(request, "staff_portal/staff_profile_create.html")
+
+        if User.objects.using("dummy").filter(username=username).exists():
+            messages.error(request, "A user with this username already exists in the dummy database.")
+            return render(request, "staff_portal/staff_profile_create.html")
+
+        if email and User.objects.using("default").filter(email=email).exists():
+            messages.error(request, "A user with this email address already exists in the main database.")
+            return render(request, "staff_portal/staff_profile_create.html")
+
+        if email and User.objects.using("dummy").filter(email=email).exists():
+            messages.error(request, "A user with this email address already exists in the dummy database.")
+            return render(request, "staff_portal/staff_profile_create.html")
+
+        generated_password = get_random_string(
+            10,
+            allowed_chars="abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        )
+
         try:
-            with transaction.atomic():
-                # Create Django user
-                user = User.objects.create_user(
+            with transaction.atomic(using="default"):
+                user = User.objects.db_manager("default").create_user(
                     username=username,
-                    password=password,
+                    email=email,
+                    password=generated_password,
                     first_name=first_name,
                     last_name=last_name,
-                    email=email,
-                    is_staff=True
                 )
 
-                # Create StaffProfile
-                staff_profile = StaffProfile.objects.create(
+                user.is_staff = True
+                user.save(
+                    using="default",
+                    update_fields=["is_staff"]
+                )
+
+                staff_profile = StaffProfile.objects.using("default").create(
                     user=user,
                     job_title=job_title,
                     phone=phone,
                     status=status,
-                    notes=notes
+                    notes=notes,
                 )
 
-                # Optionally create SalesRepProfile
                 if link_sales:
-                    # Check if already exists just in case
-                    SalesRepProfile.objects.get_or_create(user=user)
+                    SalesRepProfile.objects.using("default").get_or_create(
+                        user=user,
+                        defaults={
+                            "staff_profile": staff_profile,
+                            "status": status,
+                            "department": "SALES",
+                        },
+                    )
 
-            messages.success(request, f"Staff profile for '{username}' created successfully.")
-            return redirect("staff_profile")  # adjust to your staff list view
+                    staff_profile.can_access_sales = True
+                    staff_profile.department = "SALES"
+                    staff_profile.save(
+                        using="default",
+                        update_fields=[
+                            "can_access_sales",
+                            "department",
+                            "updated_at",
+                        ]
+                    )
+
+            sms_sent, sms_message = send_staff_password_sms(
+                phone=phone,
+                username=username,
+                password=generated_password,
+            )
+
+            if sms_sent:
+                messages.success(
+                    request,
+                    f"Staff profile for {username} created successfully. Login details sent by SMS."
+                )
+            else:
+                messages.warning(
+                    request,
+                    f"Staff profile for {username} created, but SMS was not sent. {sms_message}"
+                )
+
+            return redirect(
+                "staff_profile_view",
+                pk=staff_profile.pk
+            )
 
         except Exception as e:
-            messages.error(request, f"Error creating staff profile: {e}")
+            messages.error(
+                request,
+                f"Error creating staff profile: {e}"
+            )
 
-    return render(request, "staff_portal/staff_profile_create.html")
+    return render(
+        request,
+        "staff_portal/staff_profile_create.html"
+    )
+
 
 # ---------------------------
 # Customer Profiles
@@ -393,6 +1302,9 @@ def customer_profile(request):
     }
     return render(request, "staff_portal/customer_profile.html", ctx)
 
+
+
+
 @login_required
 @staff_required
 def customer_profile_view(request, pk: int):
@@ -432,6 +1344,10 @@ def customer_profile_view(request, pk: int):
         pass
 
     return render(request, "staff_portal/customer_profile_view.html", ctx)
+
+
+
+
 
 @login_required
 @staff_required

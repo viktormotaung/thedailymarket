@@ -402,17 +402,12 @@ def notification_count(request):
 @login_required
 @staff_required
 def tickets(request):
-    staff = getattr(request.user, "staff_profile", None)
-
     qs = Ticket.objects.select_related(
         "client",
         "created_by",
         "closed_by",
         "content_type",
     )
-
-    if staff and staff.status == "active" and staff.department:
-        qs = qs.filter(department=staff.department)
 
     q = (request.GET.get("q") or "").strip()
     status = (request.GET.get("status") or "").strip()
@@ -448,19 +443,21 @@ def tickets(request):
 
     qs = qs.order_by("-created_at")
 
-    base = qs
+    stats_base = Ticket.objects.all()
 
     stats = {
-        "total": base.count(),
-        "new": base.filter(status=Ticket.Status.NEW).count(),
-        "open": base.filter(status=Ticket.Status.OPEN).count(),
-        "pending": base.filter(status=Ticket.Status.PENDING).count(),
-        "resolved": base.filter(status=Ticket.Status.RESOLVED).count(),
-        "closed": base.filter(status=Ticket.Status.CLOSED).count(),
+        "total": stats_base.count(),
+        "new": stats_base.filter(status=Ticket.Status.NEW).count(),
+        "open": stats_base.filter(status=Ticket.Status.OPEN).count(),
+        "pending": stats_base.filter(status=Ticket.Status.PENDING).count(),
+        "resolved": stats_base.filter(status=Ticket.Status.RESOLVED).count(),
+        "closed": stats_base.filter(status=Ticket.Status.CLOSED).count(),
     }
 
     paginator = Paginator(qs, 25)
-    page_obj = paginator.get_page(request.GET.get("page") or 1)
+    page_obj = paginator.get_page(
+        request.GET.get("page") or 1
+    )
 
     return render(
         request,

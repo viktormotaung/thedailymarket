@@ -16,6 +16,10 @@ from django.db import transaction
 from django.forms import inlineformset_factory, BaseInlineFormSet
 from django.shortcuts import redirect, render, get_object_or_404
 from decimal import Decimal
+from django.db.models import Count, Q, Min, Max, Avg, Sum, F, DecimalField, ExpressionWrapper
+from django.apps import apps
+
+from products.models import Product, Category, ProductPricing, ProductVariant
 from django.core.exceptions import ValidationError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -36,6 +40,17 @@ from products.forms import (
 )
 from .forms import ProductForm, ProductVariantForm
 from .models import Product, ProductVariant
+from django.http import HttpResponse
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Image
+from django.conf import settings
+import os
+
+
 # -----------------------------------------------------
 # Auth helpers
 # -----------------------------------------------------
@@ -118,6 +133,11 @@ def product_list(request):
             "min_retail_inc": min_retail_inc,
         })
 
+    price_list_subcategories = Category.objects.filter(
+        is_active=True,
+        parent__isnull=False
+    ).select_related("parent").order_by("parent__name", "name")
+
     return render(
         request,
         "products/product_list.html",
@@ -126,8 +146,149 @@ def product_list(request):
             "filter_categories": filter_categories,
             "filter_suppliers": filter_suppliers,
             "search": search,
+            "price_list_subcategories": price_list_subcategories,
         },
     )
+
+
+@login_required
+@staff_required
+def download_price_list(request):
+    subcategory_ids = request.GET.getlist("subcategories")
+
+    qs = (
+        Product.objects
+        .select_related("category", "category__parent")
+        .prefetch_related("pricing_rows")
+        .filter(category__parent__isnull=False)
+        .order_by("category__parent__name", "category__name", "name")
+    )
+
+    if subcategory_ids:
+        qs = qs.filter(category_id__in=subcategory_ids)
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = 'attachment; filename="The Daily Market Price List.pdf"'
+
+    doc = SimpleDocTemplate(
+        response,
+        pagesize=A4,
+        rightMargin=1 * cm,
+        leftMargin=1 * cm,
+        topMargin=1 * cm,
+        bottomMargin=1 * cm,
+    )
+
+    styles = getSampleStyleSheet()
+    elements = []
+
+    # =========================
+    # LOGO
+    # =========================
+    logo_path = os.path.join(
+        settings.BASE_DIR,
+        "static",
+        "images",
+        "seshibo-logo.png"
+    )
+
+    if os.path.exists(logo_path):
+        logo = Image(
+            logo_path,
+            width=4 * cm,
+            height=4 * cm
+        )
+        elements.append(logo)
+
+    elements.append(Spacer(1, 6))
+
+    # =========================
+    # HEADER
+    # =========================
+    
+
+    elements.append(Paragraph(
+        "Reg: 2024/232233/07",
+        styles["Normal"]
+    ))
+
+    elements.append(Paragraph(
+        "Whatsapp: 062 231 1902",
+        styles["Normal"]
+    ))
+
+    elements.append(Paragraph(
+        "info@thedailymarket.co.za / www.thedailymarket.co.za",
+        styles["Normal"]
+    ))
+
+    elements.append(Spacer(1, 10))
+
+    elements.append(Paragraph(
+        "<b>Product Price List</b>",
+        styles["Heading2"]
+    ))
+
+    elements.append(Spacer(1, 12))
+
+    # =========================
+    # TABLE DATA
+    # =========================
+    data = [["Category", "Subcategory", "Product", "Price (Incl)"]]
+
+    for product in qs:
+        prices = [
+            row.retail_price_inc
+            for row in product.pricing_rows.all()
+            if row.is_active and row.retail_price_inc is not None
+        ]
+
+        price = min(prices) if prices else None
+
+        data.append([
+            product.category.parent.name if product.category and product.category.parent else "—",
+            product.category.name if product.category else "—",
+            product.name,
+            f"R{price:.2f}" if price else "—",
+        ])
+
+    # =========================
+    # TABLE
+    # =========================
+    table = Table(
+        data,
+        colWidths=[
+            3 * cm,
+            4 * cm,
+            7 * cm,
+            3 * cm,
+        ],
+        repeatRows=1,
+    )
+
+    table.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.black),
+
+        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+
+        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+        ("ALIGN", (3, 1), (3, -1), "RIGHT"),
+    ]))
+
+    elements.append(table)
+
+    # =========================
+    # BUILD PDF
+    # =========================
+    doc.build(elements)
+
+    return response
+
+
 
 @login_required
 @require_POST
@@ -303,6 +464,8 @@ def product_edit(request, pk):
         "variant_formset": formset,
     })
 
+
+
 @login_required
 @staff_required
 def variant_create(request, product_id):
@@ -320,6 +483,9 @@ def variant_create(request, product_id):
         form = ProductVariantForm(initial={"uom": product.uom, "scales_with_pack": True})
 
     return render(request, "products/variant_form.html", {"form": form, "product": product})
+
+
+
 
 @login_required
 @staff_required
@@ -406,6 +572,8 @@ def product_pricing_list(request, product_id: int):
     """
     return redirect("product-view", pk=product_id)
 
+
+
 @login_required
 @staff_required
 def product_pricing_edit(request, pricing_id):
@@ -431,6 +599,8 @@ def product_pricing_edit(request, pricing_id):
         {"form": form, "row": row, "product": product}
     )
 
+
+
 @login_required
 @staff_required
 def product_pricing_create(request, product_id):
@@ -454,6 +624,8 @@ def product_pricing_create(request, product_id):
         {"form": form, "product": product},
     )
 
+
+
 @staff_required
 @login_required
 def product_pricing_edit(request, pk):
@@ -475,3 +647,197 @@ def product_pricing_edit(request, pk):
         "mode": "edit",
         "pricing": pp,
     })
+
+
+@login_required
+@staff_required
+def product_dashboard(request):
+    q = (request.GET.get("q") or "").strip()
+    category_id = request.GET.get("category") or ""
+    pricing_status = request.GET.get("pricing_status") or ""
+
+    products_qs = (
+        Product.objects
+        .select_related("category", "category__parent")
+        .prefetch_related("pricing_rows", "variants")
+        .all()
+    )
+
+    if q:
+        products_qs = products_qs.filter(
+            Q(name__icontains=q) |
+            Q(sku__icontains=q) |
+            Q(product_no__icontains=q) |
+            Q(category__name__icontains=q) |
+            Q(category__parent__name__icontains=q)
+        )
+
+    if category_id:
+        products_qs = products_qs.filter(category_id=category_id)
+
+    if pricing_status == "missing":
+        products_qs = products_qs.filter(pricing_rows__isnull=True)
+
+    elif pricing_status == "has_pricing":
+        products_qs = products_qs.filter(pricing_rows__isnull=False)
+
+    products_qs = products_qs.distinct()
+
+    total_products = Product.objects.count()
+    products_with_pricing = (
+        Product.objects
+        .filter(pricing_rows__isnull=False)
+        .distinct()
+        .count()
+    )
+    products_without_pricing = (
+        Product.objects
+        .filter(pricing_rows__isnull=True)
+        .distinct()
+        .count()
+    )
+    products_without_images = (
+        Product.objects
+        .filter(Q(image__isnull=True) | Q(image=""))
+        .count()
+    )
+
+    total_categories = Category.objects.count()
+    top_level_categories = Category.objects.filter(parent__isnull=True).count()
+    subcategories = Category.objects.filter(parent__isnull=False).count()
+
+    active_pricing_rows = ProductPricing.objects.filter(is_active=True)
+
+    avg_supplier_price = active_pricing_rows.aggregate(
+        avg_supplier_price=Avg("supplier_price_excl")
+    )["avg_supplier_price"]
+
+    avg_wholesale_margin = active_pricing_rows.aggregate(
+        avg_wholesale_margin=Avg("wholesale_margin_percent")
+    )["avg_wholesale_margin"]
+
+    avg_wholesale_margin = active_pricing_rows.aggregate(
+        avg_wholesale_margin=Avg("wholesale_margin_percent")
+    )["avg_wholesale_margin"]
+
+    products_with_variants = (
+        Product.objects
+        .filter(variants__isnull=False)
+        .distinct()
+        .count()
+    )
+
+    products_without_variants = (
+        Product.objects
+        .filter(variants__isnull=True)
+        .distinct()
+        .count()
+    )
+
+    products_with_multiple_suppliers = (
+        Product.objects
+        .annotate(supplier_count=Count("pricing_rows__supplier", distinct=True))
+        .filter(supplier_count__gt=1)
+        .count()
+    )
+
+    category_breakdown = (
+        Category.objects
+        .annotate(
+            product_count=Count("products", distinct=True),
+            pricing_count=Count("products__pricing_rows", distinct=True),
+            variant_count=Count("products__variants", distinct=True),
+        )
+        .order_by("parent__name", "name")
+    )
+
+    pricing_alerts = (
+        Product.objects
+        .select_related("category", "category__parent")
+        .filter(pricing_rows__isnull=True)
+        .order_by("category__parent__name", "category__name", "name")[:20]
+    )
+
+    image_alerts = (
+        Product.objects
+        .select_related("category", "category__parent")
+        .filter(Q(image__isnull=True) | Q(image=""))
+        .order_by("category__parent__name", "category__name", "name")[:20]
+    )
+
+    supplier_comparison = (
+        Product.objects
+        .annotate(
+            supplier_count=Count("pricing_rows__supplier", distinct=True),
+            min_supplier_price=Min("pricing_rows__supplier_price_excl"),
+            max_supplier_price=Max("pricing_rows__supplier_price_excl"),
+        )
+        .filter(supplier_count__gt=1)
+        .order_by("-supplier_count", "name")[:20]
+    )
+
+    recent_products = (
+        Product.objects
+        .select_related("category", "category__parent")
+        .order_by("-created_at")[:10]
+    )
+
+    recent_pricing_updates = (
+        ProductPricing.objects
+        .select_related("product", "supplier", "product__category")
+        .order_by("-updated_at")[:10]
+    )
+
+    filtered_products = (
+        products_qs
+        .annotate(
+            pricing_count=Count("pricing_rows", distinct=True),
+            variant_count=Count("variants", distinct=True),
+            supplier_count=Count("pricing_rows__supplier", distinct=True),
+        )
+        .order_by("category__parent__name", "category__name", "name")[:100]
+    )
+
+    categories = (
+        Category.objects
+        .filter(parent__isnull=False)
+        .order_by("parent__name", "name")
+    )
+
+    ctx = {
+        "q": q,
+        "category_id": category_id,
+        "pricing_status": pricing_status,
+
+        "total_products": total_products,
+        "products_with_pricing": products_with_pricing,
+        "products_without_pricing": products_without_pricing,
+        "products_without_images": products_without_images,
+        "total_categories": total_categories,
+        "top_level_categories": top_level_categories,
+        "subcategories": subcategories,
+        "products_with_variants": products_with_variants,
+        "products_without_variants": products_without_variants,
+        "products_with_multiple_suppliers": products_with_multiple_suppliers,
+
+        "avg_supplier_price": avg_supplier_price,
+        "avg_wholesale_margin": avg_wholesale_margin,
+        "avg_wholesale_margin": avg_wholesale_margin,
+
+        "category_breakdown": category_breakdown,
+        "pricing_alerts": pricing_alerts,
+        "image_alerts": image_alerts,
+        "supplier_comparison": supplier_comparison,
+        "recent_products": recent_products,
+        "recent_pricing_updates": recent_pricing_updates,
+        "filtered_products": filtered_products,
+        "categories": categories,
+    }
+
+    return render(
+        request,
+        "products/product_dashboard.html",
+        ctx
+    )
+
+

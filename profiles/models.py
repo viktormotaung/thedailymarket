@@ -15,6 +15,65 @@ def _online_window():
     return timedelta(minutes=minutes)
 
 
+class Department(models.Model):
+
+    name = models.CharField(
+        max_length=120,
+        unique=True,
+    )
+
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        help_text="Internal department code.",
+    )
+
+    description = models.TextField(
+        blank=True,
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+    )
+
+    email = models.EmailField(
+        blank=True,
+        null=True,
+        help_text="Department email address.",
+    )
+
+    # OPTIONAL
+    manager = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="managed_departments",
+    )
+
+    # ✅ Department members
+    members = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="departments",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+        
+
 class StaffProfile(models.Model):
     STATUS_CHOICES = [
         ("pending", "Pending"),
@@ -22,16 +81,6 @@ class StaffProfile(models.Model):
         ("inactive", "Inactive"),
     ]
 
-    DEPARTMENT_CHOICES = [
-        ("SUPPORT", "Support"),
-        ("ACCOUNTS", "Accounts"),
-        ("SALES", "Sales"),
-        ("COMPLIANCE", "Compliance"),
-        ("SUPPLY_CHAIN", "Supply Chain"),
-        ("OPERATIONS", "Operations"),
-        ("LOGISTICS", "Logistics"),
-        ("FINANCE", "Finance"),
-    ]
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -49,12 +98,20 @@ class StaffProfile(models.Model):
         help_text="Approval state of this profile.",
     )
 
-    department = models.CharField(
-        max_length=20,
-        choices=DEPARTMENT_CHOICES,
-        blank=True,
+    
+
+    primary_department = models.ForeignKey(
+        "Department",
+        on_delete=models.SET_NULL,
         null=True,
-        help_text="Staff department (optional).",
+        blank=True,
+        related_name="primary_staff_profiles",
+    )
+
+    departments = models.ManyToManyField(
+        "Department",
+        blank=True,
+        related_name="staff_members",
     )
 
     # ✅ NEW: allow staff to also be granted Sales portal access explicitly
@@ -300,7 +357,8 @@ class SalesRepProfile(models.Model):
     department = models.CharField(
         max_length=50,
         default="SALES",
-        help_text="Department for this sales rep.",
+        blank=True,
+        null=True,
     )
 
     # ✅ NEW: multi-role support
@@ -351,6 +409,8 @@ class SalesRepProfile(models.Model):
     def __str__(self):
         name = (self.user.get_full_name() or self.user.get_username()).strip()
         return f"SalesRepProfile for {name}"
+
+
 
 class DriverProfile(models.Model):
     """

@@ -195,7 +195,7 @@
       <!-- Dashboard -->
       <a href="{% url 'staff-dashboard' %}"
         class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">
-        Main Dashboard
+        Dashboard
       </a>
 
       
@@ -215,11 +215,6 @@
         <div class="collapse {% if current == 'staff-prospects' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}show{% endif %}"
             id="clientMenuMobile"
             data-bs-parent="#mobileAccordion">
-
-          <a href="{% url 'staff-prospects' %}"
-            class="nav-link ps-4 {% if current == 'staff-prospects' %}active{% endif %}">
-            Dashboard
-          </a>
 
           <a href="{% url 'staff-prospects' %}"
             class="nav-link ps-4 {% if current == 'staff-prospects' %}active{% endif %}">
@@ -251,10 +246,6 @@
             data-bs-parent="#mobileAccordion">
           <a href="{% url 'staff-quotations' %}"
             class="nav-link ps-4 {% if current == 'staff-quotations' %}active{% endif %}">
-            Dashboard
-          </a>
-          <a href="{% url 'staff-quotations' %}"
-            class="nav-link ps-4 {% if current == 'staff-quotations' %}active{% endif %}">
             Quotations
           </a>
           <a href="{% url 'staff-orders' %}"
@@ -280,10 +271,6 @@
         <div class="collapse {% if current == 'staff-transactions' or current == 'staff-credit' %}show{% endif %}"
             id="financeMenuMobile"
             data-bs-parent="#mobileAccordion">
-          <a href="{% url 'staff-transactions' %}"
-            class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
-            Dashboard
-          </a>
           <a href="{% url 'staff-transactions' %}"
             class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
             Transactions
@@ -315,10 +302,6 @@
         <div class="collapse {% if current == 'warehouse' or current == 'delivery' %}show{% endif %}"
             id="logisticsMenuMobile"
             data-bs-parent="#mobileAccordion">
-          <a href="{% url 'warehouse' %}?view=warehouse"
-            class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">
-            Dashboard
-          </a>
           <a href="{% url 'warehouse' %}?view=warehouse"
             class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">
             Warehouse
@@ -358,39 +341,6 @@
         </div>
       </div>
 
-      
-
-      <!-- Support -->
-      <div class="mb-2">
-        <a class="nav-link d-flex justify-content-between"
-          data-bs-toggle="collapse"
-          href="#supportMenuMobile"
-          aria-expanded="{% if current == 'tasks' %}true{% else %}false{% endif %}">
-          <span>Support</span>
-        </a>
-
-        <div class="collapse {% if current in 'tasks tickets' %}show{% endif %}"
-            id="supportMenuMobile"
-            data-bs-parent="#mobileAccordion">
-
-          <a href="{% url 'tasks' %}"
-            class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
-            Dashoard
-          </a>
-          <a href="{% url 'tasks' %}"
-            class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
-            Tasks
-          </a>
-
-          <a href="{% url 'tickets' %}"
-            class="nav-link ps-4 {% if current == 'tickets' %}active{% endif %}">
-            Tickets
-          </a>
-
-        </div>
-      </div>
-
-
       <!-- Profiles -->
       <div class="mb-2">
         <a class="nav-link d-flex justify-content-between"
@@ -415,6 +365,32 @@
             class="nav-link ps-4 {% if current == 'customer_profile' %}active{% endif %}">
             Customer
           </a>
+        </div>
+      </div>
+
+      <!-- Support -->
+      <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between"
+          data-bs-toggle="collapse"
+          href="#supportMenuMobile"
+          aria-expanded="{% if current == 'tasks' %}true{% else %}false{% endif %}">
+          <span>Support</span>
+        </a>
+
+        <div class="collapse {% if current in 'tasks tickets' %}show{% endif %}"
+            id="supportMenuMobile"
+            data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'tasks' %}"
+            class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
+            Tasks
+          </a>
+
+          <a href="{% url 'tickets' %}"
+            class="nav-link ps-4 {% if current == 'tickets' %}active{% endif %}">
+            Tickets
+          </a>
+
         </div>
       </div>
 
@@ -511,7 +487,7 @@
     <!-- Dashboard -->
     <a href="{% url 'staff-dashboard' %}"
       class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">
-      Main Dashboard
+      Dashboard
     </a>
 
     
@@ -532,11 +508,6 @@
       <div class="collapse {% if current == 'staff-prospects' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}show{% endif %}"
           id="clientMenuDesktop"
           data-bs-parent="#desktopAccordion">
-
-        <a href="{% url 'staff-prospects' %}"
-          class="nav-link ps-4 {% if current == 'staff-prospects' %}active{% endif %}">
-          Dashboard
-        </a>
 
         <a href="{% url 'staff-prospects' %}"
           class="nav-link ps-4 {% if current == 'staff-prospects' %}active{% endif %}">
@@ -567,10 +538,6 @@
           data-bs-parent="#desktopAccordion">
         <a href="{% url 'staff-quotations' %}"
           class="nav-link ps-4 {% if current == 'staff-quotations' %}active{% endif %}">
-          Dashboard
-        </a>
-        <a href="{% url 'staff-quotations' %}"
-          class="nav-link ps-4 {% if current == 'staff-quotations' %}active{% endif %}">
           Quotations
         </a>
         <a href="{% url 'staff-orders' %}"
@@ -596,10 +563,6 @@
       <div class="collapse {% if current == 'staff-transactions' or current == 'staff-credit' %}show{% endif %}"
           id="financeMenuDesktop"
           data-bs-parent="#desktopAccordion">
-        <a href="{% url 'staff-transactions' %}"
-          class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
-          Dashboard
-        </a>
         <a href="{% url 'staff-transactions' %}"
           class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
           Transactions
@@ -631,10 +594,6 @@
       <div class="collapse {% if current == 'warehouse' or current == 'delivery' %}show{% endif %}"
           id="logisticsMenuDesktop"
           data-bs-parent="#desktopAccordion">
-        <a href="{% url 'warehouse' %}?view=warehouse"
-          class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">
-          Dashboard
-        </a>
         <a href="{% url 'warehouse' %}?view=warehouse"
           class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">
           Warehouse
@@ -677,39 +636,6 @@
       </div>
     </div>
 
-    
-
-    <!-- Support -->
-    <div class="mb-2">
-      <a class="nav-link d-flex justify-content-between"
-        data-bs-toggle="collapse"
-        href="#supportMenuDesktop"
-        aria-expanded="{% if current == 'tasks' %}true{% else %}false{% endif %}">
-        <span>Support</span>
-      </a>
-
-      <div class="collapse {% if current in 'tasks tickets' %}show{% endif %}"
-          id="supportMenuDesktop"
-          data-bs-parent="#desktopAccordion">
-
-        <a href="{% url 'tasks' %}"
-          class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
-          Dashboard
-        </a>
-        <a href="{% url 'tasks' %}"
-          class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
-          Tasks
-        </a>
-
-        <a href="{% url 'tickets' %}"
-          class="nav-link ps-4 {% if current == 'tickets' %}active{% endif %}">
-          Tickets
-        </a>
-
-      </div>
-    </div>
-
-
     <!-- Profiles -->
     <div class="mb-2">
       <a class="nav-link d-flex justify-content-between"
@@ -737,8 +663,34 @@
       </div>
     </div>
 
+    <!-- Support -->
+    <div class="mb-2">
+      <a class="nav-link d-flex justify-content-between"
+        data-bs-toggle="collapse"
+        href="#supportMenuDesktop"
+        aria-expanded="{% if current == 'tasks' %}true{% else %}false{% endif %}">
+        <span>Support</span>
+      </a>
+
+      <div class="collapse {% if current in 'tasks tickets' %}show{% endif %}"
+          id="supportMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'tasks' %}"
+          class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
+          Tasks
+        </a>
+
+        <a href="{% url 'tickets' %}"
+          class="nav-link ps-4 {% if current == 'tickets' %}active{% endif %}">
+          Tickets
+        </a>
+
+      </div>
+    </div>
+
     <!-- Sign out -->
-    <div class="mt-2">
+    <div class="mt-3">
       <form action="{% url 'logout' %}" method="post">
         {% csrf_token %}
         <button type="submit"
@@ -762,157 +714,114 @@
   </aside>
 
 
-  <main class="content">
-    <div class="container-fluid">
+    <main class="content">
 
-      <!-- ================= HEADER ================= -->
-      <div class="d-flex flex-column align-items-center text-center gap-2 mb-4">
-        <h2 class="m-0">Dashboard</h2>
-        <div class="btn-group">
-          <a class="btn {% if range == 'today' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=today">
-            Today
-          </a>
-          <a class="btn {% if range == '7d' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=7d">
-            Last 7 days
-          </a>
-        </div>
-      </div>
-
-      <!-- ================= KPI STRIP ================= -->
-      <div class="row g-3 mb-4">
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Orders</div>
-            <div class="fs-5 fw-semibold">{{ kpi_orders }}</div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Revenue</div>
-            <div class="fs-5 fw-semibold">
-              R{{ kpi_revenue|floatformat:2|intcomma }}
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+            <div>
+            <h2 class="mb-0 fw-bold">Products Dashboard</h2>
+            <small class="text-muted">
+                Product intelligence, pricing health, supplier coverage and catalogue control.
+            </small>
             </div>
-          </div>
-        </div>
 
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Active Deliveries</div>
-            <div class="fs-5 fw-semibold">{{ kpi_deliveries }}</div>
-          </div>
-        </div>
+            <div class="d-flex gap-2">
+            <a href="{% url 'staff-products' %}" class="btn btn-outline-secondary btn-sm">
+                View Product List
+            </a>
 
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Credit Used</div>
-            <div class="fs-5 fw-semibold text-warning">
-              R{{ kpi_credit_used|floatformat:2|intcomma }}
+            
             </div>
-          </div>
         </div>
 
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Open Tasks</div>
-            <div class="fs-5 fw-semibold">{{ kpi_open_tasks }}</div>
-          </div>
-        </div>
+        <!-- KPI CARDS -->
+        <div class="row g-3 mb-4">
 
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">New Clients</div>
-            <div class="fs-5 fw-semibold">{{ kpi_new_clients }}</div>
-          </div>
-        </div>
-
-      </div>
-
-
-      <!-- ================= SALES TREND ================= -->
-      <div class="card mb-4">
-        <div class="card-header bg-white fw-semibold">
-          Sales Trend · Orders per Day
-        </div>
-        <div class="card-body">
-          <div class="chart-wrap">
-            <canvas id="salesChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- ================= NEEDS ATTENTION ================= -->
-      <div class="row g-3 mb-4">
-
-        <div class="col-md-6">
-          <div class="card h-100">
-            <div class="card-header bg-white fw-semibold">
-              Needs Attention
+            <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                <div class="text-muted small">Total Products</div>
+                <h3 class="mb-0">{{ total_products|default:0 }}</h3>
+                </div>
             </div>
-            <ul class="list-group list-group-flush small">
+            </div>
 
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Overdue Deliveries</span>
-                <span class="badge bg-danger">{{ alert_overdue_deliveries }}</span>
-              </li>
+            <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                <div class="text-muted small">Products With Pricing</div>
+                <h3 class="mb-0 text-success">{{ products_with_pricing|default:0 }}</h3>
+                </div>
+            </div>
+            </div>
 
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Clients Over Credit Limit</span>
-                <span class="badge bg-danger">{{ alert_credit_over }}</span>
-              </li>
+            <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                <div class="text-muted small">Missing Pricing</div>
+                <h3 class="mb-0 text-danger">{{ products_without_pricing|default:0 }}</h3>
+                </div>
+            </div>
+            </div>
 
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Unverified Compliance Docs</span>
-                <span class="badge bg-warning">{{ alert_compliance_docs }}</span>
-              </li>
+            <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                <div class="text-muted small">Missing Images</div>
+                <h3 class="mb-0 text-warning">{{ products_without_images|default:0 }}</h3>
+                </div>
+            </div>
+            </div>
 
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Overdue Tasks</span>
-                <span class="badge bg-warning">{{ alert_tasks }}</span>
-              </li>
+            <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                <div class="text-muted small">Categories</div>
+                <h3 class="mb-0">{{ total_categories|default:0 }}</h3>
+                <small class="text-muted">
+                    {{ top_level_categories|default:0 }} main / {{ subcategories|default:0 }} sub
+                </small>
+                </div>
+            </div>
+            </div>
 
-            </ul>
-          </div>
+            <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                <div class="text-muted small">Products With Variants</div>
+                <h3 class="mb-0">{{ products_with_variants|default:0 }}</h3>
+                </div>
+            </div>
+            </div>
+
+            <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                <div class="text-muted small">Multiple Suppliers</div>
+                <h3 class="mb-0">{{ products_with_multiple_suppliers|default:0 }}</h3>
+                </div>
+            </div>
+            </div>
+
+            <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                <div class="text-muted small">Avg Wholesale Margin</div>
+                <h3 class="mb-0">
+                    {{ avg_wholesale_margin|floatformat:2|default:"0.00" }}%
+                </h3>
+                </div>
+            </div>
+            </div>
+
         </div>
 
-        <!-- ================= OPERATIONAL SNAPSHOT ================= -->
-        <div class="col-md-6">
-          <div class="card h-100">
-            <div class="card-header bg-white fw-semibold">
-              Operational Snapshot
-            </div>
-            <div class="card-body small">
+        
+        
 
-              <div class="mb-2">
-                <strong>Orders:</strong>
-                {{ ops_orders_total }} total ·
-                {{ ops_orders_pending }} pending ·
-                {{ ops_orders_completed }} completed
-              </div>
+        
+        
 
-              <div class="mb-2">
-                <strong>Deliveries:</strong>
-                {{ ops_runs_total }} runs ·
-                {{ ops_runs_active }} active ·
-                {{ ops_runs_failed }} failed
-              </div>
-
-              <div>
-                <strong>Warehouse:</strong>
-                {{ ops_picklists_pending }} picklists pending
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      
-
-    </div>
-  </main>
+    </main>
 
 
   <!-- SWITCH PLATFORM MODAL -->
