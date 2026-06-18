@@ -31,4 +31,5 @@ urlpatterns = [
     path("warehouse/batches/<int:batch_id>/consolidation/supplier/<int:supplier_id>/", views.batch_supplier_consolidation, name="batch-supplier-consolidation",), 
     path("deliveries/run/<int:run_id>/", views.delivery_run_detail, name="delivery-run-detail",), 
     path( "deliveries/run/<int:run_id>/auto-plan/", views.delivery_run_auto_plan, name="delivery-run-auto-plan",), 
+    path("dashboard/", views.staff_logistics_dashboard, name="staff-logistics-dashboard"),
 ]

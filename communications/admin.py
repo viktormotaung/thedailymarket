@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CommunicationLog, WhatsAppMessage
+from .models import CommunicationLog, WhatsAppMessage, EmailLog
 
 
 @admin.register(CommunicationLog)
@@ -223,3 +223,61 @@ class WhatsAppMessageAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+
+@admin.register(EmailLog)
+class EmailLogAdmin(admin.ModelAdmin):
+
+    list_display = [
+        "id",
+        "created_at",
+        "recipient",
+        "subject",
+        "status",
+    ]
+
+    list_filter = [
+        "status",
+        "created_at",
+    ]
+
+    search_fields = [
+        "recipient",
+        "subject",
+        "error_message",
+    ]
+
+    readonly_fields = [
+        "created_at",
+    ]
+
+    ordering = [
+        "-created_at",
+    ]
+
+    list_per_page = 50
+
+    fieldsets = (
+        (
+            "Email",
+            {
+                "fields": (
+                    "recipient",
+                    "subject",
+                    "status",
+                    "error_message",
+                )
+            },
+        ),
+        (
+            "Audit",
+            {
+                "fields": (
+                    "created_at",
+                )
+            },
+        ),
+    )
+
+
+

@@ -9,4 +9,6 @@ urlpatterns = [
     path("tickets/<int:pk>/", views.ticket_view, name="ticket_view"),
 
     path("notifications/count/", views.notification_count, name="notification-count"),
+    path("dashboard/", views.staff_support_dashboard, name="staff-support-dashboard"), 
+    
 ]

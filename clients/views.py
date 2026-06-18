@@ -919,4 +919,7 @@ def prospect_detail(request, pk: int):
 
 
 
-
+@login_required
+@staff_required
+def client_dashboard(request):
+    return render(request, "clients/client_dashboard.html")

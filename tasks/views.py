@@ -373,10 +373,10 @@ def notification_count(request):
     staff = getattr(user, "staff_profile", None)
     department_qs = Notification.objects.none()
 
-    if staff and staff.status == "active" and staff.department:
+    if staff and staff.status == "active" and staff.departments:
         department_qs = Notification.objects.filter(
             scope=Notification.Scope.DEPARTMENT,
-            department=staff.department,
+            department=staff.departments,
         )
 
     all_qs = (individual_qs | department_qs).distinct()
@@ -587,3 +587,7 @@ def ticket_view(request, pk):
     )
 
 
+@login_required
+@staff_required
+def staff_support_dashboard(request):
+    return render(request, "tasks/staff_support_dashboard.html")

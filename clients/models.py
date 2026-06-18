@@ -749,6 +749,28 @@ class Prospect(models.Model):
         help_text="Territory assignment for this prospect."
     )
 
+    lat = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(Decimal("-90")),
+            MaxValueValidator(Decimal("90"))
+        ]
+    )
+
+    lng = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(Decimal("-180")),
+            MaxValueValidator(Decimal("180"))
+        ]
+    )
+
     # -------------------------------------------------
     # Early compliance (optional, speeds up conversion)
     # -------------------------------------------------
@@ -892,6 +914,33 @@ class Prospect(models.Model):
             return "Overdue"
         return "Very overdue"
     
+
+    @property
+    def has_geo(self):
+        return self.lat is not None and self.lng is not None
+
+
+    def google_maps_link(self):
+        if self.has_geo:
+            return f"https://www.google.com/maps?q={self.lat},{self.lng}"
+
+        from urllib.parse import quote_plus
+
+        address = ", ".join(filter(None, [
+            self.address_line1,
+            self.address_line2,
+            self.suburb,
+            self.city,
+            self.province,
+            self.postal_code,
+            self.country,
+        ]))
+
+        return (
+            f"https://www.google.com/maps/search/?api=1&query="
+            f"{quote_plus(address)}"
+        )
+    
     @transaction.atomic
     def convert_to_client(self):
         """
@@ -936,6 +985,9 @@ class Prospect(models.Model):
             delivery_province=self.province,
             delivery_postal_code=self.postal_code,
             delivery_country=self.country,
+
+            delivery_lat=self.lat,
+            delivery_lng=self.lng,
 
             preferred_delivery_slot_1=self.preferred_delivery_slot_1,
             preferred_delivery_slot_2=self.preferred_delivery_slot_2,

@@ -387,6 +387,34 @@
                     {{ form.country }}
                     {{ form.country.errors }}
                   </div>
+
+                  <div class="col-12">
+                    <div class="border rounded p-3 bg-light">
+                        <div class="fw-semibold mb-2">
+                            Location Coordinates
+                        </div>
+
+                        <div class="row g-3">
+
+                            <div class="col-md-6">
+                                <label class="form-label">Latitude</label>
+                                {{ form.lat }}
+                                {{ form.lat.errors }}
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Longitude</label>
+                                {{ form.lng }}
+                                {{ form.lng.errors }}
+                            </div>
+
+                        </div>
+
+                        <div class="help-text mt-2">
+                            Paste coordinates from WhatsApp or Google Maps. These will be used for navigation and copied to the client when converted.
+                        </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

@@ -1,123 +1,174 @@
-{% load static %}
+{% load static humanize %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Credit · Seshibo Daily Market</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - The Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <style>
-    :root{
-      --sidebar-w: 220px;
-      --mobile-nav-h: 56px;
-      --brand-green: #0b5c39;
-      --content-bg: #f8f9fa;
-    }
-    html, body { height: 100%; }
+    /* --- Desktop: fixed (non-movable) sidebar --- */
+    @media (min-width: 992px) {
+      html, body { height: 100%; }
+      body { min-height: 100vh; overflow-x: hidden; }
 
-    /* Sidebar skin */
-    .sidebar-skin { background-color: var(--brand-green); color:#fff; padding:1rem; }
-    .sidebar-skin .nav-link { color:#fff; margin:.25rem 0; display:block; }
-    .sidebar-skin .nav-link.active, .sidebar-skin .nav-link:hover {
-      background: rgba(255,255,255,0.15); border-radius:4px; padding-left:8px;
-    }
-    /* nested deliveries links */
-    .sidebar-skin .nav-link.ps-4 { font-size:.95rem; opacity:.95; }
-
-    .logo-img { max-height:80px; width:auto; }
-
-    /* Content */
-    .content { background: var(--content-bg); padding:20px; }
-
-    /* Center the KPI row like Invoices */
-    .metrics-wrap { max-width: 1100px; margin: 0 auto; }
-
-    /* Card that fills the screen with a scrolling table body */
-    .scroll-card{
-      height: calc(100dvh - 0px);
-      display: flex;
-      flex-direction: column;
-    }
-    .scroll-card .card-body{
-      flex: 1;
-      overflow-y: auto;
-      padding: 0;
-    }
-
-    /* Sticky table head */
-    .table thead th{
-      position: sticky;
-      top: 0;
-      background: #fff;
-      z-index: 10;
-      border-bottom: 2px solid #dee2e6;
-    }
-
-    /* Page-width container (same as Transactions) */
-  .page-container{
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-
-    /* Desktop: fixed sidebar, content scrolls */
-    @media (min-width: 992px){
-      body { display:block; overflow:hidden; }
-      .sidebar-desktop{
-        position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w);
-        overflow-y:auto; z-index:1020;
+      .sidebar-desktop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 220px;
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: visible !important; /* allow dropdown to show */
       }
-      .content{
-        margin-left:var(--sidebar-w);
-        height:100vh;
-        overflow:auto;
-        -webkit-overflow-scrolling:touch;
+
+      /* ✅ Let Bootstrap control dropdown positioning */
+      .sidebar-desktop .dropdown {
+        position: relative;
+      }
+
+      
+
+      .sidebar-desktop .dropdown-menu {
+        margin-top: 8px;
+      }
+
+      main.content {
+        margin-left: 220px;
+        min-height: 100vh;
       }
     }
 
-    /* Mobile: fixed top bar, content scrolls */
-    @media (max-width: 991.98px){
-      html, body { height:100%; overflow:hidden; }
-      .navbar.d-lg-none{
-        position:fixed; top:0; left:0; right:0; z-index:1040;
-      }
-      .content{
-        margin-top:var(--mobile-nav-h);
-        height:calc(100dvh - var(--mobile-nav-h));
-        overflow:auto;
-        -webkit-overflow-scrolling:touch;
-        height:calc(100vh - var(--mobile-nav-h));
-      }
+    /* Shared styles */
+    .sidebar-skin {
+      background-color: #0b5c39;
+      color: #fff;
+      padding: 1rem;
+    }
+
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: .25rem 0;
+      display: block;
+    }
+
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+
+    .logo-img {
+      max-height: 80px;
+      width: auto;
+    }
+
+    .content {
+      background: #f8f9fa;
+      padding: 20px;
+    }
+
+    .sidebar-skin .nav-link.ps-4 {
+      font-size: .95rem;
+      opacity: .95;
+    }
+
+    /* --- Compact chart height --- */
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 220px;
+    }
+
+    @media (max-width: 991.98px) {
+      .chart-wrap { height: 180px; }
+    }
+
+    @media (max-width: 575.98px) {
+      .chart-wrap { height: 150px; }
+    }
+
+    .chart-wrap canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
     }
   </style>
 </head>
 <body>
 
-  {% load static %}
+  
 
-  <!-- ================= MOBILE / TABLET TOP BAR ================= -->
+  <!-- MOBILE OFFCANVAS MENU -->
   <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
-    <div class="container-fluid">
-      <button class="navbar-toggler" type="button"
-              data-bs-toggle="offcanvas"
-              data-bs-target="#mobileMenu"
-              aria-controls="mobileMenu">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <a class="navbar-brand ms-2" href="#">
-        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
-      </a>
-    </div>
-  </nav>
+  <div class="container-fluid">
+    <button class="navbar-toggler" type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#mobileMenu"
+            aria-controls="mobileMenu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
 
-  <!-- ================= MOBILE OFFCANVAS MENU ================= -->
-  <div class="offcanvas offcanvas-start d-lg-none sidebar-skin"
+    <a class="navbar-brand ms-2" href="#">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+    </a>
+
+    <!-- Mobile Notifications -->
+    <div class="dropdown">
+      <a class="nav-link text-white position-relative p-0"
+        href="#"
+        role="button"
+        data-bs-toggle="dropdown"
+        aria-expanded="false">
+        <i class="bi bi-bell fs-5"></i>
+
+        <span id="mobileNotificationBadge"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger {% if not nav_unread_notifications_count %}d-none{% endif %}">
+          {{ nav_unread_notifications_count }}
+        </span>
+      </a>
+
+      <ul id="mobileNotificationDropdown"
+          class="dropdown-menu dropdown-menu-end shadow"
+          style="min-width: 260px;">
+
+        <li class="dropdown-header fw-semibold">Notifications</li>
+
+        <li>
+          <a href="{% url 'tickets' %}"
+            class="dropdown-item d-flex justify-content-between align-items-center gap-3">
+            <span>Open Tickets</span>
+            <span id="mobileOpenTicketsCount"
+                  class="badge rounded-pill bg-danger ms-auto">
+              {{ nav_unopened_ticket_count|default:0 }}
+            </span>
+          </a>
+        </li>
+
+        <li>
+          <a href="{% url 'tasks' %}"
+            class="dropdown-item d-flex justify-content-between align-items-center gap-3">
+            <span>Open Tasks</span>
+            <span id="mobileOpenTasksCount"
+                  class="badge rounded-pill bg-danger ms-auto">
+              {{ nav_unopened_task_count|default:0 }}
+            </span>
+          </a>
+        </li>
+
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="offcanvas offcanvas-start d-lg-none sidebar-skin"
       tabindex="-1"
       id="mobileMenu">
 
     <div class="offcanvas-header">
-      <h5 class="offcanvas-title">Staff Navigation</h5>
+      
       <button type="button"
               class="btn-close btn-close-white"
               data-bs-dismiss="offcanvas"></button>
@@ -130,9 +181,9 @@
         <img src="{% static 'images/logo.png' %}" class="logo-img">
       </div>
 
-      <h6 class="text-uppercase fw-semibold mb-2">
+      <h6 class="text-uppercase fw-semibold mb-2 text-center">
         <a href="#"
-          class="text-decoration-none text-reset">
+          class="text-decoration-none text-reset d-block">
           Main Staff Platform
         </a>
       </h6>
@@ -141,80 +192,150 @@
 
       {% with current=request.resolver_match.url_name %}
 
-      <!-- ================= DASHBOARD ================= -->
+      <!-- Dashboard -->
       <a href="{% url 'staff-dashboard' %}"
         class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">
-        Dashboard
+        Main Dashboard
       </a>
 
-      <!-- ================= CLIENTS ================= -->
-      <a href="{% url 'staff-clients' %}"
-        class="nav-link {% if current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' %}active{% endif %}">
-        Clients
-      </a>
+      
 
-      <!-- ================= SALES ================= -->
+      <!-- Client Maintenance -->
       <div class="mb-2">
-        <a class="nav-link d-flex justify-content-between"
+
+        <a class="nav-link {% if current == 'client-dashboard' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}active{% endif %}"
           data-bs-toggle="collapse"
-          href="#salesMenuMobile"
-          aria-expanded="{% if current == 'staff-orders' or current == 'staff-invoices' %}true{% else %}false{% endif %}">
-          <span>Sales</span>
+          href="#clientMenuMobile"
+          role="button"
+          aria-controls="clientMenuMobile"
+          aria-expanded="{% if current == 'client-dashboard' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}true{% else %}false{% endif %}">
+          Client Maintenance
         </a>
 
-        <div class="collapse {% if current == 'staff-orders' or current == 'staff-invoices' %}show{% endif %}"
+        <div class="collapse {% if current == 'client-dashboard' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}show{% endif %}"
+            id="clientMenuMobile"
+            data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'client-dashboard' %}"
+            class="nav-link ps-4 {% if current == 'client-dashboard' %}active{% endif %}">
+            Dashboard
+          </a>
+
+          <a href="{% url 'staff-prospects' %}"
+            class="nav-link ps-4 {% if current == 'staff-prospects' or current == 'staff-prospect-detail' %}active{% endif %}">
+            Prospects
+          </a>
+
+          <a href="{% url 'staff-clients' %}"
+            class="nav-link ps-4 {% if current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}active{% endif %}">
+            Clients
+          </a>
+
+        </div>
+
+      </div>
+
+
+
+      <!-- Sales -->
+      <div class="mb-2">
+
+        <a class="nav-link d-flex justify-content-between {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' %}active{% endif %}"
+          data-bs-toggle="collapse"
+          href="#salesMenuMobile"
+          aria-expanded="{% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' %}true{% else %}false{% endif %}">
+
+          <span>Sales</span>
+
+        </a>
+
+        <div class="collapse {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' %}show{% endif %}"
             id="salesMenuMobile"
             data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'staff-sales-dashboard' %}"
+            class="nav-link ps-4 {% if current == 'staff-sales-dashboard' %}active{% endif %}">
+            Dashboard
+          </a>
+
+          <a href="{% url 'staff-quotations' %}"
+            class="nav-link ps-4 {% if current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' %}active{% endif %}">
+            Quotations
+          </a>
+
           <a href="{% url 'staff-orders' %}"
-            class="nav-link ps-4 {% if current == 'staff-orders' %}active{% endif %}">
+            class="nav-link ps-4 {% if current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' %}active{% endif %}">
             Orders
           </a>
+
           <a href="{% url 'staff-invoices' %}"
             class="nav-link ps-4 {% if current == 'staff-invoices' %}active{% endif %}">
             Invoices
           </a>
+
         </div>
+
       </div>
 
-      <!-- ================= FINANCE ================= -->
+      <!-- Finance -->
       <div class="mb-2">
-        <a class="nav-link d-flex justify-content-between"
+
+        <a class="nav-link d-flex justify-content-between {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#financeMenuMobile"
-          aria-expanded="{% if current == 'staff-transactions' or current == 'staff-credit' %}true{% else %}false{% endif %}">
+          aria-expanded="{% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}true{% else %}false{% endif %}">
           <span>Finance</span>
         </a>
 
-        <div class="collapse {% if current == 'staff-transactions' or current == 'staff-credit' %}show{% endif %}"
+        <div class="collapse {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}show{% endif %}"
             id="financeMenuMobile"
             data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'staff-finance-dashboard' %}"
+            class="nav-link ps-4 {% if current == 'staff-finance-dashboard' %}active{% endif %}">
+            Dashboard
+          </a>
+
           <a href="{% url 'staff-transactions' %}"
-            class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
+            class="nav-link ps-4 {% if current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' %}active{% endif %}">
             Transactions
           </a>
+
           <a href="{% url 'staff-credit' %}"
-            class="nav-link ps-4 {% if current == 'staff-credit' %}active{% endif %}">
+            class="nav-link ps-4 {% if current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' %}active{% endif %}">
             Credit
           </a>
+
           <a href="{% url 'funder-list' %}"
-            class="nav-link ps-4 {% if current == 'funder-list' %}active{% endif %}">
-            Funder
+            class="nav-link ps-4 {% if current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' %}active{% endif %}">
+            Funders
           </a>
+
+          <a href="{% url 'online_payments:payment-list' %}"
+            class="nav-link ps-4 {% if current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}active{% endif %}">
+            Payments
+          </a>
+
         </div>
+
       </div>
 
-      <!-- ================= LOGISTICS (FIXED) ================= -->
+      <!-- Logistics -->
       <div class="mb-2">
-        <a class="nav-link d-flex justify-content-between"
+        <a class="nav-link d-flex justify-content-between {% if current == 'staff-logistics-dashboard' or current == 'warehouse' or current == 'delivery' or current == 'monitor' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#logisticsMenuMobile"
-          aria-expanded="{% if current == 'warehouse' or current == 'delivery' or current == 'monitor' %}true{% else %}false{% endif %}">
-          <span>Logistics</span>
+          aria-expanded="{% if current == 'staff-logistics-dashboard' or current == 'warehouse' or current == 'delivery' or current == 'monitor' %}true{% else %}false{% endif %}">
+            <span>Logistics</span>
         </a>
 
-        <div class="collapse {% if current == 'warehouse' or current == 'delivery' or current == 'monitor' %}show{% endif %}"
-            id="logisticsMenuMobile"
-            data-bs-parent="#mobileAccordion">
+        <div class="collapse {% if current == 'staff-logistics-dashboard' or current == 'warehouse' or current == 'delivery' or current == 'monitor' %}show{% endif %}"
+          id="logisticsMenuMobile"
+          data-bs-parent="#mobileAccordion">
+          <a href="{% url 'staff-logistics-dashboard' %}?view=warehouse"
+            class="nav-link ps-4 {% if current == 'staff-logistics-dashboard' %}active{% endif %}">
+            Dashboard
+          </a>
           <a href="{% url 'warehouse' %}?view=warehouse"
             class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">
             Warehouse
@@ -223,25 +344,27 @@
             class="nav-link ps-4 {% if current == 'delivery' %}active{% endif %}">
             Deliveries
           </a>
-          <a href="{% url 'monitor' %}?view=table"
-            class="nav-link ps-4 {% if current == 'monitor' %}active{% endif %}">
-            Monitor View
-          </a>
+          <a class="nav-link ps-4 text-muted disabled">Monitor View</a>
         </div>
       </div>
 
-      <!-- ================= SUPPLY CHAIN ================= -->
+      <!-- Supply Chain -->
       <div class="mb-2">
-        <a class="nav-link d-flex justify-content-between"
+        <a class="nav-link d-flex justify-content-between {% if current == 'product_dashboard' or current == 'staff-suppliers' or current == 'staff-products' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#supplyChainMenuMobile"
-          aria-expanded="{% if current == 'staff-suppliers' or current == 'staff-products' %}true{% else %}false{% endif %}">
-          <span>Supply Chain</span>
+          aria-controls="supplyChainMenuMobile"
+          aria-expanded="{% if current == 'product_dashboard' or current == 'staff-suppliers' or current == 'staff-products' %}true{% else %}false{% endif %}">
+            <span>Supply Chain</span>
         </a>
 
-        <div class="collapse {% if current == 'staff-suppliers' or current == 'staff-products' %}show{% endif %}"
-            id="supplyChainMenuMobile"
-            data-bs-parent="#mobileAccordion">
+        <div class="collapse {% if current == 'product_dashboard' or current == 'staff-suppliers' or current == 'staff-products' %}show{% endif %}"
+          id="supplyChainMenuMobile"
+          data-bs-parent="#mobileAccordion">
+          <a href="{% url 'product_dashboard' %}"
+            class="nav-link ps-4 {% if current == 'product_dashboard' %}active{% endif %}">
+            Dashboard
+          </a>
           <a href="{% url 'staff-suppliers' %}"
             class="nav-link ps-4 {% if current == 'staff-suppliers' %}active{% endif %}">
             Suppliers
@@ -253,18 +376,53 @@
         </div>
       </div>
 
-      <!-- ================= PROFILES ================= -->
+      
+
+      <!-- Support -->
       <div class="mb-2">
-        <a class="nav-link d-flex justify-content-between"
+        <a class="nav-link d-flex justify-content-between {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'tickets' %}active{% endif %}"
+          data-bs-toggle="collapse"
+          href="#supportMenuMobile"
+          aria-controls="supportMenuMobile"
+          aria-expanded="{% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'tickets' %}true{% else %}false{% endif %}">
+            <span>Support</span>
+        </a>
+
+        <div class="collapse {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'tickets' %}show{% endif %}"
+          id="supportMenuMobile"
+          data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'staff-support-dashboard' %}"
+            class="nav-link ps-4 {% if current == 'staff-support-dashboard' %}active{% endif %}">
+            Dashoard
+          </a>
+          <a href="{% url 'tasks' %}"
+            class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
+            Tasks
+          </a>
+
+          <a href="{% url 'tickets' %}"
+            class="nav-link ps-4 {% if current == 'tickets' %}active{% endif %}">
+            Tickets
+          </a>
+
+        </div>
+      </div>
+
+
+      <!-- Profiles -->
+      <div class="mb-2">
+        <a class="nav-link d-flex justify-content-between {% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#profilesMenuMobile"
+          aria-controls="profilesMenuMobile"
           aria-expanded="{% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}true{% else %}false{% endif %}">
-          <span>Profiles</span>
+            <span>Profiles</span>
         </a>
 
         <div class="collapse {% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}show{% endif %}"
-            id="profilesMenuMobile"
-            data-bs-parent="#mobileAccordion">
+          id="profilesMenuMobile"
+          data-bs-parent="#mobileAccordion">
           <a href="{% url 'my_profile' %}"
             class="nav-link ps-4 {% if current == 'my_profile' %}active{% endif %}">
             My Profile
@@ -280,56 +438,86 @@
         </div>
       </div>
 
-      <!-- ================= SUPPORT ================= -->
-      <div class="mb-2">
-        <a class="nav-link d-flex justify-content-between"
-          data-bs-toggle="collapse"
-          href="#supportMenuMobile"
-          aria-expanded="{% if current == 'tasks' %}true{% else %}false{% endif %}">
-          <span>Support</span>
-        </a>
+      <hr class="border-light">
 
-        <div class="collapse {% if current == 'tasks' %}show{% endif %}"
-            id="supportMenuMobile"
-            data-bs-parent="#mobileAccordion">
-          <a href="{% url 'tasks' %}"
-            class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
-            Tasks
-          </a>
-          <a class="nav-link ps-4 text-muted disabled">Tickets</a>
-        </div>
-      </div>
+    
+      <button type="button"
+              class="btn btn-outline-light w-100 text-center"
+              data-bs-toggle="modal"
+              data-bs-target="#switchPlatformModal">
+        Switch Platform
+      </button>
 
       <hr class="border-light">
 
-      <!-- ================= SIGN OUT ================= -->
+      <!-- Sign out -->
       <form action="{% url 'logout' %}" method="post">
         {% csrf_token %}
-        <button type="submit" class="btn btn-light w-100">Sign out</button>
+        <button type="submit" class="btn btn-outline-light w-100">
+          Sign out
+        </button>
       </form>
-
-      <hr class="border-light">
-
-      <a href="#"
-        class="nav-link"
-        data-bs-toggle="modal"
-        data-bs-target="#switchPlatformModal">
-        Switch Platform
-      </a>
 
       {% endwith %}
 
     </div>
   </div>
 
-  {% load static %}
-
-  <!-- ================= DESKTOP SIDEBAR ================= -->
+  <!-- DESKTOP SIDEBAR -->
   <aside class="sidebar-desktop d-none d-lg-block sidebar-skin"
         id="desktopAccordion">
 
-    <div class="text-center mb-3">
-      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div class="text-center flex-grow-1">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <!-- Desktop Notifications -->
+      <div class="ms-2 position-relative" style="width: max-content;">
+
+        <!-- Bell -->
+        <a class="nav-link text-white position-relative p-0"
+          href="#"
+          data-bs-toggle="collapse"
+          data-bs-target="#desktopNotificationDropdown"
+          aria-expanded="false">
+
+          <i class="bi bi-bell fs-5"></i>
+
+          <span id="desktopNotificationBadge"
+                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger {% if not nav_unread_notifications_count %}d-none{% endif %}">
+            {{ nav_unread_notifications_count }}
+          </span>
+        </a>
+
+        <!-- Panel -->
+        <div id="desktopNotificationDropdown"
+            class="collapse bg-white text-dark rounded shadow p-2"
+            style="position:absolute; top:35px; right:0; width:220px;">
+
+          <div class="fw-semibold mb-2 px-2">Notifications</div>
+
+          <a href="{% url 'tickets' %}"
+            class="d-flex justify-content-between align-items-center px-2 py-1 text-decoration-none text-dark">
+            <span>Open Tickets</span>
+            <span id="desktopOpenTicketsCount"
+                  class="badge rounded-pill bg-danger">
+              {{ nav_unopened_ticket_count|default:0 }}
+            </span>
+          </a>
+
+          <a href="{% url 'tasks' %}"
+            class="d-flex justify-content-between align-items-center px-2 py-1 text-decoration-none text-dark">
+            <span>Open Tasks</span>
+            <span id="desktopOpenTasksCount"
+                  class="badge rounded-pill bg-danger">
+              {{ nav_unopened_task_count|default:0 }}
+            </span>
+          </a>
+
+        </div>
+
+      </div>
     </div>
 
     <h6 class="text-uppercase fw-semibold mb-2">
@@ -343,80 +531,150 @@
 
     {% with current=request.resolver_match.url_name %}
 
-    <!-- ================= DASHBOARD ================= -->
+    <!-- Dashboard -->
     <a href="{% url 'staff-dashboard' %}"
       class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">
-      Dashboard
+      Main Dashboard
     </a>
 
-    <!-- ================= CLIENTS ================= -->
-    <a href="{% url 'staff-clients' %}"
-      class="nav-link {% if current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' %}active{% endif %}">
-      Clients
-    </a>
+    
 
-    <!-- ================= SALES ================= -->
+
+    <!-- Client Maintenance -->
     <div class="mb-2">
-      <a class="nav-link d-flex justify-content-between"
+
+      <a class="nav-link {% if current == 'client-dashboard' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}active{% endif %}"
         data-bs-toggle="collapse"
-        href="#salesMenuDesktop"
-        aria-expanded="{% if current == 'staff-orders' or current == 'staff-invoices' %}true{% else %}false{% endif %}">
-        <span>Sales</span>
+        href="#clientMenuDesktop"
+        role="button"
+        aria-controls="clientMenuDesktop"
+        aria-expanded="{% if current == 'client-dashboard' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}true{% else %}false{% endif %}">
+        Client Maintenance
       </a>
 
-      <div class="collapse {% if current == 'staff-orders' or current == 'staff-invoices' %}show{% endif %}"
-          id="salesMenuDesktop"
+      <div class="collapse {% if current == 'client-dashboard' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}show{% endif %}"
+          id="clientMenuDesktop"
           data-bs-parent="#desktopAccordion">
-        <a href="{% url 'staff-orders' %}"
-          class="nav-link ps-4 {% if current == 'staff-orders' %}active{% endif %}">
-          Orders
+
+        <a href="{% url 'client-dashboard' %}"
+          class="nav-link ps-4 {% if current == 'client-dashboard' %}active{% endif %}">
+          Dashboard
         </a>
-        <a href="{% url 'staff-invoices' %}"
-          class="nav-link ps-4 {% if current == 'staff-invoices' %}active{% endif %}">
-          Invoices
+
+        <a href="{% url 'staff-prospects' %}"
+          class="nav-link ps-4 {% if current == 'staff-prospects' or current == 'staff-prospect-detail' %}active{% endif %}">
+          Prospects
         </a>
+
+        <a href="{% url 'staff-clients' %}"
+          class="nav-link ps-4 {% if current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}active{% endif %}">
+          Clients
+        </a>
+
       </div>
+
     </div>
 
-    <!-- ================= FINANCE ================= -->
+
+    <!-- Sales -->
     <div class="mb-2">
-      <a class="nav-link d-flex justify-content-between"
+
+      <a class="nav-link d-flex justify-content-between {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' or current == 'invoice-create' or current == 'invoice-view' or current == 'invoice-edit' %}active{% endif %}"
+        data-bs-toggle="collapse"
+        href="#salesMenuDesktop"
+        aria-expanded="{% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' or current == 'invoice-create' or current == 'invoice-view' or current == 'invoice-edit' %}true{% else %}false{% endif %}">
+
+        <span>Sales</span>
+
+      </a>
+
+      <div class="collapse {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' or current == 'invoice-create' or current == 'invoice-view' or current == 'invoice-edit' %}show{% endif %}"
+          id="salesMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'staff-sales-dashboard' %}"
+          class="nav-link ps-4 {% if current == 'staff-sales-dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
+
+        <a href="{% url 'staff-quotations' %}"
+          class="nav-link ps-4 {% if current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' %}active{% endif %}">
+          Quotations
+        </a>
+
+        <a href="{% url 'staff-orders' %}"
+          class="nav-link ps-4 {% if current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' %}active{% endif %}">
+          Orders
+        </a>
+
+        <a href="{% url 'staff-invoices' %}"
+          class="nav-link ps-4 {% if current == 'staff-invoices' or current == 'invoice-create' or current == 'invoice-view' or current == 'invoice-edit' %}active{% endif %}">
+          Invoices
+        </a>
+
+      </div>
+
+    </div>
+
+    <!-- Finance -->
+    <div class="mb-2">
+
+      <a class="nav-link d-flex justify-content-between {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}active{% endif %}"
         data-bs-toggle="collapse"
         href="#financeMenuDesktop"
-        aria-expanded="{% if current == 'staff-transactions' or current == 'staff-credit' %}true{% else %}false{% endif %}">
+        aria-expanded="{% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}true{% else %}false{% endif %}">
         <span>Finance</span>
       </a>
 
-      <div class="collapse {% if current == 'staff-transactions' or current == 'staff-credit' %}show{% endif %}"
+      <div class="collapse {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}show{% endif %}"
           id="financeMenuDesktop"
           data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'staff-finance-dashboard' %}"
+          class="nav-link ps-4 {% if current == 'staff-finance-dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
+
         <a href="{% url 'staff-transactions' %}"
-          class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
+          class="nav-link ps-4 {% if current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' %}active{% endif %}">
           Transactions
         </a>
+
         <a href="{% url 'staff-credit' %}"
-          class="nav-link ps-4 {% if current == 'staff-credit' %}active{% endif %}">
+          class="nav-link ps-4 {% if current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' %}active{% endif %}">
           Credit
         </a>
+
         <a href="{% url 'funder-list' %}"
-            class="nav-link ps-4 {% if current == 'funder-list' %}active{% endif %}">
-            Funder
-          </a>
+          class="nav-link ps-4 {% if current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' %}active{% endif %}">
+          Funders
+        </a>
+
+        <a href="{% url 'online_payments:payment-list' %}"
+          class="nav-link ps-4 {% if current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}active{% endif %}">
+          Payments
+        </a>
+
       </div>
+
     </div>
 
-    <!-- ================= LOGISTICS (FIXED) ================= -->
+    <!-- Logistics -->
     <div class="mb-2">
-      <a class="nav-link d-flex justify-content-between"
+      <a class="nav-link d-flex justify-content-between {% if current == 'staff-logistics-dashboard' or current == 'warehouse' or current == 'delivery' or current == 'monitor' %}active{% endif %}"
         data-bs-toggle="collapse"
         href="#logisticsMenuDesktop"
-        aria-expanded="{% if current == 'warehouse' or current == 'delivery' or current == 'monitor' %}true{% else %}false{% endif %}">
-        <span>Logistics</span>
+        aria-expanded="{% if current == 'staff-logistics-dashboard' or current == 'warehouse' or current == 'delivery' or current == 'monitor' %}true{% else %}false{% endif %}">
+          <span>Logistics</span>
       </a>
 
-      <div class="collapse {% if current == 'warehouse' or current == 'delivery' or current == 'monitor' %}show{% endif %}"
-          id="logisticsMenuDesktop"
-          data-bs-parent="#desktopAccordion">
+      <div class="collapse {% if current == 'staff-logistics-dashboard' or current == 'warehouse' or current == 'delivery' or current == 'monitor' %}show{% endif %}"
+        id="logisticsMenuDesktop"
+        data-bs-parent="#desktopAccordion">
+        <a href="{% url 'staff-logistics-dashboard' %}?view=warehouse"
+          class="nav-link ps-4 {% if current == 'staff-logistics-dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
         <a href="{% url 'warehouse' %}?view=warehouse"
           class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">
           Warehouse
@@ -425,25 +683,30 @@
           class="nav-link ps-4 {% if current == 'delivery' %}active{% endif %}">
           Deliveries
         </a>
-        <a href="{% url 'monitor' %}?view=table"
+        <a href="{% url 'monitor' %}?view=runs"
           class="nav-link ps-4 {% if current == 'monitor' %}active{% endif %}">
           Monitor View
         </a>
       </div>
     </div>
 
-    <!-- ================= SUPPLY CHAIN ================= -->
+    <!-- Supply Chain -->
     <div class="mb-2">
-      <a class="nav-link d-flex justify-content-between"
+      <a class="nav-link d-flex justify-content-between {% if current == 'product_dashboard' or current == 'staff-suppliers' or current == 'staff-products' %}active{% endif %}"
         data-bs-toggle="collapse"
         href="#supplyChainMenuDesktop"
-        aria-expanded="{% if current == 'staff-suppliers' or current == 'staff-products' %}true{% else %}false{% endif %}">
-        <span>Supply Chain</span>
+        aria-controls="supplyChainMenuDesktop"
+        aria-expanded="{% if current == 'product_dashboard' or current == 'staff-suppliers' or current == 'staff-products' %}true{% else %}false{% endif %}">
+          <span>Supply Chain</span>
       </a>
 
-      <div class="collapse {% if current == 'staff-suppliers' or current == 'staff-products' %}show{% endif %}"
-          id="supplyChainMenuDesktop"
-          data-bs-parent="#desktopAccordion">
+      <div class="collapse {% if current == 'product_dashboard' or current == 'staff-suppliers' or current == 'staff-products' %}show{% endif %}"
+        id="supplyChainMenuDesktop"
+        data-bs-parent="#desktopAccordion">
+        <a href="{% url 'product_dashboard' %}"
+          class="nav-link ps-4 {% if current == 'product_dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
         <a href="{% url 'staff-suppliers' %}"
           class="nav-link ps-4 {% if current == 'staff-suppliers' %}active{% endif %}">
           Suppliers
@@ -455,18 +718,53 @@
       </div>
     </div>
 
-    <!-- ================= PROFILES ================= -->
+    
+
+    <!-- Support -->
     <div class="mb-2">
-      <a class="nav-link d-flex justify-content-between"
+      <a class="nav-link d-flex justify-content-between {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'tickets' %}active{% endif %}"
+        data-bs-toggle="collapse"
+        href="#supportMenuDesktop"
+        aria-controls="supportMenuDesktop"
+        aria-expanded="{% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'tickets' %}true{% else %}false{% endif %}">
+          <span>Support</span>
+      </a>
+
+      <div class="collapse {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'tickets' %}show{% endif %}"
+        id="supportMenuDesktop"
+        data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'staff-support-dashboard' %}"
+          class="nav-link ps-4 {% if current == 'staff-support-dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
+        <a href="{% url 'tasks' %}"
+          class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
+          Tasks
+        </a>
+
+        <a href="{% url 'tickets' %}"
+          class="nav-link ps-4 {% if current == 'tickets' %}active{% endif %}">
+          Tickets
+        </a>
+
+      </div>
+    </div>
+
+
+    <!-- Profiles -->
+    <div class="mb-2">
+      <a class="nav-link d-flex justify-content-between {% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}active{% endif %}"
         data-bs-toggle="collapse"
         href="#profilesMenuDesktop"
+        aria-controls="profilesMenuDesktop"
         aria-expanded="{% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}true{% else %}false{% endif %}">
-        <span>Profiles</span>
+          <span>Profiles</span>
       </a>
 
       <div class="collapse {% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}show{% endif %}"
-          id="profilesMenuDesktop"
-          data-bs-parent="#desktopAccordion">
+        id="profilesMenuDesktop"
+        data-bs-parent="#desktopAccordion">
         <a href="{% url 'my_profile' %}"
           class="nav-link ps-4 {% if current == 'my_profile' %}active{% endif %}">
           My Profile
@@ -482,45 +780,34 @@
       </div>
     </div>
 
-    <!-- ================= SUPPORT ================= -->
-    <div class="mb-2">
-      <a class="nav-link d-flex justify-content-between"
-        data-bs-toggle="collapse"
-        href="#supportMenuDesktop"
-        aria-expanded="{% if current == 'tasks' %}true{% else %}false{% endif %}">
-        <span>Support</span>
-      </a>
+    <hr class="border-light">
 
-      <div class="collapse {% if current == 'tasks' %}show{% endif %}"
-          id="supportMenuDesktop"
-          data-bs-parent="#desktopAccordion">
-        <a href="{% url 'tasks' %}"
-          class="nav-link ps-4 {% if current == 'tasks' %}active{% endif %}">
-          Tasks
-        </a>
-        <a class="nav-link ps-4 text-muted disabled">Tickets</a>
-      </div>
+    <!-- Switch Platform -->
+    <div class="mb-2">
+      <button type="button"
+              class="btn btn-outline-light btn-sm w-100 text-center py-1"
+              data-bs-toggle="modal"
+              data-bs-target="#switchPlatformModal">
+        Switch Platform
+      </button>
     </div>
 
-    <!-- ================= SIGN OUT ================= -->
-    <div class="mt-3">
+    
+
+    <!-- Sign out -->
+    <div class="mt-2 mb-2">
       <form action="{% url 'logout' %}" method="post">
         {% csrf_token %}
         <button type="submit"
-                class="nav-link btn btn-link text-start w-100 p-0 text-white">
+                class="btn btn-outline-light btn-sm w-100 py-1">
           Sign out
         </button>
       </form>
     </div>
 
+
     <hr class="border-light">
 
-    <a href="#"
-      class="nav-link"
-      data-bs-toggle="modal"
-      data-bs-target="#switchPlatformModal">
-      Switch Platform
-    </a>
 
     {% endwith %}
 

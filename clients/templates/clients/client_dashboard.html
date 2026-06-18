@@ -239,85 +239,68 @@
 
       <!-- Sales -->
       <div class="mb-2">
-
-        <a class="nav-link d-flex justify-content-between {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' %}active{% endif %}"
+        <a class="nav-link d-flex justify-content-between {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'staff-orders' or current == 'staff-invoices' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#salesMenuMobile"
-          aria-expanded="{% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' %}true{% else %}false{% endif %}">
-
-          <span>Sales</span>
-
+          aria-expanded="{% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'staff-orders' or current == 'staff-invoices' %}true{% else %}false{% endif %}">
+            <span>Sales</span>
         </a>
 
-        <div class="collapse {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' %}show{% endif %}"
-            id="salesMenuMobile"
-            data-bs-parent="#mobileAccordion">
-
+        <div class="collapse {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'staff-orders' or current == 'staff-invoices' %}show{% endif %}"
+          id="salesMenuMobile"
+          data-bs-parent="#mobileAccordion">
           <a href="{% url 'staff-sales-dashboard' %}"
             class="nav-link ps-4 {% if current == 'staff-sales-dashboard' %}active{% endif %}">
             Dashboard
           </a>
-
           <a href="{% url 'staff-quotations' %}"
-            class="nav-link ps-4 {% if current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' %}active{% endif %}">
+            class="nav-link ps-4 {% if current == 'staff-quotations' %}active{% endif %}">
             Quotations
           </a>
-
           <a href="{% url 'staff-orders' %}"
-            class="nav-link ps-4 {% if current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' %}active{% endif %}">
+            class="nav-link ps-4 {% if current == 'staff-orders' %}active{% endif %}">
             Orders
           </a>
-
           <a href="{% url 'staff-invoices' %}"
             class="nav-link ps-4 {% if current == 'staff-invoices' %}active{% endif %}">
             Invoices
           </a>
-
         </div>
-
       </div>
 
       <!-- Finance -->
       <div class="mb-2">
-
-        <a class="nav-link d-flex justify-content-between {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}active{% endif %}"
+        <a class="nav-link d-flex justify-content-between {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'staff-credit' or current == 'funder-list' or current == 'payment-list' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#financeMenuMobile"
-          aria-expanded="{% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}true{% else %}false{% endif %}">
-          <span>Finance</span>
+          aria-expanded="{% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'staff-credit' or current == 'funder-list' or current == 'payment-list' %}true{% else %}false{% endif %}">
+            <span>Finance</span>
         </a>
 
-        <div class="collapse {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}show{% endif %}"
-            id="financeMenuMobile"
-            data-bs-parent="#mobileAccordion">
-
+        <div class="collapse {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'staff-credit' or current == 'funder-list' or current == 'payment-list' %}show{% endif %}"
+          id="financeMenuMobile"
+          data-bs-parent="#mobileAccordion">
           <a href="{% url 'staff-finance-dashboard' %}"
             class="nav-link ps-4 {% if current == 'staff-finance-dashboard' %}active{% endif %}">
             Dashboard
           </a>
-
           <a href="{% url 'staff-transactions' %}"
-            class="nav-link ps-4 {% if current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' %}active{% endif %}">
+            class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
             Transactions
           </a>
-
           <a href="{% url 'staff-credit' %}"
-            class="nav-link ps-4 {% if current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' %}active{% endif %}">
+            class="nav-link ps-4 {% if current == 'staff-credit' %}active{% endif %}">
             Credit
           </a>
-
           <a href="{% url 'funder-list' %}"
-            class="nav-link ps-4 {% if current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' %}active{% endif %}">
-            Funders
+            class="nav-link ps-4 {% if current == 'funder-list' %}active{% endif %}">
+            Funder
           </a>
-
           <a href="{% url 'online_payments:payment-list' %}"
-            class="nav-link ps-4 {% if current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}active{% endif %}">
+            class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
             Payments
           </a>
-
         </div>
-
       </div>
 
       <!-- Logistics -->
@@ -578,85 +561,68 @@
 
     <!-- Sales -->
     <div class="mb-2">
-
-      <a class="nav-link d-flex justify-content-between {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' or current == 'invoice-create' or current == 'invoice-view' or current == 'invoice-edit' %}active{% endif %}"
+      <a class="nav-link d-flex justify-content-between {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'staff-orders' or current == 'staff-invoices' %}active{% endif %}"
         data-bs-toggle="collapse"
         href="#salesMenuDesktop"
-        aria-expanded="{% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' or current == 'invoice-create' or current == 'invoice-view' or current == 'invoice-edit' %}true{% else %}false{% endif %}">
-
-        <span>Sales</span>
-
+        aria-expanded="{% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'staff-orders' or current == 'staff-invoices' %}true{% else %}false{% endif %}">
+          <span>Sales</span>
       </a>
 
-      <div class="collapse {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' or current == 'invoice-create' or current == 'invoice-view' or current == 'invoice-edit' %}show{% endif %}"
-          id="salesMenuDesktop"
-          data-bs-parent="#desktopAccordion">
-
+      <div class="collapse {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'staff-orders' or current == 'staff-invoices' %}show{% endif %}"
+        id="salesMenuDesktop"
+        data-bs-parent="#desktopAccordion">
         <a href="{% url 'staff-sales-dashboard' %}"
           class="nav-link ps-4 {% if current == 'staff-sales-dashboard' %}active{% endif %}">
           Dashboard
         </a>
-
         <a href="{% url 'staff-quotations' %}"
-          class="nav-link ps-4 {% if current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' %}active{% endif %}">
+          class="nav-link ps-4 {% if current == 'staff-quotations' %}active{% endif %}">
           Quotations
         </a>
-
         <a href="{% url 'staff-orders' %}"
-          class="nav-link ps-4 {% if current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' %}active{% endif %}">
+          class="nav-link ps-4 {% if current == 'staff-orders' %}active{% endif %}">
           Orders
         </a>
-
         <a href="{% url 'staff-invoices' %}"
-          class="nav-link ps-4 {% if current == 'staff-invoices' or current == 'invoice-create' or current == 'invoice-view' or current == 'invoice-edit' %}active{% endif %}">
+          class="nav-link ps-4 {% if current == 'staff-invoices' %}active{% endif %}">
           Invoices
         </a>
-
       </div>
-
     </div>
 
     <!-- Finance -->
     <div class="mb-2">
-
-      <a class="nav-link d-flex justify-content-between {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}active{% endif %}"
+      <a class="nav-link d-flex justify-content-between {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'staff-credit' or current == 'funder-list' or current == 'payment-list' %}active{% endif %}"
         data-bs-toggle="collapse"
         href="#financeMenuDesktop"
-        aria-expanded="{% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}true{% else %}false{% endif %}">
-        <span>Finance</span>
+        aria-expanded="{% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'staff-credit' or current == 'funder-list' or current == 'payment-list' %}true{% else %}false{% endif %}">
+          <span>Finance</span>
       </a>
 
-      <div class="collapse {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}show{% endif %}"
-          id="financeMenuDesktop"
-          data-bs-parent="#desktopAccordion">
-
+      <div class="collapse {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'staff-credit' or current == 'funder-list' or current == 'payment-list' %}show{% endif %}"
+        id="financeMenuDesktop"
+        data-bs-parent="#desktopAccordion">
         <a href="{% url 'staff-finance-dashboard' %}"
           class="nav-link ps-4 {% if current == 'staff-finance-dashboard' %}active{% endif %}">
           Dashboard
         </a>
-
         <a href="{% url 'staff-transactions' %}"
-          class="nav-link ps-4 {% if current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' %}active{% endif %}">
+          class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
           Transactions
         </a>
-
         <a href="{% url 'staff-credit' %}"
-          class="nav-link ps-4 {% if current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' %}active{% endif %}">
+          class="nav-link ps-4 {% if current == 'staff-credit' %}active{% endif %}">
           Credit
         </a>
-
         <a href="{% url 'funder-list' %}"
-          class="nav-link ps-4 {% if current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' %}active{% endif %}">
-          Funders
+          class="nav-link ps-4 {% if current == 'funder-list' %}active{% endif %}">
+          Funder
         </a>
-
         <a href="{% url 'online_payments:payment-list' %}"
-          class="nav-link ps-4 {% if current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}active{% endif %}">
+          class="nav-link ps-4 {% if current == 'staff-transactions' %}active{% endif %}">
           Payments
         </a>
-
       </div>
-
     </div>
 
     <!-- Logistics -->
@@ -813,188 +779,229 @@
 
   </aside>
 
-  <!-- MAIN CONTENT -->
+
   <main class="content">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-      <div>
-        <h2 class="m-0">
-          Edit Credit · {{ client.client_number }} · {{ client.name }}
-          {% if client.organization %}<span class="text-muted">— {{ client.organization }}</span>{% endif %}
-        </h2>
-        <div class="meta mt-1">
-          Account updated {{ account.updated_at|date:"Y-m-d H:i" }} · Created {{ account.created_at|date:"Y-m-d H:i" }}
-        </div>
-      </div>
-      <div class="d-flex gap-2">
-        <a href="{% url 'credit-view' client.id %}" class="btn btn-outline-secondary">Back to Credit</a>
-        <a href="{% url 'staff-credit' %}" class="btn btn-outline-secondary">All Credit Accounts</a>
-      </div>
-    </div>
-
-    {% if messages %}
-      <div class="mt-3">
-        {% for message in messages %}
-          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-      </div>
-    {% endif %}
-
-    <!-- SUMMARY STRIP -->
-    <div class="row g-3 mt-3">
-      <!-- Snapshot -->
-      <div class="col-lg-5">
-        <div class="card h-100">
-          <div class="card-header bg-white"><strong>Current Credit Snapshot</strong></div>
-          <div class="card-body">
-            <dl class="row mb-3">
-              <dt class="col-6 col-sm-5">Credit Limit</dt>
-              <dd class="col-6 col-sm-7">R{{ limit|floatformat:2|intcomma }}</dd>
-
-              <dt class="col-6 col-sm-5">Used</dt>
-              <dd class="col-6 col-sm-7">R{{ used|floatformat:2|intcomma }}</dd>
-
-              <dt class="col-6 col-sm-5">Available</dt>
-              <dd class="col-6 col-sm-7">R{{ available|floatformat:2|intcomma }}</dd>
-
-              <dt class="col-6 col-sm-5">Funder</dt>
-              <dd class="col-6 col-sm-7">
-                {% if account.funder %}
-                  {{ account.funder.name }}
-                  · Bal R{{ account.funder.allocatable_balance|floatformat:2|intcomma }}
-                {% else %}
-                  <span class="text-muted">None</span>
-                {% endif %}
-              </dd>
-
-              
-            </dl>
-
-
-            {% if limit > 0 %}
-              {% widthratio used limit 100 as used_pct %}
-            {% else %}
-              {% with 0 as used_pct %}{% endwith %}
-            {% endif %}
-
-            <div class="mb-1 small text-muted">Usage</div>
-            <div class="progress" style="height: 14px;">
-              {% if limit > 0 %}
-                <div class="progress-bar {% if used_pct|floatformat:0 >= 100 %}bg-danger{% elif used_pct|floatformat:0 >= 75 %}bg-warning text-dark{% else %}bg-success{% endif %}"
-                     role="progressbar"
-                     style="width: {{ used_pct|floatformat:0 }}%;"
-                     aria-valuenow="{{ used_pct|floatformat:0 }}" aria-valuemin="0" aria-valuemax="100">
-                  {{ used_pct|floatformat:0 }}%
-                </div>
-              {% else %}
-                <div class="progress-bar bg-secondary" role="progressbar" style="width: 0%;">0%</div>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Edit Form -->
-      <div class="col-lg-7">
-        <div class="card h-100 shadow-sm">
-          <div class="card-header bg-white"><strong>Update Credit Settings</strong></div>
-          <div class="card-body">
-            <form method="post" novalidate>
-              {% csrf_token %}
-              {{ form.non_field_errors }}
-
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label class="form-label" for="{{ form.account_type.id_for_label }}">Account Type</label>
-                  {{ form.account_type }}
-                  {{ form.account_type.errors }}
-                </div>
-
-                <div class="col-md-6">
-                  <label class="form-label" for="{{ form.credit_status.id_for_label }}">Credit Status</label>
-                  {{ form.credit_status }}
-                  {{ form.credit_status.errors }}
-                </div>
-
-                <div class="col-md-6">
-                  <label class="form-label" for="{{ form.payment_term.id_for_label }}">Payment Term</label>
-                  {{ form.payment_term }}
-                  {{ form.payment_term.errors }}
-                </div>
-
-                <div class="col-md-6">
-                  <label class="form-label" for="{{ form.credit_deposit_pct.id_for_label }}">
-                    Deposit Required (%)
-                  </label>
-                  {{ form.credit_deposit_pct }}
-                  {{ form.credit_deposit_pct.errors }}
-                </div>
-
-
-                <div class="col-md-6">
-                  <label class="form-label" for="{{ form.credit_limit.id_for_label }}">Credit Limit (R)</label>
-                  {{ form.credit_limit }}
-                  {{ form.credit_limit.errors }}
-                </div>
-
-                {# ---------- Funder controls ---------- #}
-                <div class="col-md-6">
-                  <label class="form-label" for="{{ form.funder.id_for_label }}">Funder</label>
-                  {{ form.funder }}
-                  <div class="form-text">
-                    Choose an existing funder or
-                    <a class="text-decoration-underline" data-bs-toggle="collapse" href="#newFunderBlock" role="button" aria-expanded="false" aria-controls="newFunderBlock">
-                      add a new one
-                    </a>.
-                  </div>
-                  {{ form.funder.errors }}
-                </div>
-
-                <div class="col-md-6">
-                  <label class="form-label" for="{{ form.edit_funder_weekly_rate_pct.id_for_label }}">Update Selected Funder Weekly %</label>
-                  {{ form.edit_funder_weekly_rate_pct }}
-                  <div class="form-text">Leave blank to keep the current rate.</div>
-                  {{ form.edit_funder_weekly_rate_pct.errors }}
-                </div>
-
-                <div class="col-12">
-                  <div class="collapse" id="newFunderBlock">
-                    <div class="card card-body border-0 shadow-sm">
-                      <div class="row g-3">
-                        <div class="col-md-6">
-                          <label class="form-label" for="{{ form.new_funder_name.id_for_label }}">New Funder Name</label>
-                          {{ form.new_funder_name }}
-                          {{ form.new_funder_name.errors }}
-                        </div>
-                        <div class="col-md-6">
-                          <label class="form-label" for="{{ form.new_funder_weekly_rate_pct.id_for_label }}">New Funder Weekly %</label>
-                          {{ form.new_funder_weekly_rate_pct }}
-                          <div class="form-text">Optional — defaults to 0.00%.</div>
-                          {{ form.new_funder_weekly_rate_pct.errors }}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="col-12">
-                  <label class="form-label" for="{{ form.note.id_for_label }}">Change Note (optional)</label>
-                  {{ form.note }}
-                  {{ form.note.errors }}
-                </div>
-              </div>
-
-              <div class="d-flex gap-2 mt-3">
-                <a class="btn btn-outline-secondary" href="{% url 'credit-view' client.id %}">Cancel</a>
-                <button type="submit" class="btn btn-primary">Save Changes</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-
-    </div>
+    
   </main>
 
+
+  <!-- SWITCH PLATFORM MODAL -->
+  <div class="modal fade"
+      id="switchPlatformModal"
+      tabindex="-1"
+      aria-labelledby="switchPlatformModalLabel"
+      aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+
+        <div class="modal-header justify-content-center position-relative">
+          <h5 class="modal-title w-100 text-center" id="switchPlatformModalLabel">
+            Switch Platform
+          </h5>
+          <button type="button"
+                  class="btn-close position-absolute"
+                  style="right:1rem; top:1rem;"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body text-center">
+          <p class="mb-3 text-muted">Choose a platform to continue:</p>
+
+          <div class="d-grid gap-2">
+
+            <!-- Main Staff Portal -->
+            <a
+              href="{% url 'staff-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_staff_portal %} disabled{% endif %}"
+              {% if not can_staff_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Main Staff Portal
+            </a>
+
+            <!-- Funder Portal -->
+            <a
+              href="{% url 'funder-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_lender_portal %} disabled{% endif %}"
+              {% if not can_lender_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Funder Portal
+            </a>
+
+            <!-- Sales Portal -->
+            <a
+              href="{% url 'sales:sales-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_sales_portal %} disabled{% endif %}"
+              {% if not can_sales_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Sales Portal
+            </a>
+
+            <!-- Logistics Portal -->
+            <a
+              href="{% url 'logistics:logistics-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_logistics_portal %} disabled{% endif %}"
+              {% if not can_logistics_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Logistics Portal
+            </a>
+
+          </div>
+        </div>
+
+        <div class="modal-footer justify-content-center border-0">
+          <small class="text-muted">
+            Platforms you don’t have access to are disabled.
+          </small>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+    <div id="notificationToast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body" id="notificationToastBody">
+          New notification received.
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    // Chart data from Django
+    const labels = {{ sales_labels|safe }};
+    const dataPoints = {{ sales_data|safe }};
+
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Orders',
+          data: dataPoints,
+          tension: 0.3,
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,   // <-- respect CSS heights
+        plugins: {
+          legend: { display: true },
+          tooltip: { mode: 'index', intersect: false }
+        },
+        scales: {
+          x: { title: { display: false } },
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  </script>
+
+  <script>
+  let lastCount = {{ nav_unread_notifications_count|default:0 }};
+
+  function updateBadge(elementId, count) {
+    const badge = document.getElementById(elementId);
+    if (!badge) return;
+
+    if (count > 0) {
+      badge.textContent = count;
+      badge.classList.remove("d-none");
+    } else {
+      badge.textContent = "";
+      badge.classList.add("d-none");
+    }
+  }
+
+  function updateSummaryCounts(data) {
+    const ticket = data.ticket_count || 0;
+    const task = data.task_count || 0;
+
+    // Desktop
+    const dTickets = document.getElementById("desktopOpenTicketsCount");
+    const dTasks = document.getElementById("desktopOpenTasksCount");
+
+    // Mobile
+    const mTickets = document.getElementById("mobileOpenTicketsCount");
+    const mTasks = document.getElementById("mobileOpenTasksCount");
+
+    if (dTickets) dTickets.textContent = ticket;
+    if (dTasks) dTasks.textContent = task;
+    if (mTickets) mTickets.textContent = ticket;
+    if (mTasks) mTasks.textContent = task;
+  }
+
+  function showNotificationToast(message) {
+    const toastEl = document.getElementById("notificationToast");
+    const toastBody = document.getElementById("notificationToastBody");
+    if (!toastEl || !toastBody) return;
+
+    toastBody.textContent = message || "New notification received.";
+    const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 4000 });
+    toast.show();
+  }
+
+  function playNotificationSound() {
+    const audio = new Audio("https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3");
+    audio.play().catch(() => {});
+  }
+
+  function checkNotifications() {
+    fetch("{% url 'notification-count' %}", {
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(res => res.json())
+      .then(data => {
+        const newCount = data.unread_count || 0;
+
+        updateBadge("mobileNotificationBadge", newCount);
+        updateBadge("desktopNotificationBadge", newCount);
+
+        // 🔥 THIS IS WHAT YOU WERE MISSING
+        updateSummaryCounts(data);
+
+        if (newCount > lastCount) {
+          playNotificationSound();
+          showNotificationToast("New notification received.");
+        }
+
+        lastCount = newCount;
+      })
+      .catch(err => {
+        console.error("Notification polling failed:", err);
+      });
+  }
+
+  setTimeout(checkNotifications, 2000);
+  setInterval(checkNotifications, 10000);
+  </script>
+
+  <script>
+    document.addEventListener("click", function (event) {
+      const panel = document.getElementById("desktopNotificationDropdown");
+      const trigger = document.querySelector('[data-bs-target="#desktopNotificationDropdown"]');
+
+      if (!panel || !trigger) return;
+
+      const isClickInsidePanel = panel.contains(event.target);
+      const isClickOnTrigger = trigger.contains(event.target);
+
+      // If click is outside both → close
+      if (!isClickInsidePanel && !isClickOnTrigger) {
+        const collapse = bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false });
+        collapse.hide();
+      }
+    });
+  </script>
 </body>
 </html>

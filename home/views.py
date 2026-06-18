@@ -28,7 +28,7 @@ from django.db import transaction, IntegrityError
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import render
-
+from communications.tasks import notify_department_new_ticket
 from clients.models import Client
 from products.models import Product
 from orders.models import Order
@@ -1270,6 +1270,7 @@ def orders(request):
     })
 
 
+
 def create_support_task_for_new_registration(*, request, client, user):
     """
     Creates a one-time verification task for a newly completed client profile.
@@ -1283,12 +1284,12 @@ def create_support_task_for_new_registration(*, request, client, user):
     ).exists():
         return
 
-    # 🔗 Build client edit URL (DEV / STAGING / LIVE safe)
+    # 🔗 Build client edit URL
     client_edit_url = request.build_absolute_uri(
         reverse("client-edit", args=[client.id])
     )
 
-    Task.objects.create(
+    task = Task.objects.create(
         title=f"Verify new client: {client.name}",
         description=(
             f"A new client has completed their profile and requires verification.\n\n"
@@ -1308,7 +1309,11 @@ def create_support_task_for_new_registration(*, request, client, user):
         object_id=client.id,
     )
 
-    
+    # Send email notification
+    notify_new_task(task.pk)
+   
+
+
 def _user_can_access_order(user, order) -> bool:
     if user.is_staff or user.is_superuser:
         return True
@@ -1421,10 +1426,14 @@ def contact(request):
             created_by=request.user if request.user.is_authenticated else None,
         )
 
+        # Send notification email to department
+        notify_department_new_ticket(ticket.pk)
+
         messages.success(
             request,
             f"Thank you, your message has been received. Ticket #{ticket.id} has been created."
         )
+
         return redirect("contact")
 
     return render(request, "home/contact.html")

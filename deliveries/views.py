@@ -71,6 +71,9 @@ def warehouse(request):
     }
     return render(request, "deliveries/warehouse.html", context)
 
+
+
+
 @login_required
 @staff_required
 def delivery(request):
@@ -155,6 +158,8 @@ def warehouse_batch_detail(request, batch_id):
         "deliveries/picking_view.html",
         context,
     )
+
+
 
 @login_required
 def warehouse_batch_consolidation(request, batch_id):
@@ -406,6 +411,8 @@ def picking_create_wave(request):
     ...
     return redirect(f"{reverse('warehouse')}?view=warehouse")  # ✅ fixed
 
+
+
 def picking_start(request, pk: int):
     batch = get_object_or_404(PickingBatch, pk=pk)
     if batch.status == "draft":
@@ -417,6 +424,8 @@ def picking_start(request, pk: int):
     else:
         messages.info(request, "This batch is not in 'draft' state.")
     return redirect(f"{reverse('warehouse')}?view=warehouse")  # ✅
+
+
 
 @login_required
 @staff_required
@@ -511,6 +520,8 @@ def run_start(request, pk: int):
     return redirect("run-view", pk=pk)
 
 
+
+
 @login_required
 @staff_required
 @require_POST
@@ -550,6 +561,8 @@ def run_recalc(request, pk: int):
     return redirect("run-view", pk=pk)
 
 
+
+
 @login_required
 @staff_required
 @require_POST
@@ -561,6 +574,8 @@ def run_auto_plan(request, pk: int):
     except Exception as e:
         messages.error(request, f"Auto-plan failed: {e}")
     return redirect("run-view", pk=pk)
+
+
 
 
 @login_required
@@ -643,6 +658,8 @@ def monitor(request):
     )
 
 
+
+
 @login_required
 def vehicle_log(request, vehicle_id):
     vehicle = get_object_or_404(Vehicle, id=vehicle_id)
@@ -664,6 +681,8 @@ def vehicle_log(request, vehicle_id):
         "deliveries/vehicle_log.html",
         context,
     )
+
+
 
 @login_required
 def run_log_view(request, run_id):
@@ -695,4 +714,11 @@ def run_log_view(request, run_id):
         "deliveries/run_log.html",
         context,
     )
+
+
+@login_required
+@staff_required
+def staff_logistics_dashboard(request):
+    return render(request, "deliveries/staff_logistics_dashboard.html")
+
 

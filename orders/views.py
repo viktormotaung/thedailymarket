@@ -1971,6 +1971,9 @@ def send_quotation_email_internal(request, pk):
     return JsonResponse({"success": True})
 
 
-
+@login_required
+@staff_required
+def staff_sales_dashboard(request):
+    return render(request, "orders/staff_sales_dashboard.html")
 
 

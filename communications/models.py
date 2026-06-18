@@ -292,4 +292,21 @@ class WhatsAppMessage(models.Model):
         return f"{self.template_name} -> {self.recipient}"
     
 
+class EmailLog(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    recipient = models.EmailField()
+
+    subject = models.CharField(max_length=255)
+
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("sent", "Sent"),
+            ("failed", "Failed"),
+        ]
+    )
+
+    error_message = models.TextField(
+        blank=True
+    )

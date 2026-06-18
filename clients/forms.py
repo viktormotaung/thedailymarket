@@ -454,6 +454,10 @@ class ProspectForm(forms.ModelForm):
             "province",
             "postal_code",
             "country",
+            
+            # ---- Location geo ----
+            "lat",
+            "lng",
 
             # ---- Preferred Delivery Slots ----
             "preferred_delivery_slot_1",
@@ -522,6 +526,16 @@ class ProspectForm(forms.ModelForm):
             "postal_code": forms.TextInput(attrs={"class": "form-control"}),
             "country": forms.TextInput(attrs={"class": "form-control"}),
 
+            "lat": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.000001",
+            }),
+
+            "lng": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.000001",
+            }),
+
             # Preferred Delivery Slots
             "preferred_delivery_slot_1": forms.Select(attrs={"class": "form-select"}),
             "preferred_delivery_slot_2": forms.Select(attrs={"class": "form-select"}),
@@ -588,6 +602,9 @@ class ProspectForm(forms.ModelForm):
         )
 
         self.fields["country"].initial = "South Africa"
+
+        self.fields["lat"].label = "Latitude"
+        self.fields["lng"].label = "Longitude"
 
         for day_code, day_label in ProspectOperatingHours.DAY_CHOICES:
             self.fields[f"{day_code}_is_closed"] = forms.BooleanField(

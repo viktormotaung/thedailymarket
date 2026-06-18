@@ -294,3 +294,9 @@ def transaction_delete(request, pk):
 
     # GET -> simple confirmation page (if someone opens the URL directly)
     return render(request, "transactions/transaction_confirm_delete.html", {"tx": tx})
+
+
+@login_required
+@staff_required
+def staff_finance_dashboard(request):
+    return render(request, "transactions/staff_finance_dashboard.html")

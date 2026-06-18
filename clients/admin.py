@@ -365,6 +365,7 @@ class ProspectAdmin(admin.ModelAdmin):
         "area",
         "city",
         "province",
+        "has_geo",
         "estimated_weekly_spend",
         "last_contact_at",
         "created_at",
@@ -405,6 +406,7 @@ class ProspectAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
         "last_contact_at",
+        "maps_link",
     )
 
     date_hierarchy = "created_at"
@@ -437,6 +439,8 @@ class ProspectAdmin(admin.ModelAdmin):
                 ("suburb", "city"),
                 ("province", "postal_code"),
                 "country",
+                ("lat", "lng"),
+                "maps_link",
             ),
         }),
         ("Potential Value", {
@@ -476,6 +480,20 @@ class ProspectAdmin(admin.ModelAdmin):
             "classes": ("collapse",),
         }),
     )
+
+    @admin.display(boolean=True, description="Geo?")
+    def has_geo(self, obj: Prospect):
+        return obj.has_geo
+
+
+    @admin.display(description="Map")
+    def maps_link(self, obj: Prospect):
+        url = obj.google_maps_link()
+
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener">Open map</a>',
+            url,
+        )
 
     filter_horizontal = ("categories",)
 
