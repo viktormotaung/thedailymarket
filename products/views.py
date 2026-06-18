@@ -158,6 +158,10 @@ def product_list(request):
         },
     )
 
+
+
+
+
 @login_required
 @staff_required
 def download_price_list(request):
@@ -168,14 +172,19 @@ def download_price_list(request):
         .select_related("category", "category__parent")
         .prefetch_related("pricing_rows")
         .filter(category__parent__isnull=False)
-        .order_by("category__parent__name", "category__name", "name")
+        .order_by("product_no")
     )
 
     if subcategory_ids:
         qs = qs.filter(category_id__in=subcategory_ids)
 
     response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = 'attachment; filename="The Daily Market Price List.pdf"'
+
+    # Force browser/phone download
+    response["Content-Type"] = "application/pdf"
+    response["Content-Disposition"] = (
+        'attachment; filename="The_Daily_Market_Price_List.pdf"'
+    )
 
     doc = SimpleDocTemplate(
         response,
@@ -233,49 +242,63 @@ def download_price_list(request):
     # =========================
     # HEADER
     # =========================
-    elements.append(Paragraph(
-        "Reg: 2024/232233/07",
-        styles["Normal"]
-    ))
+    elements.append(
+        Paragraph(
+            "Reg: 2024/232233/07",
+            styles["Normal"]
+        )
+    )
 
-    elements.append(Paragraph(
-        "Whatsapp: 062 231 1902",
-        styles["Normal"]
-    ))
+    elements.append(
+        Paragraph(
+            "Whatsapp: 062 231 1902",
+            styles["Normal"]
+        )
+    )
 
-    elements.append(Paragraph(
-        "info@thedailymarket.co.za / www.thedailymarket.co.za",
-        styles["Normal"]
-    ))
+    elements.append(
+        Paragraph(
+            "info@thedailymarket.co.za / www.thedailymarket.co.za",
+            styles["Normal"]
+        )
+    )
 
     elements.append(Spacer(1, 10))
 
-    elements.append(Paragraph(
-        "<b>Product Price List</b>",
-        styles["Heading2"]
-    ))
+    elements.append(
+        Paragraph(
+            "<b>Product Price List</b>",
+            styles["Heading2"]
+        )
+    )
 
     elements.append(Spacer(1, 12))
 
     # =========================
     # TABLE DATA
     # =========================
-    data = [["Category", "Subcategory", "Product", "Price (Incl)"]]
+    data = [["Category", "Subcategory", "Product", "Price (Incl VAT)"]]
 
     for product in qs:
         prices = [
-            row.retail_price_inc
+            row.wholesale_price_inc
             for row in product.pricing_rows.all()
-            if row.is_active and row.retail_price_inc is not None
+            if row.is_active and row.wholesale_price_inc is not None
         ]
 
         price = min(prices) if prices else None
 
         data.append([
-            product.category.parent.name if product.category and product.category.parent else "—",
-            product.category.name if product.category else "—",
+            product.category.parent.name
+            if product.category and product.category.parent else "—",
+
+            product.category.name
+            if product.category else "—",
+
             product.name,
-            f"R{price:.2f}" if price else "—",
+
+            f"R{price:.2f}"
+            if price is not None else "—",
         ])
 
     # =========================
@@ -292,18 +315,20 @@ def download_price_list(request):
         repeatRows=1,
     )
 
-    table.setStyle(TableStyle([
-        ("GRID", (0, 0), (-1, -1), 0.4, colors.black),
+    table.setStyle(
+        TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.black),
 
-        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
 
-        ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
 
-        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
-        ("ALIGN", (3, 1), (3, -1), "RIGHT"),
-    ]))
+            ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+            ("ALIGN", (3, 1), (3, -1), "RIGHT"),
+        ])
+    )
 
     elements.append(table)
 
@@ -317,6 +342,9 @@ def download_price_list(request):
     )
 
     return response
+
+
+
 
 @login_required
 @require_POST
