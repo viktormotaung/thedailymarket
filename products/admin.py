@@ -100,6 +100,9 @@ class ProductAdmin(admin.ModelAdmin):
         "updated_at",
     )
 
+    # ✅ Sort admin by Product Number
+    ordering = ("product_no",)
+
     search_fields = (
         "sku",
         "product_no",
@@ -153,7 +156,7 @@ class ProductAdmin(admin.ModelAdmin):
         }),
     )
 
-    # ✅ ADMIN ACTION (THIS IS WHAT MAKES IT APPEAR)
+    # ✅ ADMIN ACTION
     actions = ["import_products_excel_action"]
 
     def import_products_excel_action(self, request, queryset):
@@ -163,7 +166,9 @@ class ProductAdmin(admin.ModelAdmin):
         """
         return redirect("admin:products_product_import_excel")
 
-    import_products_excel_action.short_description = "📥 Import / Update Products from Excel"
+    import_products_excel_action.short_description = (
+        "📥 Import / Update Products from Excel"
+    )
 
     # ✅ CUSTOM URL FOR UPLOAD SCREEN
     def get_urls(self):
@@ -178,7 +183,6 @@ class ProductAdmin(admin.ModelAdmin):
         return custom_urls + urls
 
     # ✅ UPLOAD VIEW
-    # ✅ UPLOAD VIEW
     def import_excel(self, request):
 
         # 🔥 FORCE DB BASED ON ADMIN SITE
@@ -189,21 +193,26 @@ class ProductAdmin(admin.ModelAdmin):
 
         if request.method == "POST":
             form = ProductExcelUploadForm(request.POST, request.FILES)
+
             if form.is_valid():
                 try:
                     result = import_products_from_excel(
                         form.cleaned_data["excel_file"],
-                        db=request._db   # ✅ THIS IS THE FIX
+                        db=request._db
                     )
+
                     messages.success(
                         request,
                         f"Import successful: "
                         f"{result['created']} created, "
                         f"{result['updated']} updated."
                     )
+
                     return redirect("..")
+
                 except Exception as e:
                     messages.error(request, f"Import failed: {e}")
+
         else:
             form = ProductExcelUploadForm()
 
@@ -212,8 +221,9 @@ class ProductAdmin(admin.ModelAdmin):
             "admin/products/import_excel.html",
             {"form": form},
         )
+    
 
-
+    
 # ------------------------------------------------------------------------------
 # PRODUCT VARIANT ADMIN
 # ------------------------------------------------------------------------------

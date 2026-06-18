@@ -396,6 +396,42 @@
 
       </div>
 
+      <!-- Support -->
+      <div class="mb-2">
+
+        <a class="nav-link d-flex justify-content-between {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}active{% endif %}"
+          data-bs-toggle="collapse"
+          href="#supportMenuMobile"
+          aria-controls="supportMenuMobile"
+          aria-expanded="{% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}true{% else %}false{% endif %}">
+
+          <span>Support</span>
+
+        </a>
+
+        <div class="collapse {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}show{% endif %}"
+            id="supportMenuMobile"
+            data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'staff-support-dashboard' %}"
+            class="nav-link ps-4 {% if current == 'staff-support-dashboard' %}active{% endif %}">
+            Dashboard
+          </a>
+
+          <a href="{% url 'tasks' %}"
+            class="nav-link ps-4 {% if current == 'tasks' or current == 'task_view' %}active{% endif %}">
+            Tasks
+          </a>
+
+          <a href="{% url 'tickets' %}"
+            class="nav-link ps-4 {% if current == 'tickets' or current == 'ticket_view' %}active{% endif %}">
+            Tickets
+          </a>
+
+        </div>
+
+      </div>
+
       
 
       <!-- Profiles -->
@@ -728,6 +764,43 @@
         <a href="{% url 'staff-products' %}"
           class="nav-link ps-4 {% if current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}active{% endif %}">
           Products
+        </a>
+
+      </div>
+
+    </div>
+
+
+    <!-- Support -->
+    <div class="mb-2">
+
+      <a class="nav-link d-flex justify-content-between {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}active{% endif %}"
+        data-bs-toggle="collapse"
+        href="#supportMenuDesktop"
+        aria-controls="supportMenuDesktop"
+        aria-expanded="{% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}true{% else %}false{% endif %}">
+
+        <span>Support</span>
+
+      </a>
+
+      <div class="collapse {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}show{% endif %}"
+          id="supportMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'staff-support-dashboard' %}"
+          class="nav-link ps-4 {% if current == 'staff-support-dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
+
+        <a href="{% url 'tasks' %}"
+          class="nav-link ps-4 {% if current == 'tasks' or current == 'task_view' %}active{% endif %}">
+          Tasks
+        </a>
+
+        <a href="{% url 'tickets' %}"
+          class="nav-link ps-4 {% if current == 'tickets' or current == 'ticket_view' %}active{% endif %}">
+          Tickets
         </a>
 
       </div>

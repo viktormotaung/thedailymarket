@@ -18,7 +18,7 @@ from django.shortcuts import redirect, render, get_object_or_404
 from decimal import Decimal
 from django.db.models import Count, Q, Min, Max, Avg, Sum, F, DecimalField, ExpressionWrapper
 from django.apps import apps
-
+from django.utils import timezone
 from products.models import Product, Category, ProductPricing, ProductVariant
 from django.core.exceptions import ValidationError
 from django.contrib import messages
@@ -78,7 +78,7 @@ def product_list(request):
         Product.objects
         .select_related("category")
         .prefetch_related("pricing_rows__supplier")
-        .order_by("name")
+        .order_by("product_no")   # ← changed from name
     )
 
     # Filters
@@ -118,8 +118,16 @@ def product_list(request):
         min_retail_inc = None
 
         if active_rows:
-            w_vals = [r.wholesale_price_inc for r in active_rows if r.wholesale_price_inc is not None]
-            r_vals = [r.retail_price_inc for r in active_rows if r.retail_price_inc is not None]
+            w_vals = [
+                r.wholesale_price_inc
+                for r in active_rows
+                if r.wholesale_price_inc is not None
+            ]
+            r_vals = [
+                r.retail_price_inc
+                for r in active_rows
+                if r.retail_price_inc is not None
+            ]
 
             if w_vals:
                 min_wholesale_inc = min(w_vals)
@@ -149,7 +157,6 @@ def product_list(request):
             "price_list_subcategories": price_list_subcategories,
         },
     )
-
 
 @login_required
 @staff_required
@@ -183,6 +190,27 @@ def download_price_list(request):
     elements = []
 
     # =========================
+    # FOOTER
+    # =========================
+    generated_at = timezone.localtime().strftime("%d %b %Y %H:%M")
+
+    def add_footer(canvas, doc):
+        canvas.saveState()
+
+        footer_text = (
+            f"Generated on {generated_at} | Page {canvas.getPageNumber()}"
+        )
+
+        canvas.setFont("Helvetica", 8)
+        canvas.drawCentredString(
+            A4[0] / 2,
+            0.7 * cm,
+            footer_text
+        )
+
+        canvas.restoreState()
+
+    # =========================
     # LOGO
     # =========================
     logo_path = os.path.join(
@@ -205,8 +233,6 @@ def download_price_list(request):
     # =========================
     # HEADER
     # =========================
-    
-
     elements.append(Paragraph(
         "Reg: 2024/232233/07",
         styles["Normal"]
@@ -284,11 +310,13 @@ def download_price_list(request):
     # =========================
     # BUILD PDF
     # =========================
-    doc.build(elements)
+    doc.build(
+        elements,
+        onFirstPage=add_footer,
+        onLaterPages=add_footer
+    )
 
     return response
-
-
 
 @login_required
 @require_POST

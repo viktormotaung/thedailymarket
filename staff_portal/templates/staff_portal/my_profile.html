@@ -181,12 +181,12 @@
         <img src="{% static 'images/logo.png' %}" class="logo-img">
       </div>
 
-      <h7 class="text-uppercase fw-semibold mb-2 text-center">
+      <h6 class="text-uppercase fw-semibold mb-2 text-center small">
         <a href="#"
           class="text-decoration-none text-reset d-block">
           Main Staff Platform
         </a>
-      </h7>
+      </h6>
 
     <hr class="border-light">
 
@@ -396,6 +396,42 @@
 
       </div>
 
+      <!-- Support -->
+      <div class="mb-2">
+
+        <a class="nav-link d-flex justify-content-between {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}active{% endif %}"
+          data-bs-toggle="collapse"
+          href="#supportMenuMobile"
+          aria-controls="supportMenuMobile"
+          aria-expanded="{% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}true{% else %}false{% endif %}">
+
+          <span>Support</span>
+
+        </a>
+
+        <div class="collapse {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}show{% endif %}"
+            id="supportMenuMobile"
+            data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'staff-support-dashboard' %}"
+            class="nav-link ps-4 {% if current == 'staff-support-dashboard' %}active{% endif %}">
+            Dashboard
+          </a>
+
+          <a href="{% url 'tasks' %}"
+            class="nav-link ps-4 {% if current == 'tasks' or current == 'task_view' %}active{% endif %}">
+            Tasks
+          </a>
+
+          <a href="{% url 'tickets' %}"
+            class="nav-link ps-4 {% if current == 'tickets' or current == 'ticket_view' %}active{% endif %}">
+            Tickets
+          </a>
+
+        </div>
+
+      </div>
+
       
 
       <!-- Profiles -->
@@ -435,33 +471,7 @@
       </div>
 
 
-      <!-- Profiles -->
-      <div class="mb-2">
-        <a class="nav-link d-flex justify-content-between {% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}active{% endif %}"
-          data-bs-toggle="collapse"
-          href="#profilesMenuMobile"
-          aria-controls="profilesMenuMobile"
-          aria-expanded="{% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}true{% else %}false{% endif %}">
-            <span>Profiles</span>
-        </a>
-
-        <div class="collapse {% if current == 'my_profile' or current == 'staff_profile' or current == 'customer_profile' %}show{% endif %}"
-          id="profilesMenuMobile"
-          data-bs-parent="#mobileAccordion">
-          <a href="{% url 'my_profile' %}"
-            class="nav-link ps-4 {% if current == 'my_profile' %}active{% endif %}">
-            My Profile
-          </a>
-          <a href="{% url 'staff_profile' %}"
-            class="nav-link ps-4 {% if current == 'staff_profile' %}active{% endif %}">
-            Staff
-          </a>
-          <a href="{% url 'customer_profile' %}"
-            class="nav-link ps-4 {% if current == 'customer_profile' %}active{% endif %}">
-            Customer
-          </a>
-        </div>
-      </div>
+      
 
       <hr class="border-light">
 
@@ -545,12 +555,12 @@
       </div>
     </div>
 
-    <h7 class="text-uppercase fw-semibold mb-2">
+    <h6 class="text-uppercase fw-semibold mb-2 text-center small">
       <a href="#"
-        class="text-decoration-none text-reset">
+        class="text-decoration-none text-reset d-block">
         Main Staff Platform
       </a>
-    </h7>
+    </h6>
 
     <hr class="border-light">
 
@@ -760,6 +770,43 @@
 
     </div>
 
+
+    <!-- Support -->
+    <div class="mb-2">
+
+      <a class="nav-link d-flex justify-content-between {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}active{% endif %}"
+        data-bs-toggle="collapse"
+        href="#supportMenuDesktop"
+        aria-controls="supportMenuDesktop"
+        aria-expanded="{% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}true{% else %}false{% endif %}">
+
+        <span>Support</span>
+
+      </a>
+
+      <div class="collapse {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}show{% endif %}"
+          id="supportMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'staff-support-dashboard' %}"
+          class="nav-link ps-4 {% if current == 'staff-support-dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
+
+        <a href="{% url 'tasks' %}"
+          class="nav-link ps-4 {% if current == 'tasks' or current == 'task_view' %}active{% endif %}">
+          Tasks
+        </a>
+
+        <a href="{% url 'tickets' %}"
+          class="nav-link ps-4 {% if current == 'tickets' or current == 'ticket_view' %}active{% endif %}">
+          Tickets
+        </a>
+
+      </div>
+
+    </div>
+
     
 
     <!-- Profiles -->
@@ -800,6 +847,7 @@
 
 
     
+
     <hr class="border-light">
 
     <!-- Switch Platform -->
