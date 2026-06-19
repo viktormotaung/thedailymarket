@@ -325,6 +325,9 @@ class ClientForm(forms.ModelForm):
 
         return client
 
+
+
+
 # -------------------------------------------------
 # Lightweight “quick create” form (front-office)
 # -------------------------------------------------
@@ -385,6 +388,8 @@ class ClientQuickCreateForm(forms.ModelForm):
         return cleaned
 
 
+
+
 # -------------------------------------------------
 # Contact-only updater (useful for “Edit Contact”)
 # -------------------------------------------------
@@ -400,6 +405,8 @@ class ClientContactForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for f in self.fields.values():
             _add_bs_classes(f)
+
+
 
 
 # -------------------------------------------------
@@ -681,10 +688,27 @@ class ProspectForm(forms.ModelForm):
                 open_time = self.cleaned_data.get(f"{day_code}_open")
                 close_time = self.cleaned_data.get(f"{day_code}_close")
 
-                hours, _ = ProspectOperatingHours.objects.get_or_create(
+                DAY_ORDER_MAP = {
+                    "MON": 1,
+                    "TUE": 2,
+                    "WED": 3,
+                    "THU": 4,
+                    "FRI": 5,
+                    "SAT": 6,
+                    "SUN": 7,
+                }
+
+                hours, created = ProspectOperatingHours.objects.get_or_create(
                     prospect=prospect,
                     day=day_code,
+                    defaults={
+                        "day_order": DAY_ORDER_MAP[day_code],
+                    },
                 )
+
+                # For old records that may already exist
+                if not hours.day_order:
+                    hours.day_order = DAY_ORDER_MAP[day_code]
 
                 hours.is_closed = bool(is_closed)
                 hours.open_time = None if is_closed else open_time

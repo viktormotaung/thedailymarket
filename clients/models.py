@@ -551,7 +551,7 @@ class ClientOperatingHours(models.Model):
 
     class Meta:
         unique_together = ("client", "day")
-        ordering = ["day"]
+        ordering = ["day_order"]
 
     def __str__(self):
         return f"{self.client} - {self.get_day_display()}"
@@ -1041,6 +1041,7 @@ class Prospect(models.Model):
         notes="",
         new_stage=None,
         action_at=None,
+        touch_last_contact=False,
     ):
         """
         Helper for quickly logging ProspectUpdate entries.
@@ -1052,6 +1053,10 @@ class Prospect(models.Model):
         if new_stage and new_stage != self.stage:
             self.stage = new_stage
             self.save(update_fields=["stage", "updated_at"])
+
+        if touch_last_contact:
+            self.last_contact_at = action_at or timezone.now()
+            self.save(update_fields=["last_contact_at"])
 
         return ProspectUpdate.objects.create(
             prospect=self,
@@ -1071,6 +1076,16 @@ class Prospect(models.Model):
     
 class ProspectOperatingHours(models.Model):
     DAY_CHOICES = ClientOperatingHours.DAY_CHOICES
+
+    DAY_ORDER_MAP = {
+        "MON": 1,
+        "TUE": 2,
+        "WED": 3,
+        "THU": 4,
+        "FRI": 5,
+        "SAT": 6,
+        "SUN": 7,
+    }
 
     prospect = models.ForeignKey(
         Prospect,
@@ -1092,7 +1107,7 @@ class ProspectOperatingHours(models.Model):
 
     class Meta:
         unique_together = ("prospect", "day")
-        ordering = ["day"]
+        ordering = ["day_order"]
 
     def __str__(self):
         return f"{self.prospect} - {self.get_day_display()}"
@@ -1119,7 +1134,12 @@ class ProspectOperatingHours(models.Model):
             raise ValidationError(errors)
         
     def save(self, *args, **kwargs):
+
+        if not self.day_order:
+            self.day_order = self.DAY_ORDER_MAP.get(self.day)
+
         self.full_clean()
+
         super().save(*args, **kwargs)
     
 

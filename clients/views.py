@@ -25,6 +25,12 @@ from decimal import Decimal
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from .forms import ClientEditForm, ClientComplianceForm, ClientComplianceDocumentForm, ClientComplianceDocumentStatusForm, ClientForm, ClientOperationsForm
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db.models import Count
+from django.utils import timezone
+from collections import defaultdict
+
+from clients.models import Client, Prospect
 
 
 def _bs(extra_class=None):
@@ -919,7 +925,175 @@ def prospect_detail(request, pk: int):
 
 
 
+
+
 @login_required
 @staff_required
 def client_dashboard(request):
-    return render(request, "clients/client_dashboard.html")
+
+    today = timezone.now()
+    start_of_month = today.replace(day=1)
+
+    # --------------------------------------------------
+    # PROSPECTS THIS MONTH
+    # --------------------------------------------------
+    prospects_this_month = Prospect.objects.filter(
+        created_at__gte=start_of_month
+    ).count()
+
+    # --------------------------------------------------
+    # CONVERSION RATE
+    # --------------------------------------------------
+    total_prospects = Prospect.objects.count()
+
+    won_prospects = Prospect.objects.filter(
+        stage="WON"
+    ).count()
+
+    conversion_rate = round(
+        (won_prospects / total_prospects * 100),
+        1
+    ) if total_prospects else 0
+
+    # --------------------------------------------------
+    # CLIENT TOTALS
+    # --------------------------------------------------
+    total_clients = Client.objects.count()
+
+    active_clients = Client.objects.filter(
+        status="ACTIVE"
+    ).count()
+
+    inactive_clients = Client.objects.filter(
+        status="INACTIVE"
+    ).count()
+
+    # --------------------------------------------------
+    # CLIENT AREA BREAKDOWN
+    # --------------------------------------------------
+    area_summary = (
+        Client.objects
+        .values("area")
+        .annotate(total=Count("id"))
+        .order_by("-total")
+    )
+
+    area_percentages = []
+
+    for row in area_summary:
+
+        pct = round(
+            (row["total"] / total_clients * 100),
+            1
+        ) if total_clients else 0
+
+        area_percentages.append(
+            {
+                "area": row["area"],
+                "count": row["total"],
+                "percent": pct,
+            }
+        )
+
+    # --------------------------------------------------
+    # MAP DATA
+    # --------------------------------------------------
+
+    map_points = []
+
+    # Active clients = GREEN
+    for client in Client.objects.filter(
+        status="ACTIVE"
+    ).exclude(
+        delivery_lat__isnull=True
+    ).exclude(
+        delivery_lng__isnull=True
+    ):
+
+        map_points.append({
+            "type": "client",
+            "status": "ACTIVE",
+            "name": client.name,
+            "lat": float(client.delivery_lat),
+            "lng": float(client.delivery_lng),
+            "color": "green",
+        })
+
+    # Inactive clients = RED
+    for client in Client.objects.filter(
+        status="INACTIVE"
+    ).exclude(
+        delivery_lat__isnull=True
+    ).exclude(
+        delivery_lng__isnull=True
+    ):
+
+        map_points.append({
+            "type": "client",
+            "status": "INACTIVE",
+            "name": client.name,
+            "lat": float(client.delivery_lat),
+            "lng": float(client.delivery_lng),
+            "color": "red",
+        })
+
+    # Active prospects = BLUE
+    for prospect in Prospect.objects.exclude(
+        stage="LOST"
+    ).exclude(
+        lat__isnull=True
+    ).exclude(
+        lng__isnull=True
+    ):
+
+        map_points.append({
+            "type": "prospect",
+            "status": prospect.stage,
+            "name": prospect.name,
+            "lat": float(prospect.lat),
+            "lng": float(prospect.lng),
+            "color": "blue",
+        })
+
+    # Lost prospects = RED
+    for prospect in Prospect.objects.filter(
+        stage="LOST"
+    ).exclude(
+        lat__isnull=True
+    ).exclude(
+        lng__isnull=True
+    ):
+
+        map_points.append({
+            "type": "prospect",
+            "status": "LOST",
+            "name": prospect.name,
+            "lat": float(prospect.lat),
+            "lng": float(prospect.lng),
+            "color": "red",
+        })
+
+    context = {
+
+        # KPI cards
+        "prospects_this_month": prospects_this_month,
+        "total_prospects": total_prospects,
+        "won_prospects": won_prospects,
+        "conversion_rate": conversion_rate,
+
+        "total_clients": total_clients,
+        "active_clients": active_clients,
+        "inactive_clients": inactive_clients,
+
+        # Charts
+        "area_percentages": area_percentages,
+
+        # Map
+        "map_points": map_points,
+    }
+
+    return render(
+        request,
+        "clients/client_dashboard.html",
+        context,
+    )
