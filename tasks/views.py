@@ -16,7 +16,7 @@ from django.db.models import Q, Count
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from profiles.models import StaffProfile
-
+from profiles.models import Department
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from tasks.models import Notification
@@ -167,7 +167,7 @@ def tasks(request):
         "choices": {
             "status": Task.Status.choices,
             "priority": Task.Priority.choices,
-            "department": Task.Department.choices,
+            "department": Department.objects.all(),
         },
         "ui": {
             "period_options": [7, 14, 30, 60],
@@ -238,7 +238,11 @@ def task_view(request, pk):
 
         elif notification.scope == Notification.Scope.DEPARTMENT:
             staff = getattr(request.user, "staff_profile", None)
-            if staff and staff.status == "active" and staff.department == notification.department:
+            if (
+                staff
+                and staff.status == "active"
+                and notification.department in staff.departments.all()
+            ):
                 notification.mark_opened(request.user)
 
     # Load staff for dropdown
@@ -373,10 +377,14 @@ def notification_count(request):
     staff = getattr(user, "staff_profile", None)
     department_qs = Notification.objects.none()
 
-    if staff and staff.status == "active" and staff.departments:
+    if (
+        staff
+        and staff.status == "active"
+        and staff.departments.exists()
+    ):
         department_qs = Notification.objects.filter(
             scope=Notification.Scope.DEPARTMENT,
-            department=staff.departments,
+            department__in=staff.departments.all(),
         )
 
     all_qs = (individual_qs | department_qs).distinct()
@@ -477,7 +485,7 @@ def tickets(request):
             "choices": {
                 "status": Ticket.Status.choices,
                 "priority": Ticket.Priority.choices,
-                "department": Ticket.Department.choices,
+                "department": Department.objects.all(),
                 "ticket_type": Ticket.TicketType.choices,
                 "source": Ticket.Source.choices,
             },
@@ -518,7 +526,7 @@ def ticket_view(request, pk):
             if (
                 staff
                 and staff.status == "active"
-                and staff.department == notification.department
+                and notification.department in staff.departments.all()
             ):
                 notification.mark_opened(request.user)
 

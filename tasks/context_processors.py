@@ -1,5 +1,3 @@
-# tasks/context_processors.py
-# tasks/context_processors.py
 from django.db.utils import OperationalError, ProgrammingError
 
 from tasks.models import Notification
@@ -20,10 +18,14 @@ def notification_context(request):
         staff = getattr(user, "staff_profile", None)
         department_qs = Notification.objects.none()
 
-        if staff and staff.status == "active" and staff.departments:
+        if (
+            staff
+            and staff.status == "active"
+            and staff.departments.exists()
+        ):
             department_qs = Notification.objects.filter(
                 scope=Notification.Scope.DEPARTMENT,
-                department=staff.departments,
+                department__in=staff.departments.all(),
             )
 
         notifications = (

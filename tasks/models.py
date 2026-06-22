@@ -4,12 +4,95 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from datetime import timedelta
+
+
+def calculate_sla_due(priority, start_dt):
+
+    hours_map = {
+        Task.Priority.LOW: 72,
+        Task.Priority.MEDIUM: 48,
+        Task.Priority.HIGH: 24,
+        Task.Priority.URGENT: 4,
+    }
+
+    return start_dt + timedelta(
+        hours=hours_map.get(priority, 48)
+    )
 
 
 User = settings.AUTH_USER_MODEL
 
 
 
+
+class BusinessDay(models.Model):
+    class Day(models.IntegerChoices):
+        MONDAY = 0, "Monday"
+        TUESDAY = 1, "Tuesday"
+        WEDNESDAY = 2, "Wednesday"
+        THURSDAY = 3, "Thursday"
+        FRIDAY = 4, "Friday"
+        SATURDAY = 5, "Saturday"
+        SUNDAY = 6, "Sunday"
+
+    day = models.PositiveSmallIntegerField(
+        choices=Day.choices,
+        unique=True,
+    )
+
+    is_open = models.BooleanField(default=True)
+
+    opens_at = models.TimeField(
+        null=True,
+        blank=True,
+    )
+
+    closes_at = models.TimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["day"]
+        verbose_name = "Business Day"
+        verbose_name_plural = "Business Days"
+
+    def __str__(self):
+        return self.get_day_display()
+    
+    @classmethod
+    def is_business_day(cls, dt):
+
+        # Public holiday?
+        if PublicHoliday.objects.filter(date=dt.date()).exists():
+            return False
+
+        business_day = cls.objects.filter(
+            day=dt.weekday(),
+            is_open=True,
+        ).first()
+
+        return business_day is not None
+    
+
+    
+class PublicHoliday(models.Model):
+    name = models.CharField(
+        max_length=100,
+    )
+
+    date = models.DateField(
+        unique=True,
+    )
+
+    class Meta:
+        ordering = ["date"]
+        verbose_name = "Public Holiday"
+        verbose_name_plural = "Public Holidays"
+
+    def __str__(self):
+        return f"{self.date} - {self.name}"
 
 
 class Task(models.Model):
@@ -23,16 +106,6 @@ class Task(models.Model):
         MEDIUM = "MEDIUM", "Medium"
         HIGH = "HIGH", "High"
         URGENT = "URGENT", "Urgent"
-
-    class Department(models.TextChoices):
-        SUPPORT = "SUPPORT", "Support"
-        ACCOUNTS = "ACCOUNTS", "Accounts"
-        SALES = "SALES", "Sales"
-        COMPLIANCE = "COMPLIANCE", "Compliance"
-        SUPPLY_CHAIN = "SUPPLY_CHAIN", "Supply Chain"
-        OPERATIONS = "OPERATIONS", "Operations"
-        LOGISTICS = "LOGISTICS", "Logistics"
-        FINANCE = "FINANCE", "Finance"
 
     class TaskType(models.TextChoices):
         GENERAL = "GENERAL", "General"
@@ -69,10 +142,12 @@ class Task(models.Model):
         default=Priority.MEDIUM,
         db_index=True,
     )
-    department = models.CharField(
-        max_length=20,
-        choices=Department.choices,
-        default=Department.SUPPORT,
+    department = models.ForeignKey(
+        "profiles.Department",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tasks",
         db_index=True,
     )
     task_type = models.CharField(
@@ -118,10 +193,28 @@ class Task(models.Model):
         related_name="tasks",
     )
 
-    # Timing
-    due_at = models.DateTimeField(null=True, blank=True, db_index=True)
-    opened_at = models.DateTimeField(null=True, blank=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
+    # SLA / Timing
+    due_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+
+    expected_resolution_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+
+    opened_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
 
     # Generic link to any related object (e.g. Client, Order, Invoice)
     content_type = models.ForeignKey(
@@ -151,9 +244,20 @@ class Task(models.Model):
 
     def __str__(self) -> str:
         return self.title
+    
+    @property
+    def is_sla_overdue(self):
+        return (
+            self.expected_resolution_at
+            and self.status in [
+                self.Status.PENDING,
+                self.Status.OPEN,
+            ]
+            and timezone.now() > self.expected_resolution_at
+        )
 
     @property
-    def is_overdue(self) -> bool:
+    def is_due(self):
         return bool(
             self.due_at
             and self.status in (self.Status.PENDING, self.Status.OPEN)
@@ -194,6 +298,12 @@ class Task(models.Model):
         if self.status in (self.Status.PENDING, self.Status.OPEN) and self.completed_at:
             self.completed_at = None
 
+        if not self.expected_resolution_at:
+            self.expected_resolution_at = calculate_sla_due(
+                self.priority,
+                self.created_at or timezone.now(),
+            )
+
         super().save(*args, **kwargs)
 
 
@@ -229,15 +339,6 @@ class Ticket(models.Model):
         HIGH = "HIGH", "High"
         URGENT = "URGENT", "Urgent"
 
-    class Department(models.TextChoices):
-        SUPPORT = "SUPPORT", "Support"
-        ACCOUNTS = "ACCOUNTS", "Accounts"
-        SALES = "SALES", "Sales"
-        COMPLIANCE = "COMPLIANCE", "Compliance"
-        SUPPLY_CHAIN = "SUPPLY_CHAIN", "Supply Chain"
-        OPERATIONS = "OPERATIONS", "Operations"
-        LOGISTICS = "LOGISTICS", "Logistics"
-        FINANCE = "FINANCE", "Finance"
 
     class TicketType(models.TextChoices):
         GENERAL_ENQUIRY = "GENERAL_ENQUIRY", "General Enquiry"
@@ -276,10 +377,12 @@ class Ticket(models.Model):
         default=Priority.MEDIUM,
         db_index=True,
     )
-    department = models.CharField(
-        max_length=20,
-        choices=Department.choices,
-        default=Department.SUPPORT,
+    department = models.ForeignKey(
+        "profiles.Department",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tickets",
         db_index=True,
     )
     ticket_type = models.CharField(
@@ -344,10 +447,27 @@ class Ticket(models.Model):
     object_id = models.PositiveIntegerField(null=True, blank=True)
     related_object = GenericForeignKey("content_type", "object_id")
 
-    # Timing
-    opened_at = models.DateTimeField(null=True, blank=True)
-    resolved_at = models.DateTimeField(null=True, blank=True)
-    closed_at = models.DateTimeField(null=True, blank=True)
+    # SLA / Timing
+    expected_resolution_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+
+    opened_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    closed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
 
     # Audit
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -366,6 +486,18 @@ class Ticket(models.Model):
 
     def __str__(self):
         return self.title
+    
+    @property
+    def is_sla_overdue(self):
+        return (
+            self.expected_resolution_at
+            and self.status in [
+                self.Status.NEW,
+                self.Status.OPEN,
+                self.Status.PENDING,
+            ]
+            and timezone.now() > self.expected_resolution_at
+        )
 
     @property
     def is_closed(self):
@@ -418,6 +550,12 @@ class Ticket(models.Model):
                 self.resolved_at = None
             if self.closed_at:
                 self.closed_at = None
+
+        if not self.expected_resolution_at:
+            self.expected_resolution_at = calculate_sla_due(
+                self.priority,
+                self.created_at or timezone.now(),
+            )
 
         super().save(*args, **kwargs)
 
@@ -473,11 +611,12 @@ class Notification(models.Model):
         db_index=True,
     )
 
-    department = models.CharField(
-        max_length=20,
-        choices=Task.Department.choices,
+    department = models.ForeignKey(
+        "profiles.Department",
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
+        related_name="notifications",
         db_index=True,
     )
 
@@ -549,7 +688,7 @@ class Notification(models.Model):
                 return
             if staff.status != "active":
                 return
-            if staff.department != self.department:
+            if self.department not in staff.departments.all():
                 return
 
         self.is_opened = True

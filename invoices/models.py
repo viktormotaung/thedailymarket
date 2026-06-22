@@ -1132,6 +1132,7 @@ def resolve_rep_and_supervisor_for_invoice(invoice: Invoice):
     return rep, supervisor
 
 
+
 def create_or_update_commission_entry_for_invoice(invoice: Invoice) -> CommissionEntry:
     """
     Create or update CommissionEntry for a fully paid invoice.

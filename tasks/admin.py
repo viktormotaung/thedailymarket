@@ -3,14 +3,17 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
-
+from profiles.models import Department
 from .models import (
     Task,
     TaskComment,
     Ticket,
     TicketComment,
-    Notification,
+    Notification, 
+    BusinessDay,
+    PublicHoliday,
 )
+
 
 
 class TaskOverdueFilter(admin.SimpleListFilter):
@@ -28,13 +31,13 @@ class TaskOverdueFilter(admin.SimpleListFilter):
 
         if self.value() == "yes":
             return queryset.filter(
-                due_at__lt=now,
+                expected_resolution_at__lt=now,
                 status__in=[Task.Status.PENDING, Task.Status.OPEN],
             )
 
         if self.value() == "no":
             return queryset.exclude(
-                due_at__lt=now,
+                expected_resolution_at__lt=now,
                 status__in=[Task.Status.PENDING, Task.Status.OPEN],
             )
 
@@ -86,11 +89,10 @@ class TaskAdmin(admin.ModelAdmin):
         "priority",
         "department",
         "task_type",
-        "source",
         "assigned_to",
-        "ticket_link",
+        "sla_badge",
         "due_badge",
-        "related_link",
+        "ticket_link",
         "created_at",
     )
 
@@ -101,7 +103,6 @@ class TaskAdmin(admin.ModelAdmin):
         "priority",
         "department",
         "task_type",
-        "source",
         "assigned_to",
     )
 
@@ -117,6 +118,7 @@ class TaskAdmin(admin.ModelAdmin):
         TaskOverdueFilter,
         "created_at",
         "due_at",
+        "expected_resolution_at",
         "opened_at",
         "completed_at",
     )
@@ -130,6 +132,7 @@ class TaskAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
 
     autocomplete_fields = (
+        "department",
         "created_by",
         "assigned_to",
         "closed_by",
@@ -141,6 +144,7 @@ class TaskAdmin(admin.ModelAdmin):
         "updated_at",
         "opened_at",
         "completed_at",
+        "expected_resolution_at",
         "related_link_readonly",
         "ticket_link_readonly",
         "is_overdue_display",
@@ -168,7 +172,8 @@ class TaskAdmin(admin.ModelAdmin):
         }),
         ("Timing", {
             "fields": (
-                ("due_at", "opened_at", "completed_at"),
+                ("due_at", "expected_resolution_at"),
+                ("opened_at", "completed_at"),
                 "is_overdue_display",
             )
         }),
@@ -193,12 +198,32 @@ class TaskAdmin(admin.ModelAdmin):
         "action_mark_closed",
     )
 
+    @admin.display(description="SLA")
+    def sla_badge(self, obj):
+
+        if not obj.expected_resolution_at:
+            return "-"
+
+        if obj.is_closed:
+            return format_html(
+                '<span style="color:#18794e;font-weight:600;">Closed</span>'
+            )
+
+        if obj.is_sla_overdue:
+            return format_html(
+                '<span style="color:#b42318;font-weight:600;">Overdue</span>'
+            )
+
+        return format_html(
+            '<span style="color:#18794e;font-weight:600;">On time</span>'
+        )
+
     @admin.display(description="Due", ordering="due_at")
     def due_badge(self, obj: Task):
         if not obj.due_at:
             return format_html('<span style="opacity:.6;">—</span>')
 
-        if obj.is_overdue:
+        if obj.is_due:
             return format_html(
                 '<span style="color:#b42318;font-weight:600;">{} (overdue)</span>',
                 obj.due_at.strftime("%Y-%m-%d %H:%M"),
@@ -240,7 +265,7 @@ class TaskAdmin(admin.ModelAdmin):
 
     @admin.display(description="Overdue")
     def is_overdue_display(self, obj: Task):
-        if obj.is_overdue:
+        if obj.is_due:
             return format_html('<span style="color:#b42318;font-weight:600;">Yes</span>')
         return format_html('<span style="color:#18794e;font-weight:600;">No</span>')
 
@@ -306,6 +331,7 @@ class TicketAdmin(admin.ModelAdmin):
         "client",
         "sales_operator",
         "requester_name",
+        "sla_badge",
         "tasks_count",
         "related_link",
         "created_at",
@@ -331,6 +357,7 @@ class TicketAdmin(admin.ModelAdmin):
         "client",
         "sales_operator",
         "created_at",
+        "expected_resolution_at",
         "opened_at",
         "resolved_at",
         "closed_at",
@@ -350,6 +377,7 @@ class TicketAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
 
     autocomplete_fields = (
+        "department",
         "client",
         "sales_operator",
         "created_by",
@@ -362,6 +390,7 @@ class TicketAdmin(admin.ModelAdmin):
         "opened_at",
         "resolved_at",
         "closed_at",
+        "expected_resolution_at",
         "tasks_links_readonly",
         "related_link_readonly",
     )
@@ -396,6 +425,7 @@ class TicketAdmin(admin.ModelAdmin):
         }),
         ("Timing", {
             "fields": (
+                "expected_resolution_at",
                 ("opened_at", "resolved_at", "closed_at"),
             )
         }),
@@ -414,6 +444,26 @@ class TicketAdmin(admin.ModelAdmin):
         "action_mark_resolved",
         "action_mark_closed",
     )
+
+    @admin.display(description="SLA")
+    def sla_badge(self, obj):
+
+        if not obj.expected_resolution_at:
+            return "-"
+
+        if obj.is_closed:
+            return format_html(
+                '<span style="color:#18794e;font-weight:600;">Closed</span>'
+            )
+
+        if obj.is_sla_overdue:
+            return format_html(
+                '<span style="color:#b42318;font-weight:600;">Overdue</span>'
+            )
+
+        return format_html(
+            '<span style="color:#18794e;font-weight:600;">On time</span>'
+        )
 
     @admin.display(description="Tasks")
     def tasks_count(self, obj: Ticket):
@@ -567,6 +617,7 @@ class NotificationAdmin(admin.ModelAdmin):
         "department",
         "is_opened",
         "opened_by",
+        "opened_at",
         "related_link",
         "created_at",
     )
@@ -596,6 +647,7 @@ class NotificationAdmin(admin.ModelAdmin):
 
     autocomplete_fields = (
         "recipient",
+        "department",
         "opened_by",
     )
 
@@ -681,3 +733,35 @@ class NotificationAdmin(admin.ModelAdmin):
             opened_by=None,
         )
         self.message_user(request, f"{count} notification(s) marked as unopened.")
+
+
+@admin.register(BusinessDay)
+class BusinessDayAdmin(admin.ModelAdmin):
+    list_display = (
+        "day",
+        "is_open",
+        "opens_at",
+        "closes_at",
+    )
+
+    list_editable = (
+        "is_open",
+        "opens_at",
+        "closes_at",
+    )
+
+    ordering = ("day",)
+
+
+@admin.register(PublicHoliday)
+class PublicHolidayAdmin(admin.ModelAdmin):
+    list_display = (
+        "date",
+        "name",
+    )
+
+    ordering = ("date",)
+
+    search_fields = (
+        "name",
+    )

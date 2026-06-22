@@ -437,15 +437,13 @@ class Quotation(models.Model):
         # =====================================================
         order.recalc_totals(save=True)
 
-        order.status = "approved"
-        order.approved_by = user or self.accepted_by or self.created_by
-        order.approved_at = now()
-        order.save(update_fields=[
-            "status",
-            "approved_by",
-            "approved_at",
-            "updated_at",
-        ])
+        
+        from tasks.services import create_order_verification_task
+
+        transaction.on_commit(
+            lambda: create_order_verification_task(order)
+        )
+        
 
         # =====================================================
         # LINK QUOTATION
@@ -754,7 +752,10 @@ class Order(models.Model):
 
         super().save(*args, **kwargs)
 
+        
         print(f"[DEBUG] Order {self.pk} saved with status: {self.status}")
+
+        
 
         action = OrderAudit.CREATED if creating else OrderAudit.UPDATED
         if old_status != self.status:

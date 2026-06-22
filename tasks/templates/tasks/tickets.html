@@ -966,7 +966,7 @@
                 <label class="form-label small text-muted">Department</label>
                 <select name="department" class="form-select">
                 <option value="">All</option>
-                {% for value,label in choices.department %}
+                {% for dept in choices.department %}
                     <option value="{{ value }}" {% if filters.department == value %}selected{% endif %}>
                     {{ label }}
                     </option>

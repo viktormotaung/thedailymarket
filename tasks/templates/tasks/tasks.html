@@ -931,8 +931,11 @@
           <div class="col-lg-2 col-md-6">
             <select name="department" class="form-select form-select-sm">
               <option value="">Department: All</option>
-              {% for key,label in choices.department %}
-                <option value="{{ key }}" {% if filters.department == key %}selected{% endif %}>{{ label }}</option>
+              {% for dept in choices.department %}
+                  <option value="{{ dept.id }}"
+                      {% if filters.department == dept.id|stringformat:"s" %}selected{% endif %}>
+                      {{ dept.name }}
+                  </option>
               {% endfor %}
             </select>
           </div>

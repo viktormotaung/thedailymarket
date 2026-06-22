@@ -32,7 +32,13 @@ from communications.services.whatsapp import (
     send_invoice_payment_request_whatsapp,
 )
 from communications.services.smsportal import send_sms
-
+from django.template.loader import render_to_string
+from decimal import Decimal
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from django.template.loader import render_to_string
+from django.template.loader import get_template
+from xhtml2pdf import pisa
 
 
 logger = logging.getLogger(__name__)
@@ -590,161 +596,45 @@ def invoice_edit(request, pk):
 @staff_required
 def invoice_download(request, pk):
     invoice = get_object_or_404(
-        Invoice.objects.select_related("order", "client"),
+        Invoice.objects.select_related(
+            "client",
+            "order",
+            "order__client",
+        ).prefetch_related(
+            "order__items",
+            "order__items__product",
+        ),
         pk=pk,
     )
 
-    # Try to import ReportLab; fall back gracefully if missing
-    try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.pdfgen import canvas
-        from reportlab.lib.units import mm
-    except ImportError:
-        messages.error(request, "PDF generator not installed. Run: pip install reportlab")
-        return redirect("invoice-view", pk=pk)
+    items = list(invoice.order.items.all())
 
-    order = invoice.order
-    client = invoice.client
+    for item in items:
+        unit_price_excl = item.unit_price_excl or Decimal("0.00")
+        vat_percent = item.vat_percent or Decimal("0.00")
+        line_total_excl = item.line_total_excl or Decimal("0.00")
+        line_vat_amount = item.line_vat_amount or Decimal("0.00")
 
-    # Prepare HTTP response
-    filename = f"invoice_{invoice.id}.pdf"
-    response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
-
-    # Build PDF
-    p = canvas.Canvas(response, pagesize=A4)
-    width, height = A4
-
-    y = height - 20 * mm
-
-    # Header
-    p.setFont("Helvetica-Bold", 16)
-    p.drawString(20 * mm, y, "The Daily Market")
-    y -= 8 * mm
-
-    p.setFont("Helvetica", 10)
-    p.drawString(20 * mm, y, f"Invoice #{invoice.id}")
-    p.drawString(70 * mm, y, f"Date: {invoice.invoice_date}")
-    p.drawString(120 * mm, y, f"Due: {invoice.due_date or '-'}")
-    y -= 10 * mm
-
-    # Bill To
-    p.setFont("Helvetica-Bold", 11)
-    p.drawString(20 * mm, y, "Bill To:")
-    y -= 6 * mm
-
-    p.setFont("Helvetica", 10)
-    p.drawString(20 * mm, y, f"{client}")
-    y -= 5 * mm
-    if getattr(client, "address_line1", ""):
-        p.drawString(20 * mm, y, client.address_line1)
-        y -= 5 * mm
-    addr_line = ", ".join(
-        filter(
-            None,
-            [
-                getattr(client, "suburb", ""),
-                getattr(client, "city", ""),
-                getattr(client, "province", ""),
-                getattr(client, "postal_code", ""),
-            ],
+        item.display_unit_price_inc = (
+            unit_price_excl
+            + (unit_price_excl * vat_percent / Decimal("100"))
         )
+
+        item.display_line_total_inc = (
+            line_total_excl
+            + line_vat_amount
+        )
+
+    return render(
+        request,
+        "invoices/invoice_pdf.html",
+        {
+            "invoice": invoice,
+            "order": invoice.order,
+            "client": invoice.client,
+            "items": items,
+        },
     )
-    if addr_line:
-        p.drawString(20 * mm, y, addr_line)
-        y -= 5 * mm
-    if getattr(client, "country", ""):
-        p.drawString(20 * mm, y, client.country)
-        y -= 8 * mm
-
-    # Table header
-    p.setFont("Helvetica-Bold", 10)
-    p.drawString(20 * mm, y, "SKU")
-    p.drawString(45 * mm, y, "Product")
-    p.drawRightString(135 * mm, y, "Qty")
-    p.drawRightString(160 * mm, y, "Unit Excl")
-    p.drawRightString(190 * mm, y, "Line Excl")
-    y -= 2 * mm
-    p.line(20 * mm, y, 190 * mm, y)
-    y -= 6 * mm
-
-    # Items
-    p.setFont("Helvetica", 10)
-    items = order.items.select_related("product", "category").all()
-    for it in items:
-        if y < 30 * mm:
-            p.showPage()
-            y = height - 20 * mm
-            p.setFont("Helvetica-Bold", 10)
-            p.drawString(20 * mm, y, "SKU")
-            p.drawString(45 * mm, y, "Product")
-            p.drawRightString(135 * mm, y, "Qty")
-            p.drawRightString(160 * mm, y, "Unit Excl")
-            p.drawRightString(190 * mm, y, "Line Excl")
-            y -= 2 * mm
-            p.line(20 * mm, y, 190 * mm, y)
-            y -= 6 * mm
-            p.setFont("Helvetica", 10)
-
-        sku = it.sku or (it.product.sku if it.product_id else "")
-        name = it.product_name or (it.product.name if it.product_id else "")
-
-        p.drawString(20 * mm, y, sku)
-        p.drawString(45 * mm, y, name[:50])
-        p.drawRightString(135 * mm, y, f"{it.quantity}")
-        p.drawRightString(160 * mm, y, f"{it.unit_price_excl:.2f}")
-        p.drawRightString(190 * mm, y, f"{it.line_total_excl:.2f}")
-        y -= 6 * mm
-
-    # Totals box
-    y -= 6 * mm
-    p.line(120 * mm, y, 190 * mm, y)
-    y -= 6 * mm
-
-    def r(v: Decimal) -> str:
-        return f"{(v or Decimal('0.00')):.2f}"
-
-    p.drawRightString(160 * mm, y, "Subtotal (Excl):")
-    p.drawRightString(190 * mm, y, f"R{r(order.subtotal_excl)}")
-    y -= 6 * mm
-
-    p.drawRightString(160 * mm, y, "Discounts (Excl):")
-    p.drawRightString(190 * mm, y, f"- R{r(order.discount_total_excl)}")
-    y -= 6 * mm
-
-    p.drawRightString(160 * mm, y, "Delivery (Excl):")
-    p.drawRightString(190 * mm, y, f"R{r(order.delivery_fee_excl)}")
-    y -= 6 * mm
-
-    p.drawRightString(160 * mm, y, "VAT Total:")
-    p.drawRightString(190 * mm, y, f"R{r(order.vat_total)}")
-    y -= 6 * mm
-
-    p.setFont("Helvetica-Bold", 11)
-    p.drawRightString(160 * mm, y, "Grand Total (Incl):")
-    p.drawRightString(190 * mm, y, f"R{r(order.grand_total_inc)}")
-    y -= 10 * mm
-
-    # Payment snapshot from invoice
-    p.setFont("Helvetica", 10)
-    p.drawString(20 * mm, y, f"Deposit required: R{r(invoice.deposit_required)}")
-    y -= 5 * mm
-    p.drawString(20 * mm, y, f"Deposit paid: R{r(invoice.deposit_paid)}")
-    y -= 5 * mm
-    p.drawString(20 * mm, y, f"Credit used: R{r(invoice.credit_used)}")
-    y -= 5 * mm
-    p.drawString(20 * mm, y, f"Amount due now: R{r(invoice.amount_due)}")
-    y -= 8 * mm
-
-    p.setFont("Helvetica-Oblique", 9)
-    p.drawString(20 * mm, y, f"Status: {invoice.get_status_display()}")
-    y -= 5 * mm
-    p.drawString(20 * mm, y, "Thank you for your business.")
-
-    p.showPage()
-    p.save()
-    return response
-
 
 # ============= NEW: payment actions from the modal =============
 

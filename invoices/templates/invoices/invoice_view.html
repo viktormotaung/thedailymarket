@@ -791,6 +791,11 @@
       </div>
       <div class="d-flex gap-2">
         <a href="{% url 'staff-invoices' %}" class="btn btn-outline-secondary">Back to Invoices</a>
+        <a href="{% url 'invoice-download' invoice.id %}"
+          class="btn btn-danger">
+            <i class="bi bi-file-earmark-pdf"></i>
+            Download Invoice
+        </a>
         {% if order and order.id %}
           <a href="{% url 'order-view' order.id %}" class="btn btn-outline-primary">View Order</a>
         {% endif %}

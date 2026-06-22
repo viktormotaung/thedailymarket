@@ -417,6 +417,49 @@ class Client(models.Model):
             ca.funder_id = self.funder_id
             ca.save(update_fields=["funder", "updated_at"])
         return ca
+    
+
+    def ensure_new_client_task(self):
+        """
+        Create the initial accounts/compliance task for a new client.
+        Only creates one task per client.
+        """
+        from tasks.models import Task
+        from profiles.models import Department
+        from django.contrib.contenttypes.models import ContentType
+
+        # Prevent duplicates
+        if Task.objects.filter(
+            task_type=Task.TaskType.CLIENT_ACTIVATION,
+            content_type=ContentType.objects.get_for_model(Client),
+            object_id=self.pk,
+        ).exists():
+            return
+
+        accounts_department = Department.objects.filter(
+            name__iexact="Accounts"
+        ).first()
+
+        Task.objects.create(
+            title=f"New Client Activation – {self}",
+            description=(
+                "A new client has been created.\n\n"
+                "The following compliance requirements must be attended to:\n\n"
+                "• CIPC Registration\n"
+                "• Director ID\n"
+                "• Proof of Address\n"
+                "• Bank Confirmation Letter\n"
+                "• Signed Contract / Agreement\n\n"
+                "Review and update the client's compliance status accordingly."
+            ),
+            department=accounts_department,
+            priority=Task.Priority.MEDIUM,
+            task_type=Task.TaskType.CLIENT_ACTIVATION,
+            source=Task.Source.SYSTEM,
+            status=Task.Status.PENDING,
+            content_type=ContentType.objects.get_for_model(Client),
+            object_id=self.pk,
+        )
 
     # ---------- Client number helpers ----------
     @staticmethod
@@ -458,7 +501,8 @@ class Client(models.Model):
                 super().save(*args, **kwargs)
 
                 self.ensure_credit_account()
-                self.ensure_compliance()   # ✅ ADD THIS
+                self.ensure_compliance()
+                self.ensure_new_client_task()
 
                 return
 

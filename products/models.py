@@ -14,7 +14,7 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils.text import slugify
 from suppliers.models import Supplier
-
+from decimal import ROUND_CEILING
 # ---------- Context flags ------------------------------------------------------
 # Used to prevent variant sync in product_post_save when set True in this thread/context.
 SKIP_VARIANT_SYNC: ContextVar[bool] = ContextVar("SKIP_VARIANT_SYNC", default=False)
@@ -24,6 +24,23 @@ SKU_NUM_WIDTH = 3  # -> 001, 002, ...
 
 D0 = Decimal("0.00")
 D1 = Decimal("1.00")
+
+
+
+def round_up_rand(x: Decimal | None) -> Decimal:
+    """
+    Round UP to the next whole rand.
+    57.01 -> 58.00
+    57.99 -> 58.00
+    57.00 -> 57.00
+    """
+    if x is None:
+        return D0
+
+    return (
+        x.quantize(Decimal("1"), rounding=ROUND_CEILING)
+         .quantize(Decimal("0.00"))
+    )
 
 
 def r2(x: Decimal | None) -> Decimal:
@@ -508,18 +525,22 @@ class ProductPricing(models.Model):
     # =====================================================
     @property
     def wholesale_price_inc(self) -> Decimal:
-        return r2(
+        return round_up_rand(
             self.supplier_price_incl
             * (D1 + (self.wholesale_margin_percent / Decimal("100")))
         )
 
+    
     @property
     def wholesale_price_excl(self) -> Decimal:
         vat = self.wholesale_vat_percent / Decimal("100")
+
         return (
             self.wholesale_price_inc
             if vat <= 0
-            else r2(self.wholesale_price_inc / (D1 + vat))
+            else r2(
+                self.wholesale_price_inc / (D1 + vat)
+            )
         )
 
     @property
@@ -531,18 +552,22 @@ class ProductPricing(models.Model):
     # =====================================================
     @property
     def retail_price_inc(self) -> Decimal:
-        return r2(
+        return round_up_rand(
             self.supplier_price_incl
             * (D1 + (self.retail_margin_percent / Decimal("100")))
         )
 
+    
     @property
     def retail_price_excl(self) -> Decimal:
         vat = self.retail_vat_percent / Decimal("100")
+
         return (
             self.retail_price_inc
             if vat <= 0
-            else r2(self.retail_price_inc / (D1 + vat))
+            else r2(
+                self.retail_price_inc / (D1 + vat)
+            )
         )
 
     @property
@@ -663,13 +688,17 @@ class ProductVariant(models.Model):
         base_wholesale = self.wholesale_price_override or self.product.price_for_channel("wholesale") or D0
         if self.scales_with_pack and self.pack_size:
             base_wholesale *= _d(self.pack_size)
-        self.wholesale_price = r2(base_wholesale * (1 + VAT_RATE))
+        self.wholesale_price = round_up_rand(
+            base_wholesale * (1 + VAT_RATE)
+        )
 
         # --- Retail price inclusive VAT ---
         base_retail = self.retail_price_override or self.product.price_for_channel("retail") or D0
         if self.scales_with_pack and self.pack_size:
             base_retail *= _d(self.pack_size)
-        self.retail_price = r2(base_retail * (1 + VAT_RATE))
+        self.retail_price = round_up_rand(
+            base_retail * (1 + VAT_RATE)
+        )
 
         super().save(*args, **kwargs)
 
@@ -680,7 +709,7 @@ class ProductVariant(models.Model):
         base = self.product.price_for_channel("wholesale") or D0
         if self.scales_with_pack and self.pack_size:
             base *= _d(self.pack_size)
-        return r2(base * Decimal("1.15"))
+        return round_up_rand(base * Decimal("1.15"))
 
     @property
     def retail_derived(self) -> Decimal:
@@ -688,7 +717,7 @@ class ProductVariant(models.Model):
         base = self.product.price_for_channel("retail") or D0
         if self.scales_with_pack and self.pack_size:
             base *= _d(self.pack_size)
-        return r2(base * Decimal("1.15"))
+        return round_up_rand(base * Decimal("1.15"))
     
 # ---------- Signals & helpers: keep product/variants in sync -------------------
 def _apply_primary_pricing_to_product(pp: ProductPricing) -> None:
