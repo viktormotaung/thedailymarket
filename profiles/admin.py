@@ -319,6 +319,7 @@ class SalesRepProfileAdminForm(forms.ModelForm):
         widget=forms.PasswordInput(render_value=False),
         help_text="Leave blank to keep the current code.",
     )
+
     confirm_auth_code = forms.CharField(
         label="Confirm code",
         required=False,
@@ -331,38 +332,44 @@ class SalesRepProfileAdminForm(forms.ModelForm):
             "user",
             "staff_profile",
             "sales_operator",
-            "base_commission_pct",
-            "bonus_commission_pct",
             "supervisor",
+            "department",
             "roles",
             "notes",
             "status",
+            "base_commission_pct",
+            "bonus_commission_pct",
         )
 
     def clean(self):
         cleaned = super().clean()
-        c1 = cleaned.get("new_auth_code")
-        c2 = cleaned.get("confirm_auth_code")
 
-        if c1 or c2:
-            if c1 != c2:
-                raise forms.ValidationError("Authorisation codes do not match.")
+        code1 = cleaned.get("new_auth_code")
+        code2 = cleaned.get("confirm_auth_code")
+
+        if code1 or code2:
+            if code1 != code2:
+                raise forms.ValidationError(
+                    "Authorisation codes do not match."
+                )
 
         return cleaned
 
     def save(self, commit=True):
-        obj: SalesRepProfile = super().save(commit=False)
+        obj = super().save(commit=False)
 
         if self.cleaned_data.get("new_auth_code"):
-            obj.set_auth_code(self.cleaned_data["new_auth_code"], save=False)
+            obj.set_auth_code(
+                self.cleaned_data["new_auth_code"],
+                save=False,
+            )
 
         if commit:
             obj.save()
             self.save_m2m()
 
         return obj
-
-
+    
 # ----------------------------
 # SalesRepProfile admin
 # ----------------------------
@@ -396,7 +403,8 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
         "user__first_name",
         "user__last_name",
         "sales_operator__name",
-        "department",
+        "department__name",
+        "department__code",
         "status",
     )
 
@@ -418,8 +426,7 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
                     "staff_profile",
                     "sales_operator",
                     "supervisor",
-                    "primary_department",
-                    "departments",
+                    "department",
                     "roles",
                     "notes",
                     "status",

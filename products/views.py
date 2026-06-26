@@ -51,6 +51,7 @@ from django.conf import settings
 import os
 
 
+
 # -----------------------------------------------------
 # Auth helpers
 # -----------------------------------------------------
@@ -167,6 +168,11 @@ def product_list(request):
 def download_price_list(request):
     subcategory_ids = request.GET.getlist("subcategories")
 
+    price_type = request.GET.get(
+        "price_type",
+        "wholesale"
+    ).lower()
+
     qs = (
         Product.objects
         .select_related("category", "category__parent")
@@ -183,7 +189,7 @@ def download_price_list(request):
     # Force browser/phone download
     response["Content-Type"] = "application/pdf"
     response["Content-Disposition"] = (
-        'attachment; filename="The_Daily_Market_Price_List.pdf"'
+        f'attachment; filename="The_Daily_Market_{price_type.title()}_Price_List.pdf"'
     )
 
     doc = SimpleDocTemplate(
@@ -267,7 +273,7 @@ def download_price_list(request):
 
     elements.append(
         Paragraph(
-            "<b>Product Price List</b>",
+            f"<b>{price_type.title()} Product Price List</b>",
             styles["Heading2"]
         )
     )
@@ -280,11 +286,23 @@ def download_price_list(request):
     data = [["Category", "Subcategory", "Product", "Price (Incl VAT)"]]
 
     for product in qs:
-        prices = [
-            row.wholesale_price_inc
-            for row in product.pricing_rows.all()
-            if row.is_active and row.wholesale_price_inc is not None
-        ]
+        if price_type == "retail":
+
+            prices = [
+                row.retail_price_inc
+                for row in product.pricing_rows.all()
+                if row.is_active
+                and row.retail_price_inc is not None
+            ]
+
+        else:
+
+            prices = [
+                row.wholesale_price_inc
+                for row in product.pricing_rows.all()
+                if row.is_active
+                and row.wholesale_price_inc is not None
+            ]
 
         price = min(prices) if prices else None
 

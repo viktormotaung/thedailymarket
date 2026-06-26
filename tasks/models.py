@@ -95,6 +95,8 @@ class PublicHoliday(models.Model):
         return f"{self.date} - {self.name}"
 
 
+
+
 class Task(models.Model):
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pending"
@@ -307,6 +309,8 @@ class Task(models.Model):
         super().save(*args, **kwargs)
 
 
+
+
 class TaskComment(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="comments")
     author = models.ForeignKey(
@@ -324,6 +328,8 @@ class TaskComment(models.Model):
     def __str__(self) -> str:
         return f"Comment by {self.author or 'Unknown'} on {self.task}"
     
+
+
 
 class Ticket(models.Model):
     class Status(models.TextChoices):
@@ -558,6 +564,8 @@ class Ticket(models.Model):
             )
 
         super().save(*args, **kwargs)
+
+
 
 
 class TicketComment(models.Model):

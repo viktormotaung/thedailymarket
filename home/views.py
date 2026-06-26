@@ -41,7 +41,7 @@ from products.models import Product, Category
 from django.contrib.contenttypes.models import ContentType
 from django.core.mail import EmailMessage
 from django.db.models.functions import Coalesce
-
+from profiles.models import Department
 from products.models import Product, Category, ProductPricing
 
 from products.models import Product  # adjust import path
@@ -1373,21 +1373,26 @@ def contact(request):
         full_name = f"{first_name} {last_name}".strip()
 
         # Default mapping
-        department = Ticket.Department.SUPPORT
+        department = Department.objects.filter(
+            name__iexact="Support"
+        ).first()
+
         ticket_type = Ticket.TicketType.GENERAL_ENQUIRY
 
-        # Map website category -> department + ticket type
-        if category == "wholesale":
-            department = Ticket.Department.SALES
+        if category in ["wholesale", "retail", "grill"]:
+
+            department = Department.objects.filter(
+                name__iexact="Sales"
+            ).first()
+
             ticket_type = Ticket.TicketType.SALES_ENQUIRY
-        elif category == "retail":
-            department = Ticket.Department.SALES
-            ticket_type = Ticket.TicketType.SALES_ENQUIRY
-        elif category == "grill":
-            department = Ticket.Department.SALES
-            ticket_type = Ticket.TicketType.SALES_ENQUIRY
+
         elif category == "general":
-            department = Ticket.Department.SUPPORT
+
+            department = Department.objects.filter(
+                name__iexact="Support"
+            ).first()
+
             ticket_type = Ticket.TicketType.GENERAL_ENQUIRY
 
         # Optional client link if authenticated business user

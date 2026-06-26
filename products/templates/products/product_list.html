@@ -1092,44 +1092,106 @@
 
           <div class="modal-header">
             <h5 class="modal-title">Download Price List</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"></button>
           </div>
 
           <div class="modal-body">
 
+            <!-- Select All -->
             <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" id="selectAllSubcategories">
-              <label class="form-check-label fw-semibold" for="selectAllSubcategories">
+              <input class="form-check-input"
+                    type="checkbox"
+                    id="selectAllSubcategories">
+
+              <label class="form-check-label fw-semibold"
+                    for="selectAllSubcategories">
                 Select All
               </label>
             </div>
 
             <hr>
 
-            {% for sub in price_list_subcategories %}
+            <!-- Price Type -->
+            <div class="mb-3">
+
+              <label class="form-label fw-bold">
+                Price List Type
+              </label>
+
               <div class="form-check">
+                <input class="form-check-input"
+                      type="radio"
+                      name="price_type"
+                      id="wholesalePrice"
+                      value="wholesale"
+                      checked>
+
+                <label class="form-check-label"
+                      for="wholesalePrice">
+                  Wholesale Price List
+                </label>
+              </div>
+
+              <div class="form-check">
+                <input class="form-check-input"
+                      type="radio"
+                      name="price_type"
+                      id="retailPrice"
+                      value="retail">
+
+                <label class="form-check-label"
+                      for="retailPrice">
+                  Retail Price List
+                </label>
+              </div>
+
+            </div>
+
+            <hr>
+
+            <!-- Categories -->
+            {% for sub in price_list_subcategories %}
+
+              <div class="form-check">
+
                 <input class="form-check-input subcategory-check"
                       type="checkbox"
                       name="subcategories"
                       value="{{ sub.id }}"
                       id="sub{{ sub.id }}">
-                <label class="form-check-label" for="sub{{ sub.id }}">
+
+                <label class="form-check-label"
+                      for="sub{{ sub.id }}">
                   {{ sub.parent.name }} → {{ sub.name }}
                 </label>
+
               </div>
+
             {% empty %}
-              <p class="text-muted mb-0">No subcategories found.</p>
+
+              <p class="text-muted mb-0">
+                No subcategories found.
+              </p>
+
             {% endfor %}
 
           </div>
 
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+
+            <button type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal">
               Cancel
             </button>
-            <button type="submit" class="btn btn-success">
+
+            <button type="submit"
+                    class="btn btn-success">
               Confirm Download
             </button>
+
           </div>
 
         </form>
@@ -1144,6 +1206,20 @@
       box.checked = document.getElementById("selectAllSubcategories").checked;
     });
   });
+  </script>
+
+  <script>
+  document.getElementById("selectAllSubcategories")
+    .addEventListener("change", function () {
+
+      document.querySelectorAll(".subcategory-check")
+        .forEach(function (box) {
+          box.checked = document.getElementById(
+            "selectAllSubcategories"
+          ).checked;
+        });
+
+    });
   </script>
 
   <!-- ================= IMPORT SCRIPT (ENHANCED UX ONLY) ================= -->

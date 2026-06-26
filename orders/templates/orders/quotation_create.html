@@ -988,7 +988,7 @@
 
                                 <th style="width:12%"
                                     class="text-end">
-                                    Unit (excl)
+                                    Unit Price (Incl VAT)
                                 </th>
 
                                 <th style="width:10%"
@@ -1294,57 +1294,126 @@
         }
 
         function calculateTotals() {
-            let itemsExcl = 0;
-            let itemsVat = 0;
 
-            tbody.querySelectorAll("tr").forEach(tr => {
-                const qty = parseFloat(tr.querySelector('[name$="-quantity"]')?.value || "0");
-                const unit = parseFloat(tr.querySelector('[name$="-unit_price_excl"]')?.value || "0");
-                const discPct = parseFloat(tr.querySelector('[name$="-discount_excl"]')?.value || "0");
-                const vatPct = parseFloat(tr.querySelector('[name$="-vat_percent"]')?.value || "0");
+          let itemsExcl = 0;
+          let itemsVat = 0;
+          let itemsIncl = 0;
 
-                const discountPerUnit = unit * (discPct / 100);
-                const lineExcl = Math.max(0, (unit - discountPerUnit) * qty);
-                const vat = lineExcl * (vatPct / 100);
+          tbody.querySelectorAll("tr").forEach(tr => {
 
-                itemsExcl += lineExcl;
-                itemsVat += vat;
-            });
+              const qty = parseFloat(
+                  tr.querySelector('[name$="-quantity"]')?.value || "0"
+              );
 
-            const discountTotal = parseFloat(document.querySelector('[name="discount_total_excl"]')?.value || "0");
-            const deliveryFee = parseFloat(document.querySelector('[name="delivery_fee_excl"]')?.value || "0");
-            const deliveryVatPct = parseFloat(document.querySelector('[name="delivery_fee_vat_percent"]')?.value || "0");
+              const unitInc = parseFloat(
+                  tr.querySelector('[name$="-unit_price_excl"]')?.value || "0"
+              );
 
-            const deliveryVat = deliveryFee * (deliveryVatPct / 100);
+              const discPct = parseFloat(
+                  tr.querySelector('.discount-percent-field')?.value || "0"
+              );
 
-            const finalExcl = Math.max(0, itemsExcl - discountTotal) + deliveryFee;
-            const finalVat = itemsVat + deliveryVat;
-            const finalInc = finalExcl + finalVat;
+              const vatPct = parseFloat(
+                  tr.querySelector('[name$="-vat_percent"]')?.value || "0"
+              );
 
-            document.getElementById("total-excl").textContent = "R" + money(finalExcl);
-            document.getElementById("total-vat").textContent = "R" + money(finalVat);
-            document.getElementById("total-inc").textContent = "R" + money(finalInc);
-        }
+              const discountedInc =
+                  unitInc * (1 - discPct / 100);
+
+              const unitExcl =
+                  discountedInc / (1 + vatPct / 100);
+
+              const vatPerUnit =
+                  discountedInc - unitExcl;
+
+              itemsExcl += unitExcl * qty;
+              itemsVat += vatPerUnit * qty;
+              itemsIncl += discountedInc * qty;
+
+          });
+
+          const discountTotal =
+              parseFloat(document.querySelector('[name="discount_total_excl"]')?.value || "0");
+
+          const deliveryFee =
+              parseFloat(document.querySelector('[name="delivery_fee_excl"]')?.value || "0");
+
+          const deliveryVatPct =
+              parseFloat(document.querySelector('[name="delivery_fee_vat_percent"]')?.value || "0");
+
+          const deliveryVat =
+              deliveryFee * (deliveryVatPct / 100);
+
+          const finalExcl =
+              Math.max(0, itemsExcl - discountTotal) + deliveryFee;
+
+          const finalVat =
+              itemsVat + deliveryVat;
+
+          const finalInc =
+              finalExcl + finalVat;
+
+          document.getElementById("total-excl").textContent =
+              "R" + money(finalExcl);
+
+          document.getElementById("total-vat").textContent =
+              "R" + money(finalVat);
+
+          document.getElementById("total-inc").textContent =
+              "R" + money(finalInc);
+      }
 
         function calculateRow(tr) {
-            const qty = parseFloat(tr.querySelector('[name$="-quantity"]')?.value || "0");
-            const unit = parseFloat(tr.querySelector('[name$="-unit_price_excl"]')?.value || "0");
-            const discPct = parseFloat(tr.querySelector('[name$="-discount_excl"]')?.value || "0");
-            const vatPct = parseFloat(tr.querySelector('[name$="-vat_percent"]')?.value || "0");
 
-            const discountPerUnit = unit * (discPct / 100);
-            const lineExcl = Math.max(0, (unit - discountPerUnit) * qty);
-            const vat = lineExcl * (vatPct / 100);
-            const lineInc = lineExcl + vat;
+          const qty = parseFloat(
+              tr.querySelector('[name$="-quantity"]')?.value || "0"
+          );
 
-            const vatEl = tr.querySelector(".vat-amount");
-            const totalEl = tr.querySelector(".line-total");
+          const unitInc = parseFloat(
+              tr.querySelector('[name$="-unit_price_excl"]')?.value || "0"
+          );
 
-            if (vatEl) vatEl.textContent = money(vat);
-            if (totalEl) totalEl.textContent = money(lineInc);
+          const discPct = parseFloat(
+              tr.querySelector('.discount-percent-field')?.value || "0"
+          );
 
-            calculateTotals();
-        }
+          const vatPct = parseFloat(
+              tr.querySelector('[name$="-vat_percent"]')?.value || "0"
+          );
+
+          const discountedInc =
+              unitInc * (1 - discPct / 100);
+
+          const unitExcl =
+              discountedInc / (1 + vatPct / 100);
+
+          const vatPerUnit =
+              discountedInc - unitExcl;
+
+          const lineExcl =
+              unitExcl * qty;
+
+          const lineVat =
+              vatPerUnit * qty;
+
+          const lineInc =
+              discountedInc * qty;
+
+          // Store the EXCLUSIVE price for Django
+          tr.querySelector('[name$="-unit_price_excl"]').dataset.excl =
+              unitExcl.toFixed(2);
+
+          const vatEl = tr.querySelector(".vat-amount");
+          const totalEl = tr.querySelector(".line-total");
+
+          if (vatEl)
+              vatEl.textContent = money(lineVat);
+
+          if (totalEl)
+              totalEl.textContent = money(lineInc);
+
+          calculateTotals();
+      }
 
         function applyProductPricing(tr) {
             const product = tr.querySelector('[name$="-product"]');
@@ -1353,7 +1422,7 @@
             const option = product.options[product.selectedIndex];
             if (!option || !option.value) return;
 
-            const price = option.dataset.priceExcl || "0.00";
+            const price = option.dataset.priceIncl || "0.00";
             const vat = option.dataset.vatPercent || "0.00";
 
             const unitInput = tr.querySelector('[name$="-unit_price_excl"]');
@@ -1381,7 +1450,7 @@
                 const opt = document.createElement("option");
                 opt.value = p.id;
                 opt.textContent = p.text;
-                opt.dataset.priceExcl = p.price_excl || "0.00";
+                opt.dataset.priceIncl = p.price_inc || "0.00";
                 opt.dataset.vatPercent = p.vat_percent || "0.00";
                 select.appendChild(opt);
             });
@@ -1495,6 +1564,21 @@
         });
 
         calculateTotals();
+
+      document.querySelector("form").addEventListener("submit", function () {
+
+          tbody.querySelectorAll("tr").forEach(tr => {
+
+              const input =
+                  tr.querySelector('[name$="-unit_price_excl"]');
+
+              if (input.dataset.excl) {
+                  input.value = input.dataset.excl;
+              }
+
+          });
+
+      });
     });
     </script>
 </body>
