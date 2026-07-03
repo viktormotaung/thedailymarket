@@ -9,6 +9,9 @@ from .models import (
     ClientComplianceDocument,
     Prospect,
     ProspectUpdate,
+    Membership,
+    Lead,
+    LeadActivity,
 )
 
 
@@ -591,3 +594,397 @@ class ProspectUpdateAdmin(admin.ModelAdmin):
         if not obj.notes:
             return ""
         return obj.notes[:50] + ("…" if len(obj.notes) > 50 else "")
+    
+
+
+# ============================================================
+# MEMBERSHIP
+# ============================================================
+
+@admin.register(Membership)
+class MembershipAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "membership_number",
+        "display_client",
+        "status",
+        "source",
+        "member_since",
+        "days_as_member",
+        "applied_at",
+        "activated_at",
+        "is_test_member",
+    )
+
+    list_filter = (
+        "status",
+        "source",
+        "is_test_member",
+        ("applied_at", admin.DateFieldListFilter),
+        ("activated_at", admin.DateFieldListFilter),
+        ("created_at", admin.DateFieldListFilter),
+    )
+
+    search_fields = (
+        "membership_number",
+        "client__name",
+        "client__organization",
+        "client__client_number",
+        "client__email",
+        "client__phone",
+    )
+
+    ordering = (
+        "membership_number",
+    )
+
+    autocomplete_fields = (
+        "client",
+    )
+
+    readonly_fields = (
+        "membership_number",
+        "applied_at",
+        "created_at",
+        "updated_at",
+        "member_since",
+        "days_as_member",
+    )
+
+    save_on_top = True
+    list_per_page = 50
+
+    fieldsets = (
+
+        ("Membership", {
+            "fields": (
+                "client",
+                ("membership_number", "status"),
+                ("source", "is_test_member"),
+            )
+        }),
+
+        ("Lifecycle", {
+            "fields": (
+                "applied_at",
+                "activated_at",
+                "suspended_at",
+                "cancelled_at",
+                "member_since",
+                "days_as_member",
+            )
+        }),
+
+        ("Internal", {
+            "fields": (
+                "internal_notes",
+            )
+        }),
+
+        ("Meta", {
+            "fields": (
+                "created_at",
+                "updated_at",
+            ),
+            "classes": ("collapse",),
+        }),
+    )
+
+    @admin.display(description="Client")
+    def display_client(self, obj):
+        return obj.client.organization or obj.client.name
+
+    @admin.display(description="Member Since")
+    def member_since(self, obj):
+        return obj.member_since or "-"
+
+    @admin.display(description="Days")
+    def days_as_member(self, obj):
+        return obj.days_as_member
+    
+
+# ============================================================
+# LEADS
+# ============================================================
+
+@admin.register(Lead)
+class LeadAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "lead_number",
+        "display_name",
+        "contact_person",
+        "phone",
+        "potential_client_type",
+        "status",
+        "priority",
+        "source",
+        "preferred_call_time",
+        "area",
+        "province",
+        "assigned_to",
+        "is_converted_display",
+        "created_at",
+    )
+
+    list_filter = (
+        "status",
+        "priority",
+        "source",
+        "potential_client_type",
+        "preferred_call_time",
+        "area",
+        "province",
+        "assigned_to",
+        ("created_at", admin.DateFieldListFilter),
+    )
+
+    search_fields = (
+        "lead_number",
+        "business_name",
+        "contact_person",
+        "phone",
+        "whatsapp",
+        "email",
+        "campaign",
+        "advert",
+        "notes",
+    )
+
+    ordering = (
+        "-created_at",
+    )
+
+    list_per_page = 50
+    save_on_top = True
+
+    autocomplete_fields = (
+        "assigned_to",
+        "created_by",
+        "prospect",
+    )
+
+    readonly_fields = (
+        "lead_number",
+        "created_at",
+        "updated_at",
+        "preferred_call_time_selected_at",
+        "is_converted_display",
+        "age_days",
+    )
+
+    filter_horizontal = (
+        "interested_in",
+    )
+
+    fieldsets = (
+
+        (
+            "Lead",
+            {
+                "fields": (
+                    ("lead_number", "status"),
+                    ("priority", "source"),
+                    ("assigned_to", "created_by"),
+                )
+            },
+        ),
+
+        (
+            "Marketing",
+            {
+                "fields": (
+                    "campaign",
+                    "advert",
+                    "medium",
+                )
+            },
+        ),
+
+        (
+            "Business",
+            {
+                "fields": (
+                    "business_name",
+                    ("entity_type", "potential_client_type"),
+                    "estimated_weekly_spend",
+                    "interested_in",
+                )
+            },
+        ),
+
+        (
+            "Contact",
+            {
+                "fields": (
+                    "contact_person",
+                    ("phone", "whatsapp"),
+                    "email",
+                )
+            },
+        ),
+
+        (
+            "Location",
+            {
+                "fields": (
+                    "address_line1",
+                    "address_line2",
+                    ("suburb", "city"),
+                    ("province", "postal_code"),
+                    "country",
+                    "area",
+                )
+            },
+        ),
+
+        (
+            "Sales Activity",
+            {
+                "fields": (
+                    ("preferred_call_time", "preferred_call_time_selected_at"),
+                    ("last_contact_at", "next_follow_up_at"),
+                    "notes",
+                )
+            },
+        ),
+
+        (
+            "Conversion",
+            {
+                "fields": (
+                    "prospect",
+                    "is_converted_display",
+                )
+            },
+        ),
+
+        (
+            "Meta",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                    "age_days",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    @admin.display(description="Business")
+    def display_name(self, obj):
+        return obj.business_name or obj.contact_person
+
+    @admin.display(boolean=True, description="Converted")
+    def is_converted_display(self, obj):
+        return obj.is_converted
+    
+
+@admin.register(LeadActivity)
+class LeadActivityAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "lead",
+        "occurred_at",
+        "activity_type",
+        "outcome",
+        "user",
+        "short_notes",
+    )
+
+    list_filter = (
+        "activity_type",
+        "outcome",
+        "user",
+        ("occurred_at", admin.DateFieldListFilter),
+        ("created_at", admin.DateFieldListFilter),
+    )
+
+    search_fields = (
+        "lead__lead_number",
+        "lead__business_name",
+        "lead__contact_person",
+        "notes",
+        "user__username",
+        "user__first_name",
+        "user__last_name",
+    )
+
+    ordering = (
+        "-occurred_at",
+        "-created_at",
+    )
+
+    date_hierarchy = "occurred_at"
+
+    list_per_page = 50
+    save_on_top = True
+
+    autocomplete_fields = (
+        "lead",
+        "user",
+    )
+
+    readonly_fields = (
+        "created_at",
+    )
+
+    fieldsets = (
+
+        ("Lead Activity", {
+            "fields": (
+                "lead",
+                "user",
+                ("activity_type", "outcome"),
+                "occurred_at",
+                "notes",
+            )
+        }),
+
+        ("Meta", {
+            "fields": (
+                "created_at",
+            ),
+            "classes": ("collapse",),
+        }),
+    )
+
+    @admin.display(description="Notes")
+    def short_notes(self, obj):
+
+        if not obj.notes:
+            return "-"
+
+        if len(obj.notes) <= 75:
+            return obj.notes
+
+        return obj.notes[:75] + "..."
+    
+class LeadActivityInline(admin.TabularInline):
+    model = LeadActivity
+    extra = 0
+
+    ordering = (
+        "-occurred_at",
+    )
+
+    autocomplete_fields = (
+        "user",
+    )
+
+    readonly_fields = (
+        "created_at",
+    )
+
+    show_change_link = True
+
+    fields = (
+        "occurred_at",
+        "activity_type",
+        "outcome",
+        "user",
+        "notes",
+        "created_at",
+    )   
+

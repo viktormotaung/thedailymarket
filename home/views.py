@@ -15,6 +15,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
 import json
+from clients.models import Lead
 from seshibo_site.core.access import get_user_portal_access
 from decimal import Decimal, InvalidOperation
 from typing import Iterable
@@ -882,8 +883,10 @@ class ClientLoginView(View):
         return redirect(self.get_success_url())
 
     def get_success_url(self):
-        return reverse("home")
-#
+        return reverse("membership_dashboard")
+
+
+
 
 @login_required
 def client_dashboard(request):
@@ -3238,3 +3241,63 @@ def pay_invoice_ozow(request, invoice_id):
     ozow_url = settings.OZOW_PAYMENT_URL + "?" + urlencode(data)
 
     return redirect(ozow_url)
+
+
+
+def trade_assist_form(request):
+
+    if request.method == "POST":
+
+        Lead.objects.create(
+
+            # Lead Source
+            source="WEBSITE",
+
+            # Business
+            business_name=request.POST.get("business_name", "").strip(),
+            potential_client_type=request.POST.get(
+                "potential_client_type", ""
+            ).strip(),
+
+            # Contact
+            contact_person=request.POST.get(
+                "contact_person", ""
+            ).strip(),
+
+            phone=request.POST.get(
+                "phone", ""
+            ).strip(),
+
+            whatsapp=request.POST.get(
+                "whatsapp", ""
+            ).strip(),
+
+            # Location
+            province=request.POST.get(
+                "province", "GP"
+            ).strip(),
+
+            area=request.POST.get(
+                "area", ""
+            ).strip(),
+
+        )
+
+        messages.success(
+            request,
+            "Thank you! We've received your information. One of our Trade Assist consultants will contact you shortly."
+        )
+
+        return redirect("trade_assist_thank_you")
+
+    return render(
+        request,
+        "home/trade_assist_form.html",
+    )
+
+
+def trade_assist_thank_you(request):
+    return render(
+        request,
+        "home/trade_assist_thank_you.html",
+    )

@@ -1,4 +1,11 @@
 from django.db import models
+from django.conf import settings
+from django.utils import timezone
+from django.db import transaction
+
+
+
+
 
 class JobApplication(models.Model):
 
@@ -322,4 +329,5 @@ class JobApplication(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.surname}"
     
+
 

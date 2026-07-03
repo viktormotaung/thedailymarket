@@ -10,6 +10,11 @@ from django.db.models.functions import Cast, Substr
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone  # 👈 needed for ProspectUpdate.action_at
+from django.utils.crypto import get_random_string
+
+
+
+
 
 from products.models import Category
 
@@ -564,6 +569,8 @@ class Client(models.Model):
         today = timezone.localtime().strftime("%a").upper()[:3]
         return self.operating_hours.filter(day=today).first()
 
+
+
 class ClientOperatingHours(models.Model):
     DAY_CHOICES = [
         ("MON", "Monday"),
@@ -635,6 +642,7 @@ class ClientOperatingHours(models.Model):
         if errors:
             raise ValidationError(errors)
     
+
 class Prospect(models.Model):
     """
     A potential client that the sales team is working on.
@@ -1115,6 +1123,667 @@ class Prospect(models.Model):
         
 
 
+class Lead(models.Model):
+    """
+    A Lead represents an unqualified sales opportunity.
+
+    A Lead is someone who has shown interest in The Daily Market,
+    but has not yet been qualified by the sales team.
+
+    Once qualified, the Lead is converted into a Prospect where
+    structured sales activities begin.
+    """
+
+    # ==========================================================
+    # SHARED CHOICES
+    # ==========================================================
+
+    CALL_TIME_CHOICES = [
+        ("MORNING", "08:30 - 11:00"),
+        ("MIDDAY", "11:00 - 14:00"),
+        ("AFTERNOON", "14:00 - 17:30"),
+    ]
+
+    # ==========================================================
+    # STATUS
+    # ==========================================================
+
+    STATUS_CHOICES = [
+        ("NEW", "New"),
+        ("CONTACTED", "Contacted"),
+        ("QUALIFIED", "Qualified"),
+        ("DISQUALIFIED", "Disqualified"),
+        ("CONVERTED", "Converted to Prospect"),
+    ]
+
+    PRIORITY_CHOICES = [
+        ("LOW", "Low"),
+        ("MEDIUM", "Medium"),
+        ("HIGH", "High"),
+        ("HOT", "Hot"),
+    ]
+
+    SOURCE_CHOICES = [
+        ("FACEBOOK", "Facebook"),
+        ("INSTAGRAM", "Instagram"),
+        ("TIKTOK", "TikTok"),
+        ("WHATSAPP", "WhatsApp"),
+        ("WEBSITE", "Website"),
+        ("REFERRAL", "Referral"),
+        ("SALES_DRIVE", "Sales Drive"),
+        ("PHONE", "Phone Call"),
+        ("EMAIL", "Email"),
+        ("OTHER", "Other"),
+    ]
+
+    AREA_CHOICES = [
+        ("SOUTH_WEST", "South / West"),
+        ("EAST", "East"),
+        ("NORTH_CENTRAL", "North / Central"),
+        ("MIDVAAL", "Midvaal"),
+        ("PRETORIA", "Pretoria"),
+        ("OTHER", "Other"),
+    ]
+
+    CLIENT_TYPES = [
+        ("RESTAURANT", "Restaurant"),
+        ("CATERER", "Caterer"),
+        ("RETAIL", "Retail / Supermarket / Spaza"),
+        ("VENDOR", "Vendor / Street Food"),
+        ("SCHOOL", "School / Hostel / Institution"),
+        ("STOKVEL", "Stokvel / Group"),
+        ("EVENT", "Once-off Event / Private (Funeral, Wedding, etc.)"),
+        ("OTHER", "Other (Specify in notes)"),
+    ]
+
+    ENTITY_TYPES = [
+        ("COMPANY", "Registered Company"),
+        ("SOLE_TRADER", "Sole Trader / Individual"),
+    ]
+
+    PROVINCES = [
+        ("EC", "Eastern Cape"),
+        ("FS", "Free State"),
+        ("GP", "Gauteng"),
+        ("KZN", "KwaZulu-Natal"),
+        ("LP", "Limpopo"),
+        ("MP", "Mpumalanga"),
+        ("NC", "Northern Cape"),
+        ("NW", "North West"),
+        ("WC", "Western Cape"),
+    ]
+
+    # ==========================================================
+    # SYSTEM
+    # ==========================================================
+
+    lead_number = models.CharField(
+        max_length=12,
+        unique=True,
+        editable=False,
+        db_index=True,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="NEW",
+        db_index=True,
+    )
+
+    priority = models.CharField(
+        max_length=10,
+        choices=PRIORITY_CHOICES,
+        default="MEDIUM",
+    )
+
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default="WHATSAPP",
+        db_index=True,
+    )
+
+    # ==========================================================
+    # MARKETING
+    # ==========================================================
+
+    campaign = models.CharField(
+        max_length=150,
+        blank=True,
+        help_text="Marketing campaign that generated this lead.",
+    )
+
+    advert = models.CharField(
+        max_length=150,
+        blank=True,
+        help_text="Specific advert, video or creative.",
+    )
+
+    medium = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Example: Organic Post, QR Code, Click-to-WhatsApp.",
+    )
+
+    # ==========================================================
+    # OWNERSHIP
+    # ==========================================================
+
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assigned_leads",
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_leads",
+    )
+
+    # ==========================================================
+    # BUSINESS INFORMATION
+    # ==========================================================
+
+    business_name = models.CharField(
+        max_length=200,
+        blank=True,
+    )
+
+    entity_type = models.CharField(
+        max_length=20,
+        choices=ENTITY_TYPES,
+        default="COMPANY",
+    )
+
+    
+
+    potential_client_type = models.CharField(
+        max_length=20,
+        choices=CLIENT_TYPES,
+        blank=True,
+    )
+
+    
+
+    estimated_weekly_spend = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    # ==========================================================
+    # CONTACT DETAILS
+    # ==========================================================
+
+    contact_person = models.CharField(
+        max_length=150,
+    )
+
+    phone = models.CharField(
+        max_length=50,
+    )
+
+    whatsapp = models.CharField(
+        max_length=50,
+        blank=True,
+    )
+
+    email = models.EmailField(
+        blank=True,
+    )
+
+    # ==========================================================
+    # ADDRESS
+    # ==========================================================
+
+    address_line1 = models.CharField(
+        max_length=200,
+        blank=True,
+    )
+
+    address_line2 = models.CharField(
+        max_length=200,
+        blank=True,
+    )
+
+    suburb = models.CharField(
+        max_length=120,
+        blank=True,
+    )
+
+    city = models.CharField(
+        max_length=120,
+        choices=GAUTENG_CITY_CHOICES,
+        blank=True,
+    )
+
+    province = models.CharField(
+        max_length=10,
+        choices=PROVINCES,
+        default="GP",
+    )
+
+    postal_code = models.CharField(
+        max_length=20,
+        blank=True,
+    )
+
+    country = models.CharField(
+        max_length=120,
+        default="South Africa",
+    )
+
+    area = models.CharField(
+        max_length=20,
+        choices=AREA_CHOICES,
+        blank=True,
+    )
+
+    
+
+    # ==========================================================
+    # PRODUCT INTEREST
+    # ==========================================================
+
+    interested_in = models.ManyToManyField(
+        Category,
+        blank=True,
+        related_name="leads",
+    )
+
+    # ==========================================================
+    # SALES ACTIVITY
+    # ==========================================================
+
+    last_contact_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    next_follow_up_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    notes = models.TextField(
+        blank=True,
+    )
+
+    preferred_call_time = models.CharField(
+        max_length=20,
+        choices=CALL_TIME_CHOICES,
+        blank=True,
+        help_text="Customer's preferred time to receive a call.",
+    )
+
+    preferred_call_time_selected_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    # ==========================================================
+    # RELATIONSHIPS
+    # ==========================================================
+
+    prospect = models.OneToOneField(
+        "Prospect",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="lead",
+    )
+
+    # ==========================================================
+    # DATES
+    # ==========================================================
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    # ==========================================================
+    # META
+    # ==========================================================
+
+    class Meta:
+        ordering = ["-created_at"]
+
+        indexes = [
+            models.Index(fields=["status"]),
+            models.Index(fields=["priority"]),
+            models.Index(fields=["source"]),
+            models.Index(fields=["assigned_to"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["city"]),
+            models.Index(fields=["potential_client_type"]),
+        ]
+
+    
+
+    # ==========================================================
+    # STRING
+    # ==========================================================
+
+    def __str__(self):
+        return f"{self.lead_number} - {self.business_name or self.contact_person}"
+
+    # ==========================================================
+    # HELPERS
+    # ==========================================================
+
+    def save(self, *args, **kwargs):
+
+        creating = self.pk is None
+
+        if not self.lead_number:
+
+            last = (
+                Lead.objects
+                .filter(lead_number__startswith="LD")
+                .order_by("-id")
+                .first()
+            )
+
+            if last:
+                try:
+                    number = int(last.lead_number.replace("LD", "")) + 1
+                except (ValueError, AttributeError):
+                    number = 1
+            else:
+                number = 1
+
+            self.lead_number = f"LD{number:06d}"
+
+        super().save(*args, **kwargs)
+
+        if creating:
+
+            self.ensure_new_lead_task()
+
+            self.log_activity(
+                "LEAD_CREATED",
+                outcome="SUCCESS",
+                notes="Lead created.",
+            )
+
+    @transaction.atomic
+    def convert_to_prospect(self):
+        """
+        Convert this Lead into a Prospect.
+        Safe to call multiple times.
+        """
+
+        if self.prospect_id:
+            return self.prospect
+
+        prospect = Prospect.objects.create(
+
+            owner=self.assigned_to,
+            created_by=self.created_by,
+
+            name=self.business_name or self.contact_person,
+            organization=self.business_name,
+
+            entity_type=self.entity_type,
+
+            contact_name=self.contact_person,
+            email=self.email,
+            phone=self.phone,
+            whatsapp=self.whatsapp,
+
+            potential_client_type=self.potential_client_type,
+
+            address_line1=self.address_line1,
+            address_line2=self.address_line2,
+            suburb=self.suburb,
+            city=self.city,
+            province=self.province,
+            postal_code=self.postal_code,
+            country=self.country,
+
+            area=self.area,
+
+            estimated_weekly_spend=self.estimated_weekly_spend,
+
+            last_contact_at=self.last_contact_at,
+            next_follow_up_at=self.next_follow_up_at,
+
+            lead_source=self.source,
+
+            notes=self.notes,
+        )
+
+        prospect.categories.set(self.interested_in.all())
+
+        self.prospect = prospect
+        self.status = "CONVERTED"
+
+        self.save(update_fields=[
+            "prospect",
+            "status",
+        ])
+
+        return prospect
+
+    @property
+    def is_converted(self):
+        return self.prospect_id is not None
+
+    @property
+    def age_days(self):
+        return (
+            timezone.localdate() -
+            self.created_at.date()
+        ).days
+    
+    def ensure_new_lead_task(self):
+        """
+        Create the initial sales task for a new lead.
+        Only creates one task per lead.
+        """
+
+        from tasks.models import Task
+        from profiles.models import Department
+        from django.contrib.contenttypes.models import ContentType
+
+        # Prevent duplicates
+        if Task.objects.filter(
+            task_type=Task.TaskType.LEAD_QUALIFICATION,
+            content_type=ContentType.objects.get_for_model(Lead),
+            object_id=self.pk,
+        ).exists():
+            return
+
+        sales_department = Department.objects.filter(
+            name__iexact="Sales"
+        ).first()
+
+        Task.objects.create(
+            title=f"New Lead - {self.business_name or self.contact_person}",
+
+            description=(
+                "A new lead has been submitted.\n\n"
+                "Please:\n"
+                "• Contact the lead\n"
+                "• Verify the business information\n"
+                "• Qualify the opportunity\n"
+                "• Update the lead status\n"
+                "• Convert to Prospect if qualified."
+            ),
+
+            department=sales_department,
+
+            priority=Task.Priority.MEDIUM,
+
+            task_type=Task.TaskType.LEAD_QUALIFICATION,
+
+            source=Task.Source.SYSTEM,
+
+            status=Task.Status.PENDING,
+
+            created_by=self.created_by,
+
+            content_type=ContentType.objects.get_for_model(Lead),
+            object_id=self.pk,
+        )
+
+    def log_activity(
+        self,
+        activity_type,
+        *,
+        outcome="",
+        notes="",
+        user=None,
+    ):
+
+        return LeadActivity.objects.create(
+
+            lead=self,
+
+            activity_type=activity_type,
+
+            outcome=outcome,
+
+            notes=notes,
+
+            user=user,
+        )
+
+
+class LeadActivity(models.Model):
+
+    ACTIVITY_TYPES = [
+
+        ("LEAD_CREATED", "Lead Created"),
+
+        ("SMS_SENT", "SMS Sent"),
+
+        ("WHATSAPP_SENT", "WhatsApp Sent"),
+
+        ("EMAIL_SENT", "Email Sent"),
+
+        ("CALLBACK_SELECTED", "Callback Time Selected"),
+
+        ("CALL_ATTEMPT", "Call Attempt"),
+
+        ("CALL_COMPLETED", "Call Completed"),
+
+        ("NO_ANSWER", "No Answer"),
+
+        ("VOICE_NOTE_SENT", "Voice Note Sent"),
+
+        ("PRICE_LIST_SENT", "Price List Sent"),
+
+        ("FOLLOW_UP_BOOKED", "Follow-up Booked"),
+
+        ("STATUS_CHANGED", "Status Changed"),
+
+        ("NOTE", "Internal Note"),
+
+        ("CONVERTED", "Converted to Prospect"),
+        
+        ("LEAD_UPDATED", "Lead Updated"),
+    ]
+
+
+    OUTCOME_CHOICES = [
+
+        ("SUCCESS", "Success"),
+
+        ("FAILED", "Failed"),
+
+        ("DELIVERED", "Delivered"),
+
+        ("READ", "Read"),
+
+        ("ANSWERED", "Answered"),
+
+        ("NO_ANSWER", "No Answer"),
+
+        ("INTERESTED", "Interested"),
+
+        ("NOT_INTERESTED", "Not Interested"),
+
+        ("OTHER", "Other"),
+    ]
+
+
+    lead = models.ForeignKey(
+        Lead,
+        on_delete=models.CASCADE,
+        related_name="activities",
+    )
+
+    activity_type = models.CharField(
+        max_length=30,
+        choices=ACTIVITY_TYPES,
+    )
+
+    outcome = models.CharField(
+        max_length=30,
+        choices=OUTCOME_CHOICES,
+        blank=True,
+    )
+
+    notes = models.TextField(
+        blank=True,
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+
+    occurred_at = models.DateTimeField(
+        default=timezone.now,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+
+        ordering = [
+            "-occurred_at",
+            "-created_at",
+        ]
+
+        indexes = [
+
+            models.Index(
+                fields=[
+                    "lead",
+                    "occurred_at",
+                ]
+            ),
+
+            models.Index(
+                fields=[
+                    "activity_type",
+                ]
+            ),
+        ]
+
+    def __str__(self):
+
+        return (
+            f"{self.lead.lead_number} - "
+            f"{self.get_activity_type_display()}"
+        )
 
 
     
@@ -1436,3 +2105,250 @@ class ProspectUpdate(models.Model):
         label = dict(self.ACTION_CHOICES).get(self.action_type, self.action_type)
         return f"{self.prospect.name} · {label} @ {self.action_at:%Y-%m-%d %H:%M}"
 
+
+
+
+
+class Membership(models.Model):
+
+    STATUS_CHOICES = [
+        ("PENDING", "Pending"),
+        ("ACTIVE", "Active"),
+        ("SUSPENDED", "Suspended"),
+        ("CANCELLED", "Cancelled"),
+    ]
+
+    SOURCE_CHOICES = [
+        ("WEBSITE", "Website"),
+        ("SALES", "Sales Representative"),
+        ("ADMIN", "Administrator"),
+        ("IMPORT", "Imported"),
+    ]
+
+    client = models.OneToOneField(
+        "clients.Client",
+        on_delete=models.CASCADE,
+        related_name="membership",
+        help_text="The client that owns this membership.",
+    )
+
+    membership_number = models.CharField(
+        max_length=20,
+        unique=True,
+        editable=False,
+        db_index=True,
+        help_text="Automatically generated membership number.",
+    )
+
+    referral_code = models.CharField(
+        max_length=20,
+        unique=True,
+        blank=True,
+        db_index=True,
+        help_text="Unique referral code for this member.",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="PENDING",
+        db_index=True,
+    )
+
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default="WEBSITE",
+        help_text="Where this membership originated.",
+    )
+
+    applied_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When the membership application was submitted.",
+    )
+
+    activated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the membership became active.",
+    )
+
+    suspended_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the membership was suspended.",
+    )
+
+    cancelled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the membership was cancelled.",
+    )
+
+    is_test_member = models.BooleanField(
+        default=False,
+        help_text="Used for testing and demonstration memberships.",
+    )
+
+    internal_notes = models.TextField(
+        blank=True,
+        help_text="Internal notes visible to staff only.",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = ["membership_number"]
+        verbose_name = "Membership"
+        verbose_name_plural = "Memberships"
+        indexes = [
+            models.Index(fields=["status"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.membership_number} - "
+            f"{self.client.organization or self.client.name}"
+        )
+
+    # ==========================================================
+    # Membership Number
+    # ==========================================================
+    @classmethod
+    def generate_referral_code(cls):
+
+        while True:
+
+            code = f"TA-{get_random_string(8).upper()}"
+
+            if not cls.objects.filter(referral_code=code).exists():
+                return code
+            
+
+    @staticmethod
+    def _format_membership_number(number: int) -> str:
+        return f"TA{number:06d}"
+
+    @classmethod
+    def next_membership_number(cls):
+        qs = (
+            cls.objects
+            .annotate(
+                num_part=Cast(
+                    Substr("membership_number", 3),
+                    IntegerField(),
+                )
+            )
+            .exclude(num_part__isnull=True)
+            .order_by("-num_part")
+        )
+
+        last = qs.first()
+        last_number = last.num_part if last else 0
+
+        return cls._format_membership_number(last_number + 1)
+
+    # ==========================================================
+    # Save
+    # ==========================================================
+
+    def save(self, *args, **kwargs):
+
+        if not self.membership_number:
+
+            self.membership_number = self.next_membership_number()
+
+        if not self.referral_code:
+
+            self.referral_code = self.generate_referral_code()
+
+        super().save(*args, **kwargs)
+
+    # ==========================================================
+    # Status Helpers
+    # ==========================================================
+
+    def activate(self):
+
+        self.status = "ACTIVE"
+
+        if not self.activated_at:
+            self.activated_at = timezone.now()
+
+        self.save(
+            update_fields=[
+                "status",
+                "activated_at",
+                "updated_at",
+            ]
+        )
+
+    def suspend(self):
+
+        self.status = "SUSPENDED"
+        self.suspended_at = timezone.now()
+
+        self.save(
+            update_fields=[
+                "status",
+                "suspended_at",
+                "updated_at",
+            ]
+        )
+
+    def cancel(self):
+
+        self.status = "CANCELLED"
+        self.cancelled_at = timezone.now()
+
+        self.save(
+            update_fields=[
+                "status",
+                "cancelled_at",
+                "updated_at",
+            ]
+        )
+
+    # ==========================================================
+    # Convenience Properties
+    # ==========================================================
+    
+    @property
+    def is_pending(self):
+        return self.status == "PENDING"
+
+    @property
+    def is_active(self):
+        return self.status == "ACTIVE"
+
+    @property
+    def is_suspended(self):
+        return self.status == "SUSPENDED"
+
+    @property
+    def is_cancelled(self):
+        return self.status == "CANCELLED"
+
+    @property
+    def member_since(self):
+        if self.activated_at:
+            return timezone.localtime(self.activated_at).date()
+        return None
+
+    @property
+    def days_as_member(self):
+        if not self.activated_at:
+            return 0
+
+        return (
+            timezone.localdate()
+            - timezone.localtime(self.activated_at).date()
+        ).days
+    
+    

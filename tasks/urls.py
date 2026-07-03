@@ -10,5 +10,6 @@ urlpatterns = [
 
     path("notifications/count/", views.notification_count, name="notification-count"),
     path("dashboard/", views.staff_support_dashboard, name="staff-support-dashboard"), 
+    path("whatsapp/", views.whatsapp, name="whatsapp"),
     
 ]

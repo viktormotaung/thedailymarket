@@ -34,6 +34,7 @@ urlpatterns = [
     path("orders/q/<uuid:token>/", order_views.public_quotation_view, name="public-quotation-view",),
     path("invoices/public/<uuid:token>/", invoice_views.public_invoice_view, name="public-invoice-view",),
     path("communications/", include("communications.urls"),),
+    path("membership/", include("membership.urls")),
 
     
 

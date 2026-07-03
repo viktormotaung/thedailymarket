@@ -599,3 +599,10 @@ def ticket_view(request, pk):
 @staff_required
 def staff_support_dashboard(request):
     return render(request, "tasks/staff_support_dashboard.html")
+
+
+@login_required
+@staff_required
+def whatsapp(request):
+    return render(request, "tasks/whatsapp.html")
+

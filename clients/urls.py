@@ -18,6 +18,14 @@ urlpatterns = [
     ),
     path("<int:pk>/view/", views.client_view, name="client-view"),
     path("<int:pk>/operations/edit/", views.client_edit_operations, name="client-edit-operations"),
-    
+    path("membership/", views.membership_list, name="membership-list",),
+    path("membership/new/", views.membership_create, name="membership-create",),
+    path("membership/<int:client_id>/link/", views.membership_link, name="membership-link",),
+    path("membership/<int:membership_id>/delink/", views.membership_delink, name="membership-delink",),
+    path("membership/<int:pk>/", views.membership_view, name="membership-view",),
+    path("membership/<int:pk>/edit/", views.membership_edit, name="membership-edit",),
+    path("leads/", views.leads_list, name="leads-list",),
+    path("leads/<int:pk>/", views.lead_view, name="lead-view",),
+    path("leads/<int:pk>/edit/", views.lead_edit, name="lead-edit",),
 
 ]

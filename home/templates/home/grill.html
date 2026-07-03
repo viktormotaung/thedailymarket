@@ -77,6 +77,57 @@
     footer a { color:#fff; text-decoration:none; }
     footer a:hover { text-decoration:underline; }
 
+    /* ===== Trade Assist Membership Bar ===== */
+
+    .membership-bar{
+        background:#fff;
+        border-bottom:1px solid #e8e8e8;
+        box-shadow:0 2px 8px rgba(0,0,0,.04);
+    }
+
+    .membership-title{
+        font-size:1.2rem;
+        font-weight:700;
+        color:#0b5c39;
+        letter-spacing:.5px;
+    }
+
+    .membership-subtitle{
+        font-size:.9rem;
+        color:#6c757d;
+    }
+
+    .btn-member{
+        border:2px solid #0b5c39;
+        color:#0b5c39;
+        background:#fff;
+        font-weight:600;
+        border-radius:30px;
+        padding:.6rem 1.5rem;
+        transition:.25s;
+    }
+
+    .btn-member:hover{
+        background:#0b5c39;
+        color:#fff;
+    }
+
+    .btn-member-login{
+        background:#0b5c39;
+        color:#fff;
+        border:2px solid #0b5c39;
+        font-weight:600;
+        border-radius:30px;
+        padding:.6rem 1.5rem;
+        transition:.25s;
+    }
+
+    .btn-member-login:hover{
+        background:#094c30;
+        border-color:#094c30;
+        color:#fff;
+    }
+
     /* Mobile top bar (offcanvas trigger) */
     @media (max-width:991.98px){
       .mobile-topbar { background:var(--brand); }
@@ -124,34 +175,24 @@
 
       <hr class="border-light my-3">
 
-      <a href="{% url 'become_supplier' %}" class="nav-link {% if request.resolver_match.url_name == 'become_supplier' or request.path == '/become_supplier/' %}active{% endif %}" data-bs-dismiss="offcanvas">Become A Supplier</a>
       <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}" data-bs-dismiss="offcanvas">Shop</a>
-      <a class="nav-link requires-auth {% if request.resolver_match.url_name == 'wholesale_assist' or request.path == '/wholesale_assist/' %}active{% endif %}" href="{% url 'wholesale_assist' %}" data-bs-dismiss="offcanvas">Trade Assist</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}"
+        href="{% url 'trade_assist' %}"
+        data-bs-dismiss="offcanvas">
+          Trade Assist
+      </a>
 
-      <!-- Orders -->
-      <div class="mt-2 text-uppercase small opacity-75">Orders</div>
-      <a class="nav-link requires-auth {% if request.path == '/orders/' %}active{% endif %}" href="{% url 'orders' %}" data-bs-dismiss="offcanvas">My Orders</a>
-      <a class="nav-link requires-auth {% if request.path == '/cart/' %}active{% endif %}" href="{% url 'cart' %}" data-bs-dismiss="offcanvas">Cart</a>
-
+      
       <a href="{% url 'contact' %}" class="nav-link mt-3 {% if request.path == '/contact/' %}active{% endif %}" data-bs-dismiss="offcanvas">Contact</a>
 
       <hr class="border-light my-3">
 
-      {% if user.is_authenticated %}
-        <a href="/profile/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">My Profile</a>
-        <form action="{% url 'logout' %}" method="post" class="mt-1">
-          {% csrf_token %}
-          <button type="submit" class="btn btn-light w-100">Sign out</button>
-        </form>
-      {% else %}
-        <div class="text-uppercase small opacity-75"></div>
-        <a href="{% url 'client-login' %}"
-          class="btn btn-outline-light w-100 mt-2 js-client-signin">
-          Sign in
-        </a>
+      
 
+        
 
-      {% endif %}
+        
+     
     </div>
   </div>
 
@@ -184,10 +225,7 @@
             </ul>
           </li>
 
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'become_supplier' or request.path == '/become_supplier/' %}active{% endif %}"
-               href="/become_supplier/">Become A Supplier</a>
-          </li>
+          
 
           <li class="nav-item">
             <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}"
@@ -195,20 +233,13 @@
           </li>
 
           <li class="nav-item">
-            <a class="nav-link requires-auth {% if request.resolver_match.url_name == 'wholesale_assist' or request.path == '/wholesale_assist/' %}active{% endif %}"
-               href="{% url 'wholesale_assist' %}">Trade Assist</a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}"
+              href="{% url 'trade_assist' %}">
+                Trade Assist
+            </a>
           </li>
 
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle requires-auth {% if request.path == '/orders/' or request.path == '/cart/' %}active{% endif %}"
-               href="/order/" id="orderDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              Orders
-            </a>
-            <ul class="dropdown-menu brand" aria-labelledby="orderDropdown">
-              <li><a class="dropdown-item requires-auth {% if request.path == '/orders/' %}active{% endif %}" href="/orders/">My Orders</a></li>
-              <li><a class="dropdown-item requires-auth {% if request.path == '/cart/' %}active{% endif %}" href="/cart/">Cart</a></li>
-            </ul>
-          </li>
+          
 
           <li class="nav-item">
             <a class="nav-link {% if request.path == '/contact/' %}active{% endif %}" href="/contact/">Contact</a>
@@ -216,144 +247,128 @@
         </ul>
       </div>
 
-      <div class="dropdown ms-auto">
-        <a class="nav-link p-0 dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-          <i class="bi bi-person-circle fs-4"></i>
-        </a>
-        <ul class="dropdown-menu dropdown-menu-end brand">
-          {% if user.is_authenticated %}
-            <li><a class="dropdown-item" href="/profile/">My Profile</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li>
-              <form action="{% url 'logout' %}" method="post" class="px-3">
-                {% csrf_token %}
-                <button type="submit" class="dropdown-item p-0 btn btn-link text-white">Sign out</button>
-              </form>
-            </li>
-          {% else %}
-            <li class="dropdown-header text-white-50"></li>
-            <li>
-              <a class="dropdown-item js-client-signin"
-                href="{% url 'client-login' %}">
-                Sign in
-              </a>
-            </li>
-
-          {% endif %}
-        </ul>
-      </div>
+      
     </div>
   </nav>
+
+  <!-- ================================================= -->
+  <!-- Trade Assist Membership -->
+  <!-- ================================================= -->
+
+  <section class="membership-bar py-3">
+      <div class="container">
+
+          <div class="row align-items-center">
+
+              <div class="col-lg-6 text-center text-lg-start mb-3 mb-lg-0">
+
+                  <div class="membership-title">
+                      Trade Assist Membership
+                  </div>
+
+                  <div class="membership-subtitle">
+                      Building Better Food Businesses Together
+                  </div>
+
+              </div>
+
+              <div class="col-lg-6">
+
+                  <div class="d-flex justify-content-center justify-content-lg-end gap-3">
+
+                      <a href="/register_profile/" class="btn btn-member">
+                          Become a Member
+                      </a>
+
+                      <a href="{% url 'client-login' %}" class="btn btn-member-login">
+                          Member Login
+                      </a>
+
+                  </div>
+
+              </div>
+
+          </div>
+
+      </div>
+  </section>
 
   <!-- Hero -->
   <section class="page-hero">
     <h1>Grill Experience</h1>
   </section>
 
-  <!-- Intro -->
+ 
+  <!-- Coming Soon -->
   <section class="py-5">
-    <div class="container text-center">
-      <h2 class="section-heading">Mini-Restaurants. Maximum Flavour.</h2>
+    <div class="container text-center" style="max-width:820px;">
+      <h2 class="section-heading mb-3">Coming Soon</h2>
       <p class="lead text-muted">
-        The Grill Experience is where our love of food meets fun dining. 
-        We’re bringing bold flavours, affordable meals, and family-friendly vibes to everyday communities.
+        The Grill Experience is getting ready to bring flame-grilled favourites,
+        bold flavours and affordable meals to communities across South Africa.
+        We're putting the finishing touches on something special, and we can't
+        wait to welcome you.
       </p>
-    </div>
-  </section>
 
-  <!-- Story + Flavours -->
-  <section class="py-5 bg-light">
-    <div class="container">
-      <div class="row g-4 align-items-center">
-        
-        <!-- Right column shows first on mobile -->
-        <div class="col-lg-6 order-1 order-lg-2">
-          <h5 class="mb-3">Our Signature Flavours</h5>
-          <ul class="list-unstyled text-muted mb-0">
-            <li class="d-flex align-items-start mb-2">
-              <i class="bi bi-fire me-2"></i>
-              <span><strong>The Signature</strong> – smokey, savoury, citrus lift</span>
-            </li>
-            <li class="d-flex align-items-start mb-2">
-              <i class="bi bi-leaf me-2"></i>
-              <span><strong>Lemon-Herb</strong> – bright, garlicky, fresh</span>
-            </li>
-            <li class="d-flex align-items-start mb-2">
-              <i class="bi bi-pepper-hot me-2"></i>
-              <span><strong>Peri-Peri</strong> – medium heat, full flavour (turn it up if you dare)</span>
-            </li>
-            <li class="d-flex align-items-start">
-              <i class="bi bi-droplet-half me-2"></i>
-              <span><strong>Sticky BBQ</strong> – sweet-smokey crowd-pleaser</span>
-            </li>
-          </ul>
-        </div>
-  
-        <!-- Left column becomes second on mobile -->
-        <div class="col-lg-6 order-2 order-lg-1">
-          <h3 class="fw-bold">From Soweto, with Flavour</h3>
-          <p>
-            In 2025, we fired up our very first Grill Experience in <strong>Soweto</strong>.
-            A simple idea: serve quality flame-grilled meals at prices that make sense.
-            It worked—locals loved it, families gathered, and word spread fast.
-          </p>
-          <p class="mb-3">
-            By <strong>end of 2026</strong>, we’ll be lighting up new locations in
-            <strong>Muldersdrift</strong> and <strong>Bloemfontein</strong>.
-            Each mini-restaurant carries the same spirit: fun, flavour, and value.
-          </p>
-  
-          <div class="d-flex flex-wrap justify-content-center justify-content-lg-start gap-2">
-            <span class="badge bg-success-subtle text-success border border-success">Family Friendly</span>
-            <span class="badge bg-success-subtle text-success border border-success">Affordable Quality</span>
-            <span class="badge bg-success-subtle text-success border border-success">Big Flavours</span>
-          </div>
-        </div>
-  
-      </div>
-    </div>
-  </section>
-  
+      <div class="row g-4 mt-2">
 
-  <!-- Locations -->
-  <section class="py-5">
-    <div class="container">
-      <h2 class="section-heading text-center">Our Locations</h2>
-      <div class="row g-4 mt-4">
-        
-        <div class="col-md-6">
+        <div class="col-md-4">
           <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex flex-column justify-content-center align-items-center text-center" style="min-height:160px;">
-              <h5 class="card-title mb-2">Gauteng</h5>
-              <p class="text-muted mb-0">Opening end of 2026 — countryside vibes, same bold The flavours.</p>
+            <div class="card-body">
+              <div class="fs-2 mb-2">
+                <i class="bi bi-fire"></i>
+              </div>
+              <h5>Flame-Grilled Favourites</h5>
+              <p class="text-muted mb-0">
+                Delicious chicken, burgers, wings and meals prepared over the flame
+                for unforgettable flavour.
+              </p>
             </div>
           </div>
         </div>
-        
-        <div class="col-md-6">
+
+        <div class="col-md-4">
           <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex flex-column justify-content-center align-items-center text-center" style="min-height:160px;">
-              <h5 class="card-title mb-2">Free State</h5>
-              <p class="text-muted mb-0">Opening end of 2026 — Central SA, ready for wings that sing.</p>
+            <div class="card-body">
+              <div class="fs-2 mb-2">
+                <i class="bi bi-people"></i>
+              </div>
+              <h5>Family Friendly</h5>
+              <p class="text-muted mb-0">
+                A welcoming place for families, friends and communities to enjoy
+                great food together.
+              </p>
             </div>
           </div>
         </div>
-        
-      </div>
-      <div class="alert alert-success text-center mt-4">
-        <strong>Want us in your area?</strong> <a href="/contact/" class="alert-link">Suggest a location</a>
-      </div>
-    </div>
-  </section>
 
-  <!-- CTA -->
-  <section class="py-5 bg-light text-center">
-    <div class="container">
-      <h2 class="fw-bold">Flame-Grilled. Fun-Filled. Family-Approved.</h2>
-      <p class="text-muted mb-4">Join us for a meal that feels like home, but tastes like a treat.</p>
-      <a href="/contact/" class="btn btn-success btn-lg">Book Catering</a>
+        <div class="col-md-4">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <div class="fs-2 mb-2">
+                <i class="bi bi-geo-alt"></i>
+              </div>
+              <h5>Growing Across SA</h5>
+              <p class="text-muted mb-0">
+                Our vision is to bring the Grill Experience to more towns and
+                neighbourhoods across South Africa.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="alert alert-success mt-4 mb-0">
+        <strong>Coming Soon!</strong>
+        We'll announce our first locations, opening dates and menu soon.
+        <a href="/contact/" class="alert-link">Contact us</a> if you'd like to
+        see a Grill Experience in your area.
+      </div>
     </div>
   </section>
+```
+
 
   <!-- ========== Footer ========== -->
   <footer class="text-white bg-dark">

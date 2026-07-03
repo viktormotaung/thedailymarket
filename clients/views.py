@@ -15,7 +15,7 @@ from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from clients.models import Client, ClientCompliance, ClientComplianceDocument, Prospect, ProspectUpdate
+from clients.models import Client, ClientCompliance, ClientComplianceDocument, Prospect, ProspectUpdate, Membership, Lead, LeadActivity
 from clients.models import GAUTENG_CITY_CHOICES
 from clients.forms import ProspectForm, ProspectUpdateForm
 from tasks.models import Task
@@ -29,7 +29,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Count
 from django.utils import timezone
 from collections import defaultdict
-
+from .forms import LeadForm
 from clients.models import Client, Prospect
 
 
@@ -1095,5 +1095,384 @@ def client_dashboard(request):
     return render(
         request,
         "clients/client_dashboard.html",
+        context,
+    )
+
+
+@login_required
+@staff_required
+def membership_list(request):
+
+    memberships = (
+        Membership.objects
+        .select_related("client", "client__account_manager")
+        .order_by("membership_number")
+    )
+
+    search = (request.GET.get("search") or "").strip()
+    status = request.GET.get("status") or ""
+
+    if search:
+        memberships = memberships.filter(
+            Q(membership_number__icontains=search)
+            | Q(client__name__icontains=search)
+            | Q(client__organization__icontains=search)
+            | Q(client__contact_person__icontains=search)
+            | Q(client__phone__icontains=search)
+        )
+
+    if status:
+        memberships = memberships.filter(status=status)
+
+    return render(
+        request,
+        "clients/membership_list.html",
+        {
+            "memberships": memberships,
+            "statuses": Membership.STATUS_CHOICES,
+        },
+    )
+
+
+@login_required
+@staff_required
+def membership_create(request):
+
+    clients = (
+        Client.objects
+        .select_related("account_manager")
+        .order_by("name")
+    )
+
+    search = (request.GET.get("search") or "").strip()
+    membership_filter = request.GET.get("membership") or ""
+
+    if search:
+        clients = clients.filter(
+            Q(name__icontains=search)
+            | Q(organization__icontains=search)
+            | Q(contact_person__icontains=search)
+            | Q(phone__icontains=search)
+        )
+
+    # Attach membership (if any) to each client
+    memberships = {
+        m.client_id: m
+        for m in Membership.objects.select_related("client")
+    }
+
+    client_list = []
+
+    for client in clients:
+        client.membership = memberships.get(client.id)
+        client_list.append(client)
+
+    if membership_filter == "linked":
+        client_list = [
+            client for client in client_list
+            if client.membership
+        ]
+
+    elif membership_filter == "unlinked":
+        client_list = [
+            client for client in client_list
+            if not client.membership
+        ]
+
+    context = {
+        "title": "Create Membership",
+        "clients": client_list,
+    }
+
+    return render(
+        request,
+        "clients/membership_create.html",
+        context,
+    )
+
+
+@login_required
+@staff_required
+def membership_link(request, client_id):
+
+    client = get_object_or_404(Client, pk=client_id)
+
+    # Prevent duplicate memberships
+    if Membership.objects.filter(client=client).exists():
+        messages.warning(
+            request,
+            f"{client.name} already has a membership."
+        )
+        return redirect("membership-create")
+
+    # Generate next membership number
+    last = (
+        Membership.objects
+        .order_by("-id")
+        .first()
+    )
+
+    if last and last.membership_number:
+        try:
+            next_number = int(last.membership_number.replace("MEM", "")) + 1
+        except Exception:
+            next_number = last.id + 1
+    else:
+        next_number = 1
+
+    membership = Membership.objects.create(
+        client=client,
+        status="ACTIVE",
+        source="ADMIN",
+    )
+
+    messages.success(
+        request,
+        f"{client.name} has been linked to membership {membership.membership_number}."
+    )
+
+    return redirect("membership-create")
+
+
+@login_required
+@staff_required
+def membership_delink(request, membership_id):
+
+    membership = get_object_or_404(
+        Membership,
+        pk=membership_id
+    )
+
+    client_name = membership.client.name
+
+    membership.delete()
+
+    messages.success(
+        request,
+        f"{client_name} has been delinked from Trade Assist."
+    )
+
+    return redirect("membership-create")
+
+
+@login_required
+@staff_required
+def membership_view(request, pk):
+
+    membership = get_object_or_404(
+        Membership.objects.select_related("client"),
+        pk=pk,
+    )
+
+    context = {
+        "membership": membership,
+        "title": "Membership Details",
+    }
+
+    return render(
+        request,
+        "clients/membership_view.html",
+        context,
+    )
+
+
+@login_required
+@staff_required
+def membership_edit(request, pk):
+
+    membership = get_object_or_404(
+        Membership,
+        pk=pk,
+    )
+
+    if request.method == "POST":
+
+        membership.status = request.POST.get(
+            "status",
+            membership.status,
+        )
+
+        membership.source = request.POST.get(
+            "source",
+            membership.source,
+        )
+
+        membership.internal_notes = request.POST.get(
+            "internal_notes",
+            membership.internal_notes,
+        )
+
+        membership.save()
+
+        messages.success(
+            request,
+            "Membership updated successfully.",
+        )
+
+        return redirect(
+            "membership-view",
+            pk=membership.pk,
+        )
+
+    context = {
+        "membership": membership,
+        "statuses": Membership.STATUS_CHOICES,
+        "sources": Membership.SOURCE_CHOICES,
+        "title": "Edit Membership",
+    }
+
+    return render(
+        request,
+        "clients/membership_edit.html",
+        context,
+    )
+
+
+@login_required
+@staff_required
+def leads_list(request):
+
+    qs = (
+        Lead.objects
+        .select_related(
+            "assigned_to",
+            "prospect",
+        )
+        .prefetch_related("interested_in")
+        .order_by("-created_at")
+    )
+
+    # ---------------------------------------------
+    # SEARCH
+    # ---------------------------------------------
+    q = (request.GET.get("q") or "").strip()
+
+    if q:
+        qs = qs.filter(
+            Q(lead_number__icontains=q)
+            | Q(business_name__icontains=q)
+            | Q(contact_person__icontains=q)
+            | Q(phone__icontains=q)
+            | Q(whatsapp__icontains=q)
+        )
+
+    # ---------------------------------------------
+    # STATUS
+    # ---------------------------------------------
+    status = (request.GET.get("status") or "").strip()
+
+    if status:
+        qs = qs.filter(status=status)
+
+    # ---------------------------------------------
+    # SOURCE
+    # ---------------------------------------------
+    source = (request.GET.get("source") or "").strip()
+
+    if source:
+        qs = qs.filter(source=source)
+
+    context = {
+        "leads": qs,
+        "statuses": Lead.STATUS_CHOICES,
+        "sources": Lead.SOURCE_CHOICES,
+        "today": timezone.localdate(),
+    }
+
+    return render(
+        request,
+        "clients/leads_list.html",
+        context,
+    )
+
+
+@login_required
+def lead_view(request, pk):
+
+    lead = get_object_or_404(
+        Lead.objects.select_related(
+            "assigned_to",
+            "created_by",
+            "prospect",
+        ).prefetch_related(
+            "interested_in",
+            "activities__user",
+        ),
+        pk=pk,
+    )
+
+    context = {
+
+        "lead": lead,
+
+        "activities": lead.activities.select_related(
+            "user",
+        ).order_by(
+            "-occurred_at",
+            "-created_at",
+        ),
+
+    }
+
+    return render(
+        request,
+        "clients/lead_view.html",
+        context,
+    )
+
+
+@login_required
+@staff_required
+def lead_edit(request, pk):
+
+    lead = get_object_or_404(
+        Lead,
+        pk=pk,
+    )
+
+    if request.method == "POST":
+
+        form = LeadForm(
+            request.POST,
+            instance=lead,
+        )
+
+        if form.is_valid():
+
+            lead = form.save()
+
+            LeadActivity.objects.create(
+                lead=lead,
+                activity_type="LEAD_UPDATED",
+                notes="Lead details updated.",
+                user=request.user,
+            )
+
+            messages.success(
+                request,
+                "Lead updated successfully.",
+            )
+
+            return redirect(
+                "lead-view",
+                pk=lead.pk,
+            )
+
+    else:
+
+        form = LeadForm(
+            instance=lead,
+        )
+
+    context = {
+
+        "lead": lead,
+        "form": form,
+
+    }
+
+    return render(
+        request,
+        "clients/lead_edit.html",
         context,
     )

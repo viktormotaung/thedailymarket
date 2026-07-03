@@ -1,0 +1,833 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Grill Experience - The Daily Market</title>
+
+  <!-- Bootstrap + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+
+  <style>
+    :root { --brand:#0b5c39; --brand-dark:#094c30; }
+  
+    /* ---------- Base / Navbar (desktop) ---------- */
+    .navbar-brand img { height:85px; max-height:100px; width:auto; }
+    .navbar { background: var(--brand); }
+    .navbar .nav-link, .navbar .navbar-brand, .navbar .dropdown-toggle { color:#fff !important; }
+    .navbar .nav-link:hover { color:#e0e0e0 !important; }
+    .navbar .dropdown-menu.brand {
+      background:#0b5c39; border:1px solid #094c30; box-shadow:0 8px 24px rgba(0,0,0,.25);
+    }
+    .navbar .dropdown-item { color:#fff; }
+    .navbar .dropdown-item:hover { background:#094c30; color:#fff; }
+    .navbar .dropdown-divider { border-color:rgba(255,255,255,.2); }
+
+    /* Normalize tab spacing/shape */
+    .navbar .navbar-nav { align-items:center; gap:.25rem; }
+    .navbar .nav-link {
+      display:inline-flex; align-items:center;
+      padding:.6rem 1rem; line-height:1; font-weight:500; border-radius:.375rem;
+    }
+    .navbar .nav-link:hover,
+    .navbar .nav-link:focus-visible { background:rgba(255,255,255,.10); color:#fff !important; }
+    .navbar .nav-link.active { background:rgba(255,255,255,.18); }
+
+
+    /* ---------- Mobile top bar + offcanvas ---------- */
+    .offcanvas-header.brand-skin { background:#0b5c39; color:#fff; }
+    .offcanvas-body.brand-skin { background:#0b5c39; color:#fff; }
+    .offcanvas-body .nav-link { color:#fff; padding:.55rem 0; }
+    .offcanvas-body .nav-link:hover { color:#d4f3e3; }
+  
+    /* Active highlight inside green offcanvas (mobile) */
+    .offcanvas-body.brand-skin .nav-link.active,
+    .offcanvas-body.brand-skin .nav-link:focus,
+    .offcanvas-body.brand-skin .nav-link:hover,
+    .offcanvas-body.brand-skin .dropdown-item.active,
+    .offcanvas-body.brand-skin .dropdown-item:focus,
+    .offcanvas-body.brand-skin .dropdown-item:hover {
+      background: rgba(255,255,255,.18);
+      border-radius: .375rem;
+      padding-left: .5rem;
+      color:#fff;
+    }
+    .offcanvas-body.brand-skin .text-uppercase.small.opacity-75 {
+      color: rgba(255,255,255,.75) !important;
+    }
+
+    /* ---------- Hero ---------- */
+    .page-hero {
+      background:url("{% static 'images/grill-hero.jpg' %}") center/cover no-repeat;
+      min-height:300px; position:relative; color:#fff;
+      display:flex; align-items:center; justify-content:center; text-align:center;
+    }
+    .page-hero::after { content:""; position:absolute; inset:0; background:rgba(0,0,0,.45); }
+    .page-hero h1 { position:relative; z-index:1; font-weight:700; }
+
+    /* ---------- Content ---------- */
+    .section-heading { font-weight:700; margin-bottom:1rem; }
+    .badge { font-size:.85rem; }
+    .values-icon { font-size:2.5rem; color:var(--brand); }
+
+    /* ---------- Footer ---------- */
+    footer { background:var(--brand); color:#fff; }
+    footer a { color:#fff; text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
+
+    /* ===== Trade Assist Membership Bar ===== */
+
+    .membership-bar{
+        background:#fff;
+        border-bottom:1px solid #e8e8e8;
+        box-shadow:0 2px 8px rgba(0,0,0,.04);
+    }
+
+    .membership-title{
+        font-size:1.2rem;
+        font-weight:700;
+        color:#0b5c39;
+        letter-spacing:.5px;
+    }
+
+    .membership-subtitle{
+        font-size:.9rem;
+        color:#6c757d;
+    }
+
+    .btn-member{
+        border:2px solid #0b5c39;
+        color:#0b5c39;
+        background:#fff;
+        font-weight:600;
+        border-radius:30px;
+        padding:.6rem 1.5rem;
+        transition:.25s;
+    }
+
+    .btn-member:hover{
+        background:#0b5c39;
+        color:#fff;
+    }
+
+    .btn-member-login{
+        background:#0b5c39;
+        color:#fff;
+        border:2px solid #0b5c39;
+        font-weight:600;
+        border-radius:30px;
+        padding:.6rem 1.5rem;
+        transition:.25s;
+    }
+
+    .btn-member-login:hover{
+        background:#094c30;
+        border-color:#094c30;
+        color:#fff;
+    }
+
+    /* Mobile top bar (offcanvas trigger) */
+    @media (max-width:991.98px){
+      .mobile-topbar { background:var(--brand); }
+      .mobile-topbar .navbar-brand img { height:40px; }
+    }
+  </style>
+</head>
+
+<body class="bg-light">
+  <!-- Auth flag for JS gating -->
+  <script>const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};</script>
+
+  <!-- ========== MOBILE TOP BAR (visible < lg) ========== -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="offcanvas" data-bs-target="#mobileMenu"
+              aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="/"><img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="height:40px;"></a>
+    </div>
+  </nav>
+
+  <!-- Offcanvas menu (mobile) -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header brand-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body brand-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="max-height:80px; width:auto;">
+      </div>
+
+      <!-- Top-level -->
+      <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-bs-dismiss="offcanvas">Home</a>
+      <a href="{% url 'about' %}" class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" data-bs-dismiss="offcanvas">About</a>
+
+      <!-- Divisions -->
+      <div class="mt-2 text-uppercase small opacity-75">Divisions</div>
+      <a href="{% url 'wholesale' %}" class="nav-link {% if request.path == '/wholesale/' %}active{% endif %}" data-bs-dismiss="offcanvas">Wholesale Trade</a>
+      <a href="{% url 'retail' %}" class="nav-link {% if request.path == '/retail/' %}active{% endif %}" data-bs-dismiss="offcanvas">Retail Express</a>
+      <a href="{% url 'grill' %}" class="nav-link {% if request.path == '/grill/' %}active{% endif %}" data-bs-dismiss="offcanvas">Grill Experience</a>
+
+      <hr class="border-light my-3">
+
+      <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}" data-bs-dismiss="offcanvas">Shop</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}"
+        href="{% url 'trade_assist' %}"
+        data-bs-dismiss="offcanvas">
+          Trade Assist
+      </a>
+
+      
+      <a href="{% url 'contact' %}" class="nav-link mt-3 {% if request.path == '/contact/' %}active{% endif %}" data-bs-dismiss="offcanvas">Contact</a>
+
+      <hr class="border-light my-3">
+
+      
+
+        
+
+        
+     
+    </div>
+  </div>
+
+  <!-- ========== DESKTOP NAVBAR (visible ≥ lg) ========== -->
+  <nav class="navbar navbar-expand-lg navbar-dark border-bottom d-none d-lg-block">
+    <div class="container d-flex align-items-center">
+      <a class="navbar-brand me-auto" href="/">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market">
+      </a>
+
+      <div id="nav" class="navbar-collapse justify-content-center">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">Home</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" href="/about/">About</a>
+          </li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle {% if request.path == '/grill/' or request.path == '/retail/' or request.path == '/wholesale/' %}active{% endif %}"
+               href="/divisions/" id="divisionsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Divisions
+            </a>
+            <ul class="dropdown-menu brand" aria-labelledby="divisionsDropdown">
+              <li><a class="dropdown-item {% if request.path == '/wholesale/' %}active{% endif %}" href="/wholesale/">Wholesale Trade</a></li>
+              <li><a class="dropdown-item {% if request.path == '/retail/' %}active{% endif %}" href="/retail/">Retail Express</a></li>
+              <li><a class="dropdown-item {% if request.path == '/grill/' %}active{% endif %}" href="/grill/">Grill Experience</a></li>
+            </ul>
+          </li>
+
+          
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}"
+               href="{% url 'products' %}">Shop</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}"
+              href="{% url 'trade_assist' %}">
+                Trade Assist
+            </a>
+          </li>
+
+          
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == '/contact/' %}active{% endif %}" href="/contact/">Contact</a>
+          </li>
+        </ul>
+      </div>
+
+      
+    </div>
+  </nav>
+
+  <!-- ================================================= -->
+  <!-- Trade Assist Membership -->
+  <!-- ================================================= -->
+
+  <section class="membership-bar py-3">
+      <div class="container">
+
+          <div class="row align-items-center">
+
+              <div class="col-lg-6 text-center text-lg-start mb-3 mb-lg-0">
+
+                  <div class="membership-title">
+                      Trade Assist Membership
+                  </div>
+
+                  <div class="membership-subtitle">
+                      Building Better Food Businesses Together
+                  </div>
+
+              </div>
+
+              <div class="col-lg-6">
+
+                  <div class="d-flex justify-content-center justify-content-lg-end gap-3">
+
+                      <a href="/register_profile/" class="btn btn-member">
+                          Become a Member
+                      </a>
+
+                      <a href="{% url 'client-login' %}" class="btn btn-member-login">
+                          Member Login
+                      </a>
+
+                  </div>
+
+              </div>
+
+          </div>
+
+      </div>
+  </section>
+
+  <!-- Hero -->
+  <section class="page-hero">
+    <h1>Let's learn more about your business</h1>
+  </section>
+
+ 
+    <!-- ================================================= -->
+    <!-- Lead Form -->
+    <!-- ================================================= -->
+
+    <section class="py-5">
+
+        <div class="container">
+
+            <div class="row justify-content-center">
+
+                <div class="col-lg-7">
+
+                    <div class="card border-0 shadow rounded-4">
+
+                        <div class="card-body p-5">
+
+                            <div class="text-center mb-5">
+
+                                <span class="badge bg-success px-3 py-2 mb-3">
+                                    Takes less than a minute
+                                </span>
+
+                                <h2 class="fw-bold">
+                                    Let's learn more about your business
+                                </h2>
+
+                                <p class="text-muted mb-0">
+                                    Tell us a little about your business and one of our
+                                    Trade Assist consultants will be in touch.
+                                </p>
+
+                            </div>
+
+                            <form method="post">
+
+                                {% csrf_token %}
+
+                                <!-- Business Type -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        What type of food business do you operate?
+                                    </label>
+
+                                    <select
+                                        class="form-select form-select-lg"
+                                        name="potential_client_type"
+                                        required>
+
+                                        <option value="">Select...</option>
+
+                                        <option value="RESTAURANT">Restaurant</option>
+                                        <option value="CATERER">Caterer</option>
+                                        <option value="RETAIL">Retail / Spaza Shop</option>
+                                        <option value="VENDOR">Vendor / Street Food</option>
+                                        <option value="SCHOOL">School / Institution</option>
+                                        <option value="EVENT">Events</option>
+                                        <option value="OTHER">Other</option>
+
+                                    </select>
+
+                                </div>
+
+                                <!-- Business Name -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        Business Name
+                                    </label>
+
+                                    <input
+                                        type="text"
+                                        class="form-control form-control-lg"
+                                        name="business_name"
+                                        placeholder="Business Name">
+
+                                </div>
+
+                                <!-- Contact Person -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        Contact Person
+                                    </label>
+
+                                    <input
+                                        type="text"
+                                        class="form-control form-control-lg"
+                                        name="contact_person"
+                                        placeholder="Your Name"
+                                        required>
+
+                                </div>
+
+                                <!-- Phone -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        Mobile Number
+                                    </label>
+
+                                    <input
+                                        type="tel"
+                                        class="form-control form-control-lg"
+                                        name="phone"
+                                        placeholder="082 123 4567"
+                                        required>
+
+                                </div>
+
+                                <!-- WhatsApp -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        WhatsApp Number
+                                    </label>
+
+                                    <input
+                                        type="tel"
+                                        class="form-control form-control-lg"
+                                        name="whatsapp"
+                                        placeholder="Optional">
+
+                                </div>
+
+                                <!-- City -->
+
+                                <!-- Location -->
+
+                                <div class="row">
+
+                                    <div class="col-md-6 mb-4">
+
+                                        <label class="form-label fw-semibold">
+                                            Province
+                                        </label>
+
+                                        <select
+                                            class="form-select form-select-lg"
+                                            name="province"
+                                            required>
+
+                                            <option value="">Select Province...</option>
+
+                                            <option value="GP">Gauteng</option>
+                                            <option value="KZN">KwaZulu-Natal</option>
+                                            <option value="WC">Western Cape</option>
+                                            <option value="EC">Eastern Cape</option>
+                                            <option value="FS">Free State</option>
+                                            <option value="LP">Limpopo</option>
+                                            <option value="MP">Mpumalanga</option>
+                                            <option value="NC">Northern Cape</option>
+                                            <option value="NW">North West</option>
+
+                                        </select>
+
+                                    </div>
+
+                                    <div class="col-md-6 mb-4">
+
+                                        <label class="form-label fw-semibold">
+                                            Trading Area
+                                        </label>
+
+                                        <select
+                                            class="form-select form-select-lg"
+                                            name="area">
+
+                                            <option value="">Select Area...</option>
+
+                                            <option value="SOUTH_WEST">South / West</option>
+                                            <option value="EAST">East</option>
+                                            <option value="NORTH_CENTRAL">North / Central</option>
+                                            <option value="MIDVAAL">Midvaal</option>
+                                            <option value="PRETORIA">Pretoria</option>
+                                            <option value="OTHER">Other</option>
+
+                                        </select>
+
+                                    </div>
+
+                                </div>
+
+                                <div class="d-grid">
+
+                                    <button
+                                        class="btn btn-success btn-lg py-3 rounded-pill">
+
+                                        Submit Information
+
+                                    </button>
+
+                                </div>
+
+                                <div class="text-center mt-4">
+
+                                    <small class="text-muted">
+
+                                        We'll review your information and contact you
+                                        shortly to learn more about your business.
+
+                                    </small>
+
+                                </div>
+
+                            </form>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+  <!-- ========== Footer ========== -->
+  <footer class="text-white bg-dark">
+    <div class="container py-5">
+      <div class="row text-center gy-4">
+
+        <!-- Services & Access -->
+        <div class="col-12 col-md-3">
+          <h6 class="text-uppercase fw-bold mb-3">Our Services</h6>
+          <ul class="list-unstyled mb-3">
+            <li><a class="text-decoration-none text-white-50" href="/wholesale/">Wholesale Trade</a></li>
+            <li><a class="text-decoration-none text-white-50" href="/retail/">Retail Express</a></li>
+            <li><a class="text-decoration-none text-white-50" href="/grill/">Grill Experience</a></li>
+          </ul>
+
+          <h6 class="text-uppercase fw-bold mb-3">Access</h6>
+          <ul class="list-unstyled mb-0">
+            <li>
+              <a class="text-decoration-none text-white-50" href="{% url 'client-login' %}">
+                Client Access
+              </a>
+            </li>
+            <li>
+              <a class="text-decoration-none text-white-50" href="{% url 'staff-login' %}">
+                Staff Access
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Legal / Compliance -->
+        <div class="col-12 col-md-3">
+          <h6 class="text-uppercase fw-bold mb-3">Legal</h6>
+          <ul class="list-unstyled mb-0 small">
+            <li><a class="text-decoration-none text-white-50" href="/terms-and-conditions/">Terms &amp; Conditions</a></li>
+            <li><a class="text-decoration-none text-white-50" href="/privacy-policy/">Privacy Policy</a></li>
+            <li><a class="text-decoration-none text-white-50" href="/refund-policy/">Refund Policy</a></li>
+            <li><a class="text-decoration-none text-white-50" href="/shipping-policy/">Shipping Policy</a></li>
+          </ul>
+        </div>
+
+        <!-- Contact -->
+        <div class="col-12 col-md-3">
+          <h6 class="text-uppercase fw-bold mb-3">Contact Us</h6>
+          <div class="small text-white-50">
+            <div>+27 87 265 5488</div>
+            <div>
+              <a class="text-decoration-none text-white-50" href="mailto:info@thedailymarket.co.za">
+                info@thedailymarket.co.za
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trading Hours & Social -->
+        <div class="col-12 col-md-3">
+          <h6 class="text-uppercase fw-bold mb-3">Trading Hours</h6>
+          <div class="small text-white-50 mb-3">
+            <div>Mon–Fri: 7:30am–4:00pm</div>
+            <div>Sat: 7:30am–1:00pm</div>
+            <div>Sun: Closed</div>
+          </div>
+
+          <h6 class="text-uppercase fw-bold mb-2">Follow Us</h6>
+          <div class="d-flex justify-content-center gap-3 fs-4">
+            <a href="https://facebook.com/" class="text-white" aria-label="Facebook">
+              <i class="bi bi-facebook"></i>
+            </a>
+            <a href="https://instagram.com/" class="text-white" aria-label="Instagram">
+              <i class="bi bi-instagram"></i>
+            </a>
+            <a href="https://youtube.com/" class="text-white" aria-label="YouTube">
+              <i class="bi bi-youtube"></i>
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+      <hr class="my-4 border-light">
+
+      <div class="text-center small text-white-50">
+        © {% now "Y" %} The Daily Market • Quality You Can Trust
+      </div>
+      <div class="text-center small text-white-50 mt-1 opacity-75">
+        The Daily Market operates in accordance with South African consumer and data protection laws.
+      </div>
+    </div>
+  </footer>
+  
+  <!-- ========== Sign-in required modal ========== -->
+  <div class="modal fade" id="authRequiredModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center">
+        <div class="modal-header d-block border-0">
+          <h5 class="modal-title w-100">Please sign in to access this</h5>
+          <button type="button" class="btn-close position-absolute end-0 me-3"
+                  data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Choose how you’ll be using The Daily Market.
+        </div>
+        <div class="modal-footer justify-content-center border-0">
+          <a class="btn btn-outline-secondary" href="{% url 'consumer-login' %}">
+            Personal
+          </a>
+          <a class="btn btn-outline-secondary" href="{% url 'client-login' %}">
+            Business
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  
+
+  <!-- ========== Profile Type Selection Modal ========== -->
+  <div class="modal fade" id="profileTypeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center">
+        <div class="modal-header d-block border-0">
+          <h5 class="modal-title w-100">How will you be using The Daily Market?</h5>
+          <button type="button" class="btn-close position-absolute end-0 me-3"
+                  data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Choose the option that best describes how you’ll be placing orders.
+        </div>
+        <div class="modal-footer justify-content-center border-0">
+          <a class="btn btn-outline-secondary" href="{% url 'consumer-login' %}">
+            Personal
+          </a>
+          <a class="btn btn-primary" href="{% url 'client-login' %}">
+            Business
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <!-- DESKTOP: intercept gated links; ensure backdrop cleanup -->
+  <script>
+    document.addEventListener('click', function (e) {
+      const el = e.target.closest('.requires-auth');
+      if (!el) return;
+      if (IS_AUTHENTICATED) return;
+
+      e.preventDefault();
+
+      const modalEl = document.getElementById('authRequiredModal');
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: true, focus: true });
+
+      // Defensive cleanup when the modal closes
+      modalEl.addEventListener('hidden.bs.modal', () => {
+        document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('paddingRight');
+      }, { once: true });
+
+      modal.show();
+    });
+  </script>
+
+  <!-- MOBILE: offcanvas navigation + auth modal with safe cleanup -->
+  <script>
+    (function () {
+      if (typeof bootstrap === "undefined") return;
+      const offcanvasEl = document.getElementById("mobileMenu");
+      if (!offcanvasEl) return;
+
+      const selectors = [
+        "#mobileMenu a.nav-link",
+        "#mobileMenu a.dropdown-item",
+        "#mobileMenu .btn.btn-outline-light",
+        "#mobileMenu a.btn"
+      ].join(",");
+
+      offcanvasEl.querySelectorAll(selectors).forEach(function (el) {
+        el.addEventListener("click", function (e) {
+          const href = el.getAttribute("href") || "";
+          if (!href || href === "#" || href.startsWith("javascript:")) return;
+
+          const needsAuth = el.classList.contains("requires-auth");
+          const oc = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+
+          e.preventDefault();
+
+          offcanvasEl.addEventListener("hidden.bs.offcanvas", function () {
+            if (needsAuth && !IS_AUTHENTICATED) {
+              const modalEl = document.getElementById("authRequiredModal");
+              const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: true, focus: true });
+
+              modalEl.addEventListener('hidden.bs.modal', () => {
+                document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('paddingRight');
+              }, { once: true });
+
+              modal.show();
+            } else {
+              window.location.href = href;
+            }
+          }, { once: true });
+
+          oc.hide();
+        });
+      });
+    })();
+  </script>
+
+  <!-- Brand slider controls -->
+  <script>
+    (function(){
+      const track = document.getElementById('brandTrack');
+      if (!track) return;
+
+      const prevBtns = document.querySelectorAll('.brand-fab.prev');
+      const nextBtns = document.querySelectorAll('.brand-fab.next');
+
+      function scrollByCards(direction = 1){
+        const card = track.querySelector('.brand-card');
+        const gap = 16;
+        const cardWidth = card ? (card.offsetWidth + gap) : 200;
+        track.scrollBy({ left: direction * cardWidth * 2, behavior: 'smooth' });
+      }
+
+      prevBtns.forEach(btn => btn.addEventListener('click', () => scrollByCards(-1)));
+      nextBtns.forEach(btn => btn.addEventListener('click', () => scrollByCards(1)));
+
+      track.addEventListener('wheel', (e) => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          e.preventDefault();
+          track.scrollLeft += e.deltaY;
+        }
+      }, { passive:false });
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('click', function (e) {
+      const link = e.target.closest('a.requires-auth');
+      if (!link) return;
+      if (!IS_AUTHENTICATED) {
+        e.preventDefault();
+        const modal = new bootstrap.Modal(document.getElementById('authRequiredModal'));
+        modal.show();
+      }
+    });
+  </script>
+  <script>
+    (function () {
+      // Ensure Bootstrap is available
+      if (typeof bootstrap === "undefined") return;
+  
+      const offcanvasEl = document.getElementById("mobileMenu");
+      if (!offcanvasEl) return;
+  
+      // Any link/button inside the mobile offcanvas that should navigate
+      const selectors = [
+        "#mobileMenu a.nav-link",
+        "#mobileMenu a.dropdown-item",
+        "#mobileMenu .btn.btn-outline-light",
+        "#mobileMenu a.btn",  // profile/settings buttons
+      ].join(",");
+  
+      offcanvasEl.querySelectorAll(selectors).forEach(function (el) {
+        el.addEventListener("click", function (e) {
+          const href = el.getAttribute("href");
+          // Only handle real navigations (skip hashes or empty)
+          if (!href || href === "#" || href.startsWith("javascript:")) return;
+  
+          // Prevent immediate navigation so we can close the drawer first
+          e.preventDefault();
+  
+          const oc = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+  
+          // After the drawer is fully hidden, navigate
+          const go = () => { window.location.href = href; };
+          offcanvasEl.addEventListener("hidden.bs.offcanvas", go, { once: true });
+  
+          // Close it
+          oc.hide();
+        });
+      });
+    })();
+  </script>
+  <script>
+    document.addEventListener("click", function (e) {
+      const link = e.target.closest(".js-client-signin");
+      if (!link) return;
+
+      e.preventDefault(); // stop redirect to client-login
+
+      const modalEl = document.getElementById("profileTypeModal");
+      if (!modalEl) return;
+
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
+        backdrop: true,
+        focus: true
+      });
+
+      modal.show();
+    });
+  </script>
+</body>
+</html>

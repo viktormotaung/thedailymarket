@@ -203,22 +203,27 @@
       <!-- Client Maintenance -->
       <div class="mb-2">
 
-        <a class="nav-link {% if current == 'client-dashboard' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}active{% endif %}"
+        <a class="nav-link {% if current == 'client-dashboard' or current == 'leads-list' or current == 'lead-view' or current == 'lead-edit' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' or current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#clientMenuMobile"
           role="button"
           aria-controls="clientMenuMobile"
-          aria-expanded="{% if current == 'client-dashboard' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}true{% else %}false{% endif %}">
+          aria-expanded="{% if current == 'client-dashboard' or current == 'leads-list' or current == 'lead-view' or current == 'lead-edit' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' or current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}true{% else %}false{% endif %}">
           Client Maintenance
         </a>
 
-        <div class="collapse {% if current == 'client-dashboard' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}show{% endif %}"
+        <div class="collapse {% if current == 'client-dashboard' or current == 'leads-list' or current == 'lead-view' or current == 'lead-edit' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' or current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}show{% endif %}"
             id="clientMenuMobile"
             data-bs-parent="#mobileAccordion">
 
           <a href="{% url 'client-dashboard' %}"
             class="nav-link ps-4 {% if current == 'client-dashboard' %}active{% endif %}">
             Dashboard
+          </a>
+
+          <a href="{% url 'leads-list' %}"
+            class="nav-link ps-4 {% if current == 'leads-list' or current == 'lead-view' or current == 'lead-edit' %}active{% endif %}">
+            Leads
           </a>
 
           <a href="{% url 'staff-prospects' %}"
@@ -231,10 +236,14 @@
             Clients
           </a>
 
+          <a href="{% url 'membership-list' %}"
+            class="nav-link ps-4 {% if current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}active{% endif %}">
+            Membership
+          </a>
+
         </div>
 
       </div>
-
 
 
       <!-- Sales -->
@@ -397,19 +406,20 @@
       </div>
 
       <!-- Support -->
+      <!-- Support -->
       <div class="mb-2">
 
-        <a class="nav-link d-flex justify-content-between {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}active{% endif %}"
+        <a class="nav-link d-flex justify-content-between {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' or current == 'whatsapp' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#supportMenuMobile"
           aria-controls="supportMenuMobile"
-          aria-expanded="{% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}true{% else %}false{% endif %}">
+          aria-expanded="{% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' or current == 'whatsapp' %}true{% else %}false{% endif %}">
 
           <span>Support</span>
 
         </a>
 
-        <div class="collapse {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}show{% endif %}"
+        <div class="collapse {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' or current == 'whatsapp' %}show{% endif %}"
             id="supportMenuMobile"
             data-bs-parent="#mobileAccordion">
 
@@ -428,10 +438,14 @@
             Tickets
           </a>
 
+          <a href="{% url 'whatsapp' %}"
+            class="nav-link ps-4 {% if current == 'whatsapp' %}active{% endif %}">
+            WhatsApp
+          </a>
+
         </div>
 
       </div>
-
       
 
       <!-- Profiles -->
@@ -578,22 +592,27 @@
     <!-- Client Maintenance -->
     <div class="mb-2">
 
-      <a class="nav-link {% if current == 'client-dashboard' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}active{% endif %}"
+      <a class="nav-link {% if current == 'client-dashboard' or current == 'leads-list' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' or current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}active{% endif %}"
         data-bs-toggle="collapse"
         href="#clientMenuDesktop"
         role="button"
         aria-controls="clientMenuDesktop"
-        aria-expanded="{% if current == 'client-dashboard' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}true{% else %}false{% endif %}">
+        aria-expanded="{% if current == 'client-dashboard' or current == 'leads-list' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' or current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}true{% else %}false{% endif %}">
         Client Maintenance
       </a>
 
-      <div class="collapse {% if current == 'client-dashboard' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}show{% endif %}"
+      <div class="collapse {% if current == 'client-dashboard' or current == 'leads-list' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' or current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}show{% endif %}"
           id="clientMenuDesktop"
           data-bs-parent="#desktopAccordion">
 
         <a href="{% url 'client-dashboard' %}"
           class="nav-link ps-4 {% if current == 'client-dashboard' %}active{% endif %}">
           Dashboard
+        </a>
+
+        <a href="{% url 'leads-list' %}"
+          class="nav-link ps-4 {% if current == 'leads-list' %}active{% endif %}">
+          Leads
         </a>
 
         <a href="{% url 'staff-prospects' %}"
@@ -604,6 +623,11 @@
         <a href="{% url 'staff-clients' %}"
           class="nav-link ps-4 {% if current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}active{% endif %}">
           Clients
+        </a>
+
+        <a href="{% url 'membership-list' %}"
+          class="nav-link ps-4 {% if current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}active{% endif %}">
+          Membership
         </a>
 
       </div>
@@ -774,17 +798,17 @@
     <!-- Support -->
     <div class="mb-2">
 
-      <a class="nav-link d-flex justify-content-between {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}active{% endif %}"
+      <a class="nav-link d-flex justify-content-between {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' or current == 'whatsapp' %}active{% endif %}"
         data-bs-toggle="collapse"
         href="#supportMenuDesktop"
         aria-controls="supportMenuDesktop"
-        aria-expanded="{% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}true{% else %}false{% endif %}">
+        aria-expanded="{% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' or current == 'whatsapp' %}true{% else %}false{% endif %}">
 
         <span>Support</span>
 
       </a>
 
-      <div class="collapse {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' %}show{% endif %}"
+      <div class="collapse {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' or current == 'whatsapp' %}show{% endif %}"
           id="supportMenuDesktop"
           data-bs-parent="#desktopAccordion">
 
@@ -801,6 +825,11 @@
         <a href="{% url 'tickets' %}"
           class="nav-link ps-4 {% if current == 'tickets' or current == 'ticket_view' %}active{% endif %}">
           Tickets
+        </a>
+
+        <a href="{% url 'whatsapp' %}"
+          class="nav-link ps-4 {% if current == 'whatsapp' %}active{% endif %}">
+          WhatsApp
         </a>
 
       </div>

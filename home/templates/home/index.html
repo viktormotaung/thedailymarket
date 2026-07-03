@@ -310,6 +310,59 @@
       text-decoration:underline;
     }
 
+    /* ===== Trade Assist Membership Bar ===== */
+
+    .membership-bar{
+        background:#fff;
+        border-bottom:1px solid #e8e8e8;
+        box-shadow:0 2px 8px rgba(0,0,0,.04);
+    }
+
+    .membership-title{
+        font-size:1.2rem;
+        font-weight:700;
+        color:#0b5c39;
+        letter-spacing:.5px;
+    }
+
+    .membership-subtitle{
+        font-size:.9rem;
+        color:#6c757d;
+    }
+
+    .btn-member{
+        border:2px solid #0b5c39;
+        color:#0b5c39;
+        background:#fff;
+        font-weight:600;
+        border-radius:30px;
+        padding:.6rem 1.5rem;
+        transition:.25s;
+    }
+
+    .btn-member:hover{
+        background:#0b5c39;
+        color:#fff;
+    }
+
+    .btn-member-login{
+        background:#0b5c39;
+        color:#fff;
+        border:2px solid #0b5c39;
+        font-weight:600;
+        border-radius:30px;
+        padding:.6rem 1.5rem;
+        transition:.25s;
+    }
+
+    .btn-member-login:hover{
+        background:#094c30;
+        border-color:#094c30;
+        color:#fff;
+    }
+
+    
+
     /* ---------- Responsive tweaks ---------- */
     @media (max-width: 991.98px) {
       .navbar-brand img {
@@ -374,36 +427,24 @@
 
       <hr class="border-light my-3">
 
-      <a href="{% url 'become_supplier' %}" class="nav-link {% if request.resolver_match.url_name == 'become_supplier' or request.path == '/become_supplier/' %}active{% endif %}" data-bs-dismiss="offcanvas">Become A Supplier</a>
       <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}" data-bs-dismiss="offcanvas">Shop</a>
-      <a class="nav-link requires-auth {% if request.resolver_match.url_name == 'wholesale_assist' or request.path == '/wholesale_assist/' %}active{% endif %}" href="{% url 'wholesale_assist' %}" data-bs-dismiss="offcanvas">Trade Assist</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}"
+        href="{% url 'trade_assist' %}"
+        data-bs-dismiss="offcanvas">
+          Trade Assist
+      </a>
 
-      <!-- Orders -->
-      <div class="mt-2 text-uppercase small opacity-75">Orders</div>
-      <a class="nav-link requires-auth {% if request.path == '/orders/' %}active{% endif %}" href="{% url 'orders' %}" data-bs-dismiss="offcanvas">My Orders</a>
-      <a class="nav-link requires-auth {% if request.path == '/cart/' %}active{% endif %}" href="{% url 'cart' %}" data-bs-dismiss="offcanvas">Cart</a>
-
+      
       <a href="{% url 'contact' %}" class="nav-link mt-3 {% if request.path == '/contact/' %}active{% endif %}" data-bs-dismiss="offcanvas">Contact</a>
 
       <hr class="border-light my-3">
 
-      {% if user.is_authenticated %}
-        <a href="/profile/" class="btn btn-outline-light w-100 mb-2" data-bs-dismiss="offcanvas">My Profile</a>
-        <form action="{% url 'logout' %}" method="post" class="mt-1">
-          {% csrf_token %}
-          <button type="submit" class="btn btn-light w-100">Sign out</button>
-        </form>
-      {% else %}
-        <div class="text-uppercase small opacity-75"></div>
-        <button type="button"
-          class="btn btn-outline-light w-100 mt-2 js-client-signin">
-          Sign in
-        </button>
+      
 
         
 
         
-      {% endif %}
+     
     </div>
   </div>
 
@@ -436,10 +477,7 @@
             </ul>
           </li>
 
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'become_supplier' or request.path == '/become_supplier/' %}active{% endif %}"
-               href="/become_supplier/">Become A Supplier</a>
-          </li>
+          
 
           <li class="nav-item">
             <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}"
@@ -447,20 +485,13 @@
           </li>
 
           <li class="nav-item">
-            <a class="nav-link requires-auth {% if request.resolver_match.url_name == 'wholesale_assist' or request.path == '/wholesale_assist/' %}active{% endif %}"
-               href="{% url 'wholesale_assist' %}">Trade Assist</a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}"
+              href="{% url 'trade_assist' %}">
+                Trade Assist
+            </a>
           </li>
 
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle requires-auth {% if request.path == '/orders/' or request.path == '/cart/' %}active{% endif %}"
-               href="/order/" id="orderDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              Orders
-            </a>
-            <ul class="dropdown-menu brand" aria-labelledby="orderDropdown">
-              <li><a class="dropdown-item requires-auth {% if request.path == '/orders/' %}active{% endif %}" href="/orders/">My Orders</a></li>
-              <li><a class="dropdown-item requires-auth {% if request.path == '/cart/' %}active{% endif %}" href="/cart/">Cart</a></li>
-            </ul>
-          </li>
+          
 
           <li class="nav-item">
             <a class="nav-link {% if request.path == '/contact/' %}active{% endif %}" href="/contact/">Contact</a>
@@ -468,35 +499,51 @@
         </ul>
       </div>
 
-      <div class="dropdown ms-auto">
-        <a class="nav-link p-0 dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-          <i class="bi bi-person-circle fs-4"></i>
-        </a>
-        <ul class="dropdown-menu dropdown-menu-end brand">
-          {% if user.is_authenticated %}
-            <li><a class="dropdown-item" href="/profile/">My Profile</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li>
-              <form action="{% url 'logout' %}" method="post" class="px-3">
-                {% csrf_token %}
-                <button type="submit" class="dropdown-item p-0 btn btn-link text-white">Sign out</button>
-              </form>
-            </li>
-          {% else %}
-            <li class="dropdown-header text-white-50"></li>
-            <li>
-              <a class="dropdown-item js-client-signin"
-                href="{% url 'client-login' %}">
-                Sign in
-              </a>
-            </li>
-
-            
-          {% endif %}
-        </ul>
-      </div>
+      
     </div>
   </nav>
+
+  <!-- ================================================= -->
+  <!-- Trade Assist Membership -->
+  <!-- ================================================= -->
+
+  <section class="membership-bar py-3">
+      <div class="container">
+
+          <div class="row align-items-center">
+
+              <div class="col-lg-6 text-center text-lg-start mb-3 mb-lg-0">
+
+                  <div class="membership-title">
+                      Trade Assist Membership
+                  </div>
+
+                  <div class="membership-subtitle">
+                      Building Better Food Businesses Together
+                  </div>
+
+              </div>
+
+              <div class="col-lg-6">
+
+                  <div class="d-flex justify-content-center justify-content-lg-end gap-3">
+
+                      <a href="/register_profile/" class="btn btn-member">
+                          Become a Member
+                      </a>
+
+                      <a href="{% url 'client-login' %}" class="btn btn-member-login">
+                          Member Login
+                      </a>
+
+                  </div>
+
+              </div>
+
+          </div>
+
+      </div>
+  </section>
 
   <main class="site-main">
   

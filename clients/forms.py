@@ -9,7 +9,7 @@ from django.utils import timezone
 from .models import Client
 from .models import GAUTENG_CITY_CHOICES
 from products.models import Category
-from .models import Client, Prospect, ProspectUpdate, ClientCompliance, ClientComplianceDocument
+from .models import Client, Prospect, ProspectUpdate, ClientCompliance, ClientComplianceDocument, Lead
 
 def _bs(extra_class=None):
     """
@@ -1478,3 +1478,66 @@ class ClientOperationsForm(forms.Form):
 
 
 
+
+
+
+
+
+class LeadForm(forms.ModelForm):
+
+    class Meta:
+
+        model = Lead
+
+        fields = [
+
+            "status",
+            "priority",
+
+            "assigned_to",
+
+            "business_name",
+            "entity_type",
+            "potential_client_type",
+
+            "contact_person",
+            "phone",
+            "whatsapp",
+            "email",
+
+            "address_line1",
+            "address_line2",
+            "suburb",
+            "city",
+            "province",
+            "postal_code",
+            "country",
+            "area",
+
+            "estimated_weekly_spend",
+
+            "preferred_call_time",
+
+            "campaign",
+            "advert",
+            "medium",
+
+            "interested_in",
+
+            "last_contact_at",
+            "next_follow_up_at",
+
+            "notes",
+        ]
+
+        widgets = {
+
+            "last_contact_at": forms.DateTimeInput(
+                attrs={"type": "datetime-local"}
+            ),
+
+            "next_follow_up_at": forms.DateTimeInput(
+                attrs={"type": "datetime-local"}
+            ),
+
+        }

@@ -70,7 +70,8 @@ urlpatterns = [
     path("refund-policy/", views.refund, name="refund"),
     path("shipping-policy/", views.shipping, name="shipping"),
     
-    
+    path("trade_assist/form/", views.trade_assist_form, name="trade_assist_form",),
+    path("trade_assist/thank-you/", views.trade_assist_thank_you, name="trade_assist_thank_you",),
 
 ]
 

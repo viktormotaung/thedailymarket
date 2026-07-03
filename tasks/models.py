@@ -111,6 +111,10 @@ class Task(models.Model):
 
     class TaskType(models.TextChoices):
         GENERAL = "GENERAL", "General"
+        LEAD_QUALIFICATION = (
+            "LEAD_QUALIFICATION",
+            "Lead Qualification",
+        )
         CLIENT_REVIEW = "CLIENT_REVIEW", "Client Review"
         CLIENT_ACTIVATION = "CLIENT_ACTIVATION", "Client Activation"
         COMPLIANCE_DOCUMENT = "COMPLIANCE_DOCUMENT", "Compliance Document"

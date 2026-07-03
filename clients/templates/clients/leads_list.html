@@ -1,0 +1,1372 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - The Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    /* --- Desktop: fixed (non-movable) sidebar --- */
+    @media (min-width: 992px) {
+      html, body { height: 100%; }
+      body { min-height: 100vh; overflow-x: hidden; }
+
+      .sidebar-desktop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 220px;
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: visible !important; /* allow dropdown to show */
+      }
+
+      /* ✅ Let Bootstrap control dropdown positioning */
+      .sidebar-desktop .dropdown {
+        position: relative;
+      }
+
+      
+
+      .sidebar-desktop .dropdown-menu {
+        margin-top: 8px;
+      }
+
+      main.content {
+        margin-left: 220px;
+        min-height: 100vh;
+      }
+    }
+
+    /* Shared styles */
+    .sidebar-skin {
+      background-color: #0b5c39;
+      color: #fff;
+      padding: 1rem;
+    }
+
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: .25rem 0;
+      display: block;
+    }
+
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+
+    .logo-img {
+      max-height: 80px;
+      width: auto;
+    }
+
+    .content {
+      background: #f8f9fa;
+      padding: 20px;
+    }
+
+    .sidebar-skin .nav-link.ps-4 {
+      font-size: .95rem;
+      opacity: .95;
+    }
+
+    /* --- Compact chart height --- */
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 220px;
+    }
+
+    @media (max-width: 991.98px) {
+      .chart-wrap { height: 180px; }
+    }
+
+    @media (max-width: 575.98px) {
+      .chart-wrap { height: 150px; }
+    }
+
+    .chart-wrap canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  
+
+  <!-- MOBILE OFFCANVAS MENU -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+  <div class="container-fluid">
+    <button class="navbar-toggler" type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#mobileMenu"
+            aria-controls="mobileMenu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <a class="navbar-brand ms-2" href="#">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+    </a>
+
+    <!-- Mobile Notifications -->
+    <div class="dropdown">
+      <a class="nav-link text-white position-relative p-0"
+        href="#"
+        role="button"
+        data-bs-toggle="dropdown"
+        aria-expanded="false">
+        <i class="bi bi-bell fs-5"></i>
+
+        <span id="mobileNotificationBadge"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger {% if not nav_unread_notifications_count %}d-none{% endif %}">
+          {{ nav_unread_notifications_count }}
+        </span>
+      </a>
+
+      <ul id="mobileNotificationDropdown"
+          class="dropdown-menu dropdown-menu-end shadow"
+          style="min-width: 260px;">
+
+        <li class="dropdown-header fw-semibold">Notifications</li>
+
+        <li>
+          <a href="{% url 'tickets' %}"
+            class="dropdown-item d-flex justify-content-between align-items-center gap-3">
+            <span>Open Tickets</span>
+            <span id="mobileOpenTicketsCount"
+                  class="badge rounded-pill bg-danger ms-auto">
+              {{ nav_unopened_ticket_count|default:0 }}
+            </span>
+          </a>
+        </li>
+
+        <li>
+          <a href="{% url 'tasks' %}"
+            class="dropdown-item d-flex justify-content-between align-items-center gap-3">
+            <span>Open Tasks</span>
+            <span id="mobileOpenTasksCount"
+                  class="badge rounded-pill bg-danger ms-auto">
+              {{ nav_unopened_task_count|default:0 }}
+            </span>
+          </a>
+        </li>
+
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="offcanvas offcanvas-start d-lg-none sidebar-skin"
+      tabindex="-1"
+      id="mobileMenu">
+
+    <div class="offcanvas-header">
+      
+      <button type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="offcanvas"></button>
+    </div>
+
+    <!-- ACCORDION CONTAINER -->
+    <div class="offcanvas-body" id="mobileAccordion">
+
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" class="logo-img">
+      </div>
+
+      <h6 class="text-uppercase fw-semibold mb-2 text-center small">
+        <a href="#"
+          class="text-decoration-none text-reset d-block">
+          Main Staff Platform
+        </a>
+      </h6>
+
+    <hr class="border-light">
+
+      {% with current=request.resolver_match.url_name %}
+
+      <!-- Dashboard -->
+      <a href="{% url 'staff-dashboard' %}"
+        class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">
+        Main Dashboard
+      </a>
+
+      
+
+      <!-- Client Maintenance -->
+      <div class="mb-2">
+
+        <a class="nav-link {% if current == 'client-dashboard' or current == 'leads-list' or current == 'lead-view' or current == 'lead-edit' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' or current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}active{% endif %}"
+          data-bs-toggle="collapse"
+          href="#clientMenuMobile"
+          role="button"
+          aria-controls="clientMenuMobile"
+          aria-expanded="{% if current == 'client-dashboard' or current == 'leads-list' or current == 'lead-view' or current == 'lead-edit' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' or current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}true{% else %}false{% endif %}">
+          Client Maintenance
+        </a>
+
+        <div class="collapse {% if current == 'client-dashboard' or current == 'leads-list' or current == 'lead-view' or current == 'lead-edit' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' or current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}show{% endif %}"
+            id="clientMenuMobile"
+            data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'client-dashboard' %}"
+            class="nav-link ps-4 {% if current == 'client-dashboard' %}active{% endif %}">
+            Dashboard
+          </a>
+
+          <a href="{% url 'leads-list' %}"
+            class="nav-link ps-4 {% if current == 'leads-list' or current == 'lead-view' or current == 'lead-edit' %}active{% endif %}">
+            Leads
+          </a>
+
+          <a href="{% url 'staff-prospects' %}"
+            class="nav-link ps-4 {% if current == 'staff-prospects' or current == 'staff-prospect-detail' %}active{% endif %}">
+            Prospects
+          </a>
+
+          <a href="{% url 'staff-clients' %}"
+            class="nav-link ps-4 {% if current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}active{% endif %}">
+            Clients
+          </a>
+
+          <a href="{% url 'membership-list' %}"
+            class="nav-link ps-4 {% if current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}active{% endif %}">
+            Membership
+          </a>
+
+        </div>
+
+      </div>
+
+
+      <!-- Sales -->
+      <div class="mb-2">
+
+        <a class="nav-link d-flex justify-content-between {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' %}active{% endif %}"
+          data-bs-toggle="collapse"
+          href="#salesMenuMobile"
+          aria-expanded="{% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' %}true{% else %}false{% endif %}">
+
+          <span>Sales</span>
+
+        </a>
+
+        <div class="collapse {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' %}show{% endif %}"
+            id="salesMenuMobile"
+            data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'staff-sales-dashboard' %}"
+            class="nav-link ps-4 {% if current == 'staff-sales-dashboard' %}active{% endif %}">
+            Dashboard
+          </a>
+
+          <a href="{% url 'staff-quotations' %}"
+            class="nav-link ps-4 {% if current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' %}active{% endif %}">
+            Quotations
+          </a>
+
+          <a href="{% url 'staff-orders' %}"
+            class="nav-link ps-4 {% if current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' %}active{% endif %}">
+            Orders
+          </a>
+
+          <a href="{% url 'staff-invoices' %}"
+            class="nav-link ps-4 {% if current == 'staff-invoices' %}active{% endif %}">
+            Invoices
+          </a>
+
+        </div>
+
+      </div>
+
+      <!-- Finance -->
+      <div class="mb-2">
+
+        <a class="nav-link d-flex justify-content-between {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}active{% endif %}"
+          data-bs-toggle="collapse"
+          href="#financeMenuMobile"
+          aria-expanded="{% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}true{% else %}false{% endif %}">
+          <span>Finance</span>
+        </a>
+
+        <div class="collapse {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}show{% endif %}"
+            id="financeMenuMobile"
+            data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'staff-finance-dashboard' %}"
+            class="nav-link ps-4 {% if current == 'staff-finance-dashboard' %}active{% endif %}">
+            Dashboard
+          </a>
+
+          <a href="{% url 'staff-transactions' %}"
+            class="nav-link ps-4 {% if current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' %}active{% endif %}">
+            Transactions
+          </a>
+
+          <a href="{% url 'staff-credit' %}"
+            class="nav-link ps-4 {% if current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' %}active{% endif %}">
+            Credit
+          </a>
+
+          <a href="{% url 'funder-list' %}"
+            class="nav-link ps-4 {% if current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' %}active{% endif %}">
+            Funders
+          </a>
+
+          <a href="{% url 'online_payments:payment-list' %}"
+            class="nav-link ps-4 {% if current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}active{% endif %}">
+            Payments
+          </a>
+
+        </div>
+
+      </div>
+
+      <!-- Logistics -->
+      <div class="mb-2">
+
+        <a class="nav-link d-flex justify-content-between {% if current == 'staff-logistics-dashboard' or current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' or current == 'delivery' or current == 'runs-list' or current == 'run-view' or current == 'run-start' or current == 'run-pause' or current == 'run-complete' or current == 'run-recalc' or current == 'delivery-run-detail' or current == 'delivery-run-auto-plan' or current == 'monitor' or current == 'vehicle-log' or current == 'run-log' %}active{% endif %}"
+          data-bs-toggle="collapse"
+          href="#logisticsMenuMobile"
+          aria-expanded="{% if current == 'staff-logistics-dashboard' or current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' or current == 'delivery' or current == 'runs-list' or current == 'run-view' or current == 'run-start' or current == 'run-pause' or current == 'run-complete' or current == 'run-recalc' or current == 'delivery-run-detail' or current == 'delivery-run-auto-plan' or current == 'monitor' or current == 'vehicle-log' or current == 'run-log' %}true{% else %}false{% endif %}">
+
+          <span>Logistics</span>
+
+        </a>
+
+        <div class="collapse {% if current == 'staff-logistics-dashboard' or current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' or current == 'delivery' or current == 'runs-list' or current == 'run-view' or current == 'run-start' or current == 'run-pause' or current == 'run-complete' or current == 'run-recalc' or current == 'delivery-run-detail' or current == 'delivery-run-auto-plan' or current == 'monitor' or current == 'vehicle-log' or current == 'run-log' %}show{% endif %}"
+            id="logisticsMenuMobile"
+            data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'staff-logistics-dashboard' %}?view=warehouse"
+            class="nav-link ps-4 {% if current == 'staff-logistics-dashboard' %}active{% endif %}">
+            Dashboard
+          </a>
+
+          <a href="{% url 'warehouse' %}?view=warehouse"
+            class="nav-link ps-4 {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}">
+            Warehouse
+          </a>
+
+          <a href="{% url 'delivery' %}?view=runs"
+            class="nav-link ps-4 {% if current == 'delivery' or current == 'runs-list' or current == 'run-view' or current == 'run-start' or current == 'run-pause' or current == 'run-complete' or current == 'run-recalc' or current == 'delivery-run-detail' or current == 'delivery-run-auto-plan' %}active{% endif %}">
+            Deliveries
+          </a>
+
+          <a href="{% url 'monitor' %}"
+            class="nav-link ps-4 {% if current == 'monitor' or current == 'vehicle-log' or current == 'run-log' %}active{% endif %}">
+            Monitor View
+          </a>
+
+        </div>
+
+      </div>
+
+      <!-- Supply Chain -->
+      <div class="mb-2">
+
+        <a class="nav-link d-flex justify-content-between {% if current == 'product_dashboard' or current == 'staff-suppliers' or current == 'supplier-create' or current == 'supplier-view' or current == 'supplier-edit' or current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}active{% endif %}"
+          data-bs-toggle="collapse"
+          href="#supplyChainMenuMobile"
+          aria-controls="supplyChainMenuMobile"
+          aria-expanded="{% if current == 'product_dashboard' or current == 'staff-suppliers' or current == 'supplier-create' or current == 'supplier-view' or current == 'supplier-edit' or current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}true{% else %}false{% endif %}">
+
+          <span>Supply Chain</span>
+
+        </a>
+
+        <div class="collapse {% if current == 'product_dashboard' or current == 'staff-suppliers' or current == 'supplier-create' or current == 'supplier-view' or current == 'supplier-edit' or current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}show{% endif %}"
+            id="supplyChainMenuMobile"
+            data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'product_dashboard' %}"
+            class="nav-link ps-4 {% if current == 'product_dashboard' %}active{% endif %}">
+            Dashboard
+          </a>
+
+          <a href="{% url 'staff-suppliers' %}"
+            class="nav-link ps-4 {% if current == 'staff-suppliers' or current == 'supplier-create' or current == 'supplier-view' or current == 'supplier-edit' %}active{% endif %}">
+            Suppliers
+          </a>
+
+          <a href="{% url 'staff-products' %}"
+            class="nav-link ps-4 {% if current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}active{% endif %}">
+            Products
+          </a>
+
+        </div>
+
+      </div>
+
+      <!-- Support -->
+      <!-- Support -->
+      <div class="mb-2">
+
+        <a class="nav-link d-flex justify-content-between {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' or current == 'whatsapp' %}active{% endif %}"
+          data-bs-toggle="collapse"
+          href="#supportMenuMobile"
+          aria-controls="supportMenuMobile"
+          aria-expanded="{% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' or current == 'whatsapp' %}true{% else %}false{% endif %}">
+
+          <span>Support</span>
+
+        </a>
+
+        <div class="collapse {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' or current == 'whatsapp' %}show{% endif %}"
+            id="supportMenuMobile"
+            data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'staff-support-dashboard' %}"
+            class="nav-link ps-4 {% if current == 'staff-support-dashboard' %}active{% endif %}">
+            Dashboard
+          </a>
+
+          <a href="{% url 'tasks' %}"
+            class="nav-link ps-4 {% if current == 'tasks' or current == 'task_view' %}active{% endif %}">
+            Tasks
+          </a>
+
+          <a href="{% url 'tickets' %}"
+            class="nav-link ps-4 {% if current == 'tickets' or current == 'ticket_view' %}active{% endif %}">
+            Tickets
+          </a>
+
+          <a href="{% url 'whatsapp' %}"
+            class="nav-link ps-4 {% if current == 'whatsapp' %}active{% endif %}">
+            WhatsApp
+          </a>
+
+        </div>
+
+      </div>
+      
+
+      <!-- Profiles -->
+      <div class="mb-2">
+
+        <a class="nav-link d-flex justify-content-between {% if current == 'my_profile' or current == 'staff_profile' or current == 'staff_profile_view' or current == 'staff_profile_edit' or current == 'staff_profile_create' or current == 'sales_staff_profile_view' or current == 'sales_staff_profile_edit' or current == 'sales_staff_profile_create' or current == 'driver_profile_view' or current == 'driver_profile_create' or current == 'customer_profile' or current == 'customer_profile_view' or current == 'customer_profile_edit' %}active{% endif %}"
+          data-bs-toggle="collapse"
+          href="#profilesMenuMobile"
+          aria-controls="profilesMenuMobile"
+          aria-expanded="{% if current == 'my_profile' or current == 'staff_profile' or current == 'staff_profile_view' or current == 'staff_profile_edit' or current == 'staff_profile_create' or current == 'sales_staff_profile_view' or current == 'sales_staff_profile_edit' or current == 'sales_staff_profile_create' or current == 'driver_profile_view' or current == 'driver_profile_create' or current == 'customer_profile' or current == 'customer_profile_view' or current == 'customer_profile_edit' %}true{% else %}false{% endif %}">
+
+          <span>Profiles</span>
+
+        </a>
+
+        <div class="collapse {% if current == 'my_profile' or current == 'staff_profile' or current == 'staff_profile_view' or current == 'staff_profile_edit' or current == 'staff_profile_create' or current == 'sales_staff_profile_view' or current == 'sales_staff_profile_edit' or current == 'sales_staff_profile_create' or current == 'driver_profile_view' or current == 'driver_profile_create' or current == 'customer_profile' or current == 'customer_profile_view' or current == 'customer_profile_edit' %}show{% endif %}"
+            id="profilesMenuMobile"
+            data-bs-parent="#mobileAccordion">
+
+          <a href="{% url 'my_profile' %}"
+            class="nav-link ps-4 {% if current == 'my_profile' %}active{% endif %}">
+            My Profile
+          </a>
+
+          <a href="{% url 'staff_profile' %}"
+            class="nav-link ps-4 {% if current == 'staff_profile' or current == 'staff_profile_view' or current == 'staff_profile_edit' or current == 'staff_profile_create' or current == 'sales_staff_profile_view' or current == 'sales_staff_profile_edit' or current == 'sales_staff_profile_create' or current == 'driver_profile_view' or current == 'driver_profile_create' %}active{% endif %}">
+            Staff
+          </a>
+
+          <a href="{% url 'customer_profile' %}"
+            class="nav-link ps-4 {% if current == 'customer_profile' or current == 'customer_profile_view' or current == 'customer_profile_edit' %}active{% endif %}">
+            Customer
+          </a>
+
+        </div>
+
+      </div>
+
+
+      
+
+      <hr class="border-light">
+
+    
+      <button type="button"
+              class="btn btn-outline-light w-100 text-center"
+              data-bs-toggle="modal"
+              data-bs-target="#switchPlatformModal">
+        Switch Platform
+      </button>
+
+      <hr class="border-light">
+
+      <!-- Sign out -->
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-light w-100">
+          Sign out
+        </button>
+      </form>
+
+      {% endwith %}
+
+    </div>
+  </div>
+
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin"
+        id="desktopAccordion">
+
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div class="text-center flex-grow-1">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+      </div>
+
+      <!-- Desktop Notifications -->
+      <div class="ms-2 position-relative" style="width: max-content;">
+
+        <!-- Bell -->
+        <a class="nav-link text-white position-relative p-0"
+          href="#"
+          data-bs-toggle="collapse"
+          data-bs-target="#desktopNotificationDropdown"
+          aria-expanded="false">
+
+          <i class="bi bi-bell fs-5"></i>
+
+          <span id="desktopNotificationBadge"
+                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger {% if not nav_unread_notifications_count %}d-none{% endif %}">
+            {{ nav_unread_notifications_count }}
+          </span>
+        </a>
+
+        <!-- Panel -->
+        <div id="desktopNotificationDropdown"
+            class="collapse bg-white text-dark rounded shadow p-2"
+            style="position:absolute; top:35px; right:0; width:220px;">
+
+          <div class="fw-semibold mb-2 px-2">Notifications</div>
+
+          <a href="{% url 'tickets' %}"
+            class="d-flex justify-content-between align-items-center px-2 py-1 text-decoration-none text-dark">
+            <span>Open Tickets</span>
+            <span id="desktopOpenTicketsCount"
+                  class="badge rounded-pill bg-danger">
+              {{ nav_unopened_ticket_count|default:0 }}
+            </span>
+          </a>
+
+          <a href="{% url 'tasks' %}"
+            class="d-flex justify-content-between align-items-center px-2 py-1 text-decoration-none text-dark">
+            <span>Open Tasks</span>
+            <span id="desktopOpenTasksCount"
+                  class="badge rounded-pill bg-danger">
+              {{ nav_unopened_task_count|default:0 }}
+            </span>
+          </a>
+
+        </div>
+
+      </div>
+    </div>
+
+    <h6 class="text-uppercase fw-semibold mb-2 text-center small">
+      <a href="#"
+        class="text-decoration-none text-reset d-block">
+        Main Staff Platform
+      </a>
+    </h6>
+
+    <hr class="border-light">
+
+    {% with current=request.resolver_match.url_name %}
+
+    <!-- Dashboard -->
+    <a href="{% url 'staff-dashboard' %}"
+      class="nav-link {% if current == 'staff-dashboard' %}active{% endif %}">
+      Main Dashboard
+    </a>
+
+    
+
+
+    <!-- Client Maintenance -->
+    <div class="mb-2">
+
+      <a class="nav-link {% if current == 'client-dashboard' or current == 'leads-list' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' or current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}active{% endif %}"
+        data-bs-toggle="collapse"
+        href="#clientMenuDesktop"
+        role="button"
+        aria-controls="clientMenuDesktop"
+        aria-expanded="{% if current == 'client-dashboard' or current == 'leads-list' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' or current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}true{% else %}false{% endif %}">
+        Client Maintenance
+      </a>
+
+      <div class="collapse {% if current == 'client-dashboard' or current == 'leads-list' or current == 'staff-prospects' or current == 'staff-prospect-detail' or current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' or current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}show{% endif %}"
+          id="clientMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'client-dashboard' %}"
+          class="nav-link ps-4 {% if current == 'client-dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
+
+        <a href="{% url 'leads-list' %}"
+          class="nav-link ps-4 {% if current == 'leads-list' %}active{% endif %}">
+          Leads
+        </a>
+
+        <a href="{% url 'staff-prospects' %}"
+          class="nav-link ps-4 {% if current == 'staff-prospects' or current == 'staff-prospect-detail' %}active{% endif %}">
+          Prospects
+        </a>
+
+        <a href="{% url 'staff-clients' %}"
+          class="nav-link ps-4 {% if current == 'staff-clients' or current == 'client-view' or current == 'client-edit' or current == 'client-create' or current == 'client-compliance-edit' or current == 'client-edit-operations' %}active{% endif %}">
+          Clients
+        </a>
+
+        <a href="{% url 'membership-list' %}"
+          class="nav-link ps-4 {% if current == 'membership-list' or current == 'membership-view' or current == 'membership-edit' or current == 'membership-create' %}active{% endif %}">
+          Membership
+        </a>
+
+      </div>
+
+    </div>
+
+
+    <!-- Sales -->
+    <div class="mb-2">
+
+      <a class="nav-link d-flex justify-content-between {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' or current == 'invoice-create' or current == 'invoice-view' or current == 'invoice-edit' %}active{% endif %}"
+        data-bs-toggle="collapse"
+        href="#salesMenuDesktop"
+        aria-expanded="{% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' or current == 'invoice-create' or current == 'invoice-view' or current == 'invoice-edit' %}true{% else %}false{% endif %}">
+
+        <span>Sales</span>
+
+      </a>
+
+      <div class="collapse {% if current == 'staff-sales-dashboard' or current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' or current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' or current == 'staff-invoices' or current == 'invoice-create' or current == 'invoice-view' or current == 'invoice-edit' %}show{% endif %}"
+          id="salesMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'staff-sales-dashboard' %}"
+          class="nav-link ps-4 {% if current == 'staff-sales-dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
+
+        <a href="{% url 'staff-quotations' %}"
+          class="nav-link ps-4 {% if current == 'staff-quotations' or current == 'quotation-create' or current == 'quotation-view' or current == 'quotation-edit' %}active{% endif %}">
+          Quotations
+        </a>
+
+        <a href="{% url 'staff-orders' %}"
+          class="nav-link ps-4 {% if current == 'staff-orders' or current == 'order-create' or current == 'order-view' or current == 'order-edit' %}active{% endif %}">
+          Orders
+        </a>
+
+        <a href="{% url 'staff-invoices' %}"
+          class="nav-link ps-4 {% if current == 'staff-invoices' or current == 'invoice-create' or current == 'invoice-view' or current == 'invoice-edit' %}active{% endif %}">
+          Invoices
+        </a>
+
+      </div>
+
+    </div>
+
+    <!-- Finance -->
+    <div class="mb-2">
+
+      <a class="nav-link d-flex justify-content-between {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}active{% endif %}"
+        data-bs-toggle="collapse"
+        href="#financeMenuDesktop"
+        aria-expanded="{% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}true{% else %}false{% endif %}">
+        <span>Finance</span>
+      </a>
+
+      <div class="collapse {% if current == 'staff-finance-dashboard' or current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' or current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' or current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' or current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}show{% endif %}"
+          id="financeMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'staff-finance-dashboard' %}"
+          class="nav-link ps-4 {% if current == 'staff-finance-dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
+
+        <a href="{% url 'staff-transactions' %}"
+          class="nav-link ps-4 {% if current == 'staff-transactions' or current == 'transaction-create' or current == 'transaction-view' or current == 'transaction-edit' or current == 'transaction-delete' %}active{% endif %}">
+          Transactions
+        </a>
+
+        <a href="{% url 'staff-credit' %}"
+          class="nav-link ps-4 {% if current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' %}active{% endif %}">
+          Credit
+        </a>
+
+        <a href="{% url 'funder-list' %}"
+          class="nav-link ps-4 {% if current == 'funder-list' or current == 'funder-view' or current == 'add-funder' or current == 'funder-edit' or current == 'funder-movement' %}active{% endif %}">
+          Funders
+        </a>
+
+        <a href="{% url 'online_payments:payment-list' %}"
+          class="nav-link ps-4 {% if current == 'payment-list' or current == 'pay_invoice_yoco' or current == 'payment_success' or current == 'payment_cancel' or current == 'payment_error' %}active{% endif %}">
+          Payments
+        </a>
+
+      </div>
+
+    </div>
+
+    <!-- Logistics -->
+    <div class="mb-2">
+
+      <a class="nav-link d-flex justify-content-between {% if current == 'staff-logistics-dashboard' or current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' or current == 'delivery' or current == 'runs-list' or current == 'run-view' or current == 'run-start' or current == 'run-pause' or current == 'run-complete' or current == 'run-recalc' or current == 'delivery-run-detail' or current == 'delivery-run-auto-plan' or current == 'monitor' or current == 'vehicle-log' or current == 'run-log' %}active{% endif %}"
+        data-bs-toggle="collapse"
+        href="#logisticsMenuDesktop"
+        aria-expanded="{% if current == 'staff-logistics-dashboard' or current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' or current == 'delivery' or current == 'runs-list' or current == 'run-view' or current == 'run-start' or current == 'run-pause' or current == 'run-complete' or current == 'run-recalc' or current == 'delivery-run-detail' or current == 'delivery-run-auto-plan' or current == 'monitor' or current == 'vehicle-log' or current == 'run-log' %}true{% else %}false{% endif %}">
+
+        <span>Logistics</span>
+
+      </a>
+
+      <div class="collapse {% if current == 'staff-logistics-dashboard' or current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' or current == 'delivery' or current == 'runs-list' or current == 'run-view' or current == 'run-start' or current == 'run-pause' or current == 'run-complete' or current == 'run-recalc' or current == 'delivery-run-detail' or current == 'delivery-run-auto-plan' or current == 'monitor' or current == 'vehicle-log' or current == 'run-log' %}show{% endif %}"
+          id="logisticsMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'staff-logistics-dashboard' %}?view=warehouse"
+          class="nav-link ps-4 {% if current == 'staff-logistics-dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
+
+        <a href="{% url 'warehouse' %}?view=warehouse"
+          class="nav-link ps-4 {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}">
+          Warehouse
+        </a>
+
+        <a href="{% url 'delivery' %}?view=runs"
+          class="nav-link ps-4 {% if current == 'delivery' or current == 'runs-list' or current == 'run-view' or current == 'run-start' or current == 'run-pause' or current == 'run-complete' or current == 'run-recalc' or current == 'delivery-run-detail' or current == 'delivery-run-auto-plan' %}active{% endif %}">
+          Deliveries
+        </a>
+
+        <a href="{% url 'monitor' %}"
+          class="nav-link ps-4 {% if current == 'monitor' or current == 'vehicle-log' or current == 'run-log' %}active{% endif %}">
+          Monitor View
+        </a>
+
+      </div>
+
+    </div>
+
+    <!-- Supply Chain -->
+    <div class="mb-2">
+
+      <a class="nav-link d-flex justify-content-between {% if current == 'product_dashboard' or current == 'staff-suppliers' or current == 'supplier-create' or current == 'supplier-view' or current == 'supplier-edit' or current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}active{% endif %}"
+        data-bs-toggle="collapse"
+        href="#supplyChainMenuDesktop"
+        aria-controls="supplyChainMenuDesktop"
+        aria-expanded="{% if current == 'product_dashboard' or current == 'staff-suppliers' or current == 'supplier-create' or current == 'supplier-view' or current == 'supplier-edit' or current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}true{% else %}false{% endif %}">
+
+        <span>Supply Chain</span>
+
+      </a>
+
+      <div class="collapse {% if current == 'product_dashboard' or current == 'staff-suppliers' or current == 'supplier-create' or current == 'supplier-view' or current == 'supplier-edit' or current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}show{% endif %}"
+          id="supplyChainMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'product_dashboard' %}"
+          class="nav-link ps-4 {% if current == 'product_dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
+
+        <a href="{% url 'staff-suppliers' %}"
+          class="nav-link ps-4 {% if current == 'staff-suppliers' or current == 'supplier-create' or current == 'supplier-view' or current == 'supplier-edit' %}active{% endif %}">
+          Suppliers
+        </a>
+
+        <a href="{% url 'staff-products' %}"
+          class="nav-link ps-4 {% if current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}active{% endif %}">
+          Products
+        </a>
+
+      </div>
+
+    </div>
+
+
+    <!-- Support -->
+    <div class="mb-2">
+
+      <a class="nav-link d-flex justify-content-between {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' or current == 'whatsapp' %}active{% endif %}"
+        data-bs-toggle="collapse"
+        href="#supportMenuDesktop"
+        aria-controls="supportMenuDesktop"
+        aria-expanded="{% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' or current == 'whatsapp' %}true{% else %}false{% endif %}">
+
+        <span>Support</span>
+
+      </a>
+
+      <div class="collapse {% if current == 'staff-support-dashboard' or current == 'tasks' or current == 'task_view' or current == 'tickets' or current == 'ticket_view' or current == 'whatsapp' %}show{% endif %}"
+          id="supportMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'staff-support-dashboard' %}"
+          class="nav-link ps-4 {% if current == 'staff-support-dashboard' %}active{% endif %}">
+          Dashboard
+        </a>
+
+        <a href="{% url 'tasks' %}"
+          class="nav-link ps-4 {% if current == 'tasks' or current == 'task_view' %}active{% endif %}">
+          Tasks
+        </a>
+
+        <a href="{% url 'tickets' %}"
+          class="nav-link ps-4 {% if current == 'tickets' or current == 'ticket_view' %}active{% endif %}">
+          Tickets
+        </a>
+
+        <a href="{% url 'whatsapp' %}"
+          class="nav-link ps-4 {% if current == 'whatsapp' %}active{% endif %}">
+          WhatsApp
+        </a>
+
+      </div>
+
+    </div>
+
+    
+
+    <!-- Profiles -->
+    <div class="mb-2">
+
+      <a class="nav-link d-flex justify-content-between {% if current == 'my_profile' or current == 'staff_profile' or current == 'staff_profile_view' or current == 'staff_profile_edit' or current == 'staff_profile_create' or current == 'sales_staff_profile_view' or current == 'sales_staff_profile_edit' or current == 'sales_staff_profile_create' or current == 'driver_profile_view' or current == 'driver_profile_create' or current == 'customer_profile' or current == 'customer_profile_view' or current == 'customer_profile_edit' %}active{% endif %}"
+        data-bs-toggle="collapse"
+        href="#profilesMenuDesktop"
+        aria-controls="profilesMenuDesktop"
+        aria-expanded="{% if current == 'my_profile' or current == 'staff_profile' or current == 'staff_profile_view' or current == 'staff_profile_edit' or current == 'staff_profile_create' or current == 'sales_staff_profile_view' or current == 'sales_staff_profile_edit' or current == 'sales_staff_profile_create' or current == 'driver_profile_view' or current == 'driver_profile_create' or current == 'customer_profile' or current == 'customer_profile_view' or current == 'customer_profile_edit' %}true{% else %}false{% endif %}">
+
+        <span>Profiles</span>
+
+      </a>
+
+      <div class="collapse {% if current == 'my_profile' or current == 'staff_profile' or current == 'staff_profile_view' or current == 'staff_profile_edit' or current == 'staff_profile_create' or current == 'sales_staff_profile_view' or current == 'sales_staff_profile_edit' or current == 'sales_staff_profile_create' or current == 'driver_profile_view' or current == 'driver_profile_create' or current == 'customer_profile' or current == 'customer_profile_view' or current == 'customer_profile_edit' %}show{% endif %}"
+          id="profilesMenuDesktop"
+          data-bs-parent="#desktopAccordion">
+
+        <a href="{% url 'my_profile' %}"
+          class="nav-link ps-4 {% if current == 'my_profile' %}active{% endif %}">
+          My Profile
+        </a>
+
+        <a href="{% url 'staff_profile' %}"
+          class="nav-link ps-4 {% if current == 'staff_profile' or current == 'staff_profile_view' or current == 'staff_profile_edit' or current == 'staff_profile_create' or current == 'sales_staff_profile_view' or current == 'sales_staff_profile_edit' or current == 'sales_staff_profile_create' or current == 'driver_profile_view' or current == 'driver_profile_create' %}active{% endif %}">
+          Staff
+        </a>
+
+        <a href="{% url 'customer_profile' %}"
+          class="nav-link ps-4 {% if current == 'customer_profile' or current == 'customer_profile_view' or current == 'customer_profile_edit' %}active{% endif %}">
+          Customer
+        </a>
+
+      </div>
+
+    </div>
+
+
+    
+
+    <hr class="border-light">
+
+    <!-- Switch Platform -->
+    <div class="mb-2">
+      <button type="button"
+              class="btn btn-outline-light btn-sm w-100 text-center py-1"
+              data-bs-toggle="modal"
+              data-bs-target="#switchPlatformModal">
+        Switch Platform
+      </button>
+    </div>
+
+    
+
+    <!-- Sign out -->
+    <div class="mt-2 mb-2">
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit"
+                class="btn btn-outline-light btn-sm w-100 py-1">
+          Sign out
+        </button>
+      </form>
+    </div>
+
+
+    <hr class="border-light">
+
+
+    {% endwith %}
+
+  </aside>
+
+
+  <main class="content">
+
+    <h2 class="text-center">Leads</h2>
+
+    {% if success_message %}
+      <div class="alert alert-success">{{ success_message }}</div>
+    {% endif %}
+
+    {% if error_message %}
+      <div class="alert alert-danger">{{ error_message }}</div>
+    {% endif %}
+
+    <div class="card shadow-sm">
+
+      <div class="card-header bg-white py-2">
+
+        <form method="get" class="row g-2 align-items-end">
+
+          <div class="col-lg-3 col-md-6">
+            <input type="text"
+                  name="q"
+                  class="form-control form-control-sm"
+                  placeholder="Search lead, business, contact or phone..."
+                  value="{{ q|default:'' }}">
+          </div>
+
+          <div class="col-lg-2 col-md-6">
+            <select name="status" class="form-select form-select-sm">
+              <option value="">Status: All</option>
+
+              {% for key,label in statuses %}
+                <option value="{{ key }}"
+                        {% if request.GET.status == key %}selected{% endif %}>
+                  {{ label }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-lg-2 col-md-6">
+            <select name="source" class="form-select form-select-sm">
+              <option value="">Source: All</option>
+
+              {% for key,label in sources %}
+                <option value="{{ key }}"
+                        {% if request.GET.source == key %}selected{% endif %}>
+                  {{ label }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-lg-5 col-md-6 d-flex justify-content-end gap-2">
+
+            <button type="submit"
+                    class="btn btn-sm btn-primary px-3">
+              Filter
+            </button>
+
+            <a href="{% url 'leads-list' %}"
+              class="btn btn-sm btn-outline-secondary px-3">
+              Clear
+            </a>
+
+          </div>
+
+        </form>
+
+      </div>
+
+      <div class="card-body">
+
+        <div class="table-container">
+
+          <table class="table table-striped table-bordered mb-0">
+
+            <thead>
+
+              <tr>
+
+                <th style="width:5%;font-size:13px;">#</th>
+
+                <th style="width:10%;font-size:13px;">
+                  Lead #
+                </th>
+
+                <th style="width:18%;font-size:13px;">
+                  Business
+                </th>
+
+                <th style="width:12%;font-size:13px;">
+                  Contact
+                </th>
+
+                <th style="width:10%;font-size:13px;">
+                  Phone
+                </th>
+
+                <th style="width:10%;font-size:13px;">
+                  Source
+                </th>
+
+                <th style="width:10%;font-size:13px;">
+                  Preferred Call
+                </th>
+
+                <th style="width:10%;font-size:13px;">
+                  Status
+                </th>
+
+                <th style="width:8%;font-size:13px;">
+                  Priority
+                </th>
+
+                <th style="width:7%;font-size:13px;">
+                  Area
+                </th>
+
+              </tr>
+
+            </thead>
+
+            <tbody>
+
+              {% for lead in leads %}
+
+              <tr style="cursor:pointer;"
+                  onclick="window.location.href='{% url 'lead-view' lead.pk %}'">
+
+                <td style="font-size:13px;">
+                  {{ forloop.counter }}
+                </td>
+
+                <td style="font-size:13px;">
+                  {{ lead.lead_number }}
+                </td>
+
+                <td style="font-size:13px;">
+                  <div class="fw-semibold">
+                    {{ lead.business_name|default:"—" }}
+                  </div>
+                </td>
+
+                <td style="font-size:13px;">
+                  {{ lead.contact_person }}
+                </td>
+
+                <td style="font-size:13px;">
+                  {{ lead.phone }}
+                </td>
+
+                <td style="font-size:13px;">
+                  {{ lead.get_source_display }}
+                </td>
+
+                <td style="font-size:13px;">
+                  {% if lead.preferred_call_time %}
+                    {{ lead.get_preferred_call_time_display }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+
+                <td style="font-size:13px;">
+
+                  <span class="badge
+                      {% if lead.status == 'NEW' %}
+                          bg-primary
+                      {% elif lead.status == 'CONTACTED' %}
+                          bg-info
+                      {% elif lead.status == 'QUALIFIED' %}
+                          bg-success
+                      {% elif lead.status == 'DISQUALIFIED' %}
+                          bg-secondary
+                      {% elif lead.status == 'CONVERTED' %}
+                          bg-dark
+                      {% else %}
+                          bg-light text-dark
+                      {% endif %}">
+
+                      {{ lead.get_status_display }}
+
+                  </span>
+
+                </td>
+
+                <td style="font-size:13px;">
+
+                  <span class="badge
+                      {% if lead.priority == 'HOT' %}
+                          bg-danger
+                      {% elif lead.priority == 'HIGH' %}
+                          bg-warning text-dark
+                      {% elif lead.priority == 'MEDIUM' %}
+                          bg-info
+                      {% else %}
+                          bg-secondary
+                      {% endif %}">
+
+                      {{ lead.get_priority_display }}
+
+                  </span>
+
+                </td>
+
+                <td style="font-size:13px;">
+                  {{ lead.get_area_display|default:"—" }}
+                </td>
+
+              </tr>
+
+              {% empty %}
+
+              <tr>
+
+                <td colspan="10"
+                    class="text-center text-muted">
+
+                  No leads found.
+
+                </td>
+
+              </tr>
+
+              {% endfor %}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+
+  <!-- SWITCH PLATFORM MODAL -->
+  <div class="modal fade"
+      id="switchPlatformModal"
+      tabindex="-1"
+      aria-labelledby="switchPlatformModalLabel"
+      aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+
+        <div class="modal-header justify-content-center position-relative">
+          <h5 class="modal-title w-100 text-center" id="switchPlatformModalLabel">
+            Switch Platform
+          </h5>
+          <button type="button"
+                  class="btn-close position-absolute"
+                  style="right:1rem; top:1rem;"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body text-center">
+          <p class="mb-3 text-muted">Choose a platform to continue:</p>
+
+          <div class="d-grid gap-2">
+
+            <!-- Main Staff Portal -->
+            <a
+              href="{% url 'staff-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_staff_portal %} disabled{% endif %}"
+              {% if not can_staff_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Main Staff Portal
+            </a>
+
+            <!-- Funder Portal -->
+            <a
+              href="{% url 'funder-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_lender_portal %} disabled{% endif %}"
+              {% if not can_lender_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Funder Portal
+            </a>
+
+            <!-- Sales Portal -->
+            <a
+              href="{% url 'sales:sales-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_sales_portal %} disabled{% endif %}"
+              {% if not can_sales_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Sales Portal
+            </a>
+
+            <!-- Logistics Portal -->
+            <a
+              href="{% url 'logistics:logistics-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_logistics_portal %} disabled{% endif %}"
+              {% if not can_logistics_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Logistics Portal
+            </a>
+
+          </div>
+        </div>
+
+        <div class="modal-footer justify-content-center border-0">
+          <small class="text-muted">
+            Platforms you don’t have access to are disabled.
+          </small>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+    <div id="notificationToast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body" id="notificationToastBody">
+          New notification received.
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    // Chart data from Django
+    const labels = {{ sales_labels|safe }};
+    const dataPoints = {{ sales_data|safe }};
+
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Orders',
+          data: dataPoints,
+          tension: 0.3,
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,   // <-- respect CSS heights
+        plugins: {
+          legend: { display: true },
+          tooltip: { mode: 'index', intersect: false }
+        },
+        scales: {
+          x: { title: { display: false } },
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  </script>
+
+  <script>
+  let lastCount = {{ nav_unread_notifications_count|default:0 }};
+
+  function updateBadge(elementId, count) {
+    const badge = document.getElementById(elementId);
+    if (!badge) return;
+
+    if (count > 0) {
+      badge.textContent = count;
+      badge.classList.remove("d-none");
+    } else {
+      badge.textContent = "";
+      badge.classList.add("d-none");
+    }
+  }
+
+  function updateSummaryCounts(data) {
+    const ticket = data.ticket_count || 0;
+    const task = data.task_count || 0;
+
+    // Desktop
+    const dTickets = document.getElementById("desktopOpenTicketsCount");
+    const dTasks = document.getElementById("desktopOpenTasksCount");
+
+    // Mobile
+    const mTickets = document.getElementById("mobileOpenTicketsCount");
+    const mTasks = document.getElementById("mobileOpenTasksCount");
+
+    if (dTickets) dTickets.textContent = ticket;
+    if (dTasks) dTasks.textContent = task;
+    if (mTickets) mTickets.textContent = ticket;
+    if (mTasks) mTasks.textContent = task;
+  }
+
+  function showNotificationToast(message) {
+    const toastEl = document.getElementById("notificationToast");
+    const toastBody = document.getElementById("notificationToastBody");
+    if (!toastEl || !toastBody) return;
+
+    toastBody.textContent = message || "New notification received.";
+    const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 4000 });
+    toast.show();
+  }
+
+  function playNotificationSound() {
+    const audio = new Audio("https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3");
+    audio.play().catch(() => {});
+  }
+
+  function checkNotifications() {
+    fetch("{% url 'notification-count' %}", {
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(res => res.json())
+      .then(data => {
+        const newCount = data.unread_count || 0;
+
+        updateBadge("mobileNotificationBadge", newCount);
+        updateBadge("desktopNotificationBadge", newCount);
+
+        // 🔥 THIS IS WHAT YOU WERE MISSING
+        updateSummaryCounts(data);
+
+        if (newCount > lastCount) {
+          playNotificationSound();
+          showNotificationToast("New notification received.");
+        }
+
+        lastCount = newCount;
+      })
+      .catch(err => {
+        console.error("Notification polling failed:", err);
+      });
+  }
+
+  setTimeout(checkNotifications, 2000);
+  setInterval(checkNotifications, 10000);
+  </script>
+
+  <script>
+    document.addEventListener("click", function (event) {
+      const panel = document.getElementById("desktopNotificationDropdown");
+      const trigger = document.querySelector('[data-bs-target="#desktopNotificationDropdown"]');
+
+      if (!panel || !trigger) return;
+
+      const isClickInsidePanel = panel.contains(event.target);
+      const isClickOnTrigger = trigger.contains(event.target);
+
+      // If click is outside both → close
+      if (!isClickInsidePanel && !isClickOnTrigger) {
+        const collapse = bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false });
+        collapse.hide();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     "payments",
     "online_payments",
     "communications",
+    "membership",
 
     # third party
     'django_celery_beat',
