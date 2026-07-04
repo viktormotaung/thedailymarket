@@ -31,6 +31,8 @@ from django.utils import timezone
 from collections import defaultdict
 from .forms import LeadForm
 from clients.models import Client, Prospect
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 
 def _bs(extra_class=None):
@@ -1475,4 +1477,27 @@ def lead_edit(request, pk):
         request,
         "clients/lead_edit.html",
         context,
+    )
+
+
+
+
+
+@csrf_exempt
+def respondio_create_lead(request):
+
+    if request.method != "POST":
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "POST requests only.",
+            },
+            status=405,
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Respond.io endpoint is working.",
+        }
     )

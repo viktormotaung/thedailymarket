@@ -27,5 +27,6 @@ urlpatterns = [
     path("leads/", views.leads_list, name="leads-list",),
     path("leads/<int:pk>/", views.lead_view, name="lead-view",),
     path("leads/<int:pk>/edit/", views.lead_edit, name="lead-edit",),
+    path("api/respondio/lead/", views.respondio_create_lead, name="respondio-create-lead",),
 
 ]
