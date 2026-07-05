@@ -11,7 +11,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone  # 👈 needed for ProspectUpdate.action_at
 from django.utils.crypto import get_random_string
-
+from django.core.exceptions import ValidationError
 
 
 
@@ -2125,6 +2125,13 @@ class Membership(models.Model):
         ("IMPORT", "Imported"),
     ]
 
+    MEMBERSHIP_TIERS = [
+        ("BRONZE", "Bronze"),
+        ("SILVER", "Silver"),
+        ("GOLD", "Gold"),
+        ("PLATINUM", "Platinum"),
+    ]
+
     client = models.OneToOneField(
         "clients.Client",
         on_delete=models.CASCADE,
@@ -2160,6 +2167,26 @@ class Membership(models.Model):
         choices=SOURCE_CHOICES,
         default="WEBSITE",
         help_text="Where this membership originated.",
+    )
+
+    tier = models.CharField(
+        max_length=20,
+        choices=MEMBERSHIP_TIERS,
+        default="BRONZE",
+        db_index=True,
+        help_text="Current Trade Assist membership tier.",
+    )
+
+    trade_points = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        help_text="Current available Trade Points.",
+    )
+
+    lifetime_trade_points = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        help_text="Total Trade Points earned since becoming a member.",
     )
 
     applied_at = models.DateTimeField(
@@ -2351,4 +2378,250 @@ class Membership(models.Model):
             - timezone.localtime(self.activated_at).date()
         ).days
     
+    @property
+    def has_trade_points(self):
+        return self.trade_points > 0
     
+    @property
+    def has_earned_trade_points(self):
+        return self.lifetime_trade_points > 0
+    
+    # ==========================================================
+    # Trade Points
+    # ==========================================================
+
+    @transaction.atomic
+    def credit_points(
+        self,
+        *,
+        points,
+        reason,
+        reference="",
+        notes="",
+        created_by=None,
+    ):
+        """
+        Credit Trade Points to this membership.
+        """
+
+        if points <= 0:
+            raise ValueError("Points must be greater than zero.")
+
+        new_balance = self.trade_points + points
+
+        new_lifetime_total = self.lifetime_trade_points + points
+
+        TradePoint.objects.create(
+            membership=self,
+            transaction_type="CREDIT",
+            reason=reason,
+            points=points,
+            balance_after=new_balance,
+            reference=reference,
+            notes=notes,
+            created_by=created_by,
+        )
+
+        self.trade_points = new_balance
+        self.lifetime_trade_points = new_lifetime_total
+
+        self.save(update_fields=[
+            "trade_points",
+            "lifetime_trade_points",
+            "updated_at",
+        ])
+
+        return new_balance
+
+
+    @transaction.atomic
+    def debit_points(
+        self,
+        *,
+        points,
+        reason,
+        reference="",
+        notes="",
+        created_by=None,
+    ):
+        """
+        Debit Trade Points from this membership.
+        """
+
+        if points <= 0:
+            raise ValueError("Points must be greater than zero.")
+
+        if points > self.trade_points:
+            raise ValueError("Insufficient Trade Points.")
+
+        new_balance = self.trade_points - points
+
+        TradePoint.objects.create(
+            membership=self,
+            transaction_type="DEBIT",
+            reason=reason,
+            points=points,
+            balance_after=new_balance,
+            reference=reference,
+            notes=notes,
+            created_by=created_by,
+        )
+
+        self.trade_points = new_balance
+
+        self.save(update_fields=[
+            "trade_points",
+            "updated_at",
+        ])
+
+        return new_balance
+    
+    @property
+    def is_bronze(self):
+        return self.tier == "BRONZE"
+
+
+    @property
+    def is_silver(self):
+        return self.tier == "SILVER"
+
+
+    @property
+    def is_gold(self):
+        return self.tier == "GOLD"
+
+
+    @property
+    def is_platinum(self):
+        return self.tier == "PLATINUM"
+        
+
+class TradePoint(models.Model):
+    """
+    Immutable Trade Point ledger.
+
+    Every movement of Trade Points must create a record here.
+    Membership.trade_points stores the current balance, while this
+    model stores the complete audit trail.
+    """
+
+    TRANSACTION_TYPES = [
+        ("CREDIT", "Credit"),
+        ("DEBIT", "Debit"),
+    ]
+
+    REASON_CHOICES = [
+        ("WELCOME", "Welcome Bonus"),
+        ("INVOICE", "Paid Invoice"),
+        ("REFERRAL", "Referral Bonus"),
+        ("PROMOTION", "Promotion"),
+        ("REDEMPTION", "Redemption"),
+        ("ADJUSTMENT", "Manual Adjustment"),
+        ("REVERSAL", "Reversal"),
+        ("OTHER", "Other"),
+    ]
+
+    membership = models.ForeignKey(
+        Membership,
+        on_delete=models.CASCADE,
+        related_name="transactions",
+        help_text="Membership this Trade Point transaction belongs to.",
+    )
+
+    transaction_type = models.CharField(
+        max_length=10,
+        choices=TRANSACTION_TYPES,
+        db_index=True,
+        help_text="Whether points were credited or debited.",
+    )
+
+    reason = models.CharField(
+        max_length=20,
+        choices=REASON_CHOICES,
+        db_index=True,
+        help_text="Reason for this Trade Point transaction.",
+    )
+
+    points = models.PositiveIntegerField(
+        help_text="Number of Trade Points moved."
+    )
+
+    balance_after = models.PositiveIntegerField(
+        editable=False,
+        help_text="Member's Trade Point balance after this transaction.",
+    )
+
+    reference = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Optional external reference such as an invoice number.",
+    )
+
+    notes = models.TextField(
+        blank=True,
+        help_text="Optional internal notes.",
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="trade_point_transactions",
+        help_text="User who created this transaction. Blank if created automatically by the system.",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        verbose_name = "Trade Point"
+        verbose_name_plural = "Trade Points"
+
+        indexes = [
+            models.Index(fields=["membership", "created_at"]),
+            models.Index(fields=["transaction_type"]),
+            models.Index(fields=["reason"]),
+        ]
+
+    # ==========================================================
+    # Validation
+    # ==========================================================
+
+    def clean(self):
+        if self.points <= 0:
+            raise ValidationError({
+                "points": "Points must be greater than zero."
+            })
+
+    # ==========================================================
+    # String Representation
+    # ==========================================================
+
+    def __str__(self):
+        sign = "+" if self.transaction_type == "CREDIT" else "-"
+
+        return (
+            f"{self.membership.membership_number} | "
+            f"{sign}{self.points} pts | "
+            f"{self.get_reason_display()}"
+        )
+
+    @property
+    def signed_points(self):
+        return (
+            self.points
+            if self.transaction_type == "CREDIT"
+            else -self.points
+        )
+
+    @property
+    def is_credit(self):
+        return self.transaction_type == "CREDIT"
+
+    @property
+    def is_debit(self):
+        return self.transaction_type == "DEBIT"

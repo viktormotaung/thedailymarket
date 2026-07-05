@@ -10,6 +10,7 @@ from .models import (
     Prospect,
     ProspectUpdate,
     Membership,
+    TradePoint,
     Lead,
     LeadActivity,
 )
@@ -607,6 +608,9 @@ class MembershipAdmin(admin.ModelAdmin):
     list_display = (
         "membership_number",
         "display_client",
+        "tier",
+        "trade_points",
+        "lifetime_trade_points",
         "status",
         "source",
         "member_since",
@@ -615,8 +619,8 @@ class MembershipAdmin(admin.ModelAdmin):
         "activated_at",
         "is_test_member",
     )
-
     list_filter = (
+        "tier",
         "status",
         "source",
         "is_test_member",
@@ -644,6 +648,8 @@ class MembershipAdmin(admin.ModelAdmin):
 
     readonly_fields = (
         "membership_number",
+        "trade_points",
+        "lifetime_trade_points",
         "applied_at",
         "created_at",
         "updated_at",
@@ -660,7 +666,9 @@ class MembershipAdmin(admin.ModelAdmin):
             "fields": (
                 "client",
                 ("membership_number", "status"),
-                ("source", "is_test_member"),
+                ("source", "tier"),
+                ("trade_points", "lifetime_trade_points"),
+                "is_test_member",
             )
         }),
 
@@ -701,6 +709,8 @@ class MembershipAdmin(admin.ModelAdmin):
     @admin.display(description="Days")
     def days_as_member(self, obj):
         return obj.days_as_member
+    
+    
     
 
 # ============================================================
@@ -988,3 +998,98 @@ class LeadActivityInline(admin.TabularInline):
         "created_at",
     )   
 
+
+
+# ============================================================
+# TRADE POINTS
+# ============================================================
+
+@admin.register(TradePoint)
+class TradePointAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "created_at",
+        "display_member",
+        "transaction_type",
+        "reason",
+        "signed_points_display",
+        "balance_after",
+        "reference",
+        "created_by",
+    )
+
+    list_filter = (
+        "transaction_type",
+        "reason",
+        ("created_at", admin.DateFieldListFilter),
+    )
+
+    search_fields = (
+        "membership__membership_number",
+        "membership__client__name",
+        "membership__client__organization",
+        "reference",
+        "notes",
+    )
+
+    ordering = (
+        "-created_at",
+        "-id",
+    )
+
+    autocomplete_fields = (
+        "membership",
+        "created_by",
+    )
+
+    date_hierarchy = "created_at"
+
+    list_per_page = 50
+    save_on_top = True
+
+    readonly_fields = (
+        "membership",
+        "transaction_type",
+        "reason",
+        "points",
+        "balance_after",
+        "reference",
+        "notes",
+        "created_by",
+        "created_at",
+    )
+
+    fieldsets = (
+
+        ("Trade Point", {
+            "fields": (
+                "membership",
+                ("transaction_type", "reason"),
+                ("points", "balance_after"),
+                "reference",
+                "notes",
+            )
+        }),
+
+        ("Audit", {
+            "fields": (
+                "created_by",
+                "created_at",
+            )
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description="Member")
+    def display_member(self, obj):
+        return obj.membership.membership_number
+
+    @admin.display(description="Movement")
+    def signed_points_display(self, obj):
+        sign = "+" if obj.is_credit else "-"
+        return f"{sign}{obj.points}"

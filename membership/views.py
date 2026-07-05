@@ -2,8 +2,13 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from clients.models import Membership, Client
 from django.contrib import messages
-
+from credit.models import CreditAccount
 from profiles.models import CustomerProfile
+from datetime import date
+from decimal import Decimal
+
+from django.db.models import Sum, Count
+from invoices.models import Invoice
 
 @login_required
 def membership_dashboard(request):
@@ -12,7 +17,83 @@ def membership_dashboard(request):
 
 @login_required
 def membership_shop(request):
-    return render(request, "membership/shop.html")
+
+    profile = (
+        CustomerProfile.objects
+        .select_related("client", "user")
+        .filter(user=request.user)
+        .first()
+    )
+
+    if not profile:
+        messages.error(
+            request,
+            "No customer profile could be found for your account."
+        )
+        return redirect("home")
+
+    client = profile.client
+
+    membership = (
+        Membership.objects
+        .filter(client=client)
+        .first()
+    )
+
+    credit_account = (
+        CreditAccount.objects
+        .filter(client=client)
+        .first()
+    )
+
+    # ==========================================================
+    # This Month Statistics
+    # ==========================================================
+
+    today = date.today()
+
+    invoices = (
+        Invoice.objects
+        .filter(
+            client=client,
+            status="paid",
+            paid_date__year=today.year,
+            paid_date__month=today.month,
+        )
+    )
+
+    monthly_spend = (
+        invoices.aggregate(
+            total=Sum("order_total_inc")
+        )["total"]
+        or Decimal("0.00")
+    )
+
+    monthly_paid_invoices = invoices.count()
+
+    average_basket = (
+        monthly_spend / monthly_paid_invoices
+        if monthly_paid_invoices
+        else Decimal("0.00")
+    )
+
+    context = {
+        "title": "Shop",
+        "profile": profile,
+        "client": client,
+        "membership": membership,
+        "credit_account": credit_account,
+        "monthly_spend": monthly_spend,
+        "monthly_paid_invoices": monthly_paid_invoices,
+        "average_basket": average_basket,
+        "user": request.user,
+    }
+
+    return render(
+        request,
+        "membership/shop.html",
+        context,
+    )
 
 
 @login_required
