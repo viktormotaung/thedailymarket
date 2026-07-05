@@ -931,6 +931,7 @@
               <th>#</th>
               <th>SKU</th>
               <th>Product</th>
+              <th>Special</th>
               <th>Category</th>
               <th>UOM</th>
               <th>Suppliers</th>
@@ -945,6 +946,15 @@
                 <td>{{ forloop.counter }}</td>
                 <td>{{ p.sku }}</td>
                 <td>{{ p.name }}</td>
+                <td class="text-center">
+                    {% if p.is_special %}
+                        <span class="badge bg-danger">
+                            {{ p.special_label|default:"SPECIAL" }}
+                        </span>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
                 <td>{{ p.category.name }}</td>
                 <td>{{ p.get_uom_display }}</td>
                 <td>{{ row.active_supplier_count }}</td>

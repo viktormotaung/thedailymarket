@@ -581,14 +581,17 @@ def variant_edit(request, pk):
 @staff_required
 def product_view(request, pk):
     """
-    Product detail page with pricing rows and product variants.
+    Product detail page with pricing rows, product variants,
+    and special pricing information.
     """
     product = get_object_or_404(
         Product.objects.select_related("category"),
         pk=pk
     )
 
-    # Pricing rows (unchanged)
+    # -----------------------------------------------------
+    # Pricing rows
+    # -----------------------------------------------------
     pricing_rows = (
         ProductPricing.objects
         .filter(product=product)
@@ -596,7 +599,21 @@ def product_view(request, pk):
         .order_by("supplier__name")
     )
 
-    # Build simple rows for variants so the template stays dumb
+    # -----------------------------------------------------
+    # Product Special
+    # -----------------------------------------------------
+    special = {
+        "is_special": product.is_special,
+        "label": product.special_label,
+        "old_price": product.old_wholesale_price_inc,
+        "current_price": product.wholesale_price_inc,
+        "saving": product.special_saving,
+        "percentage": product.special_percentage,
+    }
+
+    # -----------------------------------------------------
+    # Variants
+    # -----------------------------------------------------
     variants = (
         product.variants
         .all()
@@ -604,10 +621,11 @@ def product_view(request, pk):
     )
 
     variant_rows = []
+
     for v in variants:
-        # safe helpers
         wholesale_derived = v.price_for_channel("wholesale")
         retail_derived = v.price_for_channel("retail")
+
         variant_rows.append({
             "id": v.id,
             "name": v.name or f"{v.pack_size} {v.get_uom_display()}",
@@ -619,7 +637,7 @@ def product_view(request, pk):
             "retail_override": v.retail_price_override,
             "wholesale_derived": wholesale_derived,
             "retail_derived": retail_derived,
-            "image_url": (v.image.url if v.image else None),
+            "image_url": v.image.url if v.image else None,
         })
 
     return render(
@@ -629,6 +647,7 @@ def product_view(request, pk):
             "product": product,
             "pricing_rows": pricing_rows,
             "variant_rows": variant_rows,
+            "special": special,
         },
     )
 

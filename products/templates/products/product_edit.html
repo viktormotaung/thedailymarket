@@ -946,6 +946,115 @@
         </div>
       </div>
 
+      <div class="row g-3 mt-1">
+
+        <div class="col-lg-12">
+
+            <div class="card">
+
+                <div class="card-header bg-white">
+                    <strong>Special Promotion</strong>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="row g-3">
+
+                        <div class="col-md-3">
+                            <div class="form-check mt-4">
+                                {{ form.is_special }}
+                                <label class="form-check-label"
+                                      for="{{ form.is_special.id_for_label }}">
+                                    Product is on Special
+                                </label>
+
+                                {% if form.is_special.errors %}
+                                    <div class="text-danger small">
+                                        {{ form.is_special.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label"
+                                  for="{{ form.special_label.id_for_label }}">
+                                Special Badge
+                            </label>
+
+                            {{ form.special_label }}
+
+                            {% if form.special_label.errors %}
+                                <div class="text-danger small">
+                                    {{ form.special_label.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-5">
+                            <label class="form-label"
+                                  for="{{ form.old_wholesale_price_inc.id_for_label }}">
+                                Old Wholesale Price (Incl. VAT)
+                            </label>
+
+                            {{ form.old_wholesale_price_inc }}
+
+                            {% if form.old_wholesale_price_inc.errors %}
+                                <div class="text-danger small">
+                                    {{ form.old_wholesale_price_inc.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {% if product.is_special %}
+                        <hr>
+
+                        <div class="alert alert-warning mb-0">
+
+                            <strong>Current Promotion</strong>
+
+                            <div class="mt-2">
+
+                                <span class="badge bg-danger">
+                                    {{ product.special_label|default:"SPECIAL" }}
+                                </span>
+
+                                <div class="mt-2">
+
+                                    <del>
+                                        R{{ product.old_wholesale_price_inc|floatformat:2 }}
+                                    </del>
+
+                                    <br>
+
+                                    <strong class="fs-5">
+                                        R{{ product.wholesale_price_inc|floatformat:2 }}
+                                    </strong>
+
+                                    <br>
+
+                                    <span class="text-success fw-bold">
+                                        Save R{{ product.special_saving|floatformat:2 }}
+                                        ({{ product.special_percentage|floatformat:0 }}%)
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
       <div class="d-flex justify-content-end mt-3 gap-2">
         <a href="{% url 'product-view' product.id %}" class="btn btn-outline-secondary">Cancel</a>
         <button type="submit" class="btn btn-primary">Save Changes</button>

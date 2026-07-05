@@ -107,14 +107,68 @@ class ProductPricingForm(forms.ModelForm):
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ["name", "category", "sku", "image", "uom"]
+        fields = [
+            "name",
+            "category",
+            "sku",
+            "image",
+            "uom",
+
+            # Specials
+            "is_special",
+            "special_label",
+            "old_wholesale_price_inc",
+        ]
+
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control"}),
             "category": forms.Select(attrs={"class": "form-select"}),
             "sku": forms.TextInput(attrs={"class": "form-control"}),
             "image": forms.ClearableFileInput(attrs={"class": "form-control"}),
             "uom": forms.Select(attrs={"class": "form-select"}),
+
+            "is_special": forms.CheckboxInput(
+                attrs={"class": "form-check-input"}
+            ),
+
+            "special_label": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "SPECIAL",
+                }
+            ),
+
+            "old_wholesale_price_inc": forms.NumberInput(
+                attrs={
+                    "class": "form-control",
+                    "step": "0.01",
+                    "min": "0",
+                }
+            ),
         }
+
+        labels = {
+            "is_special": "Product is on Special",
+            "special_label": "Special Badge",
+            "old_wholesale_price_inc": "Old Wholesale Price (Incl. VAT)",
+        }
+
+        help_texts = {
+            "old_wholesale_price_inc": "Previous selling price before the special.",
+            "special_label": "Text displayed on the special badge.",
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        if cleaned_data.get("is_special"):
+            if not cleaned_data.get("old_wholesale_price_inc"):
+                self.add_error(
+                    "old_wholesale_price_inc",
+                    "Please enter the old wholesale price when a product is on special."
+                )
+
+        return cleaned_data
 
 
 class ProductVariantForm(forms.ModelForm):

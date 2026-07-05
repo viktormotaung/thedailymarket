@@ -917,6 +917,42 @@
       </div>
     </div>
 
+    {% if special.is_special %}
+    <div class="card mt-3 border-danger">
+        <div class="card-header bg-danger text-white">
+            <strong>{{ special.label|default:"SPECIAL" }}</strong>
+        </div>
+
+        <div class="card-body">
+            <dl class="row mb-0">
+
+                <dt class="col-sm-4">Old Wholesale Price</dt>
+                <dd class="col-sm-8">
+                    R{{ special.old_price|floatformat:2 }}
+                </dd>
+
+                <dt class="col-sm-4">Current Wholesale Price</dt>
+                <dd class="col-sm-8">
+                    <strong>
+                        R{{ special.current_price|floatformat:2 }}
+                    </strong>
+                </dd>
+
+                <dt class="col-sm-4">Customer Saves</dt>
+                <dd class="col-sm-8 text-success fw-bold">
+                    R{{ special.saving|floatformat:2 }}
+                </dd>
+
+                <dt class="col-sm-4">Saving</dt>
+                <dd class="col-sm-8 text-success fw-bold">
+                    {{ special.percentage|floatformat:0 }}%
+                </dd>
+
+            </dl>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- SUPPLIER PRICING -->
     <div class="card mt-3">
       <div class="card-header bg-white d-flex justify-content-between align-items-center">

@@ -239,6 +239,28 @@ class Product(models.Model):
     retail_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     retail_margin_pct = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal("15.00"))
 
+    special_label = models.CharField(
+        max_length=50,
+        blank=True,
+        default=""
+    )
+
+    # -----------------------------
+    # Specials
+    # -----------------------------
+    is_special = models.BooleanField(
+        default=False,
+        help_text="Tick if this product is currently on special."
+    )
+
+    old_wholesale_price_inc = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Previous wholesale selling price INCLUDING VAT."
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -267,6 +289,54 @@ class Product(models.Model):
         if (channel or "").lower() == "retail":
             return r2(self.retail_price)
         return r2(self.wholesale_price)
+    
+    @property
+    def wholesale_price_inc(self) -> Decimal:
+        """
+        Current wholesale price INCLUDING VAT.
+        """
+        if self.wholesale_price is None:
+            return D0
+
+        return round_up_rand(
+            self.wholesale_price * Decimal("1.15")
+        )
+
+
+    @property
+    def special_saving(self) -> Decimal:
+        """
+        Rand saving for specials.
+        """
+        if (
+            not self.is_special
+            or self.old_wholesale_price_inc is None
+        ):
+            return D0
+
+        saving = self.old_wholesale_price_inc - self.wholesale_price_inc
+
+        return saving if saving > D0 else D0
+
+
+    @property
+    def special_percentage(self) -> Decimal:
+        """
+        Percentage saving.
+        """
+        if (
+            not self.is_special
+            or self.old_wholesale_price_inc is None
+            or self.old_wholesale_price_inc <= D0
+        ):
+            return D0
+
+        return (
+            (self.special_saving / self.old_wholesale_price_inc) * Decimal("100")
+        ).quantize(
+            Decimal("0.1"),
+            rounding=ROUND_HALF_UP,
+        )
 
     def sync_variant_prices(self, *, force: bool = True) -> int:
         """

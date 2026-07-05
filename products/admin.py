@@ -93,9 +93,9 @@ class ProductAdmin(admin.ModelAdmin):
         "product_no",
         "name",
         "category",
-        "uom",
+        "is_special",
         "wholesale_price",
-        "retail_price",
+        "special_saving_display",
         "created_at",
         "updated_at",
     )
@@ -114,12 +114,16 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = (
         "category",
         "uom",
+        "is_special",
         "created_at",
     )
 
     readonly_fields = (
         "sku",
         "slug",
+        "wholesale_price_inc",
+        "special_saving",
+        "special_percentage",
         "created_at",
         "updated_at",
     )
@@ -152,6 +156,16 @@ class ProductAdmin(admin.ModelAdmin):
                 "wholesale_price",
                 "retail_price",
                 "retail_margin_pct",
+            )
+        }),
+        ("Specials", {
+            "fields": (
+                "is_special",
+                "special_label",
+                "old_wholesale_price_inc",
+                "wholesale_price_inc",
+                "special_saving",
+                "special_percentage",
             )
         }),
     )
@@ -221,6 +235,12 @@ class ProductAdmin(admin.ModelAdmin):
             "admin/products/import_excel.html",
             {"form": form},
         )
+    
+    @admin.display(description="Save")
+    def special_saving_display(self, obj):
+        if obj.special_saving > 0:
+            return f"R{obj.special_saving:.2f}"
+        return "-"
     
 
     
