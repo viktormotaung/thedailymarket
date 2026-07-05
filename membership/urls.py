@@ -12,5 +12,11 @@ urlpatterns = [
 
     path("account/", views.membership_account, name="membership_account"),
 
+    path("shop/specials/", views.membership_shop_specials, name="membership_shop_specials",),
+
     path("support/", views.membership_support, name="membership_support"),
+
+    path("shop/<slug:slug>/", views.membership_shop_category, name="membership_shop_category",),
+
+    
 ]
