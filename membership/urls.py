@@ -18,5 +18,11 @@ urlpatterns = [
 
     path("shop/<slug:slug>/", views.membership_shop_category, name="membership_shop_category",),
 
+    path("download-price-list/", views.membership_download_price_list, name="membership_download_price_list",),
+
+    path("orders/<int:order_id>/", views.membership_view_order, name="membership_view_order",),
+
+    path("invoice/<int:invoice_id>/", views.membership_view_invoice, name="membership_view_invoice",),
+
     
 ]

@@ -331,13 +331,22 @@
                 </h3>
 
                 {% if request.user.customer_profile.client.membership.member_since %}
+
                     <div class="text-muted small mb-3">
-                        Member Since {{ request.user.customer_profile.client.membership.member_since|date:"F Y" }}
+
+                        Member Since
+                        {{ request.user.customer_profile.client.membership.member_since|date:"F Y" }}
+
                     </div>
+
                 {% else %}
+
                     <div class="text-muted small mb-3">
+
                         Membership Pending Approval
+
                     </div>
+
                 {% endif %}
 
                 <div class="row align-items-stretch">
@@ -348,27 +357,25 @@
 
                     <div class="col-lg-8 mb-3 mb-lg-0 d-flex flex-column">
 
-                        
-
                         <div class="hero-banner flex-grow-1">
 
                             <div>
 
                                 <h5 class="fw-semibold text-white mb-2">
+
                                     Building Better Food Businesses Together.
+
                                 </h5>
 
                                 <p class="text-white-50 mb-0">
-                                    Order stock, grow your business and unlock more opportunities through your Trade Assist Membership.
+
+                                    Order stock, grow your business and unlock more benefits.
+
                                 </p>
 
                             </div>
 
-                            <div class="hero-icon">
-
-                                <i class="bi bi-basket2-fill"></i>
-
-                            </div>
+                            
 
                         </div>
 
@@ -383,33 +390,43 @@
                         <div class="status-card w-100">
 
                             <small class="text-muted text-uppercase">
+
                                 Trade Assist
+
                             </small>
 
                             <div class="mt-1">
 
                                 {% if request.user.customer_profile.client.membership.is_active %}
 
-                                    <span class="badge bg-success px-3 py-2  ">
+                                    <span class="badge bg-success px-3 py-2">
+
                                         Active Member
+
                                     </span>
 
                                 {% elif request.user.customer_profile.client.membership.is_pending %}
 
-                                    <span class="badge bg-warning text-dark px-3 py-2  ">
+                                    <span class="badge bg-warning text-dark px-3 py-2">
+
                                         Pending Approval
+
                                     </span>
 
                                 {% elif request.user.customer_profile.client.membership.is_suspended %}
 
-                                    <span class="badge bg-danger px-3 py-2  ">
+                                    <span class="badge bg-danger px-3 py-2">
+
                                         Suspended
+
                                     </span>
 
                                 {% else %}
 
-                                    <span class="badge bg-secondary px-3 py-2  ">
+                                    <span class="badge bg-secondary px-3 py-2">
+
                                         Cancelled
+
                                     </span>
 
                                 {% endif %}
@@ -423,14 +440,564 @@
                             </div>
 
                             <div class="small text-muted">
+
                                 Member Number
+
                             </div>
 
                             <div class="fw-bold fs-5">
+
                                 {{ request.user.customer_profile.client.membership.membership_number }}
+
                             </div>
 
                         </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ===================================================== -->
+        <!-- Today's Snapshot -->
+        <!-- ===================================================== -->
+
+        <h4 class="fw-bold mb-3">
+
+            Today's Snapshot
+
+        </h4>
+
+        <div class="row g-4 mb-5">
+
+            <!-- Buying Power -->
+
+            <div class="col-md-6 col-xl-3">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-body">
+
+                        <div class="text-success mb-2">
+
+                            <i class="bi bi-wallet2 fs-3"></i>
+
+                        </div>
+
+                        <small class="text-uppercase text-muted">
+
+                            Buying Power
+
+                        </small>
+
+                        <h3 class="fw-bold mt-2 mb-0">
+
+                            R{{ credit_account.available_limit|default:0|floatformat:2|intcomma }}
+
+                        </h3>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Lifetime Points -->
+
+            <div class="col-md-6 col-xl-3">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-body">
+
+                        <div class="mb-2">
+
+                            {% if membership.tier == "BRONZE" %}
+
+                                <i class="bi bi-star-fill fs-3"
+                                style="color:#CD7F32;"></i>
+
+                            {% elif membership.tier == "SILVER" %}
+
+                                <i class="bi bi-star-fill fs-3"
+                                style="color:#C0C0C0;"></i>
+
+                            {% elif membership.tier == "GOLD" %}
+
+                                <i class="bi bi-star-fill fs-3"
+                                style="color:#FFD700;"></i>
+
+                            {% elif membership.tier == "PLATINUM" %}
+
+                                <i class="bi bi-star-fill fs-3"
+                                style="color:#E5E4E2;"></i>
+
+                            {% else %}
+
+                                <i class="bi bi-star-fill fs-3 text-secondary"></i>
+
+                            {% endif %}
+
+                        </div>
+
+                        <small class="text-uppercase text-muted">
+
+                            Lifetime Points
+
+                        </small>
+
+                        <h3 class="fw-bold mt-2 mb-0">
+
+                            {{ membership.lifetime_trade_points|default:0|intcomma }}
+
+                        </h3>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Current Orders -->
+
+            <div class="col-md-6 col-xl-3">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-body">
+
+                        <div class="text-primary mb-2">
+
+                            <i class="bi bi-box-seam fs-3"></i>
+
+                        </div>
+
+                        <small class="text-uppercase text-muted">
+
+                            Current Orders
+
+                        </small>
+
+                        <h3 class="fw-bold mt-2 mb-0">
+
+                            {{ current_orders }}
+
+                        </h3>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Outstanding -->
+
+            <div class="col-md-6 col-xl-3">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-body">
+
+                        <div class="text-danger mb-2">
+
+                            <i class="bi bi-receipt fs-3"></i>
+
+                        </div>
+
+                        <small class="text-uppercase text-muted">
+
+                            Outstanding
+
+                        </small>
+
+                        <h3 class="fw-bold mt-2 mb-0">
+
+                            R{{ outstanding_amount|floatformat:2|intcomma }}
+
+                        </h3>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ===================================================== -->
+        <!-- Recommended For You -->
+        <!-- ===================================================== -->
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+
+            <h4 class="fw-bold mb-0">
+
+                ⭐ Recommended For You
+
+            </h4>
+
+            <a href="{% url 'membership_shop' %}"
+            class="text-decoration-none">
+
+                View All
+
+            </a>
+
+        </div>
+
+        <div class="row g-4 mb-5">
+
+            {% for item in recommended_products %}
+
+            <div class="col-md-3">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    {% if item.product.image %}
+
+                        <img src="{{ item.product.image.url }}"
+                            class="card-img-top"
+                            style="height:220px;object-fit:cover;">
+
+                    {% else %}
+
+                        <div class="bg-light d-flex align-items-center justify-content-center"
+                            style="height:220px;">
+
+                            <i class="bi bi-image fs-1 text-muted"></i>
+
+                        </div>
+
+                    {% endif %}
+
+                    <div class="card-body d-flex flex-column">
+
+                        <h6 class="fw-bold">
+
+                            {{ item.product.name }}
+
+                        </h6>
+
+                        <small class="text-muted mb-1">
+
+                            {{ item.product.category.name }}
+
+                        </small>
+
+                        <small class="text-success mb-3">
+
+                            Purchased
+                            {{ item.total_quantity|floatformat:0 }}
+                            time{{ item.total_quantity|pluralize }}
+
+                        </small>
+
+                        <div class="mt-auto">
+
+                            <a href="{% url 'membership_shop_category' item.product.category.slug %}"
+                            class="btn btn-outline-success w-100">
+
+                                <i class="bi bi-eye me-2"></i>
+
+                                View
+
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            {% empty %}
+
+            <div class="col-12">
+
+                <div class="alert alert-info mb-0">
+
+                    Once you've purchased products from The Daily Market,
+                    your favourite products will appear here for quick access.
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        <!-- ===================================================== -->
+        <!-- Today's Specials -->
+        <!-- ===================================================== -->
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+
+            <h4 class="fw-bold mb-0">
+
+                🔥 Today's Specials
+
+            </h4>
+
+            <a href="{% url 'membership_shop_specials' %}"
+            class="text-decoration-none">
+
+                View All
+
+            </a>
+
+        </div>
+
+        <div class="row g-4 mb-5">
+
+            {% for product in special_products %}
+
+            <div class="col-md-3">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    {% if product.image %}
+
+                        <img src="{{ product.image.url }}"
+                            class="card-img-top"
+                            style="height:220px;object-fit:cover;">
+
+                    {% else %}
+
+                        <div class="bg-light d-flex align-items-center justify-content-center"
+                            style="height:220px;">
+
+                            <i class="bi bi-image fs-1 text-muted"></i>
+
+                        </div>
+
+                    {% endif %}
+
+                    <div class="card-body d-flex flex-column">
+
+                        <span class="badge bg-danger mb-2 align-self-start">
+
+                            SPECIAL
+
+                        </span>
+
+                        <h6 class="fw-bold">
+
+                            {{ product.name }}
+
+                        </h6>
+
+                        <small class="text-muted mb-3">
+
+                            {{ product.category.name }}
+
+                        </small>
+
+                        {% if product.old_wholesale_price_inc %}
+
+                            <div class="text-decoration-line-through text-muted">
+
+                                R{{ product.old_wholesale_price_inc|floatformat:2|intcomma }}
+
+                            </div>
+
+                        {% endif %}
+
+                        <h4 class="text-success fw-bold">
+
+                            R{{ product.wholesale_price|floatformat:2|intcomma }}
+
+                        </h4>
+
+                        <div class="mt-auto">
+
+                            <a href="{% url 'membership_shop_category' product.category.parent.slug|default:product.category.slug %}"
+                            class="btn btn-success w-100">
+
+                                <i class="bi bi-eye me-2"></i>
+
+                                View
+
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            {% empty %}
+
+            <div class="col-12">
+
+                <div class="alert alert-warning mb-0">
+
+                    There are no products on special today.
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        <!-- ===================================================== -->
+        <!-- Latest Order -->
+        <!-- ===================================================== -->
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+
+            <h4 class="fw-bold mb-0">
+
+                📦 Latest Order
+
+            </h4>
+
+            <a href="{% url 'membership_orders' %}"
+            class="text-decoration-none">
+
+                View All
+
+            </a>
+
+        </div>
+
+        {% if latest_order %}
+
+        <div class="card border-0 shadow-sm mb-5">
+
+            <div class="card-body">
+
+                <div class="row align-items-center">
+
+                    <div class="col-lg-3">
+
+                        <small class="text-uppercase text-muted">
+
+                            Order Number
+
+                        </small>
+
+                        <h4 class="fw-bold mb-0">
+
+                            #{{ latest_order.id }}
+
+                        </h4>
+
+                    </div>
+
+                    <div class="col-lg-3">
+
+                        <small class="text-uppercase text-muted">
+
+                            Status
+
+                        </small>
+
+                        <h5 class="fw-bold mb-0">
+
+                            {{ latest_order.get_status_display }}
+
+                        </h5>
+
+                    </div>
+
+                    <div class="col-lg-3">
+
+                        <small class="text-uppercase text-muted">
+
+                            Date
+
+                        </small>
+
+                        <h6 class="mb-0">
+
+                            {{ latest_order.order_date|date:"d M Y" }}
+
+                        </h6>
+
+                    </div>
+
+                    <div class="col-lg-3 text-lg-end mt-3 mt-lg-0">
+
+                        <a href="{% url 'membership_view_order' latest_order.id %}"
+                        class="btn btn-success">
+
+                            <i class="bi bi-eye me-2"></i>
+
+                            View
+
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        {% else %}
+
+        <div class="alert alert-info mb-5">
+
+            You haven't placed any orders yet.
+
+        </div>
+
+        {% endif %}
+
+        <!-- ===================================================== -->
+        <!-- Member Spotlight -->
+        <!-- ===================================================== -->
+
+        <div class="card border-0 shadow-sm mb-4">
+
+            <div class="card-body p-4">
+
+                <div class="row align-items-center">
+
+                    <div class="col-lg-8">
+
+                        <span class="badge bg-success mb-3">
+
+                            Member Spotlight
+
+                        </span>
+
+                        <h3 class="fw-bold">
+
+                            🎉 Earn More Trade Points
+
+                        </h3>
+
+                        <p class="text-muted mb-0">
+
+                            Every purchase helps grow your Trade Assist profile.
+                            Shop consistently, earn more Trade Points and increase
+                            your Buying Power over time.
+
+                        </p>
+
+                    </div>
+
+                    <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
+
+                        <a href="{% url 'membership_shop' %}"
+                        class="btn btn-success btn-lg">
+
+                            <i class="bi bi-cart3 me-2"></i>
+
+                            Shop Now
+
+                        </a>
 
                     </div>
 

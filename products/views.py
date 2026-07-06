@@ -164,7 +164,6 @@ def product_list(request):
 
 
 @login_required
-@staff_required
 def download_price_list(request):
     subcategory_ids = request.GET.getlist("subcategories")
 

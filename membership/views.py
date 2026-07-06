@@ -9,10 +9,152 @@ from decimal import Decimal
 from products.models import Category, Product
 from django.db.models import Sum, Count, Q
 from invoices.models import Invoice
+from orders.models import OrderItem
+from products.views import download_price_list
+from orders.models import Order
+from deliveries.models import DeliveryStop
+
 
 @login_required
 def membership_dashboard(request):
-    return render(request, "membership/dashboard.html")
+
+    profile = (
+        CustomerProfile.objects
+        .select_related("client", "user")
+        .filter(user=request.user)
+        .first()
+    )
+
+    if not profile:
+
+        messages.error(
+            request,
+            "No customer profile could be found for your account."
+        )
+
+        return redirect("home")
+
+    client = profile.client
+
+    membership = (
+        Membership.objects
+        .filter(client=client)
+        .first()
+    )
+
+    credit_account = (
+        CreditAccount.objects
+        .filter(client=client)
+        .first()
+    )
+
+    # ==========================================================
+    # Snapshot
+    # ==========================================================
+
+    current_orders = (
+        Order.objects
+        .filter(client=client)
+        .exclude(
+            status__in=[
+                "DELIVERED",
+                "CANCELLED",
+            ]
+        )
+        .count()
+    )
+
+    outstanding_amount = (
+        Invoice.objects
+        .filter(client=client)
+        .exclude(status="paid")
+        .aggregate(
+            total=Sum("order_total_inc")
+        )["total"]
+        or Decimal("0.00")
+    )
+
+    # ==========================================================
+    # Recommended Products
+    # ==========================================================
+
+    top_products = (
+        OrderItem.objects
+        .filter(
+            order__invoice__client=client,
+            order__invoice__status="paid",
+        )
+        .values("product")
+        .annotate(
+            total_quantity=Sum("quantity"),
+        )
+        .order_by("-total_quantity")[:4]
+    )
+
+    recommended_products = []
+
+    for item in top_products:
+
+        product = (
+            Product.objects
+            .select_related("category")
+            .filter(id=item["product"])
+            .first()
+        )
+
+        if product:
+
+            recommended_products.append({
+                "product": product,
+                "total_quantity": item["total_quantity"],
+            })
+
+    # ==========================================================
+    # Today's Specials
+    # ==========================================================
+
+    special_products = (
+        Product.objects
+        .filter(is_special=True)
+        .select_related("category")
+        .order_by("?")[:4]
+    )
+
+    # ==========================================================
+    # Latest Order
+    # ==========================================================
+
+    latest_order = (
+        Order.objects
+        .filter(client=client)
+        .order_by("-submitted_at")
+        .first()
+    )
+
+    context = {
+
+        "title": "Dashboard",
+
+        "profile": profile,
+        "client": client,
+        "membership": membership,
+        "credit_account": credit_account,
+
+        "current_orders": current_orders,
+        "outstanding_amount": outstanding_amount,
+
+        "recommended_products": recommended_products,
+        "special_products": special_products,
+
+        "latest_order": latest_order,
+
+    }
+
+    return render(
+        request,
+        "membership/dashboard.html",
+        context,
+    )
 
 
 @login_required
@@ -78,6 +220,32 @@ def membership_shop(request):
     )
 
     # ==========================================================
+    # Top Products
+    # ==========================================================
+
+    top_products = (
+        OrderItem.objects
+        .filter(
+            order__invoice__client=client,
+            order__invoice__status="paid",
+        )
+        .select_related(
+            "product",
+            "product__category",
+        )
+        .values(
+            "product",
+            "product__name",
+            "product__category__name",
+            "product__image",
+        )
+        .annotate(
+            total_quantity=Sum("quantity"),
+        )
+        .order_by("-total_quantity")[:4]
+    )
+
+    # ==========================================================
     # Shop Categories
     # ==========================================================
 
@@ -121,6 +289,8 @@ def membership_shop(request):
             "product_count": product_count,
         })
 
+    
+
     context = {
         "title": "Shop",
         "profile": profile,
@@ -132,6 +302,8 @@ def membership_shop(request):
         "average_basket": average_basket,
         "user": request.user,
         "category_cards": category_cards,
+        "top_products": top_products,
+        
     }
 
     return render(
@@ -141,7 +313,9 @@ def membership_shop(request):
     )
 
 
-
+@login_required
+def membership_download_price_list(request):
+    return download_price_list(request)
 
 
 @login_required
@@ -255,7 +429,52 @@ def membership_shop_category(request, slug):
 
 @login_required
 def membership_orders(request):
-    return render(request, "membership/orders.html")
+
+    profile = (
+        CustomerProfile.objects
+        .select_related("client", "user")
+        .filter(user=request.user)
+        .first()
+    )
+
+    if not profile:
+        messages.error(
+            request,
+            "No customer profile could be found."
+        )
+        return redirect("home")
+
+    client = profile.client
+
+    membership = (
+        Membership.objects
+        .filter(client=client)
+        .first()
+    )
+
+    orders = (
+        Order.objects
+        .filter(client=client)
+        .select_related("client")
+        .order_by("-submitted_at")
+    )
+
+    latest_order = orders.first()
+
+    context = {
+        "title": "Orders",
+        "profile": profile,
+        "client": client,
+        "membership": membership,
+        "orders": orders,
+        "latest_order": latest_order,
+    }
+
+    return render(
+        request,
+        "membership/orders.html",
+        context,
+    )
 
 
 @login_required
@@ -319,7 +538,175 @@ def membership_shop_specials(request):
     )
 
 
+@login_required
+def membership_view_order(request, order_id):
 
+    profile = (
+        CustomerProfile.objects
+        .select_related("client", "user")
+        .filter(user=request.user)
+        .first()
+    )
+
+    if not profile:
+        messages.error(
+            request,
+            "No customer profile could be found."
+        )
+        return redirect("home")
+
+    client = profile.client
+
+    membership = (
+        Membership.objects
+        .filter(client=client)
+        .first()
+    )
+
+    order = (
+        Order.objects
+        .filter(
+            id=order_id,
+            client=client,
+        )
+        .first()
+    )
+
+    if not order:
+        messages.error(
+            request,
+            "Order could not be found."
+        )
+        return redirect("membership_orders")
+
+    order_items = (
+        OrderItem.objects
+        .filter(order=order)
+        .select_related(
+            "product",
+            "product__category",
+        )
+        .order_by("id")
+    )
+
+    invoice = (
+        Invoice.objects
+        .filter(order=order)
+        .first()
+    )
+
+    context = {
+        "title": f"Order #{order.id}",
+        "profile": profile,
+        "client": client,
+        "membership": membership,
+        "order": order,
+        "order_items": order_items,
+        "invoice": invoice,
+    }
+
+    return render(
+        request,
+        "membership/view_order.html",
+        context,
+    )
+
+
+@login_required
+def membership_view_invoice(request, invoice_id):
+
+    profile = (
+        CustomerProfile.objects
+        .select_related("client", "user")
+        .filter(user=request.user)
+        .first()
+    )
+
+    if not profile:
+        messages.error(
+            request,
+            "No customer profile could be found."
+        )
+        return redirect("home")
+
+    client = profile.client
+
+    membership = (
+        Membership.objects
+        .filter(client=client)
+        .first()
+    )
+
+    invoice = (
+        Invoice.objects
+        .filter(
+            id=invoice_id,
+            client=client,
+        )
+        .select_related(
+            "order",
+            "client",
+        )
+        .first()
+    )
+
+    if not invoice:
+        messages.error(
+            request,
+            "Invoice could not be found."
+        )
+        return redirect("membership_orders")
+
+    order_items = (
+        OrderItem.objects
+        .filter(order=invoice.order)
+        .select_related(
+            "product",
+            "product__category",
+        )
+        .order_by("id")
+    )
+
+    order = invoice.order
+
+    order_items = (
+        OrderItem.objects
+        .filter(order=order)
+        .select_related(
+            "product",
+            "product__category",
+        )
+        .order_by("id")
+    )
+
+    delivery_stop = (
+        DeliveryStop.objects
+        .select_related(
+            "run",
+            "run__driver",
+        )
+        .filter(order=order)
+        .first()
+    )
+
+    context = {
+        "title": f"Invoice INV-{invoice.id:06d}",
+        "profile": profile,
+        "client": client,
+        "membership": membership,
+        "invoice": invoice,
+        "order": order,
+        "order_items": order_items,
+        "delivery_stop": delivery_stop,
+    }
+
+    
+
+    return render(
+        request,
+        "membership/view_invoice.html",
+        context,
+    )
 
 
 @login_required

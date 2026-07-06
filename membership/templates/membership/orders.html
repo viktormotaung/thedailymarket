@@ -318,7 +318,337 @@
 
     <main class="content">
 
-        
+        <div class="container-fluid">
+
+            <!-- ===================================================== -->
+            <!-- Header -->
+            <!-- ===================================================== -->
+
+            <div class="d-flex justify-content-between align-items-center mb-4">
+
+                <div>
+
+                    <h2 class="fw-bold mb-1">
+                        My Orders
+                    </h2>
+
+                    <p class="text-muted mb-0">
+                        Track your latest order and view your order history.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <!-- ===================================================== -->
+            <!-- Latest Order -->
+            <!-- ===================================================== -->
+
+            <div class="card border-0 shadow-sm mb-5">
+
+                <div class="card-header bg-white">
+
+                    <h4 class="fw-bold mb-0">
+                        Latest Order
+                    </h4>
+
+                </div>
+
+                <div class="card-body">
+
+                    {% if latest_order %}
+
+                    <div class="row align-items-center g-4">
+
+                        <div class="col-md-8">
+
+                            <div class="row g-3">
+
+                                <div class="col-6 col-lg-3">
+
+                                    <small class="text-uppercase text-muted">
+                                        Order
+                                    </small>
+
+                                    <h3 class="fw-bold mb-0">
+                                        #{{ latest_order.id }}
+                                    </h3>
+
+                                </div>
+
+                                <div class="col-6 col-lg-3">
+
+                                    <small class="text-uppercase text-muted">
+                                        Date
+                                    </small>
+
+                                    <h6 class="fw-bold mb-0">
+                                        {{ latest_order.submitted_at|date:"d M Y" }}
+                                    </h6>
+
+                                </div>
+
+                                <div class="col-6 col-lg-3">
+
+                                    <small class="text-uppercase text-muted">
+                                        Total
+                                    </small>
+
+                                    <h5 class="fw-bold text-success mb-0">
+                                        R{{ latest_order.grand_total_inc|floatformat:2|intcomma }}
+                                    </h5>
+
+                                </div>
+
+                                <div class="col-6 col-lg-3">
+
+                                    <small class="text-uppercase text-muted">
+                                        Status
+                                    </small>
+
+                                    <div>
+
+                                        {% if latest_order.status == "pending" %}
+
+                                            <span class="badge bg-secondary fs-6">
+                                                Pending
+                                            </span>
+
+                                        {% elif latest_order.status == "approved" %}
+
+                                            <span class="badge bg-primary fs-6">
+                                                Approved
+                                            </span>
+
+                                        {% elif latest_order.status == "awaiting_payment" %}
+
+                                            <span class="badge bg-warning text-dark fs-6">
+                                                Awaiting Payment
+                                            </span>
+
+                                        {% elif latest_order.status == "at_warehouse" %}
+
+                                            <span class="badge bg-info text-dark fs-6">
+                                                At Warehouse
+                                            </span>
+
+                                        {% elif latest_order.status == "ready_for_delivery" %}
+
+                                            <span class="badge bg-primary fs-6">
+                                                Ready For Delivery
+                                            </span>
+
+                                        {% elif latest_order.status == "out_for_delivery" %}
+
+                                            <span class="badge bg-dark fs-6">
+                                                Out For Delivery
+                                            </span>
+
+                                        {% elif latest_order.status == "complete" %}
+
+                                            <span class="badge bg-success fs-6">
+                                                Delivered
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="badge bg-light text-dark fs-6">
+                                                {{ latest_order.get_status_display }}
+                                            </span>
+
+                                        {% endif %}
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="col-md-4 text-md-end">
+
+                            <a href="{% url 'membership_view_order' latest_order.id %}"
+                                class="btn btn-success btn-lg">
+
+                                <i class="bi bi-eye me-2"></i>
+                                View Order
+
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                    {% else %}
+
+                        <div class="alert alert-info mb-0">
+
+                            You have not placed any orders yet.
+
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+            <!-- ===================================================== -->
+            <!-- Order History -->
+            <!-- ===================================================== -->
+
+            <div class="card border-0 shadow-sm">
+
+                <div class="card-header bg-white">
+
+                    <div class="d-flex justify-content-between align-items-center">
+
+                        <h4 class="fw-bold mb-0">
+                            Order History
+                        </h4>
+
+                        <span class="text-muted">
+                            {{ orders.count }} Order{{ orders.count|pluralize }}
+                        </span>
+
+                    </div>
+
+                </div>
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th>Order</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th class="text-end">Total</th>
+                                <th class="text-center">Action</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            {% for order in orders %}
+
+                            <tr>
+
+                                <td>
+
+                                    <strong>
+                                        #{{ order.id }}
+                                    </strong>
+
+                                </td>
+
+                                <td>
+
+                                    {{ order.submitted_at|date:"d M Y" }}
+
+                                </td>
+
+                                <td>
+
+                                    {% if order.status == "pending" %}
+                                        <span class="badge bg-secondary">
+                                            {{ order.get_status_display }}
+                                        </span>
+
+                                    {% elif order.status == "approved" %}
+                                        <span class="badge bg-primary">
+                                            {{ order.get_status_display }}
+                                        </span>
+
+                                    {% elif order.status == "awaiting_payment" %}
+                                        <span class="badge bg-warning text-dark">
+                                            {{ order.get_status_display }}
+                                        </span>
+
+                                    {% elif order.status == "at_warehouse" %}
+                                        <span class="badge bg-info text-dark">
+                                            {{ order.get_status_display }}
+                                        </span>
+
+                                    {% elif order.status == "ready_for_delivery" %}
+                                        <span class="badge bg-primary">
+                                            {{ order.get_status_display }}
+                                        </span>
+
+                                    {% elif order.status == "out_for_delivery" %}
+                                        <span class="badge bg-dark">
+                                            {{ order.get_status_display }}
+                                        </span>
+
+                                    {% elif order.status == "complete" %}
+                                        <span class="badge bg-success">
+                                            {{ order.get_status_display }}
+                                        </span>
+
+                                    {% elif order.status == "cancelled" %}
+                                        <span class="badge bg-danger">
+                                            {{ order.get_status_display }}
+                                        </span>
+
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">
+                                            {{ order.get_status_display }}
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+                                <td class="text-end">
+
+                                    R{{ order.grand_total_inc|floatformat:2|intcomma }}
+
+                                </td>
+
+                                <td class="text-center">
+
+                                    <a href="{% url 'membership_view_order' order.id %}"
+                                        class="btn btn-sm btn-outline-success">
+
+                                        <i class="bi bi-eye me-1"></i>
+                                        View
+
+                                    </a>
+
+                                </td>
+
+                            </tr>
+
+                            {% empty %}
+
+                            <tr>
+
+                                <td colspan="5" class="text-center py-5 text-muted">
+
+                                    You haven't placed any orders yet.
+
+                                </td>
+
+                            </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
     </main>
 
 
