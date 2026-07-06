@@ -1,35 +1,314 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-  <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; padding:24px; background:#f6f8fa;">
-    <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
-      <tr>
-        <td align="center">
-          <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;border-radius:8px;overflow:hidden">
-            <tr>
-              <td style="padding:24px 24px 0 24px">
-                <h2 style="margin:0 0 8px 0;color:#111">Welcome, {{ user.get_full_name|default:user.username }}!</h2>
-                <p style="margin:0;color:#555">Your Seshibo Daily Market account is now <strong>active</strong>.</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:16px 24px 24px 24px">
-                <p style="margin:0 0 16px 0;color:#555">Click below to sign in:</p>
-                <p style="margin:0">
-                  <a href="{{ login_url }}" style="display:inline-block;text-decoration:none;padding:10px 16px;border-radius:6px;background:#0b5c39;color:#fff;">
-                    Go to login
-                  </a>
-                </p>
-                <p style="margin:16px 0 0 0;color:#555;word-break:break-all;">Or paste into your browser:<br>{{ login_url }}</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="background:#f0f2f4;color:#666;padding:12px 24px;font-size:12px">
-                Seshibo Daily Market
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
+<head>
+    <meta charset="utf-8">
+    <title>Welcome to The Daily Market</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 0;">
+<tr>
+<td align="center">
+
+<table width="650" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;">
+
+<tr>
+<td style="background:#0B5E2B;padding:35px;text-align:center;color:#ffffff;">
+    <h1 style="margin:0;">Welcome to The Daily Market</h1>
+
+    <p style="margin-top:10px;font-size:16px;">
+        Your customer account has been activated.
+    </p>
+</td>
+</tr>
+
+<tr>
+<td style="padding:35px;color:#333;font-size:15px;line-height:1.7;">
+
+<p>
+
+Hello <strong>{{ user.first_name|default:user.username }}</strong>,
+
+</p>
+
+<p>
+
+Welcome to <strong>The Daily Market</strong>.
+
+We're excited to have you as one of our valued customers and look forward to building a long-term business relationship with you.
+
+</p>
+
+<p>
+
+Whether you operate a kota shop, catering company, restaurant, tuckshop, supermarket or any other food business, our mission is simple:
+
+</p>
+
+<p style="font-size:20px;font-weight:bold;color:#0B5E2B;text-align:center;">
+Helping your food business buy better, save time and grow.
+</p>
+
+<hr>
+
+<h2>Your Customer Account</h2>
+
+<p>
+
+<strong>Username</strong><br>
+{{ user.username }}
+
+</p>
+
+<p>
+
+You can log in using the link below:
+
+</p>
+
+<p style="text-align:center;margin:30px 0;">
+
+<a href="https://www.thedailymarket.co.za/portal/client/login/"
+style="background:#0B5E2B;
+color:#ffffff;
+padding:14px 28px;
+text-decoration:none;
+border-radius:6px;
+font-weight:bold;
+display:inline-block;">
+
+Log In To Your Account
+
+</a>
+
+</p>
+
+<p style="font-size:13px;color:#777;word-break:break-all;">
+https://www.thedailymarket.co.za/portal/client/login/
+</p>
+
+<hr>
+
+<h2>How We Work</h2>
+
+<p>
+
+Unlike traditional wholesalers, we source products daily from trusted suppliers across Gauteng.
+
+This allows us to offer fresh products, competitive pricing and a wider range of products without carrying unnecessary stock.
+
+</p>
+
+<p>
+
+Our business is built around planning and efficiency, allowing us to provide dependable next-day deliveries.
+
+</p>
+
+<hr>
+
+<h2>Ordering & Deliveries</h2>
+
+<p>
+
+Please take note of the following important operating procedures.
+
+</p>
+
+<div style="background:#F8F9FA;border-left:5px solid #0B5E2B;padding:18px;margin:20px 0;">
+
+<h3 style="margin-top:0;color:#0B5E2B;">
+Delivery Schedule
+</h3>
+
+<ul>
+
+<li><strong>We do not offer same-day delivery.</strong></li>
+
+<li>Orders confirmed today are scheduled for <strong>next business day delivery.</strong></li>
+
+<li>Orders placed on <strong>Saturday</strong> will be delivered on <strong>Monday.</strong></li>
+
+</ul>
+
+</div>
+
+<div style="background:#FFF8E5;border-left:5px solid #F5A623;padding:18px;margin:20px 0;">
+
+<h3 style="margin-top:0;color:#B36B00;">
+Daily Cut-Off Times
+</h3>
+
+<ul>
+
+<li>Orders must be confirmed by <strong>2:00 PM (14:00)</strong>.</li>
+
+<li>Payment must be completed by <strong>3:00 PM (15:00)</strong>.</li>
+
+<li>Payments received after dispatch planning may result in your order moving to the following delivery day.</li>
+
+</ul>
+
+</div>
+
+<p>
+
+To assist with reconciliation, please send your <strong>Proof of Payment (POP)</strong> after making payment.
+
+This helps both your business and ours maintain accurate records.
+
+</p>
+
+<p>
+
+If payment has not reflected or been confirmed before dispatch, unfortunately we will not be able to dispatch your order.
+
+</p>
+
+<hr>
+
+<h2>Placing Orders</h2>
+
+<p>
+
+Orders can be placed through any of the following channels:
+
+</p>
+
+<ul>
+
+<li>Online through your customer portal</li>
+
+<li>WhatsApp</li>
+
+<li>Your dedicated Product Specialist</li>
+
+</ul>
+
+<p>
+
+Please remember our daily cut-off times when placing orders.
+
+For special product requests, sourcing enquiries or bulk orders, please speak directly with your Product Specialist.
+
+</p>
+
+<hr>
+
+<h2>Tracking Your Orders</h2>
+
+<p>
+
+Your customer portal allows you to:
+
+</p>
+
+<ul>
+
+<li>Track your order progress</li>
+
+<li>View quotations</li>
+
+<li>View invoices</li>
+
+<li>Monitor deliveries</li>
+
+<li>Access your account information</li>
+
+</ul>
+
+<p>
+
+We encourage you to regularly log into your account to stay updated on the progress of your orders.
+
+</p>
+
+<hr>
+
+<h2>Our Commitment To You</h2>
+
+<ul>
+
+<li>Quality products.</li>
+
+<li>Competitive pricing.</li>
+
+<li>Reliable next-day deliveries.</li>
+
+<li>Professional customer service.</li>
+
+<li>Honest communication.</li>
+
+<li>Fast resolution of any issues.</li>
+
+</ul>
+
+<hr>
+
+<h2>Working Together</h2>
+
+<p>
+
+The best business relationships are partnerships.
+
+We ask that you:
+
+</p>
+
+<ul>
+
+<li>Place orders before the daily cut-off time.</li>
+
+<li>Provide accurate delivery information.</li>
+
+<li>Submit Proof of Payment after payment.</li>
+
+<li>Notify us promptly of any changes.</li>
+
+<li>Treat our staff and delivery teams with courtesy and respect.</li>
+
+</ul>
+
+<p>
+
+In return, we promise to work hard every day to provide excellent service and support your business as it grows.
+
+</p>
+
+<hr>
+
+<h2>We're Here To Serve You</h2>
+
+<p>
+
+Thank you for choosing <strong>The Daily Market</strong>.
+
+Every member of our team is committed to making your ordering experience simple, professional and reliable.
+
+If you ever need assistance, have a special request, or simply need advice on products, please don't hesitate to contact us.
+
+We're here to serve you, and we look forward to growing together.
+
+</p>
+
+<p>
+
+Warm regards,
+
+<br><br>
+
+<strong>The Daily Market Team</strong>
+
+</p>
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
 </html>

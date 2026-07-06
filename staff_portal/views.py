@@ -54,6 +54,10 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.core.mail import EmailMultiAlternatives
+from django.contrib.auth.hashers import make_password
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from django.views.decorators.http import require_POST
 
 # ---------------------------
 # Auth helpers
@@ -1512,3 +1516,357 @@ def open_notification(request, pk):
         return redirect("staff-dashboard")  # change later to ticket detail
 
     return redirect("staff-dashboard")
+
+
+@login_required
+@staff_required
+@require_POST
+def customer_profile_send_password_sms(request, pk):
+    cp = get_object_or_404(
+        CustomerProfile.objects.select_related("user"),
+        pk=pk
+    )
+
+    auth_code = (request.POST.get("auth_code") or "").strip()
+
+    if not auth_code.isdigit() or len(auth_code) != 5:
+        messages.error(
+            request,
+            "Authorisation code must be exactly 5 digits."
+        )
+        return redirect("customer_profile_view", pk=pk)
+
+    # Logged-in staff member
+    request_staff = getattr(request.user, "staff_profile", None)
+
+    if not request_staff:
+        messages.error(
+            request,
+            "Your staff profile could not be found."
+        )
+        return redirect("customer_profile_view", pk=pk)
+
+    if not request_staff.auth_code_hash:
+        messages.error(
+            request,
+            "Your account does not have an authorisation code set."
+        )
+        return redirect("customer_profile_view", pk=pk)
+
+    if not request_staff.verify_auth_code(auth_code):
+        messages.error(
+            request,
+            "Invalid authorisation code."
+        )
+        return redirect("customer_profile_view", pk=pk)
+
+    # Customer account
+    user = cp.user
+
+    # Generate a temporary password automatically
+    new_password = get_random_string(
+        5,
+        allowed_chars="23456789"
+    )
+
+    user.set_password(new_password)
+    user.save(update_fields=["password"])
+
+    sent, msg = send_customer_password_sms(
+        phone=cp.phone,
+        username=user.username,
+        password=new_password,
+    )
+
+    if sent:
+        messages.success(
+            request,
+            "Temporary password generated and sent via SMS."
+        )
+    else:
+        messages.warning(
+            request,
+            f"Password was updated, but SMS failed. {msg}"
+        )
+
+    return redirect("customer_profile_view", pk=pk)
+
+
+def send_customer_password_sms(phone, username, password):
+    client_id = getattr(settings, "SMSPORTAL_CLIENT_ID", "")
+    api_secret = getattr(settings, "SMSPORTAL_API_SECRET", "")
+
+    if not client_id or not api_secret:
+        return False, "SMSPortal credentials are missing."
+
+    phone = normalize_sa_number(phone)
+
+    if not phone:
+        return False, "No phone number provided."
+
+    message = (
+        "Welcome to The Daily Market.\n\n"
+        f"Username: {username}\n"
+        f"Temporary Password: {password}\n\n"
+        "Please log in to your customer account and change your password."
+    )
+
+    url = "https://rest.smsportal.com/v1/bulkmessages"
+
+    payload = {
+        "messages": [
+            {
+                "content": message,
+                "destination": phone,
+            }
+        ]
+    }
+
+    try:
+        response = requests.post(
+            url,
+            json=payload,
+            auth=(client_id, api_secret),
+            timeout=20,
+        )
+
+        if response.status_code in [200, 201, 202]:
+            return True, "SMS sent successfully."
+
+        return False, f"SMS failed: {response.status_code} - {response.text}"
+
+    except Exception as e:
+        return False, f"SMS error: {e}"
+
+
+
+
+@login_required
+@staff_required
+@require_POST
+def customer_profile_send_password_email(request, pk):
+    cp = get_object_or_404(
+        CustomerProfile.objects.select_related("user"),
+        pk=pk
+    )
+
+    auth_code = (request.POST.get("auth_code") or "").strip()
+
+    if not auth_code.isdigit() or len(auth_code) != 5:
+        messages.error(
+            request,
+            "Authorisation code must be exactly 5 digits."
+        )
+        return redirect("customer_profile_view", pk=pk)
+
+    # Logged-in staff member
+    request_staff = getattr(request.user, "staff_profile", None)
+
+    if not request_staff:
+        messages.error(
+            request,
+            "Your staff profile could not be found."
+        )
+        return redirect("customer_profile_view", pk=pk)
+
+    if not request_staff.auth_code_hash:
+        messages.error(
+            request,
+            "Your account does not have an authorisation code set."
+        )
+        return redirect("customer_profile_view", pk=pk)
+
+    if not request_staff.verify_auth_code(auth_code):
+        messages.error(
+            request,
+            "Invalid authorisation code."
+        )
+        return redirect("customer_profile_view", pk=pk)
+
+    # Customer account
+    user = cp.user
+
+    if not user.email:
+        messages.error(
+            request,
+            "This customer does not have an email address."
+        )
+        return redirect("customer_profile_view", pk=pk)
+
+    # Generate a temporary password automatically
+    new_password = get_random_string(
+        5,
+        allowed_chars="23456789"
+    )
+
+    user.set_password(new_password)
+    user.save(update_fields=["password"])
+
+    login_url = request.build_absolute_uri(
+        reverse("client-login")
+    )
+
+    ctx = {
+        "user": user,
+        "profile": cp,
+        "password": new_password,
+        "login_url": login_url,
+    }
+
+    subject = "Welcome to The Daily Market - Your Customer Login Details"
+
+    text_body = render_to_string(
+        "email/customer_password.txt",
+        ctx,
+    )
+
+    html_body = render_to_string(
+        "email/customer_password.html",
+        ctx,
+    )
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+    )
+
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+
+    messages.success(
+        request,
+        "Temporary password generated and sent via email."
+    )
+
+    return redirect("customer_profile_view", pk=pk)
+
+
+def send_customer_activation_email(request, user, profile):
+    """
+    Send the customer welcome / activation email.
+
+    Returns:
+        (success: bool, message: str)
+    """
+
+    recipient = user.email or user.username
+
+    if not recipient:
+        return False, "Customer does not have an email address."
+
+    login_url = request.build_absolute_uri(
+        reverse("client-login")
+    )
+
+    ctx = {
+        "user": user,
+        "profile": profile,
+        "login_url": login_url,
+    }
+
+    subject = "The Daily Market - Welcome! Your Customer Account is Active"
+
+    from_email = getattr(
+        settings,
+        "DEFAULT_FROM_EMAIL",
+        "accounts@thedailymarket.co.za",
+    )
+
+    text_body = render_to_string(
+        "email/welcome_email.txt",
+        ctx,
+    )
+
+    html_body = render_to_string(
+        "email/welcome_email.html",
+        ctx,
+    )
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=from_email,
+        to=[recipient],
+        headers={
+            "Reply-To": getattr(
+                settings,
+                "SUPPORT_EMAIL",
+                "support@thedailymarket.co.za",
+            )
+        },
+    )
+
+    msg.attach_alternative(
+        html_body,
+        "text/html",
+    )
+
+    try:
+        msg.send(fail_silently=False)
+        return True, "Welcome email sent successfully."
+
+    except Exception as e:
+        return False, str(e)
+    
+
+@login_required
+@staff_required
+@require_POST
+def customer_profile_send_welcome_email(request, pk):
+    cp = get_object_or_404(
+        CustomerProfile.objects.select_related("user"),
+        pk=pk
+    )
+
+    auth_code = (request.POST.get("auth_code") or "").strip()
+
+    if not auth_code.isdigit() or len(auth_code) != 5:
+        messages.error(
+            request,
+            "Authorisation code must be exactly 5 digits."
+        )
+        return redirect("customer_profile_view", pk=pk)
+
+    request_staff = getattr(request.user, "staff_profile", None)
+
+    if not request_staff:
+        messages.error(
+            request,
+            "Your staff profile could not be found."
+        )
+        return redirect("customer_profile_view", pk=pk)
+
+    if not request_staff.auth_code_hash:
+        messages.error(
+            request,
+            "Your account does not have an authorisation code set."
+        )
+        return redirect("customer_profile_view", pk=pk)
+
+    if not request_staff.verify_auth_code(auth_code):
+        messages.error(
+            request,
+            "Invalid authorisation code."
+        )
+        return redirect("customer_profile_view", pk=pk)
+
+    sent, msg = send_customer_activation_email(
+        request,
+        cp.user,
+        cp,
+    )
+
+    if sent:
+        messages.success(
+            request,
+            "Welcome email sent successfully."
+        )
+    else:
+        messages.error(
+            request,
+            msg,
+        )
+
+    return redirect("customer_profile_view", pk=pk)

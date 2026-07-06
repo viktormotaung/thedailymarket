@@ -1,9 +1,133 @@
-Hi {{ user.get_full_name|default:user.username }},
+Welcome to The Daily Market
 
-Your Seshibo Daily Market account is now active.
+Hello {{ user.first_name|default:user.username }},
 
-You can sign in here:
-{{ login_url }}
+Welcome to The Daily Market.
 
-Thanks,
-Seshibo Daily Market
+Your customer account has been successfully activated.
+
+We're excited to have you as part of our growing community of food businesses and look forward to building a long-term business relationship with you.
+
+Whether you operate a kota shop, catering company, restaurant, tuckshop, supermarket or any other food business, our mission is simple:
+
+Helping your food business buy better, save time and grow.
+
+============================================================
+YOUR CUSTOMER ACCOUNT
+============================================================
+
+Username:
+{{ user.username }}
+
+Login:
+https://www.thedailymarket.co.za/portal/client/login/
+
+============================================================
+HOW WE WORK
+============================================================
+
+We source products daily from trusted suppliers across Gauteng.
+
+Rather than carrying large amounts of stock, we purchase products based on customer demand. This allows us to provide fresh products, competitive pricing and a wider product selection.
+
+Our business is built around planning and efficiency, allowing us to provide dependable next-day deliveries.
+
+============================================================
+ORDERING & DELIVERIES
+============================================================
+
+IMPORTANT:
+
+• We do NOT offer same-day delivery.
+• Orders confirmed today are scheduled for NEXT BUSINESS DAY delivery.
+• Orders placed on Saturday will be delivered on Monday.
+
+Daily Cut-Off Times
+
+• Orders must be confirmed by 2:00 PM (14:00).
+• Payment must be completed by 3:00 PM (15:00).
+
+Payments received after dispatch planning may result in your order being moved to the following delivery day.
+
+Please send your Proof of Payment (POP) after making payment.
+
+This helps both your business and ours maintain accurate records.
+
+If payment has not reflected or been confirmed before dispatch, unfortunately we will not be able to dispatch your order.
+
+============================================================
+PLACING ORDERS
+============================================================
+
+Orders can be placed using any of the following methods:
+
+• Online through your customer portal
+• WhatsApp
+• Your dedicated Product Specialist
+
+Please remember the daily cut-off times when placing orders.
+
+For special product requests, sourcing enquiries or bulk orders, please speak directly with your Product Specialist.
+
+============================================================
+TRACK YOUR ORDERS
+============================================================
+
+Your customer portal allows you to:
+
+• Track your order progress
+• View quotations
+• View invoices
+• Monitor deliveries
+• Access your account information
+
+We encourage you to log in regularly to stay updated on the progress of your orders.
+
+============================================================
+OUR COMMITMENT TO YOU
+============================================================
+
+We are committed to providing:
+
+• Quality products
+• Competitive pricing
+• Reliable next-day deliveries
+• Professional customer service
+• Honest communication
+• Fast and fair resolution of any issues
+
+============================================================
+WORKING TOGETHER
+============================================================
+
+To help us provide the best possible service, we ask that you:
+
+• Place orders before the daily cut-off time.
+• Provide accurate delivery information.
+• Send your Proof of Payment after payment.
+• Notify us promptly of any changes.
+• Treat our staff and delivery teams with courtesy and respect.
+
+In return, we promise to work hard every day to provide excellent service and support the growth of your business.
+
+============================================================
+WE'RE HERE TO SERVE YOU
+============================================================
+
+Thank you for choosing The Daily Market.
+
+Every member of our team is committed to making your ordering experience simple, professional and reliable.
+
+If you ever need assistance, have a special request, or simply need advice on products, please don't hesitate to contact us.
+
+We're here to serve you, and we look forward to growing together.
+
+Kind regards,
+
+The Daily Market Team
+
+Website:
+https://www.thedailymarket.co.za
+
+Customer Portal:
+https://www.thedailymarket.co.za/portal/client/login/

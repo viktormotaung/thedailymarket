@@ -28,4 +28,7 @@ urlpatterns = [
     path("sales-staff-profile/create/", views.sales_staff_profile_create, name="sales_staff_profile_create",),
     path("driver-profile/create/", views.driver_profile_create, name="driver_profile_create",),
     path("driver-profile/<int:staff_pk>/", views.driver_profile_view, name="driver_profile_view",), 
+    path("customers/<int:pk>/send-password-sms/", views.customer_profile_send_password_sms, name="customer_profile_send_password_sms",),
+    path("customers/<int:pk>/send-password-email/", views.customer_profile_send_password_email, name="customer_profile_send_password_email",),
+    path("customers/<int:pk>/send-welcome-email/", views.customer_profile_send_welcome_email, name="customer_profile_send_welcome_email",),
 ] 
