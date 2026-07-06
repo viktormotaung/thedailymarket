@@ -210,31 +210,33 @@
 
       <!-- TOTALS -->
       <div class="row justify-content-end mb-4">
-        <div class="col-md-5">
-          <div class="d-flex justify-content-between mb-2">
-            <span>Subtotal Excl.</span>
-            <span>R {{ quotation.subtotal_excl|floatformat:2|intcomma }}</span>
-          </div>
+          <div class="col-md-5">
 
-          <div class="d-flex justify-content-between mb-2">
-            <span>VAT</span>
-            <span>R {{ quotation.vat_total|floatformat:2|intcomma }}</span>
-          </div>
+              <div class="d-flex justify-content-between mb-2">
+                  <span>Quotation Total</span>
+                  <span>R {{ quotation.grand_total_inc|floatformat:2|intcomma }}</span>
+              </div>
 
-          {% if quotation.delivery_fee_excl > 0 %}
-          <div class="d-flex justify-content-between mb-2">
-            <span>Delivery Fee Excl.</span>
-            <span>R {{ quotation.delivery_fee_excl|floatformat:2|intcomma }}</span>
-          </div>
-          {% endif %}
+              <div class="d-flex justify-content-between mb-2">
+                  <span>VAT</span>
+                  <span>R 0.00</span>
+              </div>
 
-          <hr>
+              {% if quotation.delivery_fee_excl > 0 %}
+              <div class="d-flex justify-content-between mb-2">
+                  <span>Delivery Fee</span>
+                  <span>R {{ quotation.delivery_fee_excl|floatformat:2|intcomma }}</span>
+              </div>
+              {% endif %}
 
-          <div class="d-flex justify-content-between fw-bold fs-5">
-            <span>Total</span>
-            <span>R {{ quotation.grand_total_inc|floatformat:2|intcomma }}</span>
+              <hr>
+
+              <div class="d-flex justify-content-between fw-bold fs-5">
+                  <span>Total</span>
+                  <span>R {{ quotation.grand_total_inc|floatformat:2|intcomma }}</span>
+              </div>
+
           </div>
-        </div>
       </div>
 
       <!-- NOTES -->
