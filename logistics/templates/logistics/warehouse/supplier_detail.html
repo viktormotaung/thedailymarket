@@ -148,16 +148,16 @@
 
 <main class="content">
 
-  <!-- ============================= -->
+  <!-- ========================================= -->
   <!-- HEADER -->
-  <!-- ============================= -->
+  <!-- ========================================= -->
   <div class="mb-4">
     <h2 class="mb-1">Supplier Consolidation</h2>
 
     <div class="text-muted">
       Batch: <strong>{{ batch.name }}</strong> ·
       Supplier: <strong>{{ supplier.name }}</strong> ·
-      Status:
+
       {% if batch.status == "draft" %}
         <span class="badge bg-secondary">Draft</span>
       {% elif batch.status == "in_progress" %}
@@ -168,158 +168,268 @@
     </div>
   </div>
 
-  <!-- ============================= -->
-  <!-- ACTION BAR -->
-  <!-- ============================= -->
-  <div class="d-flex justify-content-between align-items-center mb-3">
+  <!-- ========================================= -->
+  <!-- SUMMARY -->
+  <!-- ========================================= -->
+  <div class="row g-3 mb-4">
 
-    <a href="{% url 'logistics:warehouse-batch-detail' batch.id %}"
-       class="btn btn-outline-secondary btn-sm">
-      ← Back to Batch
-    </a>
-
-    <div class="text-end">
-      <div class="small text-muted">
-        Expected Qty: <strong>{{ total_expected }}</strong> ·
-        Picked Qty: <strong>{{ total_picked }}</strong>
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <small class="text-muted text-uppercase">Expected Value</small>
+          <h3 class="mb-0">
+            R {{ total_expected_value|floatformat:2 }}
+          </h3>
+        </div>
       </div>
+    </div>
 
-      {% if all_picked %}
-        <span class="badge bg-success mt-1">All items picked</span>
-      {% else %}
-        <span class="badge bg-warning text-dark mt-1">Pending items</span>
-      {% endif %}
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <small class="text-muted text-uppercase">Actual Value</small>
+          <h3 class="mb-0">
+            R {{ total_actual_value|floatformat:2 }}
+          </h3>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <small class="text-muted text-uppercase">Variance</small>
+
+          {% if total_variance > 0 %}
+            <h3 class="mb-0 text-danger">
+              +R {{ total_variance|floatformat:2 }}
+            </h3>
+          {% elif total_variance < 0 %}
+            <h3 class="mb-0 text-success">
+              R {{ total_variance|floatformat:2 }}
+            </h3>
+          {% else %}
+            <h3 class="mb-0">
+              R 0.00
+            </h3>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+
+          <small class="text-muted text-uppercase">
+            Progress
+          </small>
+
+          <h5 class="mb-2">
+            {{ total_picked }} / {{ total_expected }}
+          </h5>
+
+          {% if all_picked %}
+            <span class="badge bg-success">
+              All Items Picked
+            </span>
+          {% else %}
+            <span class="badge bg-warning text-dark">
+              Pending Items
+            </span>
+          {% endif %}
+
+        </div>
+      </div>
     </div>
 
   </div>
 
-  <!-- ============================= -->
-  <!-- ITEMS TABLE -->
-  <!-- ============================= -->
-  <div class="card">
-    <div class="card-body p-0">
+  <!-- ========================================= -->
+  <!-- ACTION BAR -->
+  <!-- ========================================= -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
 
-      <div class="table-responsive">
-        <table class="table table-striped mb-0 align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>Order</th>
-              <th>Product</th>
-              <th>SKU</th>
-              <th class="text-end">Expected Qty</th>
-              <th class="text-end">Picked Qty</th>
-              <th class="text-end">Expected Price</th>
-              <th class="text-end">Actual Price</th>
-              <th>Status</th>
-              <th class="text-end">Action</th>
-            </tr>
-          </thead>
+    <a href="{% url 'logistics:warehouse-batch-consolidation' batch.id %}"
+      class="btn btn-outline-secondary">
+        ← Back to Consolidation
+    </a>
 
-          <tbody>
+    <div>
 
-          {% for item in items %}
-            <tr>
-
-              <td>#{{ item.order_id }}</td>
-
-              <td>{{ item.product_name }}</td>
-
-              <td>{{ item.sku|default:"—" }}</td>
-
-              <td class="text-end">{{ item.expected_qty }}</td>
-
-              <!-- Picked Qty -->
-              <td class="text-end">
-                {% if batch.status != "complete" %}
-                  <form method="post" class="d-flex justify-content-end gap-2">
-                    {% csrf_token %}
-                    <input type="hidden" name="item_id" value="{{ item.id }}">
-
-                    <input type="number"
-                           name="picked_qty"
-                           value="{{ item.display_picked_qty }}"
-                           min="0"
-                           max="{{ item.expected_qty }}"
-                           step="0.01"
-                           class="form-control form-control-sm"
-                           style="width: 90px;"
-                           required>
-                {% else %}
-                  {{ item.picked_qty }}
-                {% endif %}
-              </td>
-
-              <!-- Expected Supplier Price -->
-              <td class="text-end">
-                R {{ item.expected_supplier_price|floatformat:2|default:"—" }}
-              </td>
-
-              <!-- Actual Supplier Price -->
-              <td class="text-end">
-                {% if batch.status != "complete" %}
-                  <input type="number"
-                         name="actual_supplier_price"
-                         value="{{ item.display_actual_price }}"
-                         step="0.01"
-                         min="0"
-                         class="form-control form-control-sm"
-                         style="width: 110px;">
-                {% else %}
-                  R {{ item.actual_supplier_price|floatformat:2|default:"—" }}
-                {% endif %}
-              </td>
-
-              <!-- Variance -->
-              <td class="text-end">
-                {% if item.actual_supplier_price %}
-                  {% with diff=item.actual_supplier_price|floatformat:2|add:"-item.expected_supplier_price" %}
-                    <span class="{% if diff > 0 %}text-danger{% else %}text-success{% endif %}">
-                      {{ diff|floatformat:2 }}
-                    </span>
-                  {% endwith %}
-                {% else %}
-              
-                {% endif %}
-              </td>
-
-              <!-- Status -->
-              <td>
-                {% if item.is_picked %}
-                  <span class="badge bg-success">Picked</span>
-                {% else %}
-                  <span class="badge bg-secondary">Pending</span>
-                {% endif %}
-              </td>
-
-              <!-- Action -->
-              <td class="text-end">
-                {% if batch.status != "complete" %}
-                    <button type="submit"
-                            class="btn btn-sm btn-outline-success">
-                      Confirm
-                    </button>
-                  </form>
-                {% else %}
-                  <button class="btn btn-sm btn-outline-secondary" disabled>
-                    Locked
-                  </button>
-                {% endif %}
-              </td>
-
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="10" class="text-center text-muted py-4">
-                No items for this supplier in this batch.
-              </td>
-            </tr>
-          {% endfor %}
-
-          </tbody>
-        </table>
-      </div>
+      {% if batch.status != "complete" %}
+        <span class="badge bg-warning text-dark">
+          Editing Enabled
+        </span>
+      {% else %}
+        <span class="badge bg-success">
+          Batch Locked
+        </span>
+      {% endif %}
 
     </div>
+
+  </div>
+
+  <!-- ========================================= -->
+  <!-- TABLE -->
+  <!-- ========================================= -->
+  <div class="card border-0 shadow-sm">
+
+    <div class="table-responsive">
+
+      <table class="table table-hover align-middle mb-0">
+
+        <thead class="table-light">
+          <tr>
+            <th style="width:90px;">Order</th>
+            <th>Product</th>
+            <th class="text-end" style="width:120px;">Expected Qty</th>
+            <th class="text-end" style="width:120px;">Picked Qty</th>
+            <th class="text-end" style="width:180px;">Unit Price</th>
+            <th style="width:120px;">Status</th>
+            <th class="text-end" style="width:130px;">Action</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+        {% for item in items %}
+
+          <tr>
+
+            <form method="post">
+
+              {% csrf_token %}
+              <input type="hidden"
+                     name="item_id"
+                     value="{{ item.id }}">
+
+              <td>
+                #{{ item.order_id }}
+              </td>
+
+              <td>
+
+                <strong>
+                  {{ item.product_name }}
+                </strong>
+
+                <div class="small text-muted">
+
+                  Expected:
+                  {{ item.expected_qty }}
+                  ×
+                  R {{ item.expected_supplier_price|floatformat:2 }}
+
+                </div>
+
+              </td>
+
+              <td class="text-end">
+                  {{ item.expected_qty }}
+              </td>
+
+              <td class="text-end">
+
+                {% if batch.status != "complete" %}
+
+                  <input
+                      type="number"
+                      name="picked_qty"
+                      value="{{ item.display_picked_qty }}"
+                      min="0"
+                      max="{{ item.expected_qty }}"
+                      step="0.01"
+                      class="form-control form-control-sm text-end">
+
+                {% else %}
+
+                  {{ item.picked_qty }}
+
+                {% endif %}
+
+              </td>
+
+              <td class="text-end">
+
+                {% if batch.status != "complete" %}
+
+                  <input
+                      type="number"
+                      name="actual_supplier_price"
+                      value="{{ item.display_actual_price }}"
+                      step="0.01"
+                      min="0"
+                      class="form-control form-control-sm text-end">
+
+                {% else %}
+
+                  R {{ item.display_actual_price|floatformat:2 }}
+
+                {% endif %}
+
+              </td>
+
+              <td>
+
+                {% if item.is_picked %}
+                  <span class="badge bg-success">
+                    Picked
+                  </span>
+                {% else %}
+                  <span class="badge bg-secondary">
+                    Pending
+                  </span>
+                {% endif %}
+
+              </td>
+
+              <td class="text-end">
+
+                {% if batch.status != "complete" %}
+
+                  <button
+                      type="submit"
+                      class="btn btn-success btn-sm">
+                    Save
+                  </button>
+
+                {% else %}
+
+                  <button
+                      class="btn btn-secondary btn-sm"
+                      disabled>
+                    Locked
+                  </button>
+
+                {% endif %}
+
+              </td>
+
+            </form>
+
+          </tr>
+
+        {% empty %}
+
+          <tr>
+            <td colspan="7"
+                class="text-center text-muted py-5">
+
+              No items found for this supplier.
+
+            </td>
+          </tr>
+
+        {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
   </div>
 
 </main>

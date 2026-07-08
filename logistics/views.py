@@ -366,12 +366,16 @@ def batch_supplier_consolidation(request, batch_id, supplier_id):
 
         # Parse actual price (optional)
         try:
-            actual_price = Decimal(actual_price_raw) if actual_price_raw else None
+            actual_price = (
+                Decimal(actual_price_raw)
+                if actual_price_raw
+                else None
+            )
         except Exception:
             actual_price = None
 
         with transaction.atomic():
-            # Save item
+
             item.picked_qty = picked_qty
             item.is_picked = picked_qty > 0
 
@@ -388,18 +392,27 @@ def batch_supplier_consolidation(request, batch_id, supplier_id):
             # Draft → In Progress
             if batch.status == "draft":
                 batch.status = "in_progress"
-                batch.save(update_fields=["status", "updated_at"])
+                batch.save(update_fields=[
+                    "status",
+                    "updated_at",
+                ])
 
-            # ✅ Auto-complete batch if ALL items are picked
+            # Auto-complete batch
             remaining = (
                 PickingItem.objects
-                .filter(batch=batch, is_picked=False)
+                .filter(
+                    batch=batch,
+                    is_picked=False,
+                )
                 .exists()
             )
 
             if not remaining:
                 batch.status = "complete"
-                batch.save(update_fields=["status", "updated_at"])
+                batch.save(update_fields=[
+                    "status",
+                    "updated_at",
+                ])
 
         return redirect(
             "logistics:batch-supplier-consolidation",
@@ -410,18 +423,65 @@ def batch_supplier_consolidation(request, batch_id, supplier_id):
     # -------------------------------------------------
     # DISPLAY DEFAULTS (DO NOT SAVE)
     # -------------------------------------------------
+    total_expected_qty = Decimal("0.00")
+    total_picked_qty = Decimal("0.00")
+
+    total_expected_value = Decimal("0.00")
+    total_actual_value = Decimal("0.00")
+
     for item in items:
-        # Picked qty display
+
+        # -----------------------------
+        # Display values
+        # -----------------------------
         item.display_picked_qty = (
-            item.picked_qty if item.is_picked else item.expected_qty
+            item.picked_qty
+            if item.is_picked
+            else item.expected_qty
         )
 
-        # Actual price display
         item.display_actual_price = (
             item.actual_supplier_price
             if item.actual_supplier_price is not None
             else item.expected_supplier_price
         )
+
+        # -----------------------------
+        # Totals per line
+        # -----------------------------
+        expected_price = (
+            item.expected_supplier_price
+            or Decimal("0.00")
+        )
+
+        actual_price = (
+            item.display_actual_price
+            or Decimal("0.00")
+        )
+
+        item.expected_total = (
+            item.expected_qty *
+            expected_price
+        )
+
+        item.actual_total = (
+            item.display_picked_qty *
+            actual_price
+        )
+
+        item.variance = (
+            item.actual_total -
+            item.expected_total
+        )
+
+        # -----------------------------
+        # Running totals
+        # -----------------------------
+        total_expected_qty += item.expected_qty
+        total_picked_qty += item.picked_qty
+
+        total_expected_value += item.expected_total
+        total_actual_value += item.actual_total
 
     # -------------------------------------------------
     # Context
@@ -430,9 +490,21 @@ def batch_supplier_consolidation(request, batch_id, supplier_id):
         "batch": batch,
         "supplier": supplier,
         "items": items,
-        "total_expected": sum(i.expected_qty for i in items),
-        "total_picked": sum(i.picked_qty for i in items),
-        "all_picked": not items.filter(is_picked=False).exists(),
+
+        "total_expected": total_expected_qty,
+        "total_picked": total_picked_qty,
+
+        "total_expected_value": total_expected_value,
+        "total_actual_value": total_actual_value,
+
+        "total_variance": (
+            total_actual_value -
+            total_expected_value
+        ),
+
+        "all_picked": not items.filter(
+            is_picked=False
+        ).exists(),
     }
 
     return render(
@@ -440,6 +512,8 @@ def batch_supplier_consolidation(request, batch_id, supplier_id):
         "logistics/warehouse/supplier_detail.html",
         context,
     )
+
+
 
 @login_required
 def warehouse_consolidation(request):
@@ -487,6 +561,8 @@ def deliveries(request):
     }
 
     return render(request, "logistics/delivery/list.html", context)
+
+
 
 @login_required
 def delivery_run_detail(request, run_id):
@@ -537,6 +613,8 @@ def delivery_run_detail(request, run_id):
     )
 
 
+
+
 @login_required
 def delivery_run_plan(request, run_id):
     run = get_object_or_404(DeliveryRun, id=run_id)
@@ -548,6 +626,8 @@ def delivery_run_plan(request, run_id):
             "run": run,
         }
     )
+
+
 
 @login_required
 def delivery_run_auto_plan(request, run_id):
@@ -787,6 +867,8 @@ def start_stop(request, stop_id):
     # ✅ THIS IS THE KEY LINE
     return redirect(request.META.get("HTTP_REFERER", "/"))# =====================================================
 
+
+
 # END (COMPLETE) DELIVERY STOP
 # =====================================================
 
@@ -805,7 +887,7 @@ def end_stop(request, stop_id):
     if stop.status != "en_route":
         return HttpResponseForbidden("Stop not in progress")
 
-    stop.status = "delivered"
+    stop.status = "awaiting_completion"
     stop.ended_at = now()
 
     if stop.started_at:
@@ -820,9 +902,18 @@ def end_stop(request, stop_id):
         "updated_at",
     ])
 
-    if not run.stops.filter(status__in=["assigned", "en_route"]).exists():
+    if not run.stops.filter(
+        status__in=[
+            "assigned",
+            "en_route",
+            "awaiting_completion",
+        ]
+    ).exists():
         run.status = "complete"
-        run.save(update_fields=["status", "updated_at"])
+        run.save(update_fields=[
+            "status",
+            "updated_at",
+        ])
 
     if stop.stop_type == "SUPPLIER":
         return redirect("logistics:supplier-stop-completion", stop_id=stop.id)
@@ -882,20 +973,45 @@ def supplier_stop_completion(request, stop_id):
 
 @login_required
 def stop_completion(request, stop_id):
-    stop = get_object_or_404(DeliveryStop, id=stop_id)
+    stop = get_object_or_404(
+        DeliveryStop.objects.select_related("run", "order"),
+        id=stop_id,
+    )
+
+    run = stop.run
     order = stop.order
 
-    # 🔐 Security
-    if stop.run.driver_id != request.user.id:
+    # -----------------------------------------
+    # Security
+    # -----------------------------------------
+    if run.driver_id != request.user.id:
         return HttpResponseForbidden("Not assigned")
 
+    # -----------------------------------------
+    # Save completion
+    # -----------------------------------------
     if request.method == "POST":
+
         outcome = request.POST.get("outcome")
 
-        # --- Save POD fields (always allowed) ---
-        stop.recipient_name = request.POST.get("recipient_name", "")
-        stop.recipient_id_no = request.POST.get("recipient_id_no", "")
-        stop.delivery_notes = request.POST.get("delivery_notes", "")
+        # -----------------------------------------
+        # Proof of Delivery
+        # -----------------------------------------
+        stop.recipient_name = request.POST.get(
+            "recipient_name",
+            ""
+        )
+
+        stop.recipient_id_no = request.POST.get(
+            "recipient_id_no",
+            ""
+        )
+
+        stop.delivery_notes = request.POST.get(
+            "delivery_notes",
+            ""
+        )
+
         stop.updated_by = request.user
         stop.updated_at = now()
 
@@ -903,25 +1019,73 @@ def stop_completion(request, stop_id):
             stop.signature = request.FILES["signature"]
             stop.signed_at = now()
 
-        stop.save()
-
-        # --- Update ORDER status based on outcome ---
+        # -----------------------------------------
+        # Outcome
+        # -----------------------------------------
         if outcome == "complete":
+            stop.status = "delivered"
             order.status = "complete"
 
         elif outcome == "returned":
+            stop.status = "failed"
             order.status = "returned"
 
         elif outcome == "cancelled":
+            stop.status = "cancelled"
             order.status = "cancelled"
 
-        order.updated_at = now()
-        order.save(update_fields=["status", "updated_at"])
+        stop.save(update_fields=[
+            "status",
+            "recipient_name",
+            "recipient_id_no",
+            "delivery_notes",
+            "signature",
+            "signed_at",
+            "updated_by",
+            "updated_at",
+        ])
 
+        order.updated_at = now()
+
+        order.save(update_fields=[
+            "status",
+            "updated_at",
+        ])
+
+        # -----------------------------------------
+        # Complete run if every stop is done
+        # -----------------------------------------
+        if not run.stops.filter(
+            status__in=[
+                "assigned",
+                "en_route",
+                "awaiting_completion",
+            ]
+        ).exists():
+
+            run.status = "complete"
+
+            run.save(update_fields=[
+                "status",
+                "updated_at",
+            ])
+
+        # -----------------------------------------
+        # Back to driver dashboard
+        # -----------------------------------------
+        return redirect(
+            "logistics:driver-dashboard"
+        )
+
+    # -----------------------------------------
+    # Initial page
+    # -----------------------------------------
     return render(
         request,
         "logistics/driver/stop_completion.html",
-        {"stop": stop}
+        {
+            "stop": stop,
+        },
     )
 
 

@@ -947,6 +947,7 @@ class DeliveryStop(models.Model):
         ("pending", "Pending"),
         ("assigned", "Assigned"),
         ("en_route", "En Route"),
+        ("awaiting_completion", "Awaiting Completion"),
         ("delivered", "Delivered"),
         ("failed", "Failed Attempt"),
         ("cancelled", "Cancelled"),

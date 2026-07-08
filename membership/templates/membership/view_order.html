@@ -503,13 +503,9 @@
             <div class="card border-0 shadow-sm mb-5">
 
                 <div class="card-header bg-white">
-
                     <h4 class="fw-bold mb-0">
-
                         Order Progress
-
                     </h4>
-
                 </div>
 
                 <div class="card-body">
@@ -518,31 +514,26 @@
 
                         {% with current=order.status %}
 
+                        <!-- Order Placed -->
                         <div class="text-center flex-fill">
-
                             <div class="rounded-circle bg-success text-white mx-auto d-flex align-items-center justify-content-center"
                                 style="width:50px;height:50px;">
-
                                 <i class="bi bi-check-lg"></i>
-
                             </div>
-
                             <small class="d-block mt-2">
-
                                 Order Placed
-
                             </small>
-
                         </div>
 
                         <div class="flex-fill border-top border-3 border-success"></div>
 
+                        <!-- Approved -->
                         <div class="text-center flex-fill">
 
                             <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center
-                                {% if current == 'pending' %}
-                                    bg-success text-white
-                                {% elif current == 'approved' or current == 'awaiting_payment' or current == 'at_warehouse' or current == 'ready_for_delivery' or current == 'out_for_delivery' or current == 'complete' %}
+                                {% if current == 'approved' %}
+                                    bg-primary text-white
+                                {% elif current == 'awaiting_payment' or current == 'at_warehouse' or current == 'ready_for_delivery' or current == 'out_for_delivery' or current == 'complete' %}
                                     bg-success text-white
                                 {% else %}
                                     bg-light border
@@ -551,103 +542,140 @@
 
                                 {% if current == "approved" %}
                                     <i class="bi bi-record-circle"></i>
-                                {% else %}
+                                {% elif current == "awaiting_payment" or current == "at_warehouse" or current == "ready_for_delivery" or current == "out_for_delivery" or current == "complete" %}
                                     <i class="bi bi-check-lg"></i>
+                                {% else %}
+                                    <i class="bi bi-check-lg text-muted"></i>
                                 {% endif %}
 
                             </div>
 
                             <small class="d-block mt-2">
-
                                 Approved
-
                             </small>
 
                         </div>
 
                         <div class="flex-fill border-top border-3 {% if current == 'approved' or current == 'awaiting_payment' or current == 'at_warehouse' or current == 'ready_for_delivery' or current == 'out_for_delivery' or current == 'complete' %}border-success{% else %}border-secondary-subtle{% endif %}"></div>
 
+                        <!-- Awaiting Payment -->
                         <div class="text-center flex-fill">
 
                             <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center
-                            {% if current == 'awaiting_payment' %}
-                                bg-success text-white
-                            {% elif current == 'at_warehouse' or current == 'ready_for_delivery' or current == 'out_for_delivery' or current == 'complete' %}
-                                bg-success text-white
-                            {% else %}
-                                bg-light border
-                            {% endif %}"
-                            style="width:50px;height:50px;">
+                                {% if current == 'awaiting_payment' %}
+                                    bg-primary text-white
+                                {% elif current == 'at_warehouse' or current == 'ready_for_delivery' or current == 'out_for_delivery' or current == 'complete' %}
+                                    bg-success text-white
+                                {% else %}
+                                    bg-light border
+                                {% endif %}"
+                                style="width:50px;height:50px;">
 
                                 {% if current == "awaiting_payment" %}
                                     <i class="bi bi-record-circle"></i>
-                                {% else %}
+                                {% elif current == "at_warehouse" or current == "ready_for_delivery" or current == "out_for_delivery" or current == "complete" %}
                                     <i class="bi bi-check-lg"></i>
+                                {% else %}
+                                    <i class="bi bi-currency-dollar text-muted"></i>
                                 {% endif %}
 
                             </div>
 
                             <small class="d-block mt-2">
-
                                 Awaiting Payment
-
                             </small>
 
                         </div>
 
                         <div class="flex-fill border-top border-3 {% if current == 'at_warehouse' or current == 'ready_for_delivery' or current == 'out_for_delivery' or current == 'complete' %}border-success{% else %}border-secondary-subtle{% endif %}"></div>
 
+                        <!-- Warehouse -->
                         <div class="text-center flex-fill">
 
-                            <div class="rounded-circle bg-light border mx-auto d-flex align-items-center justify-content-center"
+                            <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center
+                                {% if current == 'at_warehouse' %}
+                                    bg-primary text-white
+                                {% elif current == 'ready_for_delivery' or current == 'out_for_delivery' or current == 'complete' %}
+                                    bg-success text-white
+                                {% else %}
+                                    bg-light border
+                                {% endif %}"
                                 style="width:50px;height:50px;">
 
-                                <i class="bi bi-box-seam"></i>
+                                {% if current == "at_warehouse" %}
+                                    <i class="bi bi-record-circle"></i>
+                                {% elif current == "ready_for_delivery" or current == "out_for_delivery" or current == "complete" %}
+                                    <i class="bi bi-check-lg"></i>
+                                {% else %}
+                                    <i class="bi bi-box-seam"></i>
+                                {% endif %}
 
                             </div>
 
                             <small class="d-block mt-2">
-
                                 Warehouse
-
                             </small>
 
                         </div>
 
-                        <div class="flex-fill border-top border-3 border-secondary-subtle"></div>
+                        <div class="flex-fill border-top border-3 {% if current == 'ready_for_delivery' or current == 'out_for_delivery' or current == 'complete' %}border-success{% else %}border-secondary-subtle{% endif %}"></div>
 
+                        <!-- Out for Delivery -->
                         <div class="text-center flex-fill">
 
-                            <div class="rounded-circle bg-light border mx-auto d-flex align-items-center justify-content-center"
+                            <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center
+                                {% if current == 'out_for_delivery' %}
+                                    bg-primary text-white
+                                {% elif current == 'complete' %}
+                                    bg-success text-white
+                                {% else %}
+                                    bg-light border
+                                {% endif %}"
                                 style="width:50px;height:50px;">
 
-                                <i class="bi bi-truck"></i>
+                                {% if current == "out_for_delivery" %}
+                                    <i class="bi bi-record-circle"></i>
+                                {% elif current == "complete" %}
+                                    <i class="bi bi-check-lg"></i>
+                                {% else %}
+                                    <i class="bi bi-truck"></i>
+                                {% endif %}
 
                             </div>
 
                             <small class="d-block mt-2">
-
-                                Ready
-
+                                Out for Delivery
                             </small>
 
                         </div>
 
-                        <div class="flex-fill border-top border-3 border-secondary-subtle"></div>
+                        <div class="flex-fill border-top border-3 {% if current == 'out_for_delivery' or current == 'complete' %}border-success{% else %}border-secondary-subtle{% endif %}"></div>
 
+                        <!-- Delivered -->
                         <div class="text-center flex-fill">
 
-                            <div class="rounded-circle bg-light border mx-auto d-flex align-items-center justify-content-center"
+                            <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center
+                                {% if current == 'out_for_delivery' %}
+                                    bg-primary text-white
+                                {% elif current == 'complete' %}
+                                    bg-success text-white
+                                {% else %}
+                                    bg-light border
+                                {% endif %}"
                                 style="width:50px;height:50px;">
 
-                                <i class="bi bi-truck-flatbed"></i>
+                                {% if current == "out_for_delivery" %}
+                                    <i class="bi bi-record-circle"></i>
+                                {% elif current == "complete" %}
+                                    <i class="bi bi-check-lg"></i>
+                                {% else %}
+                                    <i class="bi bi-truck-flatbed"></i>
+                                {% endif %}
 
                             </div>
 
                             <small class="d-block mt-2">
-
                                 Delivered
-
                             </small>
 
                         </div>

@@ -1,7 +1,9 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.timezone import localtime
-
+from django.urls import path
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
 from .models import (
     Vehicle,
     PickingBatch,
@@ -471,9 +473,22 @@ class DeliveryStopAdmin(admin.ModelAdmin):
         "distance_km",
         "arrival_time_display",
     )
-    list_filter = ("status", "run__service_date")
-    search_fields = ("customer_name", "order__id")
-    ordering = ("run", "sequence")
+
+    list_filter = (
+        "status",
+        "run__service_date",
+    )
+
+    search_fields = (
+        "customer_name",
+        "order__id",
+    )
+
+    ordering = (
+        "run",
+        "sequence",
+    )
+
     inlines = [DeliveryStopItemInline]
 
     readonly_fields = (
@@ -500,23 +515,76 @@ class DeliveryStopAdmin(admin.ModelAdmin):
         "updated_at",
     )
 
+    # =====================================
+    # CUSTOM ADMIN URLS
+    # =====================================
+
+    def get_urls(self):
+        urls = super().get_urls()
+
+        custom_urls = [
+            path(
+                "<int:stop_id>/send-email/",
+                self.admin_site.admin_view(
+                    self.send_delivery_email_view
+                ),
+                name="delivery-stop-send-email",
+            ),
+        ]
+
+        return custom_urls + urls
+
+    # =====================================
+    # SEND DELIVERY EMAIL
+    # =====================================
+
+    def send_delivery_email_view(self, request, stop_id):
+        stop = get_object_or_404(DeliveryStop, pk=stop_id)
+
+        if not stop.email:
+            self.message_user(
+                request,
+                "This delivery stop has no customer email address.",
+                level=messages.ERROR,
+            )
+            return redirect(
+                f"/admin/deliveries/deliverystop/{stop.id}/change/"
+            )
+
+        try:
+            send_delivery_email(
+                stop=stop,
+                recipient_email=stop.email,
+                recipient_name=stop.customer_name,
+            )
+
+            self.message_user(
+                request,
+                "Delivery email sent successfully.",
+                level=messages.SUCCESS,
+            )
+
+        except Exception as e:
+            self.message_user(
+                request,
+                f"Error sending delivery email: {e}",
+                level=messages.ERROR,
+            )
+
+        return redirect(
+            f"/admin/deliveries/deliverystop/{stop.id}/change/"
+        )
+
+    # =====================================
+    # DISPLAY HELPERS
+    # =====================================
+
     def arrival_time_display(self, obj):
         if obj.ended_at:
             return localtime(obj.ended_at).strftime("%H:%M")
         return "—"
+
     arrival_time_display.short_description = "Arrival Time"
-
-
-# =====================================
-# DRIVER TELEMETRY
-# =====================================
-
-@admin.register(DriverLocation)
-class DriverLocationAdmin(admin.ModelAdmin):
-    list_display = ("run", "driver", "lat", "lng", "recorded_at")
-    list_filter = ("run", "driver")
-    readonly_fields = ("recorded_at",)
-    ordering = ("-recorded_at",)
 
 
 # =====================================
@@ -530,3 +598,8 @@ class RunEventAdmin(admin.ModelAdmin):
     search_fields = ("run__name", "notes")
     readonly_fields = ("recorded_at",)
     ordering = ("-recorded_at",)
+
+
+# =====================================
+# END
+# =====================================
