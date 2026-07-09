@@ -256,7 +256,7 @@ def download_price_list(request):
 
     elements.append(
         Paragraph(
-            "Whatsapp: 064 458 7575",
+            "Whatsapp Orders: 064 458 7575",
             styles["Normal"]
         )
     )
