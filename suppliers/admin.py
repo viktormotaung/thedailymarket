@@ -22,7 +22,23 @@ class SupplierAdminForm(forms.ModelForm):
 @admin.register(Supplier)
 class SupplierAdmin(ImageCroppingMixin, admin.ModelAdmin):
     form = SupplierAdminForm
-    list_display = ("logo_thumb", "code", "name", "account_manager", "payment_terms", "visible", "is_active")
+    list_display = (
+        "logo_thumb",
+        "code",
+        "name",
+        "has_route_location",
+        "account_manager",
+        "payment_terms",
+        "visible",
+        "is_active",
+    )
+
+    list_display_links = (
+        "code",
+        "name",
+    )
+        
+
     list_filter  = ("is_active", "visible", "payment_terms", "country", "province", "categories")
     search_fields = ("code", "name", "contact_person", "email", "phone", "whatsapp", "website", "city")
     filter_horizontal = ("categories",)
@@ -35,12 +51,38 @@ class SupplierAdmin(ImageCroppingMixin, admin.ModelAdmin):
         ("Branding", {"fields": ("logo", "logo_cropping", "logo_preview")}),
         ("Account Owner", {"fields": ("account_manager",)}),
         ("Contact", {"fields": ("contact_person", "email", "phone", "whatsapp", "website")}),
-        ("Address", {"fields": ("address_line1", "address_line2", "city", "province", "postal_code", "country")}),
+        ("Address", {
+            "fields": (
+                "address_line1",
+                "address_line2",
+                "city",
+                "province",
+                "postal_code",
+                "country",
+                (
+                    "delivery_lat",
+                    "delivery_lng",
+                ),
+            )
+        }),
         ("Compliance / IDs", {"fields": ("vat_number", "company_reg_number")}),
         ("Files", {"fields": ("contract_file",)}),
         ("Notes", {"fields": ("notes",)}),
         ("Meta", {"fields": ("created_at", "updated_at")}),
     )
+
+
+    def has_route_location(self, obj):
+        if obj.delivery_lat is not None and obj.delivery_lng is not None:
+            return format_html(
+                '<span style="color:green;font-weight:600;">✔ GPS</span>'
+            )
+
+        return format_html(
+            '<span style="color:#dc3545;font-weight:600;">✖ Missing</span>'
+        )
+
+    has_route_location.short_description = "Route Location"
 
     # Thumbnail helpers (same as before)
     def _thumb_url(self, obj, size=(120, 60)):

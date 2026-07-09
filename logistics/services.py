@@ -56,13 +56,23 @@ def plan_run_sequence(run):
     """
     HUMAN DISPATCHER LOGIC
 
-    Depot (start)
-      → optimized SUPPLIERS + CUSTOMERS (together)
-      → Depot (end)
+    Selected Supplier (start)
+        OR
+    Depot (fallback)
+
+            ↓
+
+    Optimized SUPPLIERS + CUSTOMERS
+
+            ↓
+
+    Depot (end)
     """
 
     print("\n==== ROUTE PLANNING START ====")
     print("RUN ID:", run.id)
+
+    print("ROUTE ORIGIN:", run.start_location_label or run.depot_label)
 
     if not run.has_depot_geo:
         return False, "Depot coordinates are missing."
@@ -72,7 +82,7 @@ def plan_run_sequence(run):
     # -------------------------------------------------
     stops = list(
         run.stops.filter(
-            stop_type__in=["SUPPLIER", "CUSTOMER"],
+            stop_type="CUSTOMER",
             lat__isnull=False,
             lng__isnull=False,
         )
@@ -81,7 +91,15 @@ def plan_run_sequence(run):
     if not stops:
         return False, "No routable stops found."
 
-    depot_point = f"{run.depot_lat},{run.depot_lng}"
+    # ---------------------------------------------
+    # Route origin
+    # ---------------------------------------------
+    if run.start_lat is not None and run.start_lng is not None:
+        origin_point = f"{run.start_lat},{run.start_lng}"
+    else:
+        origin_point = f"{run.depot_lat},{run.depot_lng}"
+
+    destination_point = f"{run.depot_lat},{run.depot_lng}"
 
     waypoint_coords = [f"{s.lat},{s.lng}" for s in stops]
 
@@ -90,8 +108,8 @@ def plan_run_sequence(run):
     # -------------------------------------------------
     try:
         waypoint_order, legs = _call_google(
-            origin=depot_point,
-            destination=depot_point,  # start == end (round trip)
+            origin=origin_point,
+            destination=destination_point,
             waypoints=waypoint_coords,
         )
     except Exception as exc:
@@ -145,10 +163,13 @@ def plan_run_sequence(run):
         # -------------------------------------------------
         # LEG → STOP MAPPING (THIS FIXES THE BUG)
         #
-        # legs[0] → depot → stop 1
+        # legs[0] → origin → stop 1
         # legs[1] → stop 1 → stop 2
         # ...
         # legs[N] → last stop → depot
+        
+        # ...
+        
         # -------------------------------------------------
 
         # ---- NON-RETURN STOPS
@@ -218,4 +239,4 @@ def plan_run_sequence(run):
         run.recalc_aggregates(save=True)
 
     print("==== ROUTE PLANNING COMPLETE ====\n")
-    return True, "Route optimized: depot → suppliers/customers → depot"
+    return True, "Route optimized successfully."

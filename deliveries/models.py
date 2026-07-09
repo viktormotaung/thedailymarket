@@ -221,44 +221,9 @@ class PickingBatch(models.Model):
                 run.stops.using(db).aggregate(m=Max("sequence"))["m"] or 0
             ) + 1
 
+            
             # -----------------------------
-            # 2️⃣ SUPPLIER STOPS
-            # -----------------------------
-            supplier_ids = (
-                self.items
-                .using(db)
-                .exclude(supplier__isnull=True)
-                .values_list("supplier_id", flat=True)
-                .distinct()
-            )
-
-            for sid in supplier_ids:
-                supplier = Supplier.objects.using(db).get(id=sid)
-
-                stop, created = DeliveryStop.objects.using(db).get_or_create(
-                    run=run,
-                    supplier=supplier,
-                    stop_type="SUPPLIER",
-                    defaults={
-                        "status": "assigned",
-                        "sequence": next_seq,
-                        "customer_name": supplier.name,
-                        "address_line1": supplier.address_line1,
-                        "address_line2": supplier.address_line2,
-                        "city": supplier.city,
-                        "province": supplier.province,
-                        "postal_code": supplier.postal_code,
-                        "country": supplier.country,
-                        "lat": supplier.delivery_lat,
-                        "lng": supplier.delivery_lng,
-                    },
-                )
-
-                if created:
-                    next_seq += 1
-
-            # -----------------------------
-            # 3️⃣ CUSTOMER STOPS
+            # 2️⃣ CUSTOMER STOPS
             # -----------------------------
             order_ids = list(
                 self.items.using(db).values_list("order_id", flat=True).distinct()
@@ -313,7 +278,7 @@ class PickingBatch(models.Model):
                         )
 
             # -----------------------------
-            # 4️⃣ RETURN STOP
+            # 3️⃣ RETURN STOP
             # -----------------------------
             if not run.stops.using(db).filter(stop_type="RETURN").exists():
                 DeliveryStop.objects.using(db).create(
@@ -329,7 +294,7 @@ class PickingBatch(models.Model):
                 )
 
             # -----------------------------
-            # 5️⃣ Update orders
+            # 4️⃣ Update orders
             # -----------------------------
             Order.objects.using(db).filter(id__in=order_ids).exclude(
                 status__in=[
@@ -644,6 +609,29 @@ class DeliveryRun(models.Model):
         null=True,
         blank=True,
         related_name="delivery_runs",
+    )
+
+    start_supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delivery_runs_started_from",
+    )
+
+    start_location_label = models.CharField(
+        max_length=140,
+        blank=True,
+    )
+
+    start_lat = models.FloatField(
+        null=True,
+        blank=True,
+    )
+
+    start_lng = models.FloatField(
+        null=True,
+        blank=True,
     )
 
     # Depot
@@ -1172,6 +1160,9 @@ class DeliveryStop(models.Model):
             label = f"Order #{self.order_id}"
         return f"{self.run.service_date} · {label} · {self.get_status_display()}"
     
+
+
+
 class DeliveryStopItem(models.Model):
     """
     Optional per-stop item tracking (load vs delivered).
@@ -1210,6 +1201,9 @@ class DeliveryStopItem(models.Model):
     @property
     def variance(self) -> Decimal:
         return (self.delivered_qty or Decimal("0.00")) - (self.planned_qty or Decimal("0.00"))
+
+
+
 
 class DriverLocation(models.Model):
     run = models.ForeignKey(
@@ -1383,6 +1377,9 @@ class InternalDeliveryRate(models.Model):
     @property
     def total_per_km(self):
         return self.driver_per_km + self.assistant_per_km
+
+
+
 
 class ExternalDeliveryRate(models.Model):
     """

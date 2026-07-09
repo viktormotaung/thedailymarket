@@ -323,6 +323,36 @@
                   {{ form.vehicle }}
                 </div>
 
+                <!-- Starting Supplier -->
+                <div class="col-12">
+                  <label class="form-label fw-semibold">
+                    Starting Supplier
+                  </label>
+
+                  <select
+                    name="start_supplier"
+                    class="form-select"
+                  >
+                    <option value="">
+                      -- Use Depot (Current Behaviour) --
+                    </option>
+
+                    {% for supplier in suppliers %}
+                      <option
+                        value="{{ supplier.id }}"
+                        {% if run.start_supplier_id == supplier.id %}selected{% endif %}
+                      >
+                        {{ supplier.name }}
+                      </option>
+                    {% endfor %}
+                  </select>
+
+                  <div class="form-text">
+                    Select the supplier where the vehicle will begin its journey.
+                    If left blank, the depot will be used as the starting point.
+                  </div>
+                </div>
+
               </div>
             </div>
 
@@ -338,7 +368,9 @@
 
                 <div class="col-4">
                   <div class="border rounded py-3 bg-light">
-                    <div class="text-muted small">Stops</div>
+                    <div class="text-muted small">
+                      Stops
+                    </div>
                     <strong class="fs-5">
                       {{ run.stop_count }}
                     </strong>
@@ -347,7 +379,9 @@
 
                 <div class="col-4">
                   <div class="border rounded py-3 bg-light">
-                    <div class="text-muted small">Distance</div>
+                    <div class="text-muted small">
+                      Distance
+                    </div>
                     <strong class="fs-6">
                       {{ run.total_distance_km|default:"—" }} km
                     </strong>
@@ -356,7 +390,9 @@
 
                 <div class="col-4">
                   <div class="border rounded py-3 bg-light">
-                    <div class="text-muted small">Drive Time</div>
+                    <div class="text-muted small">
+                      Drive Time
+                    </div>
                     <strong class="fs-6">
                       {{ run.total_drive_min|default:"—" }} min
                     </strong>

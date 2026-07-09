@@ -293,11 +293,14 @@ class DeliveryStopInline(admin.TabularInline):
         "drive_min",
     )
 
+
+
 @admin.register(DeliveryRun)
 class DeliveryRunAdmin(admin.ModelAdmin):
     list_display = (
         "service_date",
         "name",
+        "start_supplier",
         "driver",
         "vehicle",
         "status",
@@ -325,16 +328,22 @@ class DeliveryRunAdmin(admin.ModelAdmin):
     readonly_fields = (
         "created_at",
         "updated_at",
+
         "stop_count",
         "total_distance_km",
         "total_drive_min",
 
-        # Rate snapshot (per km)
+        # Journey Origin snapshot
+        "start_location_label",
+        "start_lat",
+        "start_lng",
+
+        # Rate snapshot
         "driver_rate_per_km",
         "assistant_rate_per_km",
         "total_rate_per_km",
 
-        # Cost snapshot (totals)
+        # Cost snapshot
         "driver_total_cost",
         "assistant_total_cost",
         "overall_total_cost",
@@ -351,6 +360,23 @@ class DeliveryRunAdmin(admin.ModelAdmin):
                 "start_time",
             )
         }),
+
+        ("Journey Origin", {
+            "description": (
+                "Optional starting location for route generation. "
+                "If left blank, the depot will be used."
+            ),
+            "fields": (
+                "start_supplier",
+                "start_location_label",
+                (
+                    "start_lat",
+                    "start_lng",
+                ),
+            ),
+        }),
+
+
         ("Depot", {
             "fields": (
                 "depot_label",
@@ -434,9 +460,15 @@ class DeliveryRunAdmin(admin.ModelAdmin):
     # VEHICLE FILTERING
     # =========================
 
+    from suppliers.models import Supplier
+
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "vehicle":
             kwargs["queryset"] = Vehicle.objects.filter(status="active")
+
+        elif db_field.name == "start_supplier":
+            kwargs["queryset"] = Supplier.objects.filter(is_active=True)
+
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 # =====================================

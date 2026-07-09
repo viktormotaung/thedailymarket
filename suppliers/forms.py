@@ -4,6 +4,23 @@ from .models import Supplier
 
 
 class SupplierForm(forms.ModelForm):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Route coordinate labels
+        self.fields["delivery_lat"].label = "Route Latitude"
+        self.fields["delivery_lng"].label = "Route Longitude"
+
+        # Route coordinate help text
+        route_help = (
+            "Used as the starting location when generating delivery routes. "
+            "Leave blank if the supplier's location has not yet been captured."
+        )
+
+        self.fields["delivery_lat"].help_text = route_help
+        self.fields["delivery_lng"].help_text = route_help
+
     class Meta:
         model = Supplier
 
@@ -74,7 +91,7 @@ class SupplierForm(forms.ModelForm):
                 "class": "form-control"
             }),
 
-            # FIXED: must be Select because model has choices
+            # Province (choices from model)
             "province": forms.Select(attrs={
                 "class": "form-select"
             }),
@@ -86,16 +103,17 @@ class SupplierForm(forms.ModelForm):
                 "class": "form-control"
             }),
 
-            # --- Delivery Geolocation ---
+            # --- Route Coordinates ---
             "delivery_lat": forms.NumberInput(attrs={
                 "class": "form-control",
                 "step": "0.000001",
-                "placeholder": "-26.2041"
+                "placeholder": "Latitude (e.g. -26.204103)",
             }),
+
             "delivery_lng": forms.NumberInput(attrs={
                 "class": "form-control",
                 "step": "0.000001",
-                "placeholder": "28.0473"
+                "placeholder": "Longitude (e.g. 28.047305)",
             }),
 
             # --- Compliance ---
@@ -123,3 +141,4 @@ class SupplierForm(forms.ModelForm):
                 "rows": 4
             }),
         }
+

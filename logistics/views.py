@@ -568,7 +568,11 @@ def deliveries(request):
 def delivery_run_detail(request, run_id):
     """
     View a delivery run, including supplier pickups and customer deliveries.
-    Allows assigning a driver and vehicle to the run.
+
+    Allows assigning:
+    - Driver
+    - Vehicle
+    - Starting Supplier
     """
 
     run = get_object_or_404(
@@ -583,10 +587,24 @@ def delivery_run_detail(request, run_id):
         id=run_id,
     )
 
-    # Only active vehicles can be assigned
-    vehicles = Vehicle.objects.filter(status="active")
+    # -----------------------------------
+    # Dropdown data
+    # -----------------------------------
+
+    vehicles = Vehicle.objects.filter(
+        status="active"
+    ).order_by("label")
+
+    suppliers = Supplier.objects.filter(
+        is_active=True
+    ).order_by("name")
+
+    # -----------------------------------
+    # Save
+    # -----------------------------------
 
     if request.method == "POST":
+
         form = DeliveryRunAssignmentForm(
             request.POST,
             instance=run,
@@ -594,14 +612,52 @@ def delivery_run_detail(request, run_id):
         )
 
         if form.is_valid():
-            form.save()
-            messages.success(request, "Driver and vehicle updated successfully.")
-            return redirect("logistics:delivery-run-detail", run.id)
+
+            run = form.save(commit=False)
+
+            supplier_id = request.POST.get("start_supplier")
+
+            if supplier_id:
+
+                try:
+                    supplier = suppliers.get(pk=supplier_id)
+
+                    run.start_supplier = supplier
+                    run.start_location_label = supplier.name
+                    run.start_lat = supplier.delivery_lat
+                    run.start_lng = supplier.delivery_lng
+
+                except Supplier.DoesNotExist:
+                    pass
+
+            else:
+                run.start_supplier = None
+                run.start_location_label = ""
+                run.start_lat = None
+                run.start_lng = None
+
+            run.save()
+
+            messages.success(
+                request,
+                "Delivery run updated successfully."
+            )
+
+            return redirect(
+                "logistics:delivery-run-detail",
+                run.id,
+            )
+
     else:
+
         form = DeliveryRunAssignmentForm(
             instance=run,
             vehicles_qs=vehicles,
         )
+
+    # -----------------------------------
+    # Display
+    # -----------------------------------
 
     return render(
         request,
@@ -609,10 +665,9 @@ def delivery_run_detail(request, run_id):
         {
             "run": run,
             "form": form,
+            "suppliers": suppliers,
         },
     )
-
-
 
 
 @login_required
@@ -654,6 +709,16 @@ def delivery_run_auto_plan(request, run_id):
                     "lng",
                     "updated_at",
                 ])
+
+        if not run.start_supplier:
+            messages.error(
+                request,
+                "Please select a starting supplier before generating the route."
+            )
+            return redirect(
+                "logistics:delivery-run-detail",
+                run.id,
+            )
 
         from deliveries.services import plan_run_sequence
         success, message = plan_run_sequence(run)

@@ -224,7 +224,7 @@
     <div class="card-body">
 
       <!-- ===================== -->
-      <!-- FORM START (IMPORTANT) -->
+      <!-- FORM START -->
       <!-- ===================== -->
       <form method="post">
         {% csrf_token %}
@@ -257,6 +257,41 @@
                 {{ form.vehicle }}
               </div>
 
+              <!-- Starting Supplier -->
+              <div class="col-12">
+                <label class="form-label fw-semibold">
+                  Starting Supplier
+                </label>
+
+                <select
+                  name="start_supplier"
+                  id="id_start_supplier"
+                  class="form-select"
+                >
+                  <option value="">
+                    -- Select Starting Supplier --
+                  </option>
+
+                  {% for supplier in suppliers %}
+                    <option
+                      value="{{ supplier.id }}"
+                      {% if run.start_supplier_id == supplier.id %}selected{% endif %}
+                    >
+                      {{ supplier.name }}
+                    </option>
+                  {% empty %}
+                    <option disabled>
+                      No active suppliers available
+                    </option>
+                  {% endfor %}
+                </select>
+
+                <div class="form-text">
+                  Select the supplier where the vehicle will begin its delivery journey.
+                  This will be used as the starting point when generating the delivery route.
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -272,7 +307,9 @@
 
               <div class="col-4">
                 <div class="border rounded py-3 bg-light">
-                  <div class="text-muted small">Stops</div>
+                  <div class="text-muted small">
+                    Stops
+                  </div>
                   <strong class="fs-5">
                     {{ run.stop_count }}
                   </strong>
@@ -281,7 +318,9 @@
 
               <div class="col-4">
                 <div class="border rounded py-3 bg-light">
-                  <div class="text-muted small">Distance</div>
+                  <div class="text-muted small">
+                    Distance
+                  </div>
                   <strong class="fs-6">
                     {{ run.total_distance_km|default:"—" }} km
                   </strong>
@@ -290,7 +329,9 @@
 
               <div class="col-4">
                 <div class="border rounded py-3 bg-light">
-                  <div class="text-muted small">Drive Time</div>
+                  <div class="text-muted small">
+                    Drive Time
+                  </div>
                   <strong class="fs-6">
                     {{ run.total_drive_min|default:"—" }} min
                   </strong>
