@@ -223,27 +223,38 @@ def membership_shop(request):
     # Top Products
     # ==========================================================
 
-    top_products = (
+    top_product_rows = (
         OrderItem.objects
         .filter(
             order__invoice__client=client,
             order__invoice__status="paid",
         )
-        .select_related(
-            "product",
-            "product__category",
-        )
-        .values(
-            "product",
-            "product__name",
-            "product__category__name",
-            "product__image",
-        )
+        .values("product")
         .annotate(
             total_quantity=Sum("quantity"),
         )
         .order_by("-total_quantity")[:4]
     )
+
+    top_products = []
+
+    for row in top_product_rows:
+
+        product = (
+            Product.objects
+            .select_related("category")
+            .filter(id=row["product"])
+            .first()
+        )
+
+        if product:
+            top_products.append({
+                "product": product,
+                "total_quantity": row["total_quantity"],
+            })
+
+
+    
 
     # ==========================================================
     # Shop Categories
@@ -291,6 +302,7 @@ def membership_shop(request):
 
     
 
+
     context = {
         "title": "Shop",
         "profile": profile,
@@ -303,7 +315,6 @@ def membership_shop(request):
         "user": request.user,
         "category_cards": category_cards,
         "top_products": top_products,
-        
     }
 
     return render(
@@ -311,6 +322,7 @@ def membership_shop(request):
         "membership/shop.html",
         context,
     )
+
 
 
 @login_required
@@ -589,6 +601,17 @@ def membership_view_order(request, order_id):
         .order_by("id")
     )
 
+    delivery_stop = (
+        DeliveryStop.objects
+        .select_related(
+            "run",
+            "run__driver",
+            "run__vehicle",
+        )
+        .filter(order=order)
+        .first()
+    )
+
     invoice = (
         Invoice.objects
         .filter(order=order)
@@ -603,6 +626,7 @@ def membership_view_order(request, order_id):
         "order": order,
         "order_items": order_items,
         "invoice": invoice,
+        "delivery_stop": delivery_stop,
     }
 
     return render(
@@ -753,3 +777,74 @@ def membership_account(request):
 @login_required
 def membership_support(request):
     return render(request, "membership/support.html")
+
+
+
+def membership_delivery_note(request, order_id):
+
+    profile = (
+        CustomerProfile.objects
+        .select_related("client")
+        .filter(user=request.user)
+        .first()
+    )
+
+    if not profile:
+        messages.error(
+            request,
+            "No customer profile could be found."
+        )
+        return redirect("home")
+
+    order = (
+        Order.objects
+        .filter(
+            id=order_id,
+            client=profile.client,
+        )
+        .first()
+    )
+
+    if not order:
+        messages.error(
+            request,
+            "Order could not be found."
+        )
+        return redirect("membership_orders")
+
+    delivery_stop = (
+        DeliveryStop.objects
+        .select_related(
+            "run",
+            "run__driver",
+            "run__vehicle",
+        )
+        .filter(order=order)
+        .first()
+    )
+
+    if not delivery_stop:
+        messages.warning(
+            request,
+            "A delivery note has not been created yet."
+        )
+        return redirect(
+            "membership_view_order",
+            order_id=order.id,
+        )
+
+    context = {
+        "title": f"Delivery Note - Order #{order.id}",
+        "profile": profile,
+        "client": profile.client,
+        "order": order,
+        "delivery_stop": delivery_stop,
+        "items": delivery_stop.items.all(),
+    }
+
+    return render(
+        request,
+        "membership/delivery_note.html",
+        context,
+    )
+

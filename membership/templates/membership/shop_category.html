@@ -526,16 +526,41 @@
                                 {{ product.name }}
                             </h6>
 
-                            <small class="text-muted mb-3">
+                            <small class="text-muted mb-2">
                                 {{ product.category.name }}
                             </small>
 
-                            <div class="mt-auto">
+                            {% if product.is_special %}
+                                <div class="mb-2">
+                                    <span class="badge bg-danger">
+                                        {{ product.special_label|default:"SPECIAL" }}
+                                    </span>
+                                </div>
 
+                                <div class="text-muted text-decoration-line-through">
+                                    R{{ product.old_wholesale_price_inc|floatformat:2 }}
+                                </div>
+
+                                <h4 class="fw-bold text-danger mb-1">
+                                    R{{ product.wholesale_price_inc|floatformat:2 }}
+                                </h4>
+
+                                <small class="text-success">
+                                    Save R{{ product.special_saving|floatformat:2 }}
+                                </small>
+
+                            {% else %}
+
+                                <h4 class="fw-bold text-success mb-3">
+                                    R{{ product.wholesale_price_inc|floatformat:2 }}
+                                </h4>
+
+                            {% endif %}
+
+                            <div class="mt-auto">
                                 <button class="btn btn-success w-100">
                                     Add to Basket
                                 </button>
-
                             </div>
 
                         </div>

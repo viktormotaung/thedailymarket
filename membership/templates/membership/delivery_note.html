@@ -1,0 +1,515 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Delivery Note</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+          rel="stylesheet">
+
+    <style>
+
+        body{
+            background:#f5f5f5;
+            font-size:15px;
+        }
+
+        .document{
+            background:#fff;
+            max-width:1100px;
+            margin:40px auto;
+            padding:45px;
+            border-radius:12px;
+            box-shadow:0 8px 25px rgba(0,0,0,.08);
+        }
+
+        .logo{
+            height:70px;
+        }
+
+        .section-title{
+            font-size:.78rem;
+            font-weight:700;
+            text-transform:uppercase;
+            color:#6c757d;
+            letter-spacing:.08rem;
+            margin-bottom:6px;
+        }
+
+        .table th{
+            background:#0b5c39;
+            color:#fff;
+        }
+
+        .footer{
+            color:#777;
+            font-size:.9rem;
+        }
+
+        @media print{
+
+            body{
+                background:#fff;
+            }
+
+            .document{
+                margin:0;
+                padding:20px;
+                box-shadow:none;
+                border-radius:0;
+                max-width:100%;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="container mt-4 mb-3">
+
+    <a href="{% url 'membership_view_order' order.id %}"
+       class="btn btn-outline-secondary">
+
+        <i class="bi bi-arrow-left me-2"></i>
+
+        Back to Order
+
+    </a>
+
+</div>
+
+<div class="document">
+
+    <!-- ================================================= -->
+    <!-- Header -->
+    <!-- ================================================= -->
+
+    <div class="row align-items-center">
+
+        <div class="col-md-6">
+
+            <img src="{% static 'images/logo.png' %}"
+                 class="logo"
+                 alt="The Daily Market">
+
+        </div>
+
+        <div class="col-md-6 text-md-end">
+
+            <h2 class="fw-bold mb-1">
+
+                DELIVERY NOTE
+
+            </h2>
+
+            <div>
+
+                <strong>Order #{{ order.id }}</strong>
+
+            </div>
+
+            <div>
+
+                {% if delivery_stop.signed_at %}
+
+                    {{ delivery_stop.signed_at|date:"d F Y" }}
+
+                {% elif delivery_stop.ended_at %}
+
+                    {{ delivery_stop.ended_at|date:"d F Y" }}
+
+                {% elif delivery_stop.eta %}
+
+                    {{ delivery_stop.eta|date:"d F Y" }}
+
+                {% elif delivery_stop.run.service_date %}
+
+                    {{ delivery_stop.run.service_date|date:"d F Y" }}
+
+                {% else %}
+
+                    Pending
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <hr class="my-4">
+
+    <!-- ================================================= -->
+    <!-- Customer -->
+    <!-- ================================================= -->
+
+    <div class="row mb-4">
+
+        <div class="col-md-6">
+
+            <div class="section-title">
+
+                Customer
+
+            </div>
+
+            <strong>
+
+                {{ delivery_stop.customer_name }}
+
+            </strong>
+
+            <br>
+
+            {{ delivery_stop.phone }}
+
+            <br>
+
+            {{ delivery_stop.email }}
+
+        </div>
+
+        <div class="col-md-6">
+
+            <div class="section-title">
+
+                Delivery Address
+
+            </div>
+
+            {{ delivery_stop.address_line1 }}<br>
+
+            {% if delivery_stop.address_line2 %}
+                {{ delivery_stop.address_line2 }}<br>
+            {% endif %}
+
+            {% if delivery_stop.suburb %}
+                {{ delivery_stop.suburb }}<br>
+            {% endif %}
+
+            {{ delivery_stop.city }}
+
+            {% if delivery_stop.province %}
+                , {{ delivery_stop.province }}
+            {% endif %}
+
+            {% if delivery_stop.postal_code %}
+                {{ delivery_stop.postal_code }}
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <!-- ================================================= -->
+    <!-- Delivery Information -->
+    <!-- ================================================= -->
+
+    <div class="row mb-5">
+
+        <div class="col-md-3">
+
+            <div class="section-title">
+
+                Delivery Status
+
+            </div>
+
+            {{ delivery_stop.get_status_display }}
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="section-title">
+                Delivered On
+            </div>
+
+            {% if delivery_stop.signed_at %}
+
+                {{ delivery_stop.signed_at|date:"d M Y" }}<br>
+                {{ delivery_stop.signed_at|time:"H:i" }}
+
+            {% elif delivery_stop.ended_at %}
+
+                {{ delivery_stop.ended_at|date:"d M Y" }}<br>
+                {{ delivery_stop.ended_at|time:"H:i" }}
+
+            {% elif delivery_stop.run.service_date %}
+
+                {{ delivery_stop.run.service_date|date:"d M Y" }}
+
+            {% else %}
+
+                Unknown
+
+            {% endif %}
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="section-title">
+
+                Vehicle
+
+            </div>
+
+            {% if delivery_stop.run.vehicle %}
+
+                {{ delivery_stop.run.vehicle.registration_number }}
+
+            {% else %}
+
+                Not Assigned
+
+            {% endif %}
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="section-title">
+
+                Driver
+
+            </div>
+
+            {% if delivery_stop.run.driver %}
+
+                {{ delivery_stop.run.driver.get_full_name|default:delivery_stop.run.driver.username }}
+
+            {% else %}
+
+                Not Assigned
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <!-- ================================================= -->
+    <!-- Delivered Items -->
+    <!-- ================================================= -->
+
+    <h5 class="fw-bold mb-3">
+
+        Delivered Items
+
+    </h5>
+
+    <table class="table table-bordered align-middle">
+
+        <thead>
+
+            <tr>
+
+                <th>Product</th>
+                <th class="text-center">Planned Qty</th>
+                <th class="text-center">Delivered Qty</th>
+                <th class="text-center">Variance</th>
+                <th>Item Notes</th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            {% for item in items %}
+
+            <tr>
+
+                <td>
+
+                    <strong>
+
+                        {{ item.product_name }}
+
+                    </strong>
+
+                    {% if item.sku %}
+
+                        <br>
+
+                        <small class="text-muted">
+
+                            {{ item.sku }}
+
+                        </small>
+
+                    {% endif %}
+
+                </td>
+
+                <td class="text-center">
+
+                    {{ item.planned_qty }}
+
+                </td>
+
+                <td class="text-center">
+
+                    {{ item.delivered_qty }}
+
+                </td>
+
+                <td class="text-center">
+
+                    {{ item.variance }}
+
+                </td>
+
+                <td>
+
+                    {% if item.notes %}
+
+                        {{ item.notes }}
+
+                    {% elif item.shortage_reason %}
+
+                        {{ item.shortage_reason }}
+
+                    {% else %}
+
+                        <span class="text-muted">
+
+                            —
+
+                        </span>
+
+                    {% endif %}
+
+                </td>
+
+            </tr>
+
+            {% empty %}
+
+            <tr>
+
+                <td colspan="5"
+                    class="text-center py-4 text-muted">
+
+                    No delivered items found.
+
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+    <!-- ================================================= -->
+    <!-- Recipient -->
+    <!-- ================================================= -->
+
+    <div class="row mt-5">
+
+        <div class="col-md-6">
+
+            <div class="section-title">
+
+                Recipient
+
+            </div>
+
+            {% if delivery_stop.recipient_name %}
+
+                <strong>
+
+                    {{ delivery_stop.recipient_name }}
+
+                </strong>
+
+            {% else %}
+
+                _______________________________
+
+            {% endif %}
+
+            <br><br>
+
+            <div class="section-title">
+
+                Delivery Notes
+
+            </div>
+
+            {% if delivery_stop.delivery_notes %}
+
+                <div class="border rounded p-3 bg-light">
+
+                    {{ delivery_stop.delivery_notes|linebreaks }}
+
+                </div>
+
+            {% else %}
+
+                <div class="border rounded p-3 text-muted">
+
+                    No delivery notes.
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+        <div class="col-md-6">
+
+            <div class="section-title">
+
+                Recipient Signature
+
+            </div>
+
+            {% if delivery_stop.signature %}
+
+                <div class="border rounded p-3 text-center">
+
+                    <img src="{{ delivery_stop.signature.url }}"
+                         alt="Signature"
+                         style="max-width:100%;max-height:150px;">
+
+                </div>
+
+            {% else %}
+
+                <div class="border rounded"
+                     style="height:170px;">
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <hr class="mt-5">
+
+    <div class="footer text-center">
+
+        <strong>The Daily Market</strong><br>
+
+        Thank you for your business.
+
+    </div>
+
+</div>
+
+</body>
+</html>

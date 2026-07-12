@@ -950,7 +950,7 @@
 
                         <div class="card-body">
 
-                            <!-- Status -->
+                            <!-- Delivery Status -->
 
                             <div class="mb-4">
 
@@ -972,7 +972,7 @@
 
                             <hr>
 
-                            <!-- ETA -->
+                            <!-- Estimated Delivery -->
 
                             <div class="mb-4">
 
@@ -984,13 +984,12 @@
 
                                     {% if delivery_stop and delivery_stop.eta %}
 
-                                        {{ delivery_stop.eta|date:"l, d F Y" }}
-                                        <br>
+                                        {{ delivery_stop.eta|date:"l, d F Y" }}<br>
                                         {{ delivery_stop.eta|time:"H:i" }}
 
                                     {% else %}
 
-                                        Will be confirmed before delivery.
+                                        To be confirmed
 
                                     {% endif %}
 
@@ -1000,19 +999,19 @@
 
                             <hr>
 
-                            <!-- Driver -->
+                            <!-- Vehicle -->
 
                             <div class="mb-4">
 
                                 <small class="text-uppercase text-muted">
-                                    Driver
+                                    Vehicle Registration
                                 </small>
 
                                 <p class="mb-0 mt-2">
 
-                                    {% if delivery_stop and delivery_stop.run.driver %}
+                                    {% if delivery_stop and delivery_stop.run.vehicle %}
 
-                                        {{ delivery_stop.run.driver.get_full_name|default:delivery_stop.run.driver.username }}
+                                        {{ delivery_stop.run.vehicle.registration_number }}
 
                                     {% else %}
 
@@ -1026,7 +1025,7 @@
 
                             <hr>
 
-                            <!-- Address -->
+                            <!-- Delivery Address -->
 
                             <div class="mb-4">
 
@@ -1050,6 +1049,14 @@
 
                                         {{ delivery_stop.city }}
 
+                                        {% if delivery_stop.province %}
+                                            , {{ delivery_stop.province }}
+                                        {% endif %}
+
+                                        {% if delivery_stop.postal_code %}
+                                            {{ delivery_stop.postal_code }}
+                                        {% endif %}
+
                                     {% else %}
 
                                         Will be confirmed before delivery.
@@ -1062,14 +1069,14 @@
 
                             <div class="d-grid mt-4">
 
-                                <button class="btn btn-success" disabled>
+                                <a href="{% url 'membership_delivery_note' order.id %}"
+                                    class="btn btn-success">
 
-                                    <i class="bi bi-geo-alt-fill me-2"></i>
+                                        <i class="bi bi-file-earmark-text me-2"></i>
 
-                                    Track Delivery
-                                    <small>(Coming Soon)</small>
+                                        Delivery Note
 
-                                </button>
+                                </a>
 
                             </div>
 

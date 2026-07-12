@@ -24,5 +24,7 @@ urlpatterns = [
 
     path("invoice/<int:invoice_id>/", views.membership_view_invoice, name="membership_view_invoice",),
 
+    path("orders/<int:order_id>/delivery-note/", views.membership_delivery_note, name="membership_delivery_note",),
+
     
 ]
