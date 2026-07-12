@@ -16,6 +16,7 @@ from .models import (
     InternalDeliveryRate,
     ExternalDeliveryRate,
 )
+from suppliers.models import Supplier
 
 
 def send_delivery_email(stop, recipient_email, recipient_name):

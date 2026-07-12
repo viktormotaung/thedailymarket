@@ -388,17 +388,70 @@
               <!-- NAVIGATE -->
               <div>
                 {% if current_stop and current_stop.lat and current_stop.lng %}
-                  <a
+
+                  <div class="dropdown w-100">
+                    <button
+                      class="btn btn-outline-secondary dropdown-toggle w-100 py-2 py-md-2 py-lg-1"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      🧭 Navigate
+                    </button>
+
+                    <ul class="dropdown-menu w-100">
+
+                      <!-- Apple Maps -->
+                      <li>
+                        <a
+                          class="dropdown-item"
+                          target="_blank"
+                          href="http://maps.apple.com/?daddr={{ current_stop.lat }},{{ current_stop.lng }}"
+                        >
+                          🍎 Apple Maps
+                        </a>
+                      </li>
+
+                      <!-- Google Maps App -->
+                      <li>
+                        <a
+                          class="dropdown-item"
+                          target="_blank"
+                          href="comgooglemaps://?daddr={{ current_stop.lat }},{{ current_stop.lng }}"
+                          onclick="setTimeout(function(){
+                            window.open('https://www.google.com/maps/dir/?api=1&destination={{ current_stop.lat }},{{ current_stop.lng }}','_blank');
+                          },500);"
+                        >
+                          📍 Google Maps
+                        </a>
+                      </li>
+
+                      <!-- Waze -->
+                      <li>
+                        <a
+                          class="dropdown-item"
+                          target="_blank"
+                          href="waze://?ll={{ current_stop.lat }},{{ current_stop.lng }}&navigate=yes"
+                          onclick="setTimeout(function(){
+                            window.open('https://waze.com/ul?ll={{ current_stop.lat }},{{ current_stop.lng }}&navigate=yes','_blank');
+                          },500);"
+                        >
+                          🚗 Waze
+                        </a>
+                      </li>
+
+                    </ul>
+                  </div>
+
+                {% else %}
+
+                  <button
                     class="btn btn-outline-secondary w-100 py-2 py-md-2 py-lg-1"
-                    target="_blank"
-                    href="https://www.google.com/maps/dir/?api=1&destination={{ current_stop.lat }},{{ current_stop.lng }}"
+                    disabled
                   >
                     🧭 Navigate
-                  </a>
-                {% else %}
-                  <button class="btn btn-outline-secondary w-100 py-2 py-md-2 py-lg-1" disabled>
-                    🧭 Navigate
                   </button>
+
                 {% endif %}
               </div>
 

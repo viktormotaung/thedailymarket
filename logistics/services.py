@@ -1,5 +1,6 @@
 # deliveries/services.py
 
+import math
 import requests
 from decimal import Decimal
 from datetime import timedelta
@@ -18,15 +19,16 @@ GOOGLE_DIRECTIONS_URL = "https://maps.googleapis.com/maps/api/directions/json"
 # -------------------------------------------------
 def _call_google(origin, destination, waypoints):
     """
-    Call Google Directions API with waypoint optimization.
+    Uses the EXACT waypoint order supplied.
 
     Returns:
-        waypoint_order (list[int])   # order of input waypoints
-        legs (list[dict])            # travel legs between points
+        legs
     """
+
     waypoint_str = None
+
     if waypoints:
-        waypoint_str = "optimize:true|" + "|".join(waypoints)
+        waypoint_str = "|".join(waypoints)
 
     params = {
         "origin": origin,
@@ -35,52 +37,118 @@ def _call_google(origin, destination, waypoints):
         "key": settings.GOOGLE_MAPS_API_KEY,
     }
 
-    params = {k: v for k, v in params.items() if v}
+    params = {
+        k: v
+        for k, v in params.items()
+        if v
+    }
 
-    response = requests.get(GOOGLE_DIRECTIONS_URL, params=params, timeout=20)
+    response = requests.get(
+        GOOGLE_DIRECTIONS_URL,
+        params=params,
+        timeout=20,
+    )
+
     if response.status_code != 200:
         raise RuntimeError("Failed to contact Google Directions API")
 
     data = response.json()
-    if data.get("status") != "OK":
-        raise RuntimeError(f"Google Directions error: {data.get('status')}")
 
-    route = data["routes"][0]
-    return route.get("waypoint_order", []), route["legs"]
+    if data.get("status") != "OK":
+        raise RuntimeError(
+            f"Google Directions error: {data.get('status')}"
+        )
+
+    return data["routes"][0]["legs"]
 
 
 # -------------------------------------------------
-# MAIN ROUTE PLANNER (HUMAN DISPATCHER LOGIC)
+# DISTANCE
+# -------------------------------------------------
+def _distance(a_lat, a_lng, b_lat, b_lng):
+    """
+    Haversine distance (km)
+    """
+
+    r = 6371
+
+    lat1 = math.radians(float(a_lat))
+    lon1 = math.radians(float(a_lng))
+
+    lat2 = math.radians(float(b_lat))
+    lon2 = math.radians(float(b_lng))
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    aa = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(lat1)
+        * math.cos(lat2)
+        * math.sin(dlon / 2) ** 2
+    )
+
+    c = 2 * math.atan2(math.sqrt(aa), math.sqrt(1 - aa))
+
+    return r * c
+
+
+# -------------------------------------------------
+# NEAREST NEIGHBOUR
+# -------------------------------------------------
+def _nearest(current_lat, current_lng, remaining):
+
+    best = None
+    best_distance = None
+
+    for stop in remaining:
+
+        d = _distance(
+            current_lat,
+            current_lng,
+            stop.lat,
+            stop.lng,
+        )
+
+        if best is None or d < best_distance:
+            best = stop
+            best_distance = d
+
+    return best
+
+
+# -------------------------------------------------
+# MAIN ROUTE PLANNER
 # -------------------------------------------------
 def plan_run_sequence(run):
     """
     HUMAN DISPATCHER LOGIC
 
-    Selected Supplier (start)
-        OR
-    Depot (fallback)
-
-            ↓
-
-    Optimized SUPPLIERS + CUSTOMERS
-
-            ↓
-
-    Depot (end)
+    Supplier
+        ↓
+    Closest customer
+        ↓
+    Closest remaining customer
+        ↓
+    Closest remaining customer
+        ↓
+    ...
+        ↓
+    Last customer
+        ↓
+    Depot
     """
 
     print("\n==== ROUTE PLANNING START ====")
-    print("RUN ID:", run.id)
-
-    print("ROUTE ORIGIN:", run.start_location_label or run.depot_label)
+    print("RUN:", run.id)
 
     if not run.has_depot_geo:
-        return False, "Depot coordinates are missing."
+        return False, "Depot coordinates missing."
 
     # -------------------------------------------------
-    # Collect ALL routable stops (suppliers + customers)
+    # Customer stops
     # -------------------------------------------------
-    stops = list(
+    remaining = list(
         run.stops.filter(
             stop_type="CUSTOMER",
             lat__isnull=False,
@@ -88,43 +156,90 @@ def plan_run_sequence(run):
         )
     )
 
-    if not stops:
-        return False, "No routable stops found."
+    if not remaining:
+        return False, "No customer stops."
 
-    # ---------------------------------------------
-    # Route origin
-    # ---------------------------------------------
+    # -------------------------------------------------
+    # Origin
+    # -------------------------------------------------
     if run.start_lat is not None and run.start_lng is not None:
+
+        current_lat = float(run.start_lat)
+        current_lng = float(run.start_lng)
+
         origin_point = f"{run.start_lat},{run.start_lng}"
+
+        print("START = SUPPLIER")
+
     else:
+
+        current_lat = float(run.depot_lat)
+        current_lng = float(run.depot_lng)
+
         origin_point = f"{run.depot_lat},{run.depot_lng}"
+
+        print("START = DEPOT")
 
     destination_point = f"{run.depot_lat},{run.depot_lng}"
 
-    waypoint_coords = [f"{s.lat},{s.lng}" for s in stops]
+    # -------------------------------------------------
+    # HUMAN DISPATCH ORDER
+    # -------------------------------------------------
+    ordered_stops = []
+
+    while remaining:
+
+        nxt = _nearest(
+            current_lat,
+            current_lng,
+            remaining,
+        )
+
+        ordered_stops.append(nxt)
+
+        remaining.remove(nxt)
+
+        current_lat = float(nxt.lat)
+        current_lng = float(nxt.lng)
+
+    print("\nDISPATCH ORDER")
+
+    for i, s in enumerate(ordered_stops, start=1):
+        print(i, "-", s.customer_name)
 
     # -------------------------------------------------
-    # Call Google ONCE (single optimization)
+    # Ask Google ONLY for timing
     # -------------------------------------------------
+    waypoint_coords = [
+        f"{s.lat},{s.lng}"
+        for s in ordered_stops
+    ]
+
     try:
-        waypoint_order, legs = _call_google(
+
+        legs = _call_google(
             origin=origin_point,
             destination=destination_point,
             waypoints=waypoint_coords,
         )
+
     except Exception as exc:
-        print("❌ ROUTING ERROR:", exc)
+
+        print(exc)
+
         return False, str(exc)
 
-    # Sanity check (VERY important)
-    expected_legs = len(stops) + 1
-    if len(legs) != expected_legs:
-        return False, (
-            f"Leg mismatch: expected {expected_legs}, got {len(legs)}"
+    expected = len(ordered_stops) + 1
+
+    if len(legs) != expected:
+
+        return (
+            False,
+            f"Expected {expected} legs but Google returned {len(legs)}."
         )
 
     # -------------------------------------------------
-    # Ensure RETURN stop exists (logical, not geographic)
+    # Return stop
     # -------------------------------------------------
     return_stop, _ = DeliveryStop.objects.get_or_create(
         run=run,
@@ -142,11 +257,10 @@ def plan_run_sequence(run):
     )
 
     # -------------------------------------------------
-    # Persist routing
+    # Save
     # -------------------------------------------------
     with transaction.atomic():
 
-        # Reset previous routing safely
         run.stops.update(
             sequence=None,
             distance_km=None,
@@ -154,89 +268,96 @@ def plan_run_sequence(run):
             eta=None,
         )
 
-        # Apply Google ordering
-        ordered_stops = [stops[i] for i in waypoint_order]
-
-        current_eta = None
         sequence = 1
 
-        # -------------------------------------------------
-        # LEG → STOP MAPPING (THIS FIXES THE BUG)
-        #
-        # legs[0] → origin → stop 1
-        # legs[1] → stop 1 → stop 2
-        # ...
-        # legs[N] → last stop → depot
-        
-        # ...
-        
-        # -------------------------------------------------
+        current_eta = None
 
-        # ---- NON-RETURN STOPS
         for idx, stop in enumerate(ordered_stops):
-            leg = legs[idx]  # 🔑 CORRECT mapping
 
-            distance_km = Decimal(leg["distance"]["value"]) / Decimal("1000")
-            drive_min = int(leg["duration"]["value"] / 60)
+            leg = legs[idx]
+
+            distance_km = (
+                Decimal(leg["distance"]["value"])
+                / Decimal("1000")
+            )
+
+            drive_min = int(
+                leg["duration"]["value"] / 60
+            )
 
             if current_eta is None:
-                base_time = run.start_time
+
+                base = run.start_time
+
                 current_eta = now().replace(
-                    hour=base_time.hour if base_time else now().hour,
-                    minute=base_time.minute if base_time else now().minute,
+                    hour=base.hour if base else now().hour,
+                    minute=base.minute if base else now().minute,
                     second=0,
                     microsecond=0,
                 )
 
-            current_eta += timedelta(minutes=drive_min)
+            current_eta += timedelta(
+                minutes=drive_min
+            )
 
             stop.sequence = sequence
             stop.distance_km = distance_km
             stop.drive_min = drive_min
             stop.eta = current_eta
 
-            stop.save(update_fields=[
-                "sequence",
-                "distance_km",
-                "drive_min",
-                "eta",
-                "updated_at",
-            ])
+            stop.save(
+                update_fields=[
+                    "sequence",
+                    "distance_km",
+                    "drive_min",
+                    "eta",
+                    "updated_at",
+                ]
+            )
 
             print(
-                f"SEQ {sequence} | {stop.stop_type} | "
-                f"{distance_km} km / {drive_min} min"
+                f"SEQ {sequence} | "
+                f"{stop.customer_name} | "
+                f"{distance_km} km"
             )
 
             sequence += 1
 
-        # ---- FINAL LEG → RETURN STOP
-        final_leg = legs[len(ordered_stops)]
+        # -----------------------------
+        # Return leg
+        # -----------------------------
+        last_leg = legs[-1]
 
-        distance_km = Decimal(final_leg["distance"]["value"]) / Decimal("1000")
-        drive_min = int(final_leg["duration"]["value"] / 60)
+        distance_km = (
+            Decimal(last_leg["distance"]["value"])
+            / Decimal("1000")
+        )
 
-        current_eta += timedelta(minutes=drive_min)
+        drive_min = int(
+            last_leg["duration"]["value"] / 60
+        )
+
+        current_eta += timedelta(
+            minutes=drive_min
+        )
 
         return_stop.sequence = sequence
         return_stop.distance_km = distance_km
         return_stop.drive_min = drive_min
         return_stop.eta = current_eta
 
-        return_stop.save(update_fields=[
-            "sequence",
-            "distance_km",
-            "drive_min",
-            "eta",
-            "updated_at",
-        ])
-
-        print(
-            f"SEQ {sequence} | RETURN | "
-            f"{distance_km} km / {drive_min} min"
+        return_stop.save(
+            update_fields=[
+                "sequence",
+                "distance_km",
+                "drive_min",
+                "eta",
+                "updated_at",
+            ]
         )
 
         run.recalc_aggregates(save=True)
 
-    print("==== ROUTE PLANNING COMPLETE ====\n")
-    return True, "Route optimized successfully."
+    print("==== ROUTE COMPLETE ====\n")
+
+    return True, "Route planned successfully."

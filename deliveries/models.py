@@ -412,7 +412,7 @@ class PickingItem(models.Model):
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal("0.00"))],
-        help_text="Expected supplier price EXCL VAT at time of picking.",
+        help_text="Expected supplier price INCL VAT at time of picking.",
     )
 
     actual_supplier_price = models.DecimalField(
@@ -421,7 +421,7 @@ class PickingItem(models.Model):
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal("0.00"))],
-        help_text="Actual supplier price EXCL VAT as invoiced.",
+        help_text="Actual supplier price INCL VAT as invoiced.",
     )
 
     is_picked = models.BooleanField(
@@ -523,7 +523,7 @@ class PickingItem(models.Model):
         chosen_pricing = primary_pricing or pricing_qs.order_by("id").first()
 
         self.supplier = chosen_pricing.supplier
-        self.expected_supplier_price = chosen_pricing.supplier_price_excl
+        self.expected_supplier_price = chosen_pricing.supplier_price_incl
 
         self.product_name = self.product_name or product.name
         self.sku = self.sku or product.sku or ""

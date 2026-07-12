@@ -946,19 +946,74 @@ def end_stop(request, stop_id):
     )
     run = stop.run
 
+    # -------------------------------------------------
+    # Security
+    # -------------------------------------------------
     if run.driver_id != request.user.id:
         return HttpResponseForbidden("Not assigned to this run")
 
     if stop.status != "en_route":
         return HttpResponseForbidden("Stop not in progress")
 
-    stop.status = "awaiting_completion"
+    # -------------------------------------------------
+    # Finish this stop
+    # -------------------------------------------------
     stop.ended_at = now()
 
     if stop.started_at:
         stop.drive_min = int(
             (stop.ended_at - stop.started_at).total_seconds() // 60
         )
+
+    # =================================================
+    # RETURN TO DEPOT (FINAL STOP)
+    # =================================================
+    if stop.stop_type == "RETURN":
+
+        stop.status = "delivered"
+
+        stop.save(update_fields=[
+            "status",
+            "ended_at",
+            "drive_min",
+            "updated_at",
+        ])
+
+        run.status = "complete"
+
+        if hasattr(run, "completed_at"):
+            run.completed_at = now()
+
+        run.save(update_fields=[
+            "status",
+            "updated_at",
+            *(
+                ["completed_at"]
+                if hasattr(run, "completed_at")
+                else []
+            ),
+        ])
+
+        RunEvent.objects.create(
+            run=run,
+            stop=stop,
+            event_type="DELIVERED",
+            notes="Driver returned to depot. Delivery run completed.",
+        )
+
+        messages.success(
+            request,
+            "Delivery run completed successfully."
+        )
+
+        return redirect(
+            "logistics:delivery-run-detail",
+            run.id,
+        )
+    # =================================================
+    # ALL OTHER STOPS
+    # =================================================
+    stop.status = "awaiting_completion"
 
     stop.save(update_fields=[
         "status",
@@ -967,29 +1022,27 @@ def end_stop(request, stop_id):
         "updated_at",
     ])
 
-    if not run.stops.filter(
-        status__in=[
-            "assigned",
-            "en_route",
-            "awaiting_completion",
-        ]
-    ).exists():
-        run.status = "complete"
-        run.save(update_fields=[
-            "status",
-            "updated_at",
-        ])
+    RunEvent.objects.create(
+        run=run,
+        stop=stop,
+        event_type="STOP_ARRIVED",
+        notes="Driver ended stop.",
+    )
 
-    if stop.stop_type == "SUPPLIER":
-        return redirect("logistics:supplier-stop-completion", stop_id=stop.id)
+    if stop.stop_type == "CUSTOMER":
+        return redirect(
+            "logistics:stop-completion",
+            stop_id=stop.id,
+        )
 
-    elif stop.stop_type == "CUSTOMER":
-        return redirect("logistics:stop-completion", stop_id=stop.id)
-
-    elif stop.stop_type == "RETURN":
-        return redirect("logistics:run-summary", run_id=stop.run_id)
+    elif stop.stop_type == "SUPPLIER":
+        return redirect(
+            "logistics:supplier-stop-completion",
+            stop_id=stop.id,
+        )
 
     return redirect("logistics:driver-dashboard")
+
 
 
 @login_required

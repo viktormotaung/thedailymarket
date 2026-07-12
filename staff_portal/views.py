@@ -24,6 +24,7 @@ from deliveries.models import (
     InternalDeliveryRate,
     ExternalDeliveryRate,
 )
+from invoices.models import Invoice
 from profiles.models import StaffProfile, SalesRepProfile, DriverProfile
 from profiles.forms import DriverProfileForm
 from django.contrib.auth.hashers import check_password
@@ -141,17 +142,18 @@ def dashboard(request):
     # -------------------------------------------------
     # KPI SNAPSHOTS
     # -------------------------------------------------
+
     kpi_orders = orders_qs.count()
 
     kpi_revenue = (
-        Transaction.objects
+        Invoice.objects
         .filter(
-            created_at__gte=start,
-            created_at__lt=end,
-            amount__gt=0
+            status="paid",
+            paid_date__gte=start.date(),
+            paid_date__lt=end.date(),
         )
         .aggregate(
-            s=Coalesce(Sum("amount"), Decimal("0.00"))
+            s=Coalesce(Sum("order_total_inc"), Decimal("0.00"))
         )["s"]
     )
 
