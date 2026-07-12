@@ -93,6 +93,7 @@ class ProductAdmin(admin.ModelAdmin):
         "product_no",
         "name",
         "category",
+        "visible",
         "is_special",
         "wholesale_price",
         "special_saving_display",
@@ -114,6 +115,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = (
         "category",
         "uom",
+        "visible",
         "is_special",
         "created_at",
     )
@@ -137,6 +139,7 @@ class ProductAdmin(admin.ModelAdmin):
                 "product_no",
                 "name",
                 "category",
+                "visible",
                 "description",
                 "uom",
                 "image",

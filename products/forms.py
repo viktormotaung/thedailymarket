@@ -110,6 +110,7 @@ class ProductForm(forms.ModelForm):
         fields = [
             "name",
             "category",
+            "visible",
             "sku",
             "image",
             "uom",
@@ -126,6 +127,7 @@ class ProductForm(forms.ModelForm):
             "sku": forms.TextInput(attrs={"class": "form-control"}),
             "image": forms.ClearableFileInput(attrs={"class": "form-control"}),
             "uom": forms.Select(attrs={"class": "form-select"}),
+            "visible": forms.Select(attrs={"class": "form-select"}),
 
             "is_special": forms.CheckboxInput(
                 attrs={"class": "form-check-input"}
@@ -151,6 +153,7 @@ class ProductForm(forms.ModelForm):
             "is_special": "Product is on Special",
             "special_label": "Special Badge",
             "old_wholesale_price_inc": "Old Wholesale Price (Incl. VAT)",
+            "visible": "Visible",
         }
 
         help_texts = {

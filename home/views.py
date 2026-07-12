@@ -124,6 +124,10 @@ from django.utils.encoding import force_str
 from django.db.models import (
     Sum, Q, DecimalField, IntegerField, OuterRef, Subquery, F, Value
 )
+from clients.models import Lead
+from tasks.models import Ticket
+from profiles.models import Department
+
 
 User = get_user_model()
 # Optional variants support (only if you created ProductVariant)
@@ -954,6 +958,7 @@ def products(request):
     # -------------------------
     qs = (
         Product.objects
+        .filter(visible="YES")   # <-- only show visible products
         .select_related("category", "category__parent")
         .prefetch_related(
             Prefetch(
@@ -3244,43 +3249,99 @@ def pay_invoice_ozow(request, invoice_id):
 
 
 
+
 def trade_assist_form(request):
 
     if request.method == "POST":
 
-        Lead.objects.create(
+        business_name = request.POST.get(
+            "business_name", ""
+        ).strip()
 
-            # Lead Source
+        potential_client_type = request.POST.get(
+            "potential_client_type", ""
+        ).strip()
+
+        contact_person = request.POST.get(
+            "contact_person", ""
+        ).strip()
+
+        phone = request.POST.get(
+            "phone", ""
+        ).strip()
+
+        whatsapp = request.POST.get(
+            "whatsapp", ""
+        ).strip()
+
+        province = request.POST.get(
+            "province", "GP"
+        ).strip()
+
+        area = request.POST.get(
+            "area", ""
+        ).strip()
+
+        # -------------------------------------------------
+        # Create Lead
+        # -------------------------------------------------
+
+        lead = Lead.objects.create(
+
             source="WEBSITE",
 
-            # Business
-            business_name=request.POST.get("business_name", "").strip(),
-            potential_client_type=request.POST.get(
-                "potential_client_type", ""
-            ).strip(),
+            business_name=business_name,
 
-            # Contact
-            contact_person=request.POST.get(
-                "contact_person", ""
-            ).strip(),
+            potential_client_type=potential_client_type,
 
-            phone=request.POST.get(
-                "phone", ""
-            ).strip(),
+            contact_person=contact_person,
 
-            whatsapp=request.POST.get(
-                "whatsapp", ""
-            ).strip(),
+            phone=phone,
 
-            # Location
-            province=request.POST.get(
-                "province", "GP"
-            ).strip(),
+            whatsapp=whatsapp,
 
-            area=request.POST.get(
-                "area", ""
-            ).strip(),
+            province=province,
 
+            area=area,
+        )
+
+        # -------------------------------------------------
+        # Create Ticket
+        # -------------------------------------------------
+
+        sales_department = Department.objects.filter(
+            name__iexact="Sales"
+        ).first()
+
+        Ticket.objects.create(
+
+            title=f"Trade Assist Enquiry - {business_name or contact_person}",
+
+            description=(
+                "Trade Assist enquiry received via the website.\n\n"
+                f"Lead Number: {lead.lead_number}\n"
+                f"Business: {business_name}\n"
+                f"Contact Person: {contact_person}\n"
+                f"Phone: {phone}\n"
+                f"WhatsApp: {whatsapp}\n"
+                f"Province: {province}\n"
+                f"Area: {area}\n"
+                f"Potential Client Type: {potential_client_type}"
+            ),
+
+            status=Ticket.Status.NEW,
+
+            priority=Ticket.Priority.HIGH,
+
+            department=sales_department,
+
+            ticket_type=Ticket.TicketType.SALES_ENQUIRY,
+
+            source=Ticket.Source.WEBSITE,
+
+            requester_name=contact_person,
+
+            requester_phone=phone,
         )
 
         messages.success(
@@ -3294,7 +3355,6 @@ def trade_assist_form(request):
         request,
         "home/trade_assist_form.html",
     )
-
 
 def trade_assist_thank_you(request):
     return render(

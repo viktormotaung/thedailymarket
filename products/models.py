@@ -233,6 +233,19 @@ class Product(models.Model):
     # NEW: description for product detail page / catalog
     description = models.TextField(blank=True)
 
+    VISIBILITY_CHOICES = [
+        ("YES", "Yes"),
+        ("NO", "No"),
+    ]
+
+    visible = models.CharField(
+        max_length=3,
+        choices=VISIBILITY_CHOICES,
+        default="YES",
+        db_index=True,
+        help_text="Controls whether this product is visible in the shop and catalog."
+    )
+
     # Base (ex VAT)
     cost_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     wholesale_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)

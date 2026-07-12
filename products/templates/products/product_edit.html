@@ -906,18 +906,24 @@
               </div>
 
               <div class="row g-3 mt-1">
-                <div class="col-md-6">
-                  <label class="form-label" for="{{ form.category.id_for_label }}">Category</label>
-                  {{ form.category }}
-                  {% if form.category.errors %}<div class="text-danger small">{{ form.category.errors }}</div>{% endif %}
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.category.id_for_label }}">Category</label>
+                    {{ form.category }}
+                    {% if form.category.errors %}<div class="text-danger small">{{ form.category.errors }}</div>{% endif %}
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label" for="{{ form.slug.id_for_label }}">Slug</label>
-                  {{ form.slug }}
-                  {% if form.slug.errors %}<div class="text-danger small">{{ form.slug.errors }}</div>{% endif %}
-                  {% if form.slug.help_text %}<div class="helptext">{{ form.slug.help_text }}</div>{% endif %}
+
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.visible.id_for_label }}">Visible</label>
+                    {{ form.visible }}
+                    {% if form.visible.errors %}<div class="text-danger small">{{ form.visible.errors }}</div>{% endif %}
                 </div>
-              </div>
+
+                <div class="col-md-4">
+                    
+                    {% if form.slug.errors %}<div class="text-danger small">{{ form.slug.errors }}</div>{% endif %}
+                    {% if form.slug.help_text %}<div class="helptext">{{ form.slug.help_text }}</div>{% endif %}
+                </div>
+            </div>
             </div>
           </div>
         </div>

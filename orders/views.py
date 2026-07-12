@@ -628,14 +628,20 @@ def ajax_products_by_category(request):
                 best_price_excl * vat_multiplier
             ).quantize(Decimal("0.01"))
 
+            visibility = "⭐ " if product.visible == "NO" else ""
+
             text = (
+                f"{visibility}"
                 f"{product.sku} · {product.name} "
                 f"({product.uom}) — "
                 f"R{best_price_excl:.2f} excl · "
                 f"R{best_price_incl:.2f} incl"
             )
         else:
+            visibility = "⭐ " if product.visible == "NO" else ""
+
             text = (
+                f"{visibility}"
                 f"{product.sku} · {product.name} "
                 f"({product.uom}) — No active price"
             )

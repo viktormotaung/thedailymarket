@@ -389,6 +389,7 @@ def membership_shop_category(request, slug):
             Product.objects
             .filter(
                 category__in=child_categories,
+                visible="YES",
             )
             .select_related("category")
             .order_by("name")
@@ -398,7 +399,10 @@ def membership_shop_category(request, slug):
 
         products = (
             Product.objects
-            .filter(category=category)
+            .filter(
+                category=category,
+                visible="YES",
+            )
             .select_related("category")
             .order_by("name")
         )
@@ -529,6 +533,7 @@ def membership_shop_specials(request):
         Product.objects
         .filter(
             is_special=True,
+            visible="YES",
         )
         .select_related("category")
         .order_by("name")

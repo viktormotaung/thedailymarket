@@ -890,16 +890,24 @@
     <div class="row g-3 mt-3">
       <div class="col-md-6">
         <div class="card h-100">
-          <div class="card-header bg-white"><strong>Product Info</strong></div>
-          <div class="card-body">
-            <dl class="dl-grid m-0">
-              <dt>SKU</dt><dd>{{ product.sku }}</dd>
-              <dt>Name</dt><dd>{{ product.name }}</dd>
-              <dt>Category</dt><dd>{{ product.category.name }}</dd>
-              <dt>Unit of Measure</dt><dd>{{ product.get_uom_display }}</dd>
-              <dt>Slug</dt><dd>{% if product.slug %}<code>{{ product.slug }}</code>{% else %}—{% endif %}</dd>
-            </dl>
-          </div>
+            <div class="card-header bg-white"><strong>Product Info</strong></div>
+            <div class="card-body">
+                <dl class="dl-grid m-0">
+                    <dt>SKU</dt><dd>{{ product.sku }}</dd>
+                    <dt>Name</dt><dd>{{ product.name }}</dd>
+                    <dt>Category</dt><dd>{{ product.category.name }}</dd>
+                    <dt>Unit of Measure</dt><dd>{{ product.get_uom_display }}</dd>
+                    <dt>Slug</dt><dd>{% if product.slug %}<code>{{ product.slug }}</code>{% else %}—{% endif %}</dd>
+                    <dt>Visible</dt>
+                    <dd>
+                        {% if product.visible == "YES" %}
+                            <span class="badge bg-success">Yes</span>
+                        {% else %}
+                            <span class="badge bg-danger">No</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
         </div>
       </div>
 

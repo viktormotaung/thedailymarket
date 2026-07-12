@@ -176,7 +176,10 @@ def download_price_list(request):
         Product.objects
         .select_related("category", "category__parent")
         .prefetch_related("pricing_rows")
-        .filter(category__parent__isnull=False)
+        .filter(
+            category__parent__isnull=False,
+            visible="YES",
+        )
         .order_by("product_no")
     )
 
@@ -507,37 +510,32 @@ def product_create(request):
 def product_edit(request, pk):
     product = get_object_or_404(Product, pk=pk)
 
-    VariantFormSet3 = inlineformset_factory(
-        parent_model=Product,
-        model=ProductVariant,
-        form=ProductVariantForm,
-        formset=VariantFormSetClean,  # <<< use the same cleaner in edit
-        extra=1,                      # one blank row on edit is usually enough
-        can_delete=True,
-    )
-
     if request.method == "POST":
-        form = ProductForm(request.POST, request.FILES, instance=product)
-        formset = VariantFormSet3(
-            request.POST, request.FILES, instance=product, prefix="variants"
+        form = ProductForm(
+            request.POST,
+            request.FILES,
+            instance=product,
         )
-        if form.is_valid() and formset.is_valid():
+
+        if form.is_valid():
             product = form.save()
-            formset.save()   # create/update/delete variants
+
             messages.success(request, "Product updated.")
             return redirect("product-view", pk=product.pk)
+
         messages.error(request, "Please fix the errors below.")
+
     else:
         form = ProductForm(instance=product)
-        formset = VariantFormSet3(instance=product, prefix="variants")
 
-    return render(request, "products/product_edit.html", {
-        "form": form,
-        "product": product,
-        "variant_formset": formset,
-    })
-
-
+    return render(
+        request,
+        "products/product_edit.html",
+        {
+            "form": form,
+            "product": product,
+        },
+    )
 
 @login_required
 @staff_required
