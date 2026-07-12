@@ -1089,122 +1089,183 @@ def supplier_stop_completion(request, stop_id):
 
 
 
+
+
+
 @login_required
 def stop_completion(request, stop_id):
     stop = get_object_or_404(
-        DeliveryStop.objects.select_related("run", "order"),
+        DeliveryStop.objects.select_related(
+            "run",
+            "order",
+        ).prefetch_related(
+            "items",
+        ),
         id=stop_id,
     )
 
     run = stop.run
     order = stop.order
 
-    # -----------------------------------------
+    # -------------------------------------------------
     # Security
-    # -----------------------------------------
+    # -------------------------------------------------
     if run.driver_id != request.user.id:
         return HttpResponseForbidden("Not assigned")
 
-    # -----------------------------------------
-    # Save completion
-    # -----------------------------------------
+    # -------------------------------------------------
+    # Save
+    # -------------------------------------------------
     if request.method == "POST":
 
         outcome = request.POST.get("outcome")
 
-        # -----------------------------------------
-        # Proof of Delivery
-        # -----------------------------------------
-        stop.recipient_name = request.POST.get(
-            "recipient_name",
-            ""
-        )
+        with transaction.atomic():
 
-        stop.recipient_id_no = request.POST.get(
-            "recipient_id_no",
-            ""
-        )
+            # -----------------------------------------
+            # Proof of Delivery
+            # -----------------------------------------
 
-        stop.delivery_notes = request.POST.get(
-            "delivery_notes",
-            ""
-        )
+            stop.recipient_name = request.POST.get(
+                "recipient_name",
+                ""
+            )
 
-        stop.updated_by = request.user
-        stop.updated_at = now()
+            stop.recipient_id_no = request.POST.get(
+                "recipient_id_no",
+                ""
+            )
 
-        if request.FILES.get("signature"):
-            stop.signature = request.FILES["signature"]
-            stop.signed_at = now()
+            stop.delivery_notes = request.POST.get(
+                "delivery_notes",
+                ""
+            )
 
-        # -----------------------------------------
-        # Outcome
-        # -----------------------------------------
-        if outcome == "complete":
-            stop.status = "delivered"
-            order.status = "complete"
+            stop.updated_by = request.user
+            stop.updated_at = now()
 
-        elif outcome == "returned":
-            stop.status = "failed"
-            order.status = "returned"
+            if request.FILES.get("signature"):
+                stop.signature = request.FILES["signature"]
+                stop.signed_at = now()
 
-        elif outcome == "cancelled":
-            stop.status = "cancelled"
-            order.status = "cancelled"
+            # -----------------------------------------
+            # Delivery Stop Items
+            # -----------------------------------------
 
-        stop.save(update_fields=[
-            "status",
-            "recipient_name",
-            "recipient_id_no",
-            "delivery_notes",
-            "signature",
-            "signed_at",
-            "updated_by",
-            "updated_at",
-        ])
+            for item in stop.items.all():
 
-        order.updated_at = now()
+                delivered_raw = request.POST.get(
+                    f"item_delivered_qty_{item.id}",
+                    ""
+                )
 
-        order.save(update_fields=[
-            "status",
-            "updated_at",
-        ])
+                notes = request.POST.get(
+                    f"item_notes_{item.id}",
+                    ""
+                )
 
-        # -----------------------------------------
-        # Complete run if every stop is done
-        # -----------------------------------------
-        if not run.stops.filter(
-            status__in=[
-                "assigned",
-                "en_route",
-                "awaiting_completion",
-            ]
-        ).exists():
+                shortage_reason = request.POST.get(
+                    f"item_shortage_reason_{item.id}",
+                    ""
+                )
 
-            run.status = "complete"
+                try:
+                    delivered_qty = (
+                        Decimal(delivered_raw)
+                        if delivered_raw != ""
+                        else Decimal("0.00")
+                    )
 
-            run.save(update_fields=[
+                except InvalidOperation:
+                    delivered_qty = Decimal("0.00")
+
+                item.delivered_qty = delivered_qty
+                item.notes = notes
+                item.shortage_reason = shortage_reason
+
+                item.save(update_fields=[
+                    "delivered_qty",
+                    "notes",
+                    "shortage_reason",
+                    "updated_at",
+                ])
+
+            # -----------------------------------------
+            # Outcome
+            # -----------------------------------------
+
+            if outcome == "complete":
+
+                stop.status = "delivered"
+                order.status = "complete"
+
+            elif outcome == "returned":
+
+                stop.status = "failed"
+                order.status = "returned"
+
+                stop.failed_at = now()
+
+            elif outcome == "cancelled":
+
+                stop.status = "cancelled"
+                order.status = "cancelled"
+
+            stop.save(update_fields=[
+                "status",
+                "recipient_name",
+                "recipient_id_no",
+                "delivery_notes",
+                "signature",
+                "signed_at",
+                "failed_at",
+                "updated_by",
+                "updated_at",
+            ])
+
+            order.updated_at = now()
+
+            order.save(update_fields=[
                 "status",
                 "updated_at",
             ])
 
-        # -----------------------------------------
-        # Back to driver dashboard
-        # -----------------------------------------
+            # -----------------------------------------
+            # Complete run if finished
+            # -----------------------------------------
+
+            if not run.stops.filter(
+                status__in=[
+                    "assigned",
+                    "en_route",
+                    "awaiting_completion",
+                ]
+            ).exists():
+
+                run.status = "complete"
+
+                run.save(update_fields=[
+                    "status",
+                    "updated_at",
+                ])
+
         return redirect(
             "logistics:driver-dashboard"
         )
 
-    # -----------------------------------------
+    # -------------------------------------------------
     # Initial page
-    # -----------------------------------------
+    # -------------------------------------------------
+
     return render(
         request,
         "logistics/driver/stop_completion.html",
         {
             "stop": stop,
+            "items": stop.items.all(),
         },
     )
+
 
 
 # =====================================================
