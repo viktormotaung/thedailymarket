@@ -851,53 +851,6 @@ class DeliveryRun(models.Model):
 
 
 
-class InternalDeliveryRate(models.Model):
-    name = models.CharField(max_length=100)
-    driver_per_km = models.DecimalField(max_digits=8, decimal_places=2)
-    assistant_per_km = models.DecimalField(max_digits=8, decimal_places=2)
-    is_active = models.BooleanField(default=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["name"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["is_active"],
-                condition=models.Q(is_active=True),
-                name="only_one_active_internal_rate",
-            )
-        ]
-
-    @property
-    def total_per_km(self):
-        return self.driver_per_km + self.assistant_per_km
-
-
-class ExternalDeliveryRate(models.Model):
-    name = models.CharField(max_length=100)
-    driver_per_km = models.DecimalField(max_digits=8, decimal_places=2)
-    assistant_per_km = models.DecimalField(max_digits=8, decimal_places=2)
-    is_active = models.BooleanField(default=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["name"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["is_active"],
-                condition=models.Q(is_active=True),
-                name="only_one_active_external_rate",
-            )
-        ]
-
-    @property
-    def total_per_km(self):
-        return self.driver_per_km + self.assistant_per_km
-
 
 # -----------------------------
 # 3) STOPS & POD (Proof of Delivery)
