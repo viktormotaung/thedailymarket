@@ -468,6 +468,8 @@ class ProductPricing(models.Model):
     # Margins
     # -----------------------------
     MARGIN_CHOICES = [
+        (Decimal("0.00"), "0%"),
+        (Decimal("5.00"), "5%"),
         (Decimal("10.00"), "10%"),
         (Decimal("12.50"), "12.50%"),
         (Decimal("15.00"), "15%"),

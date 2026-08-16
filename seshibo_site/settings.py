@@ -139,21 +139,22 @@ DATABASE_ROUTERS = ['seshibo_site.db_router.MultiDBRouter']
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": "daily_market",
-        "USER": "daily_market",
+        "NAME": "thedail3_daily_market",
+        "USER": "thedail3_daily_market",
         "PASSWORD": "Enter19931993",
-        "HOST": "daily-market.cnkegask69lq.af-south-1.rds.amazonaws.com",
+        "HOST": "102.130.123.35",
         "PORT": "3306",
         "OPTIONS": {
             "charset": "utf8mb4",
         },
     },
+
     "dummy": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": "daily_market_dummy",
-        "USER": "daily_market",
+        "NAME": "thedail3_daily_market_dummy",
+        "USER": "thedail3_daily_market",
         "PASSWORD": "Enter19931993",
-        "HOST": "daily-market.cnkegask69lq.af-south-1.rds.amazonaws.com",
+        "HOST": "102.130.123.35",
         "PORT": "3306",
         "OPTIONS": {
             "charset": "utf8mb4",
