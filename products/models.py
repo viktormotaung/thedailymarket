@@ -205,10 +205,11 @@ class Product(models.Model):
         ("BOX", "Box"),
     ]
 
-    product_no = models.PositiveIntegerField(
+    product_no = models.CharField(
+        max_length=11,
         unique=True,
         db_index=True,
-        help_text="External Product Number from Excel (stable identifier)"
+        help_text="Unique Product ID: Category-Subcategory-Product"
     )
 
     name = models.CharField(max_length=200)

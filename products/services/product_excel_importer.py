@@ -136,7 +136,7 @@ def import_products_from_excel(file, db="default"):
                 category_name = str(row[COL["category"]]).strip()
                 subcategory_name = str(row[COL["subcategory"]]).strip()
                 product_name = str(row[COL["product"]]).strip()
-                product_no = int(row[COL["product_no"]])
+                product_no = str(row[COL["product_no"]]).strip()
                 description = row[COL["description"]] or ""
 
                 supplier_name = str(row[COL["supplier"]]).strip()
