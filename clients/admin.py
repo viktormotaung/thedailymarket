@@ -53,7 +53,9 @@ class ClientAdmin(admin.ModelAdmin):
         "province",
         "delivery_province",
         "account_manager",
-        ("categories", admin.RelatedOnlyFieldListFilter),
+        "region",
+        "territory",
+        "area",
         ("created_at", admin.DateFieldListFilter),
         ("last_order_at", admin.DateFieldListFilter),
     )
@@ -96,7 +98,7 @@ class ClientAdmin(admin.ModelAdmin):
         "funder",
     )
 
-    filter_horizontal = ("categories",)
+   
 
     fieldsets = (
         ("Account", {
@@ -104,6 +106,7 @@ class ClientAdmin(admin.ModelAdmin):
                 ("client_number", "status"),
                 ("client_type", "client_size_tier"),
                 ("price_type",),
+                ("region", "territory"),
                 ("area", "sales_operator"),
                 ("account_type", "credit_status"),
                 ("account_manager", "funder"),
@@ -154,9 +157,8 @@ class ClientAdmin(admin.ModelAdmin):
             ),
             "classes": ("collapse",),
         }),
-        ("Categories & Spend", {
+        ("Products & Spend", {
             "fields": (
-                "categories",
                 "estimated_weekly_spend",
             ),
         }),
@@ -366,6 +368,8 @@ class ProspectAdmin(admin.ModelAdmin):
         "status",
         "sales_operator",
         "owner",
+        "region",
+        "territory",
         "area",
         "city",
         "province",
@@ -380,6 +384,10 @@ class ProspectAdmin(admin.ModelAdmin):
         "status",
         "sales_operator",
         "owner",
+        "region",
+        "territory",
+        "area",
+        "province",
         "area",
         "province",
         ("created_at", admin.DateFieldListFilter),
@@ -422,7 +430,8 @@ class ProspectAdmin(admin.ModelAdmin):
         ("Ownership & Pipeline", {
             "fields": (
                 ("owner", "created_by"),
-                ("sales_operator", "area"),
+                ("sales_operator", "region"),
+                ("territory", "area"),
                 ("stage", "status"),
                 ("last_contact_at", "next_follow_up_at"),
             )
@@ -450,7 +459,6 @@ class ProspectAdmin(admin.ModelAdmin):
         ("Potential Value", {
             "fields": (
                 ("potential_client_type", "potential_size_tier"),
-                "categories",
                 "estimated_weekly_spend",
                 "lead_source",
             )
@@ -499,7 +507,7 @@ class ProspectAdmin(admin.ModelAdmin):
             url,
         )
 
-    filter_horizontal = ("categories",)
+
 
 
 # ============================================================
@@ -730,6 +738,8 @@ class LeadAdmin(admin.ModelAdmin):
         "priority",
         "source",
         "preferred_call_time",
+        "region",
+        "territory",
         "area",
         "province",
         "assigned_to",
@@ -743,6 +753,8 @@ class LeadAdmin(admin.ModelAdmin):
         "source",
         "potential_client_type",
         "preferred_call_time",
+        "region",
+        "territory",
         "area",
         "province",
         "assigned_to",
@@ -783,9 +795,7 @@ class LeadAdmin(admin.ModelAdmin):
         "age_days",
     )
 
-    filter_horizontal = (
-        "interested_in",
-    )
+    
 
     fieldsets = (
 
@@ -818,7 +828,7 @@ class LeadAdmin(admin.ModelAdmin):
                     "business_name",
                     ("entity_type", "potential_client_type"),
                     "estimated_weekly_spend",
-                    "interested_in",
+                    
                 )
             },
         ),
@@ -843,6 +853,7 @@ class LeadAdmin(admin.ModelAdmin):
                     ("suburb", "city"),
                     ("province", "postal_code"),
                     "country",
+                    ("region", "territory"),
                     "area",
                 )
             },

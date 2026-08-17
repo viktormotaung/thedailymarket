@@ -5,7 +5,12 @@ from openpyxl import load_workbook
 from django.db import transaction
 from django.core.exceptions import ValidationError
 
-from products.models import Category, Product, ProductPricing
+from products.models import (
+    Category,
+    Product,
+    ProductPricing,
+    ProductPriceHistory,
+)
 from suppliers.models import Supplier
 
 
@@ -118,6 +123,8 @@ def import_products_from_excel(file, db="default"):
 
     created = 0
     updated = 0
+    unchanged = 0
+    price_changes = 0
 
     # ======================================================
     # STEP 3 — PROCESS ROWS
@@ -204,19 +211,133 @@ def import_products_from_excel(file, db="default"):
                 # -----------------------------
                 # PRICING
                 # -----------------------------
-                pricing, _ = ProductPricing.objects.using(db).update_or_create(
-                    product=product,
-                    supplier=supplier,
-                    defaults={
-                        "supplier_price_input": cost_price,
-                        "supplier_price_is_inclusive": vat_included,
-                        "wholesale_margin_percent": wholesale_margin,
-                        "retail_margin_percent": retail_margin,
-                        "is_active": is_active,
-                    },
+
+                pricing = (
+                    ProductPricing.objects.using(db)
+                    .filter(
+                        product=product,
+                        supplier=supplier,
+                    )
+                    .first()
                 )
 
+                pricing_was_created = pricing is None
+
+                # Capture OLD values before changing anything.
+                if pricing_was_created:
+                    old_cost = None
+                    old_wholesale = None
+                    old_retail = None
+                else:
+                    old_cost = pricing.supplier_price_incl
+                    old_wholesale = pricing.wholesale_price_excl
+                    old_retail = pricing.retail_price_excl
+
+
+                if pricing_was_created:
+                    pricing = ProductPricing(
+                        product=product,
+                        supplier=supplier,
+                    )
+
+                pricing.supplier_price_input = cost_price
+                pricing.supplier_price_is_inclusive = vat_included
+                pricing.wholesale_margin_percent = wholesale_margin
+                pricing.retail_margin_percent = retail_margin
+                pricing.is_active = is_active
+
+                # Save so ProductPricing calculates its canonical supplier price
+                # and its calculated wholesale / retail prices.
                 pricing.save(using=db)
+
+                # NEW values after save.
+                new_cost = pricing.supplier_price_incl
+                new_wholesale = pricing.wholesale_price_excl
+                new_retail = pricing.retail_price_excl
+
+
+                # -----------------------------
+                # PRICE CHANGE DETECTION
+                # -----------------------------
+
+                if pricing_was_created:
+                    ProductPriceHistory.objects.using(db).create(
+                        product=product,
+                        supplier=supplier,
+                        change_type="INITIAL",
+
+                        previous_cost_price=None,
+                        new_cost_price=new_cost,
+                        cost_change=None,
+
+                        previous_wholesale_price=None,
+                        new_wholesale_price=new_wholesale,
+                        wholesale_change=None,
+
+                        previous_retail_price=None,
+                        new_retail_price=new_retail,
+                        retail_change=None,
+                    )
+
+                else:
+                    cost_changed = old_cost != new_cost
+                    wholesale_changed = old_wholesale != new_wholesale
+                    retail_changed = old_retail != new_retail
+
+                    if cost_changed or wholesale_changed or retail_changed:
+
+                        cost_change = (
+                            new_cost - old_cost
+                            if cost_changed
+                            else Decimal("0.00")
+                        )
+
+                        wholesale_change = (
+                            new_wholesale - old_wholesale
+                            if wholesale_changed
+                            else Decimal("0.00")
+                        )
+
+                        retail_change = (
+                            new_retail - old_retail
+                            if retail_changed
+                            else Decimal("0.00")
+                        )
+
+                        # Determine overall direction.
+                        changes = [
+                            cost_change,
+                            wholesale_change,
+                            retail_change,
+                        ]
+
+                        positive = any(change > 0 for change in changes)
+                        negative = any(change < 0 for change in changes)
+
+                        if positive and negative:
+                            change_type = "MIXED"
+                        elif positive:
+                            change_type = "INCREASE"
+                        else:
+                            change_type = "DECREASE"
+
+                        ProductPriceHistory.objects.using(db).create(
+                            product=product,
+                            supplier=supplier,
+                            change_type=change_type,
+
+                            previous_cost_price=old_cost,
+                            new_cost_price=new_cost,
+                            cost_change=cost_change,
+
+                            previous_wholesale_price=old_wholesale,
+                            new_wholesale_price=new_wholesale,
+                            wholesale_change=wholesale_change,
+
+                            previous_retail_price=old_retail,
+                            new_retail_price=new_retail,
+                            retail_change=retail_change,
+                        )
 
         except Exception as e:
             raise ValidationError(f"Excel row {excel_row}: {e}")

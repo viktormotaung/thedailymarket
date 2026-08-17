@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from .models import Client
 from .models import GAUTENG_CITY_CHOICES
-from products.models import Category
+
 from .models import Client, Prospect, ProspectUpdate, ClientCompliance, ClientComplianceDocument, Lead
 
 def _bs(extra_class=None):
@@ -96,6 +96,8 @@ class ClientForm(forms.ModelForm):
             "price_type",
 
             # Territory
+            "region",
+            "territory",
             "area",
 
             # Contact
@@ -138,8 +140,7 @@ class ClientForm(forms.ModelForm):
             # Commercial
             "estimated_weekly_spend",
 
-            # Categorisation
-            "categories",
+            
 
             # Status & credit
             "status",
@@ -192,15 +193,15 @@ class ClientForm(forms.ModelForm):
             "account_type": forms.Select(attrs=_bs("form-select")),
             "credit_status": forms.Select(attrs=_bs("form-select")),
             "price_type": forms.Select(attrs=_bs("form-select")),
+            "region": forms.Select(attrs=_bs("form-select")),
+            "territory": forms.Select(attrs=_bs("form-select")),
             "area": forms.Select(attrs=_bs("form-select")),
 
             "preferred_delivery_slot_1": forms.Select(attrs=_bs("form-select")),
             "preferred_delivery_slot_2": forms.Select(attrs=_bs("form-select")),
             "preferred_delivery_slot_3": forms.Select(attrs=_bs("form-select")),
 
-            "categories": forms.SelectMultiple(
-                attrs={"class": "form-select", "size": 6}
-            ),
+            
         }
 
     # ----------------------------
@@ -209,9 +210,7 @@ class ClientForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.fields["categories"].queryset = (
-            Category.objects.filter(is_active=True).order_by("name")
-        )
+        
 
         if not self.instance.pk and not self.initial.get("price_type"):
             self.fields["price_type"].initial = "Retail"
@@ -451,6 +450,8 @@ class ProspectForm(forms.ModelForm):
             "potential_size_tier",
 
             # Territory
+            "region",
+            "territory",
             "area",
 
             # ---- Address (conversion-ready) ----
@@ -475,8 +476,7 @@ class ProspectForm(forms.ModelForm):
             "registration_identifier",
             "vat_number",
 
-            # ---- Product interest ----
-            "categories",
+            
 
             # ---- Pipeline & value ----
             "stage",
@@ -523,6 +523,8 @@ class ProspectForm(forms.ModelForm):
             # Segmentation
             "potential_client_type": forms.Select(attrs={"class": "form-select"}),
             "potential_size_tier": forms.Select(attrs={"class": "form-select"}),
+            "region": forms.Select(attrs=_bs("form-select")),
+            "territory": forms.Select(attrs=_bs("form-select")),
             "area": forms.Select(attrs=_bs("form-select")),
 
             # Address
@@ -558,10 +560,7 @@ class ProspectForm(forms.ModelForm):
                 "placeholder": "VAT number (if registered)",
             }),
 
-            # Categories
-            "categories": forms.SelectMultiple(
-                attrs={"class": "form-select", "size": 6}
-            ),
+           
 
             # Pipeline & value
             "stage": forms.Select(attrs={"class": "form-select"}),
@@ -604,10 +603,7 @@ class ProspectForm(forms.ModelForm):
             "Company registration number or South African ID number."
         )
 
-        self.fields["categories"].queryset = (
-            Category.objects.filter(is_active=True).order_by("name")
-        )
-
+        
         self.fields["country"].initial = "South Africa"
 
         self.fields["lat"].label = "Latitude"
@@ -681,7 +677,7 @@ class ProspectForm(forms.ModelForm):
 
         if commit:
             prospect.save()
-            self.save_m2m()
+           
 
             for day_code, _ in ProspectOperatingHours.DAY_CHOICES:
                 is_closed = self.cleaned_data.get(f"{day_code}_is_closed")
@@ -1108,6 +1104,10 @@ class ClientEditForm(forms.ModelForm):
             "organization",
             "client_type",
             "client_size_tier",
+
+            # Territory
+            "region",
+            "territory",
             "area",
 
             # Contact
@@ -1149,8 +1149,7 @@ class ClientEditForm(forms.ModelForm):
             "price_type",
             "estimated_weekly_spend",
 
-            # Categorisation
-            "categories",
+            
 
             # Status & credit
             "status",
@@ -1183,10 +1182,10 @@ class ClientEditForm(forms.ModelForm):
             ),
 
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-            "categories": forms.SelectMultiple(
-                attrs={"class": "form-select", "size": 6}
-            ),
-        }
+            "region": forms.Select(attrs=_bs("form-select")),
+            "territory": forms.Select(attrs=_bs("form-select")),
+            "area": forms.Select(attrs=_bs("form-select")),
+                    }
 
     # ----------------------------
     # INIT
@@ -1194,11 +1193,7 @@ class ClientEditForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Only active categories selectable
-        self.fields["categories"].queryset = (
-            Category.objects.filter(is_active=True).order_by("name")
-        )
-
+        
         # Defaults only for new clients
         if not self.instance.pk:
             self.fields["country"].initial = "South Africa"
@@ -1485,15 +1480,102 @@ class ClientOperationsForm(forms.Form):
 
 class LeadForm(forms.ModelForm):
 
-    class Meta:
+    product_1 = forms.CharField(
+        required=False,
+        label="Product 1",
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "e.g. Chicken portions",
+        })
+    )
 
+    product_2 = forms.CharField(
+        required=False,
+        label="Product 2",
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "e.g. Beef mince",
+        })
+    )
+
+    product_3 = forms.CharField(
+        required=False,
+        label="Product 3",
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "e.g. Frozen chips",
+        })
+    )
+
+    product_4 = forms.CharField(
+        required=False,
+        label="Product 4",
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Product they may want",
+        })
+    )
+
+    product_5 = forms.CharField(
+        required=False,
+        label="Product 5",
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Product they may want",
+        })
+    )
+
+    product_6 = forms.CharField(
+        required=False,
+        label="Product 6",
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Product they may want",
+        })
+    )
+
+    product_7 = forms.CharField(
+        required=False,
+        label="Product 7",
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Product they may want",
+        })
+    )
+
+    product_8 = forms.CharField(
+        required=False,
+        label="Product 8",
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Product they may want",
+        })
+    )
+
+    product_9 = forms.CharField(
+        required=False,
+        label="Product 9",
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Product they may want",
+        })
+    )
+
+    product_10 = forms.CharField(
+        required=False,
+        label="Product 10",
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Product they may want",
+        })
+    )
+
+    class Meta:
         model = Lead
 
         fields = [
-
             "status",
             "priority",
-
             "assigned_to",
 
             "business_name",
@@ -1512,6 +1594,9 @@ class LeadForm(forms.ModelForm):
             "province",
             "postal_code",
             "country",
+
+            "region",
+            "territory",
             "area",
 
             "estimated_weekly_spend",
@@ -1522,8 +1607,6 @@ class LeadForm(forms.ModelForm):
             "advert",
             "medium",
 
-            "interested_in",
-
             "last_contact_at",
             "next_follow_up_at",
 
@@ -1531,7 +1614,6 @@ class LeadForm(forms.ModelForm):
         ]
 
         widgets = {
-
             "last_contact_at": forms.DateTimeInput(
                 attrs={"type": "datetime-local"}
             ),
@@ -1539,5 +1621,4 @@ class LeadForm(forms.ModelForm):
             "next_follow_up_at": forms.DateTimeInput(
                 attrs={"type": "datetime-local"}
             ),
-
         }

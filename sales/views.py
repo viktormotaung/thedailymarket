@@ -19,6 +19,7 @@ from django.forms import ModelForm, inlineformset_factory, widgets
 from django.db.models import (
     Sum, Count, F, Q, Value, DecimalField, IntegerField, ExpressionWrapper
 )
+
 from communications.services.whatsapp import send_invoice_whatsapp
 from communications.services.smsportal import send_sms
 from django.core.mail import EmailMultiAlternatives
@@ -40,7 +41,7 @@ from invoices.forms import MonthlyTargetForm
 from django.db.models import Q
 from datetime import date
 import calendar
-
+from clients.models import Client, Region, Territory, Area
 from profiles.models import SalesRepProfile
 from invoices.models import CommissionEntry, Invoice, MonthlyTarget
 
@@ -978,7 +979,7 @@ def prospect_edit(request, pk: int):
 
     Uses ProspectForm so:
     - operating hours save correctly
-    - categories save correctly
+    - product interests save correctly
     - delivery slots save correctly
 
     Does NOT change:
@@ -991,7 +992,7 @@ def prospect_edit(request, pk: int):
             "owner",
             "client",
         ).prefetch_related(
-            "categories",
+            "product_interests",
         ),
         pk=pk,
     )
@@ -1284,10 +1285,17 @@ def prospect_reopen(request, pk: int):
 # -------------------------------------------------------------------
 @login_required
 def clients(request):
-    qs = (Client.objects
-          .select_related("account_manager")
-          .prefetch_related("categories")
-          .order_by("name"))
+    qs = (
+        Client.objects
+        .select_related(
+            "account_manager",
+            "region",
+            "territory",
+            "area",
+        )
+        .prefetch_related("product_interests")
+        .order_by("name")
+    )
 
     # Dropdown data (pulled from model choices so it stays in sync)
     client_types = Client.CLIENT_TYPES
@@ -1295,7 +1303,18 @@ def clients(request):
     account_types = Client.ACCOUNT_TYPES
     credit_statuses = Client.CREDIT_STATUS
     statuses = Client.STATUS
-    filter_categories = Category.objects.filter(is_active=True).order_by("name")
+
+    regions = Region.objects.filter(
+        status="ACTIVE"
+    ).order_by("name")
+
+    territories = Territory.objects.filter(
+        status="ACTIVE"
+    ).select_related("region").order_by("name")
+
+    areas = Area.objects.filter(
+        status="ACTIVE"
+    ).select_related("territory").order_by("name")
 
     # GET params
     search = (request.GET.get("search") or "").strip()
@@ -1304,7 +1323,10 @@ def clients(request):
     account_type = request.GET.get("account_type") or ""
     credit_status = request.GET.get("credit_status") or ""
     status = request.GET.get("status") or ""
-    category_id = request.GET.get("category") or ""
+    region_id = request.GET.get("region") or ""
+    territory_id = request.GET.get("territory") or ""
+    area_id = request.GET.get("area") or ""
+
 
     # Search
     if search:
@@ -1330,14 +1352,22 @@ def clients(request):
         qs = qs.filter(credit_status=credit_status)
     if status:
         qs = qs.filter(status=status)
-    if category_id.isdigit():
-        qs = qs.filter(categories__id=int(category_id))
+    if region_id.isdigit():
+        qs = qs.filter(region_id=int(region_id))
+
+    if territory_id.isdigit():
+        qs = qs.filter(territory_id=int(territory_id))
+
+    if area_id.isdigit():
+        qs = qs.filter(area_id=int(area_id))
 
     clients = qs.distinct()
 
     return render(request, "clients/clients.html", {
         "clients": clients,
-        "filter_categories": filter_categories,
+        "regions": regions,
+        "territories": territories,
+        "areas": areas,
         "client_types": client_types,
         "provinces": provinces,
         "account_types": account_types,
@@ -1353,8 +1383,14 @@ def view_client(request, pk):
     # ---------------------------
     client = get_object_or_404(
         Client.objects
-        .select_related("account_manager", "funder")
-        .prefetch_related("categories"),
+        .select_related(
+            "account_manager",
+            "funder",
+            "region",
+            "territory",
+            "area",
+        )
+        .prefetch_related("product_interests"),
         pk=pk
     )
 
@@ -1498,8 +1534,14 @@ def view_client(request, pk):
 def edit_client(request, pk):
     # Fetch client with related objects efficiently
     client = get_object_or_404(
-        Client.objects.select_related("account_manager")
-                      .prefetch_related("categories"),
+        Client.objects
+        .select_related(
+            "account_manager",
+            "region",
+            "territory",
+            "area",
+        )
+        .prefetch_related("product_interests"),
         pk=pk
     )
 
@@ -2248,8 +2290,11 @@ class ClientForm(forms.ModelForm):
             "postal_code", "country",
             # Compliance
             "vat_number", "registration_identifier",
-            # Categorisation & Account
-            "categories", "status", "account_type", "credit_status",
+            # Territory
+            "region", "territory", "area",
+
+            # Account
+            "status", "account_type", "credit_status",
             # Spend & Notes
             "estimated_weekly_spend", "notes",
         ]
@@ -2280,13 +2325,14 @@ class ClientForm(forms.ModelForm):
             "credit_status": forms.Select(attrs={"class": "form-select"}),
             "price_type": forms.Select(attrs={"class": "form-select"}),  # <-- added
             # many-to-many
-            "categories": forms.SelectMultiple(attrs={"class": "form-select", "size": "6"}),
+            "region": forms.Select(attrs={"class": "form-select"}),
+            "territory": forms.Select(attrs={"class": "form-select"}),
+            "area": forms.Select(attrs={"class": "form-select"}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Only active categories in a nice order
-        self.fields["categories"].queryset = Category.objects.filter(is_active=True).order_by("name")
+        
 
         # Placeholders
         self.fields["email"].widget.attrs.setdefault("placeholder", "name@example.com")

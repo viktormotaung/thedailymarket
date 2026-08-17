@@ -703,6 +703,132 @@ class ProductPricing(models.Model):
             if not self.skip_variant_sync:
                 self.product.sync_variant_prices(force=True)
 
+
+
+class ProductPriceHistory(models.Model):
+    """
+    Records actual pricing events for a product/supplier combination.
+
+    A history record is created only when:
+    - the product is newly introduced, or
+    - one or more prices actually change.
+
+    Re-importing the same price does not create a new record.
+    """
+
+    CHANGE_TYPE_CHOICES = [
+        ("INITIAL", "Initial Price"),
+        ("INCREASE", "Price Increase"),
+        ("DECREASE", "Price Decrease"),
+        ("MIXED", "Mixed Price Change"),
+    ]
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="price_history",
+    )
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="product_price_history",
+    )
+
+    change_type = models.CharField(
+        max_length=10,
+        choices=CHANGE_TYPE_CHOICES,
+    )
+
+    # Supplier cost
+    previous_cost_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    new_cost_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    cost_change = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    # Wholesale selling price
+    previous_wholesale_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    new_wholesale_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    wholesale_change = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    # Retail selling price
+    previous_retail_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    new_retail_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    retail_change = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    changed_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+    )
+
+    class Meta:
+        ordering = ["-changed_at"]
+        indexes = [
+            models.Index(fields=["product", "-changed_at"]),
+            models.Index(fields=["supplier", "-changed_at"]),
+            models.Index(fields=["change_type"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.product.product_no} · "
+            f"{self.product.name} · "
+            f"{self.get_change_type_display()} · "
+            f"{self.changed_at:%Y-%m-%d}"
+        )
+
+
+    
 # ---------- ProductVariant -----------------------------------------------------
 class ProductVariant(models.Model):
     """

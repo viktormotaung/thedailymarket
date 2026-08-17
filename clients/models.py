@@ -14,11 +14,6 @@ from django.utils.crypto import get_random_string
 from django.core.exceptions import ValidationError
 
 
-
-
-from products.models import Category
-
-
 # clients/choices.py
 GAUTENG_CITY_CHOICES = [
     ("Johannesburg", "Johannesburg"),
@@ -75,7 +70,78 @@ GAUTENG_CITY_CHOICES = [
 ]
 
 
+class Region(models.Model):
+    name = models.CharField(max_length=120)
+    code = models.CharField(max_length=20, unique=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("ACTIVE", "Active"),
+            ("INACTIVE", "Inactive"),
+        ],
+        default="ACTIVE",
+    )
 
+    def __str__(self):
+        return self.name
+
+class Territory(models.Model):
+    region = models.ForeignKey(
+        Region,
+        on_delete=models.PROTECT,
+        related_name="territories",
+    )
+
+    name = models.CharField(max_length=150)
+    code = models.CharField(max_length=30)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("ACTIVE", "Active"),
+            ("INACTIVE", "Inactive"),
+        ],
+        default="ACTIVE",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["region", "code"],
+                name="unique_territory_code_per_region",
+            )
+        ]
+
+    def __str__(self):
+        return self.name
+
+class Area(models.Model):
+    territory = models.ForeignKey(
+        Territory,
+        on_delete=models.PROTECT,
+        related_name="areas",
+    )
+
+    name = models.CharField(max_length=150)
+    code = models.CharField(max_length=40)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("ACTIVE", "Active"),
+            ("INACTIVE", "Inactive"),
+        ],
+        default="ACTIVE",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["territory", "code"],
+                name="unique_area_code_per_territory",
+            )
+        ]
+
+    def __str__(self):
+        return self.name
 
 class Client(models.Model):
     # ---- Ownership ----
@@ -102,7 +168,7 @@ class Client(models.Model):
         ("Wholesale", "Wholesale"),
     ]
 
-    # Segments aligned with sales categories
+    
     CLIENT_TYPES = [
         ("RESTAURANT", "Restaurant"),
         ("CATERER", "Caterer"),
@@ -194,10 +260,28 @@ class Client(models.Model):
         help_text="Company registration number or SA ID number.",
     )
 
-    area = models.CharField(
-        max_length=20,
-        choices=AREA_CHOICES,
-        help_text="Territory assignment for this client."
+    region = models.ForeignKey(
+        "Region",
+        on_delete=models.PROTECT,
+        related_name="clients",
+        null=True,
+        blank=True,
+    )
+
+    territory = models.ForeignKey(
+        "Territory",
+        on_delete=models.PROTECT,
+        related_name="clients",
+        null=True,
+        blank=True,
+    )
+
+    area = models.ForeignKey(
+        "Area",
+        on_delete=models.PROTECT,
+        related_name="clients",
+        null=True,
+        blank=True,
     )
 
 
@@ -309,13 +393,7 @@ class Client(models.Model):
     vat_number = models.CharField(max_length=80, blank=True)
     
 
-    # ---- Categorisation ----
-    categories = models.ManyToManyField(
-        Category,
-        blank=True,
-        related_name="clients",
-        help_text="What product categories this client typically buys.",
-    )
+    
 
     # ---- Status ----
     STATUS = [
@@ -795,10 +873,28 @@ class Prospect(models.Model):
     postal_code = models.CharField(max_length=20, blank=True)
     country = models.CharField(max_length=120, default="South Africa")
 
-    area = models.CharField(
-        max_length=20,
-        choices=AREA_CHOICES,
-        help_text="Territory assignment for this prospect."
+    region = models.ForeignKey(
+        "Region",
+        on_delete=models.PROTECT,
+        related_name="prospects",
+        null=True,
+        blank=True,
+    )
+
+    territory = models.ForeignKey(
+        "Territory",
+        on_delete=models.PROTECT,
+        related_name="prospects",
+        null=True,
+        blank=True,
+    )
+
+    area = models.ForeignKey(
+        "Area",
+        on_delete=models.PROTECT,
+        related_name="prospects",
+        null=True,
+        blank=True,
     )
 
     lat = models.DecimalField(
@@ -833,15 +929,7 @@ class Prospect(models.Model):
         blank=True,
     )
 
-    # -------------------------------------------------
-    # Product interest (mirrors Client.categories)
-    # -------------------------------------------------
-    categories = models.ManyToManyField(
-        Category,
-        blank=True,
-        related_name="prospects",
-        help_text="What this prospect is likely to buy.",
-    )
+    
 
     # -------------------------------------------------
     # Value & forecasting
@@ -1045,6 +1133,8 @@ class Prospect(models.Model):
             preferred_delivery_slot_2=self.preferred_delivery_slot_2,
             preferred_delivery_slot_3=self.preferred_delivery_slot_3,
 
+            region=self.region,
+            territory=self.territory,
             area=self.area,
 
             vat_number=self.vat_number,
@@ -1059,7 +1149,12 @@ class Prospect(models.Model):
             price_type="Wholesale",
         )
 
-        client.categories.set(self.categories.all())
+        for product_interest in self.product_interests.all():
+            if product_interest.product_name.strip():
+                ClientProductInterest.objects.create(
+                    client=client,
+                    product_name=product_interest.product_name.strip(),
+                )
 
         
         Prospect.objects.filter(pk=self.pk).update(client=client)
@@ -1380,23 +1475,30 @@ class Lead(models.Model):
         default="South Africa",
     )
 
-    area = models.CharField(
-        max_length=20,
-        choices=AREA_CHOICES,
-        blank=True,
-    )
-
-    
-
-    # ==========================================================
-    # PRODUCT INTEREST
-    # ==========================================================
-
-    interested_in = models.ManyToManyField(
-        Category,
-        blank=True,
+    region = models.ForeignKey(
+        "Region",
+        on_delete=models.PROTECT,
         related_name="leads",
+        null=True,
+        blank=True,
     )
+
+    territory = models.ForeignKey(
+        "Territory",
+        on_delete=models.PROTECT,
+        related_name="leads",
+        null=True,
+        blank=True,
+    )
+
+    area = models.ForeignKey(
+        "Area",
+        on_delete=models.PROTECT,
+        related_name="leads",
+        null=True,
+        blank=True,
+    )
+    
 
     # ==========================================================
     # SALES ACTIVITY
@@ -1552,6 +1654,8 @@ class Lead(models.Model):
             postal_code=self.postal_code,
             country=self.country,
 
+            region=self.region,
+            territory=self.territory,
             area=self.area,
 
             estimated_weekly_spend=self.estimated_weekly_spend,
@@ -1564,7 +1668,15 @@ class Lead(models.Model):
             notes=self.notes,
         )
 
-        prospect.categories.set(self.interested_in.all())
+
+        for product_interest in self.product_interests.all():
+            if product_interest.product_name.strip():
+                ProspectProductInterest.objects.create(
+                    prospect=prospect,
+                    product_name=product_interest.product_name.strip(),
+                )
+
+        
 
         self.prospect = prospect
         self.status = "CONVERTED"
@@ -1659,6 +1771,61 @@ class Lead(models.Model):
 
             user=user,
         )
+
+class LeadProductInterest(models.Model):
+    lead = models.ForeignKey(
+        Lead,
+        on_delete=models.CASCADE,
+        related_name="product_interests",
+    )
+
+    product_name = models.CharField(
+        max_length=200,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.product_name
+
+class ProspectProductInterest(models.Model):
+    prospect = models.ForeignKey(
+        Prospect,
+        on_delete=models.CASCADE,
+        related_name="product_interests",
+    )
+
+    product_name = models.CharField(
+        max_length=200,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.product_name
+
+
+class ClientProductInterest(models.Model):
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name="product_interests",
+    )
+
+    product_name = models.CharField(
+        max_length=200,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.product_name
 
 
 class LeadActivity(models.Model):
