@@ -855,7 +855,7 @@
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
       <div>
         <h2 class="m-0">
-          {{ product.sku }} · {{ product.name }}
+          {{ product.product_no }} · {{ product.name }}
           <span class="pill align-middle ms-1">{{ product.get_uom_display }}</span>
         </h2>
         <div class="meta mt-1">
@@ -893,7 +893,7 @@
             <div class="card-header bg-white"><strong>Product Info</strong></div>
             <div class="card-body">
                 <dl class="dl-grid m-0">
-                    <dt>SKU</dt><dd>{{ product.sku }}</dd>
+                    <dt>Product No</dt><dd>{{ product.product_no }}</dd>
                     <dt>Name</dt><dd>{{ product.name }}</dd>
                     <dt>Category</dt><dd>{{ product.category.name }}</dd>
                     <dt>Unit of Measure</dt><dd>{{ product.get_uom_display }}</dd>
@@ -1064,7 +1064,7 @@
               <thead>
                 <tr>
                   <th>Variant</th>
-                  <th>SKU</th>
+                  <td>{{ v.sku }}</td>
                   <th>Pack size</th>
                   <th>UoM</th>
                   <th>Scales?</th>

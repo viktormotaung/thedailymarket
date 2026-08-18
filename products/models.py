@@ -135,6 +135,13 @@ class Category(models.Model):
     slug = models.SlugField(max_length=140, unique=True)
     description = models.TextField(blank=True)
 
+    category_no = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Business category number, e.g. 009."
+    )
+
     # 👇 NEW
     parent = models.ForeignKey(
         "self",
@@ -157,7 +164,16 @@ class Category(models.Model):
 
     class Meta:
         ordering = ["parent__name", "sort_order", "name"]
+
         unique_together = ("parent", "name")
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["parent", "category_no"],
+                name="unique_category_number_per_parent",
+            ),
+        ]
+
         indexes = [
             models.Index(fields=["slug"]),
             models.Index(fields=["is_active"]),
@@ -185,6 +201,8 @@ class Category(models.Model):
         if self.parent:
             return f"{self.parent.name} → {self.name}"
         return self.name
+
+    
 
 
 # ---------- Product ------------------------------------------------------------
@@ -471,6 +489,7 @@ class ProductPricing(models.Model):
     MARGIN_CHOICES = [
         (Decimal("0.00"), "0%"),
         (Decimal("5.00"), "5%"),
+        (Decimal("7.50"), "7.50%"),
         (Decimal("10.00"), "10%"),
         (Decimal("12.50"), "12.50%"),
         (Decimal("15.00"), "15%"),

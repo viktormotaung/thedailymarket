@@ -159,23 +159,72 @@ def import_products_from_excel(file, db="default"):
 
                 cost_price = _dec(row[COL["cost_price"]])
 
-                wholesale_margin = str(int(float(row[COL["wholesale_margin"]] or 0)))
-                retail_margin = str(int(float(row[COL["retail_margin"]] or 0)))
+                wholesale_margin = Decimal(
+                    str(row[COL["wholesale_margin"]] or "0")
+                ).quantize(Decimal("0.01"))
+
+                retail_margin = Decimal(
+                    str(row[COL["retail_margin"]] or "0")
+                ).quantize(Decimal("0.01"))
 
                 is_active = _is_active(row[COL["is_active"]])
 
                 # -----------------------------
-                # CATEGORY
+                # CATEGORY / SUBCATEGORY
+                # -----------------------------
+
+                # Product ID must be:
+                # 009-009-001
+                #      │   │   │
+                #      │   │   └── Product number
+                #      │   └────── Subcategory number
+                #      └────────── Category number
+
+                product_no = str(row[COL["product_no"]]).strip()
+
+                parts = product_no.split("-")
+
+                if len(parts) != 3 or not all(part.isdigit() for part in parts):
+                    raise ValidationError(
+                        f"Invalid Product No. '{product_no}'. "
+                        "Expected format 009-009-001."
+                    )
+
+                category_no = int(parts[0])
+                subcategory_no = int(parts[1])
+                product_sequence = int(parts[2])
+
+                # -----------------------------
+                # TOP-LEVEL CATEGORY
                 # -----------------------------
                 parent_cat, _ = Category.objects.using(db).get_or_create(
                     name=category_name,
                     parent=None,
+                    defaults={
+                        "category_no": category_no,
+                    },
                 )
 
+                # Make sure an existing category has the correct number
+                if parent_cat.category_no != category_no:
+                    parent_cat.category_no = category_no
+                    parent_cat.save(using=db, update_fields=["category_no"])
+
+                # -----------------------------
+                # SUBCATEGORY
+                # -----------------------------
                 sub_cat, _ = Category.objects.using(db).get_or_create(
                     name=subcategory_name,
                     parent=parent_cat,
+                    defaults={
+                        "category_no": subcategory_no,
+                    },
                 )
+
+                # Make sure an existing subcategory has the correct number
+                if sub_cat.category_no != subcategory_no:
+                    sub_cat.category_no = subcategory_no
+                    sub_cat.save(using=db, update_fields=["category_no"])
 
                 # -----------------------------
                 # PRODUCT

@@ -5,6 +5,9 @@ from django.utils.html import format_html
 
 from .models import (
     Client,
+    Region,
+    Territory,
+    Area,
     ClientCompliance,
     ClientComplianceDocument,
     Prospect,
@@ -14,6 +17,92 @@ from .models import (
     Lead,
     LeadActivity,
 )
+
+
+# ============================================================
+# GEOGRAPHY
+# ============================================================
+
+@admin.register(Region)
+class RegionAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "code",
+        "status",
+    )
+
+    list_filter = (
+        "status",
+    )
+
+    search_fields = (
+        "name",
+        "code",
+    )
+
+    ordering = (
+        "name",
+    )
+
+
+@admin.register(Territory)
+class TerritoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "code",
+        "region",
+        "status",
+    )
+
+    list_filter = (
+        "region",
+        "status",
+    )
+
+    search_fields = (
+        "name",
+        "code",
+        "region__name",
+    )
+
+    ordering = (
+        "region__name",
+        "name",
+    )
+
+
+@admin.register(Area)
+class AreaAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "code",
+        "territory",
+        "status",
+    )
+
+    list_filter = (
+        "territory__region",
+        "territory",
+        "status",
+    )
+
+    search_fields = (
+        "name",
+        "code",
+        "territory__name",
+        "territory__region__name",
+    )
+
+    ordering = (
+        "territory__region__name",
+        "territory__name",
+        "name",
+    )
+
+
+# ============================================================
+# CLIENT
+# ============================================================
 
 
 # ============================================================

@@ -1790,6 +1790,8 @@ class LeadProductInterest(models.Model):
     def __str__(self):
         return self.product_name
 
+
+
 class ProspectProductInterest(models.Model):
     prospect = models.ForeignKey(
         Prospect,

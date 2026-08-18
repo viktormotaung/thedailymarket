@@ -332,6 +332,25 @@ class SalesRepProfile(models.Model):
         help_text="Sales operator this sales rep belongs to."
     )
 
+    region = models.ForeignKey(
+        "clients.Region",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="sales_profiles",
+        help_text="Region assigned to this sales user."
+    )
+
+    territory = models.ForeignKey(
+        "clients.Territory",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="sales_profiles",
+        help_text="Territory assigned to this sales user."
+    )
+    
+
     base_commission_pct = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -384,6 +403,8 @@ class SalesRepProfile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_seen_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    
 
     # ---- helpers for the secret code ----
     def set_auth_code(self, raw_code: str, *, save: bool = True) -> None:

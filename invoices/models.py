@@ -713,13 +713,15 @@ class CommissionEntry(models.Model):
     - cost_total: total cost of products on invoice (snapshot).
     - rep_rate / rep_amount: commission for sales rep.
     - supervisor_rate / supervisor_amount: commission for supervisor (optional).
-    - is_new_business: whether this commission qualifies for the above-target new-business bonus.
+    - is_new_business: whether this is the client's first fully paid invoice for this rep.
     """
 
     COMMISSION_RATE_CHOICES = [
         (Decimal("1.00"), "1%"),
         (Decimal("1.50"), "1.5%"),
+        (Decimal("1.75"), "1.75%"),
         (Decimal("2.00"), "2%"),
+        (Decimal("2.25"), "2.25%"),
         (Decimal("2.50"), "2.5%"),
         (Decimal("3.00"), "3%"),
         (Decimal("3.50"), "3.5%"),
@@ -774,9 +776,10 @@ class CommissionEntry(models.Model):
         max_digits=5,
         decimal_places=2,
         choices=COMMISSION_RATE_CHOICES,
-        default=Decimal("2.50"),  # default 2.5% (new business)
+        default=Decimal("2.25"),  # default 2.25% (new business)
         help_text="Commission percent for sales rep (on cost).",
     )
+
     rep_amount = models.DecimalField(
         max_digits=14,
         decimal_places=2,
@@ -788,9 +791,10 @@ class CommissionEntry(models.Model):
         max_digits=5,
         decimal_places=2,
         choices=COMMISSION_RATE_CHOICES,
-        default=Decimal("1.00"),  # default 1% for supervisor
+        default=Decimal("1.75"),  # default 1.75% (new business)
         help_text="Commission percent for supervisor (on cost).",
     )
+
     supervisor_amount = models.DecimalField(
         max_digits=14,
         decimal_places=2,
@@ -990,102 +994,55 @@ def weeks_in_month(year: int, month: int) -> Decimal:
 
 def invoice_qualifies_for_new_business_bonus(invoice: Invoice, rep) -> bool:
     """
-    A commission entry qualifies as new-business bonus only if:
+    A commission entry qualifies as new business when this is the
+    client's first fully paid, commission-generating invoice for this rep.
 
-    1. The invoice has a paid_date.
-    2. A rep exists.
-    3. This is the client's first commission-generating invoice
-       for this rep in this month.
-    4. The rep's unique monthly client count is ABOVE their client target.
+    Rules:
+    1. The invoice must have a paid_date.
+    2. A rep must exist.
+    3. The client must not have any previous commission-generating
+       invoice for this same rep.
+    4. The month or target achievement does not affect whether the
+       invoice is new business.
 
-    Example:
-        client_target = 8
-
-        Client 1-8  -> is_new_business = False
-        Client 9+   -> is_new_business = True
+    First paid invoice = New Business.
+    All subsequent paid invoices = Repeat Business.
     """
 
     if not invoice.paid_date or not rep:
         return False
 
-    paid_day = invoice.paid_date
-    first_day = date(paid_day.year, paid_day.month, 1)
-    last_day = date(
-        paid_day.year,
-        paid_day.month,
-        monthrange(paid_day.year, paid_day.month)[1]
-    )
-
     client = invoice.client
 
     # --------------------------------------------------
-    # 1. Only count the client once per rep/month
+    # Check whether this client has previously generated
+    # a commission entry for this same rep.
+    #
+    # If a previous paid commission exists, this is
+    # repeat business.
     # --------------------------------------------------
-    prior_client_commission_exists = (
+    prior_commission_exists = (
         CommissionEntry.objects
         .filter(
             rep=rep,
             invoice__client=client,
-            invoice__paid_date__gte=first_day,
-            invoice__paid_date__lte=last_day,
         )
         .exclude(invoice=invoice)
-        .exists()
-    )
-
-    if prior_client_commission_exists:
-        return False
-
-    # --------------------------------------------------
-    # 2. Find this rep's monthly target allocation
-    # --------------------------------------------------
-    allocation = (
-        MonthlyTargetAllocation.objects
         .filter(
-            sales_rep=rep,
-            monthly_target__year=paid_day.year,
-            monthly_target__month=paid_day.strftime("%b").upper()[:3],
-            monthly_target__area=client.area,
-        )
-        .first()
-    )
-
-    if not allocation:
-        return False
-
-    # --------------------------------------------------
-    # 3. Count unique commission-generating clients
-    #    for the rep/month, including this invoice
-    # --------------------------------------------------
-    unique_client_count = (
-        CommissionEntry.objects
-        .filter(
-            rep=rep,
-            invoice__paid_date__gte=first_day,
-            invoice__paid_date__lte=last_day,
-            invoice__client__area=client.area,
-        )
-        .values("invoice__client_id")
-        .distinct()
-        .count()
-    )
-
-    # If this commission entry does not exist yet, include current client manually
-    current_client_already_counted = (
-        CommissionEntry.objects
-        .filter(
-            rep=rep,
-            invoice__client=client,
-            invoice__paid_date__gte=first_day,
-            invoice__paid_date__lte=last_day,
+            models.Q(invoice__paid_date__lt=invoice.paid_date)
+            |
+            models.Q(
+                invoice__paid_date=invoice.paid_date,
+                invoice_id__lt=invoice.id,
+            )
         )
         .exists()
     )
 
-    if not current_client_already_counted:
-        unique_client_count += 1
+    # No previous paid commission = first paid invoice
+    # = new business.
+    return not prior_commission_exists
 
-    return unique_client_count > allocation.client_target
 
 
 def compute_invoice_cost_excl(invoice: Invoice) -> Decimal:
@@ -1137,12 +1094,14 @@ def create_or_update_commission_entry_for_invoice(invoice: Invoice) -> Commissio
     """
     Create or update CommissionEntry for a fully paid invoice.
 
-    New logic:
-    - Rep is resolved from client.account_manager.
-    - Client only counts once per month once they have a commission-generating invoice.
-    - is_new_business=True only when rep has exceeded their monthly client target.
-    - New-business bonus rate = 5%.
-    - Normal recurring rate = 2.5%.
+        New logic:
+        - Rep is resolved from client.account_manager.
+        - The client's first fully paid invoice for that rep is new business.
+        - All subsequent fully paid invoices for that client are repeat business.
+        - New-business Rep rate = 2.25%.
+        - Repeat-business Rep rate = 1.50%.
+        - New-business Supervisor rate = 1.75%.
+        - Repeat-business Supervisor rate = 1.00%.
     """
 
     rep, supervisor = resolve_rep_and_supervisor_for_invoice(invoice)
@@ -1151,8 +1110,8 @@ def create_or_update_commission_entry_for_invoice(invoice: Invoice) -> Commissio
 
     is_new = invoice_qualifies_for_new_business_bonus(invoice, rep)
 
-    rep_rate_pct = Decimal("5.00") if is_new else Decimal("2.50")
-    supervisor_rate_pct = Decimal("1.00")
+    rep_rate_pct = Decimal("2.25") if is_new else Decimal("1.50")
+    supervisor_rate_pct = Decimal("1.75") if is_new else Decimal("1.00")
 
     ce, _ = CommissionEntry.objects.using(invoice._state.db).update_or_create(
         invoice=invoice,

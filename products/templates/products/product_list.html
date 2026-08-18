@@ -928,8 +928,8 @@
         <table class="table table-striped table-bordered mb-0">
           <thead>
             <tr>
-              <th>#</th>
-              <th>SKU</th>
+              
+              <th>Product No</th>
               <th>Product</th>
               <th>Special</th>
               <th>Category</th>
@@ -943,8 +943,8 @@
             {% for row in rows %}
               {% with p=row.product %}
               <tr onclick="window.location.href='{% url 'product-view' p.id %}'" style="cursor:pointer;">
-                <td>{{ forloop.counter }}</td>
-                <td>{{ p.sku }}</td>
+                
+                <td>{{ p.product_no }}</td>
                 <td>{{ p.name }}</td>
                 <td class="text-center">
                     {% if p.is_special %}

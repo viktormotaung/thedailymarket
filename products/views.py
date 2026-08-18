@@ -45,11 +45,11 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Image
 from django.conf import settings
 import os
-
+from datetime import timedelta
 
 
 # -----------------------------------------------------
@@ -167,11 +167,9 @@ def product_list(request):
 def download_price_list(request):
     subcategory_ids = request.GET.getlist("subcategories")
 
-    price_type = request.GET.get(
-        "price_type",
-        "wholesale"
-    ).lower()
-
+    # =====================================================
+    # PRODUCTS
+    # =====================================================
     qs = (
         Product.objects
         .select_related("category", "category__parent")
@@ -180,20 +178,49 @@ def download_price_list(request):
             category__parent__isnull=False,
             visible="YES",
         )
-        .order_by("product_no")
+        .order_by(
+            "category__parent__name",
+            "product_no",
+        )
     )
 
     if subcategory_ids:
         qs = qs.filter(category_id__in=subcategory_ids)
 
-    response = HttpResponse(content_type="application/pdf")
+    # =====================================================
+    # WEEKLY PRICE LIST PERIOD
+    # =====================================================
+    today = timezone.localdate()
 
-    # Force browser/phone download
-    response["Content-Type"] = "application/pdf"
-    response["Content-Disposition"] = (
-        f'attachment; filename="The_Daily_Market_{price_type.title()}_Price_List.pdf"'
+    week_number = today.isocalendar().week
+
+    week_start = today
+    week_end = today + timedelta(days=7)
+
+    week_label = (
+        f"WEEK {week_number} • "
+        f"{week_start.strftime('%d')} - "
+        f"{week_end.strftime('%d / %m / %Y')}"
     )
 
+    filename_dates = (
+        f"{week_start.strftime('%d')}-"
+        f"{week_end.strftime('%d_%m_%Y')}"
+    )
+
+    # =====================================================
+    # RESPONSE
+    # =====================================================
+    response = HttpResponse(content_type="application/pdf")
+
+    response["Content-Type"] = "application/pdf"
+    response["Content-Disposition"] = (
+        f'attachment; filename="The_Daily_Market_Wholesale_Price_List_{filename_dates}.pdf"'
+    )
+
+    # =====================================================
+    # DOCUMENT
+    # =====================================================
     doc = SimpleDocTemplate(
         response,
         pagesize=A4,
@@ -206,30 +233,144 @@ def download_price_list(request):
     styles = getSampleStyleSheet()
     elements = []
 
-    # =========================
+    # =====================================================
+    # BRAND COLOURS
+    # =====================================================
+    TDM_GREEN = colors.HexColor("#0b5c39")
+    TDM_LIGHT_GREEN = colors.HexColor("#eaf3ee")
+    DARK_TEXT = colors.HexColor("#222222")
+    LIGHT_GREY = colors.HexColor("#f3f3f3")
+    BORDER_GREY = colors.HexColor("#cfcfcf")
+
+    # =====================================================
+    # CUSTOM STYLES
+    # =====================================================
+    company_name_style = ParagraphStyle(
+        "CompanyName",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=17,
+        leading=19,
+        textColor=TDM_GREEN,
+        spaceAfter=2,
+    )
+
+    company_subtitle_style = ParagraphStyle(
+        "CompanySubtitle",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=11,
+        textColor=DARK_TEXT,
+    )
+
+    tagline_style = ParagraphStyle(
+        "Tagline",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=8.5,
+        leading=10,
+        textColor=TDM_GREEN,
+        alignment=1,
+    )
+
+    contact_style = ParagraphStyle(
+        "Contact",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=8,
+        leading=10,
+        textColor=DARK_TEXT,
+    )
+
+    contact_heading_style = ParagraphStyle(
+        "ContactHeading",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=8.5,
+        leading=10,
+        textColor=TDM_GREEN,
+    )
+
+    title_style = ParagraphStyle(
+        "PriceListTitle",
+        parent=styles["Heading1"],
+        fontName="Helvetica-Bold",
+        fontSize=18,
+        leading=21,
+        textColor=colors.white,
+        alignment=1,
+        spaceAfter=0,
+    )
+
+    subtitle_style = ParagraphStyle(
+        "PriceListSubtitle",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=8.5,
+        leading=10,
+        textColor=colors.white,
+        alignment=1,
+    )
+
+    updated_style = ParagraphStyle(
+        "Updated",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=7.5,
+        leading=9,
+        textColor=colors.white,
+        alignment=1,
+    )
+
+    # =====================================================
     # FOOTER
-    # =========================
-    generated_at = timezone.localtime().strftime("%d %b %Y %H:%M")
+    # =====================================================
+    generated_at = timezone.localtime().strftime("%d %B %Y %H:%M")
+   
 
     def add_footer(canvas, doc):
         canvas.saveState()
 
-        footer_text = (
-            f"Generated on {generated_at} | Page {canvas.getPageNumber()}"
+        # =================================================
+        # BUSINESS ADDRESS
+        # =================================================
+        address_text = (
+            "47A Russel Road, Steynsvlei, Muldersdrift"
         )
 
-        canvas.setFont("Helvetica", 8)
+        canvas.setFont("Helvetica-Bold", 8.5)
+        canvas.setFillColor(TDM_GREEN)
+
         canvas.drawCentredString(
             A4[0] / 2,
-            0.7 * cm,
+            1.05 * cm,
+            address_text
+        )
+
+        # =================================================
+        # FOOTER INFORMATION
+        # =================================================
+        footer_text = (
+            f"The Daily Market | Wholesale Price List | "
+            f"Generated {generated_at} | Page {canvas.getPageNumber()}"
+        )
+
+        canvas.setFont("Helvetica", 7.5)
+        canvas.setFillColor(colors.grey)
+
+        canvas.drawCentredString(
+            A4[0] / 2,
+            0.55 * cm,
             footer_text
         )
 
         canvas.restoreState()
 
-    # =========================
+
+    # =====================================================
     # LOGO
-    # =========================
+    # =====================================================
     logo_path = os.path.join(
         settings.BASE_DIR,
         "static",
@@ -237,68 +378,279 @@ def download_price_list(request):
         "seshibo-logo.png"
     )
 
+    logo = None
+
     if os.path.exists(logo_path):
         logo = Image(
             logo_path,
-            width=4 * cm,
-            height=4 * cm
+            width=3.2 * cm,
+            height=3.2 * cm,
         )
-        elements.append(logo)
 
-    elements.append(Spacer(1, 6))
-
-    # =========================
-    # HEADER
-    # =========================
-    elements.append(
+    # =====================================================
+    # COMPANY INFORMATION
+    # =====================================================
+    company_info = [
+        Paragraph(
+            "THE DAILY MARKET",
+            company_name_style
+        ),
+        Paragraph(
+            "Wholesale Food Supply",
+            company_subtitle_style
+        ),
+        Spacer(1, 4),
+        Paragraph(
+            "Quality you can count on.",
+            contact_style
+        ),
+        Spacer(1, 4),
         Paragraph(
             "Reg: 2024/232233/07",
-            styles["Normal"]
-        )
+            contact_style
+        ),
+    ]
+
+    contact_info = [
+        Paragraph(
+            "CONTACT & ORDERS",
+            contact_heading_style
+        ),
+        Spacer(1, 2),
+        Paragraph(
+            "<b>Tel:</b> 087 265 5488",
+            contact_style
+        ),
+        Paragraph(
+            "<b>WhatsApp Orders:</b> 064 458 7575",
+            contact_style
+        ),
+        Paragraph(
+            "<b>Email:</b> sales@thedailymarket.co.za",
+            contact_style
+        ),
+        Paragraph(
+            "<b>Web:</b> www.thedailymarket.co.za",
+            contact_style
+        ),
+    ]
+
+    # =====================================================
+    # TOP HEADER
+    # =====================================================
+    header_data = [
+        [
+            logo if logo else "",
+            company_info,
+            contact_info,
+        ]
+    ]
+
+    header_table = Table(
+        header_data,
+        colWidths=[
+            4 * cm,
+            8 * cm,
+            7 * cm,
+        ],
     )
 
-    elements.append(
-        Paragraph(
-            "Whatsapp Orders: 064 458 7575",
-            styles["Normal"]
-        )
+    header_table.setStyle(
+        TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+
+            ("ALIGN", (0, 0), (0, 0), "CENTER"),
+            ("ALIGN", (1, 0), (1, 0), "LEFT"),
+            ("ALIGN", (2, 0), (2, 0), "LEFT"),
+        ])
     )
 
-    elements.append(
-        Paragraph(
-            "info@thedailymarket.co.za / www.thedailymarket.co.za",
-            styles["Normal"]
-        )
+    elements.append(header_table)
+
+    elements.append(Spacer(1, 5))
+
+    # =====================================================
+    # BRAND STATEMENT
+    # =====================================================
+    statement_table = Table(
+        [
+            [
+                Paragraph(
+                    "SUPPLYING THE PRODUCTS FOOD BUSINESSES NEED TO KEEP TRADING",
+                    tagline_style
+                )
+            ]
+        ],
+        colWidths=[19 * cm],
     )
+
+    statement_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), TDM_LIGHT_GREEN),
+
+            ("BOX", (0, 0), (-1, -1), 0.6, TDM_GREEN),
+
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ])
+    )
+
+    elements.append(statement_table)
+
+    elements.append(Spacer(1, 8))
+
+    # =====================================================
+    # PRICE LIST TITLE
+    # =====================================================
+    title_table = Table(
+        [
+            [
+                Paragraph(
+                    "WHOLESALE PRODUCT PRICE LIST",
+                    title_style
+                )
+            ],
+            [
+                Paragraph(
+                    "Quality products for the businesses that keep Gauteng fed.",
+                    subtitle_style
+                )
+            ],
+            [
+                Paragraph(
+                    week_label,
+                    updated_style
+                )
+
+                
+            ],
+        ],
+        colWidths=[19 * cm],
+    )
+
+    title_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), TDM_GREEN),
+
+            ("LEFTPADDING", (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+
+            ("TOPPADDING", (0, 0), (-1, 0), 7),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 2),
+
+            ("TOPPADDING", (0, 1), (-1, 1), 1),
+            ("BOTTOMPADDING", (0, 1), (-1, 1), 3),
+
+            ("TOPPADDING", (0, 2), (-1, 2), 2),
+            ("BOTTOMPADDING", (0, 2), (-1, 2), 7),
+
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ])
+    )
+
+    elements.append(title_table)
 
     elements.append(Spacer(1, 10))
 
-    elements.append(
-        Paragraph(
-            f"<b>{price_type.title()} Product Price List</b>",
-            styles["Heading2"]
-        )
-    )
+    # =====================================================
+    # PRODUCT TABLES BY CATEGORY
+    # =====================================================
 
-    elements.append(Spacer(1, 12))
-
-    # =========================
-    # TABLE DATA
-    # =========================
-    data = [["Category", "Subcategory", "Product", "Price (Incl VAT)"]]
+    # Group products by their top-level category
+    category_groups = {}
 
     for product in qs:
-        if price_type == "retail":
+        category_name = (
+            product.category.parent.name
+            if product.category
+            and product.category.parent
+            else "Other"
+        )
 
-            prices = [
-                row.retail_price_inc
-                for row in product.pricing_rows.all()
-                if row.is_active
-                and row.retail_price_inc is not None
+        if category_name not in category_groups:
+            category_groups[category_name] = []
+
+        category_groups[category_name].append(product)
+
+
+    # =====================================================
+    # CATEGORY SECTION STYLES
+    # =====================================================
+
+    category_title_style = ParagraphStyle(
+        "CategoryTitle",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=11,
+        leading=13,
+        textColor=colors.white,
+        alignment=1,
+    )
+
+
+    # =====================================================
+    # BUILD EACH CATEGORY SECTION
+    # =====================================================
+
+    for category_name, products in category_groups.items():
+
+        # -------------------------------------------------
+        # CATEGORY SECTION HEADER
+        # -------------------------------------------------
+        category_header = Table(
+            [
+                [
+                    Paragraph(
+                        category_name.upper(),
+                        category_title_style
+                    )
+                ]
+            ],
+            colWidths=[19 * cm],
+        )
+
+        category_header.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), TDM_GREEN),
+
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ])
+        )
+
+        elements.append(category_header)
+
+        elements.append(Spacer(1, 3))
+
+        # -------------------------------------------------
+        # TABLE DATA
+        # -------------------------------------------------
+        data = [
+            [
+                "Subcategory",
+                "Product",
+                "Price (Incl VAT)",
             ]
+        ]
 
-        else:
+        for product in products:
 
+            # =============================================
+            # WHOLESALE ONLY
+            # =============================================
             prices = [
                 row.wholesale_price_inc
                 for row in product.pricing_rows.all()
@@ -306,55 +658,139 @@ def download_price_list(request):
                 and row.wholesale_price_inc is not None
             ]
 
-        price = min(prices) if prices else None
+            price = min(prices) if prices else None
 
-        data.append([
-            product.category.parent.name
-            if product.category and product.category.parent else "—",
+            data.append([
+                (
+                    product.category.name
+                    if product.category
+                    else "—"
+                ),
 
-            product.category.name
-            if product.category else "—",
+                product.name,
 
-            product.name,
+                (
+                    f"R{price:.2f}"
+                    if price is not None
+                    else "—"
+                ),
+            ])
 
-            f"R{price:.2f}"
-            if price is not None else "—",
-        ])
+        # -------------------------------------------------
+        # TABLE
+        # -------------------------------------------------
+        table = Table(
+            data,
+            colWidths=[
+                4 * cm,
+                10 * cm,
+                5 * cm,
+            ],
+            repeatRows=1,
+        )
 
-    # =========================
-    # TABLE
-    # =========================
-    table = Table(
-        data,
-        colWidths=[
-            3 * cm,
-            4 * cm,
-            7 * cm,
-            3 * cm,
+        table.setStyle(
+            TableStyle([
+                # Header
+                ("BACKGROUND", (0, 0), (-1, 0), TDM_GREEN),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+
+                # Body
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+
+                # Alternating rows
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [
+                    colors.white,
+                    LIGHT_GREY,
+                ]),
+
+                # Borders
+                ("GRID", (0, 0), (-1, -1), 0.35, BORDER_GREY),
+
+                # Alignment
+                ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+                ("ALIGN", (2, 1), (2, -1), "RIGHT"),
+
+                # Vertical alignment
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+
+                # Padding
+                ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ])
+        )
+
+        elements.append(table)
+
+        elements.append(Spacer(1, 8))
+
+    # =====================================================
+    # ORDER CTA
+    # =====================================================
+    cta_style = ParagraphStyle(
+        "CTA",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=11,
+        textColor=TDM_GREEN,
+        alignment=1,
+    )
+
+    cta_sub_style = ParagraphStyle(
+        "CTASub",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=8,
+        leading=10,
+        textColor=DARK_TEXT,
+        alignment=1,
+    )
+
+    cta_table = Table(
+        [
+            [
+                Paragraph(
+                    "READY TO ORDER?",
+                    cta_style
+                )
+            ],
+            [
+                Paragraph(
+                    "WhatsApp us on <b>064 458 7575</b> or call <b>087 265 5488</b>",
+                    cta_sub_style
+                )
+            ],
         ],
-        repeatRows=1,
+        colWidths=[19 * cm],
     )
 
-    table.setStyle(
+    cta_table.setStyle(
         TableStyle([
-            ("GRID", (0, 0), (-1, -1), 0.4, colors.black),
+            ("BACKGROUND", (0, 0), (-1, -1), TDM_LIGHT_GREEN),
 
-            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("BOX", (0, 0), (-1, -1), 0.6, TDM_GREEN),
 
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, 0), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 2),
+            ("TOPPADDING", (0, 1), (-1, 1), 2),
+            ("BOTTOMPADDING", (0, 1), (-1, 1), 5),
+
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-
-            ("ALIGN", (0, 0), (-1, 0), "CENTER"),
-            ("ALIGN", (3, 1), (3, -1), "RIGHT"),
         ])
     )
 
-    elements.append(table)
+    elements.append(cta_table)
 
-    # =========================
+    # =====================================================
     # BUILD PDF
-    # =========================
+    # =====================================================
     doc.build(
         elements,
         onFirstPage=add_footer,
@@ -362,8 +798,6 @@ def download_price_list(request):
     )
 
     return response
-
-
 
 
 @login_required

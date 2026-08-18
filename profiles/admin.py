@@ -2,7 +2,7 @@ from django import forms
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-
+from .forms import SalesRepProfileForm
 from .models import (
     StaffProfile,
     CustomerProfile,
@@ -312,7 +312,7 @@ class SalesOperatorAdmin(admin.ModelAdmin):
 # ----------------------------
 # SalesRepProfile admin form
 # ----------------------------
-class SalesRepProfileAdminForm(forms.ModelForm):
+class SalesRepProfileAdminForm(SalesRepProfileForm):
     new_auth_code = forms.CharField(
         label="New authorisation code",
         required=False,
@@ -332,6 +332,8 @@ class SalesRepProfileAdminForm(forms.ModelForm):
             "user",
             "staff_profile",
             "sales_operator",
+            "region",
+            "territory",
             "supervisor",
             "department",
             "roles",
@@ -380,6 +382,8 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
     list_display = (
         "user_full_name",
         "user_username",
+        "region",
+        "territory",
         "sales_operator",
         "department",
         "supervisor",
@@ -395,6 +399,8 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
     list_filter = (
         "status",
         "department",
+        "region",
+        "territory",
         "sales_operator",
     )
 
@@ -402,6 +408,8 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
         "user__username",
         "user__first_name",
         "user__last_name",
+        "region__name",
+        "territory__name",
         "sales_operator__name",
         "department__name",
         "department__code",
@@ -412,7 +420,6 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
         "user",
         "staff_profile",
         "sales_operator",
-        "supervisor",
     )
 
     filter_horizontal = ("roles",)
@@ -425,6 +432,8 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
                     "user",
                     "staff_profile",
                     "sales_operator",
+                    "region",
+                    "territory",
                     "supervisor",
                     "department",
                     "roles",
@@ -542,6 +551,8 @@ class SalesRepProfileInline(admin.StackedInline):
     fields = (
         "staff_profile",
         "sales_operator",
+        "region",
+        "territory",
         "base_commission_pct",
         "bonus_commission_pct",
         "roles",
@@ -562,7 +573,6 @@ class SalesRepProfileInline(admin.StackedInline):
     autocomplete_fields = (
         "staff_profile",
         "sales_operator",
-        "supervisor",
     )
 
     filter_horizontal = ("roles",)
