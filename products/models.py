@@ -474,6 +474,636 @@ class Product(models.Model):
 
         return f"{self.sku} · {self.name}"
 
+
+# =============================================================================
+# PRODUCT KNOWLEDGE
+# =============================================================================
+
+class ProductKnowledge(models.Model):
+    """
+    Sales knowledge profile for a Product.
+
+    This model is separate from the Product master data.
+
+    Product master information such as:
+        - Product No.
+        - Product Name
+        - Category
+        - Subcategory
+        - Image
+        - UOM
+        - Price Per
+
+    remains on the Product / Category structure.
+
+    This model stores the knowledge required by the sales team
+    to understand, position and sell the product.
+    """
+
+    product = models.OneToOneField(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="knowledge",
+        help_text="Product this knowledge profile belongs to.",
+    )
+
+    # =========================================================================
+    # SINGLE-ANSWER KNOWLEDGE
+    # =========================================================================
+
+    # 1. Product Description / Definition
+    product_description = models.TextField(
+        blank=True,
+        help_text=(
+            "What is this product? Provide a clear definition "
+            "for the sales representative."
+        ),
+    )
+
+    # 3. Where / What It Is Used For
+    usage_application = models.TextField(
+        blank=True,
+        help_text=(
+            "What meals, menu items or applications is this product "
+            "used for? Enter N/A if not applicable."
+        ),
+    )
+
+    # 5. Yield / Portion Information
+    yield_portion_information = models.TextField(
+        blank=True,
+        help_text=(
+            "Provide useful yield, portion or serving information. "
+            "Enter N/A if not applicable."
+        ),
+    )
+
+    # 6. Variants - Not Applicable
+    variants_not_applicable = models.BooleanField(
+        default=False,
+        help_text=(
+            "Tick this if the product has no relevant knowledge variants. "
+            "This counts the Variants section as complete."
+        ),
+    )
+
+    # 9. Why Choose The Daily Market
+    why_choose_tdm = models.TextField(
+        blank=True,
+        help_text=(
+            "Why should the customer choose this product from "
+            "The Daily Market?"
+        ),
+    )
+
+    # 12. Key Takeaways
+    key_takeaways = models.TextField(
+        blank=True,
+        help_text=(
+            "The most important things the sales representative "
+            "must remember about this product."
+        ),
+    )
+
+    # =========================================================================
+    # CONTROL / APPROVAL
+    # =========================================================================
+
+    is_approved = models.BooleanField(
+        default=False,
+        help_text=(
+            "Indicates whether the Product Knowledge profile "
+            "has been reviewed and approved."
+        ),
+    )
+
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = ["product__name"]
+
+    def __str__(self):
+        return f"Product Knowledge · {self.product.name}"
+
+    # =========================================================================
+    # COMPLETION HELPERS
+    # =========================================================================
+
+    @staticmethod
+    def _answered(value):
+        """
+        Determines whether a single-answer question is answered.
+
+        Any non-empty value counts as complete.
+        This includes 'N/A'.
+        """
+        return bool(value and value.strip())
+
+    def completion_sections(self):
+        """
+        Return the completion state of every Product Knowledge question.
+
+        IMPORTANT:
+        Each question counts only ONCE.
+
+        For repeatable sections:
+            - 1 record = complete
+            - 10 records = complete
+            - 0 records = incomplete
+
+        N/A is considered a valid completed answer.
+        """
+
+        return {
+            # 1
+            "product_description": self._answered(
+                self.product_description
+            ),
+
+            # 2
+            "customer_business_types": self.customer_business_types.exists(),
+
+            # 3
+            "usage_application": self._answered(
+                self.usage_application
+            ),
+
+            # 4
+            "product_benefits": self.product_benefits.exists(),
+
+            # 5
+            "yield_portion_information": self._answered(
+                self.yield_portion_information
+            ),
+
+            # 6
+            "variants": self.variants_answered(),
+
+            # 7
+            "customer_alternatives": self.customer_alternatives.exists(),
+
+            # 8
+            "competitor_comparison": self.product_competitors.exists(),
+
+            # 9
+            "why_choose_tdm": self._answered(
+                self.why_choose_tdm
+            ),
+
+            # 10
+            "customer_questions": self.customer_questions.exists(),
+
+            # 11
+            "common_objections": self.product_objections.exists(),
+
+            # 12
+            "key_takeaways": self._answered(
+                self.key_takeaways
+            ),
+        }
+
+    # =========================================================================
+    # VARIANTS COMPLETION
+    # =========================================================================
+
+    def variants_answered(self):
+        """
+        Product Knowledge variants are completely independent
+        from the existing ProductVariant model.
+
+        This section is complete when:
+            1. At least one ProductKnowledgeVariant exists, OR
+            2. The user explicitly marks the section as N/A.
+
+        This model does NOT use or inspect the existing ProductVariant
+        records.
+        """
+
+        if self.variants_not_applicable:
+            return True
+
+        return self.knowledge_variants.exists()
+
+    # =========================================================================
+    # COMPLETION PERCENTAGE
+    # =========================================================================
+
+    @property
+    def completion_percentage(self):
+        """
+        Calculate Product Knowledge completion percentage.
+
+        Each knowledge question has equal weight.
+
+        Example:
+
+            12 questions
+            9 completed
+
+            9 / 12 = 75%
+
+        Multiple records inside a section do NOT increase
+        the percentage.
+        """
+
+        sections = self.completion_sections()
+
+        total_sections = len(sections)
+
+        if total_sections == 0:
+            return 0
+
+        completed_sections = sum(
+            1
+            for completed in sections.values()
+            if completed
+        )
+
+        return round(
+            (completed_sections / total_sections) * 100
+        )
+
+    @property
+    def knowledge_status(self):
+        """
+        Human-readable completion status.
+        """
+
+        percentage = self.completion_percentage
+
+        if percentage == 100:
+            return "COMPLETE"
+
+        if percentage >= 80:
+            return "ALMOST COMPLETE"
+
+        if percentage >= 50:
+            return "IN PROGRESS"
+
+        if percentage > 0:
+            return "INCOMPLETE"
+
+        return "NOT STARTED"
+
+    @property
+    def is_complete(self):
+        return self.completion_percentage == 100
+    
+# =============================================================================
+# CUSTOMER / BUSINESS TYPES
+# =============================================================================
+
+class ProductKnowledgeBusinessType(models.Model):
+    """
+    Business/customer types that use this product.
+
+    Multiple business types can be recorded for one product.
+    """
+
+    product_knowledge = models.ForeignKey(
+        ProductKnowledge,
+        on_delete=models.CASCADE,
+        related_name="customer_business_types",
+    )
+
+    business_type = models.CharField(
+        max_length=150,
+        help_text="Type of food business that uses this product.",
+    )
+
+    notes = models.TextField(
+        blank=True,
+        help_text=(
+            "Optional explanation of why this business type "
+            "uses the product."
+        ),
+    )
+
+    sort_order = models.PositiveIntegerField(
+        default=0,
+    )
+
+    class Meta:
+        ordering = ["sort_order", "business_type"]
+
+    def __str__(self):
+        return self.business_type
+
+
+# =============================================================================
+# PRODUCT BENEFITS
+# =============================================================================
+
+class ProductKnowledgeBenefit(models.Model):
+    """
+    Individual product benefit.
+
+    Multiple benefits can be recorded for one product.
+    """
+
+    product_knowledge = models.ForeignKey(
+        ProductKnowledge,
+        on_delete=models.CASCADE,
+        related_name="product_benefits",
+    )
+
+    benefit = models.CharField(
+        max_length=200,
+        help_text="Short name of the product benefit.",
+    )
+
+    explanation = models.TextField(
+        blank=True,
+        help_text=(
+            "Explain why this benefit matters to the customer."
+        ),
+    )
+
+    sort_order = models.PositiveIntegerField(
+        default=0,
+    )
+
+    class Meta:
+        ordering = ["sort_order", "benefit"]
+
+    def __str__(self):
+        return self.benefit
+
+
+# =============================================================================
+# PRODUCT KNOWLEDGE VARIANTS
+# =============================================================================
+
+class ProductKnowledgeVariant(models.Model):
+    """
+    Sales knowledge variant.
+
+    IMPORTANT:
+    This model is completely independent of ProductVariant.
+
+    ProductVariant handles operational/product information such as
+    pack size, SKU and pricing.
+
+    ProductKnowledgeVariant handles sales knowledge such as:
+        - What the variant is
+        - Who it is suited for
+        - What benefit it provides
+        - When the sales representative should recommend it
+    """
+
+    product_knowledge = models.ForeignKey(
+        ProductKnowledge,
+        on_delete=models.CASCADE,
+        related_name="knowledge_variants",
+    )
+
+    variant_name = models.CharField(
+        max_length=150,
+        help_text="Name of the product knowledge variant.",
+    )
+
+    description = models.TextField(
+        help_text=(
+            "Explain what this variant is and what makes it different."
+        ),
+    )
+
+    best_suited_for = models.TextField(
+        help_text=(
+            "Which customers, businesses, meals or applications "
+            "are best suited to this variant?"
+        ),
+    )
+
+    customer_benefit = models.TextField(
+        help_text=(
+            "What benefit does this particular variant provide "
+            "to the customer?"
+        ),
+    )
+
+    sort_order = models.PositiveIntegerField(
+        default=0,
+    )
+
+    class Meta:
+        ordering = ["sort_order", "variant_name"]
+
+    def __str__(self):
+        return self.variant_name
+
+
+# =============================================================================
+# CUSTOMER ALTERNATIVES
+# =============================================================================
+
+class ProductKnowledgeAlternative(models.Model):
+    """
+    Alternative products or brands customers may currently use.
+
+    Multiple alternatives can be recorded for one product.
+    """
+
+    product_knowledge = models.ForeignKey(
+        ProductKnowledge,
+        on_delete=models.CASCADE,
+        related_name="customer_alternatives",
+    )
+
+    brand = models.CharField(
+        max_length=150,
+        help_text="Alternative brand.",
+    )
+
+    product_name = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Specific alternative product, if known.",
+    )
+
+    notes = models.TextField(
+        blank=True,
+        help_text=(
+            "Why customers may use this alternative."
+        ),
+    )
+
+    sort_order = models.PositiveIntegerField(
+        default=0,
+    )
+
+    class Meta:
+        ordering = ["sort_order", "brand", "product_name"]
+
+    def __str__(self):
+        if self.product_name:
+            return f"{self.brand} · {self.product_name}"
+
+        return self.brand
+
+
+# =============================================================================
+# COMPETITOR COMPARISON
+# =============================================================================
+
+class ProductKnowledgeCompetitor(models.Model):
+    """
+    Structured competitor comparison.
+
+    Multiple competitors can be recorded for one product.
+    """
+
+    product_knowledge = models.ForeignKey(
+        ProductKnowledge,
+        on_delete=models.CASCADE,
+        related_name="product_competitors",
+    )
+
+    competitor_brand = models.CharField(
+        max_length=150,
+        help_text="Competitor brand.",
+    )
+
+    competitor_product = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Specific competitor product, if known.",
+    )
+
+    why_customer_uses_it = models.TextField(
+        help_text=(
+            "Why customers currently choose this competitor."
+        ),
+    )
+
+    tdm_positioning = models.TextField(
+        help_text=(
+            "How the sales representative should position "
+            "The Daily Market against this competitor."
+        ),
+    )
+
+    sort_order = models.PositiveIntegerField(
+        default=0,
+    )
+
+    class Meta:
+        ordering = [
+            "sort_order",
+            "competitor_brand",
+            "competitor_product",
+        ]
+
+    def __str__(self):
+        if self.competitor_product:
+            return (
+                f"{self.competitor_brand} · "
+                f"{self.competitor_product}"
+            )
+
+        return self.competitor_brand
+
+
+# =============================================================================
+# CUSTOMER QUESTIONS
+# =============================================================================
+
+class ProductKnowledgeQuestion(models.Model):
+    """
+    Questions the sales representative should ask the customer.
+
+    Multiple questions can be recorded for one product.
+    """
+
+    product_knowledge = models.ForeignKey(
+        ProductKnowledge,
+        on_delete=models.CASCADE,
+        related_name="customer_questions",
+    )
+
+    question = models.TextField(
+        help_text=(
+            "Question the sales representative should ask."
+        ),
+    )
+
+    purpose = models.TextField(
+        blank=True,
+        help_text=(
+            "Why should the representative ask this question?"
+        ),
+    )
+
+    sort_order = models.PositiveIntegerField(
+        default=0,
+    )
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return self.question
+
+
+# =============================================================================
+# COMMON OBJECTIONS & RESPONSES
+# =============================================================================
+
+class ProductKnowledgeObjection(models.Model):
+    """
+    Common customer objections and recommended responses.
+
+    Multiple objections can be recorded for one product.
+    """
+
+    product_knowledge = models.ForeignKey(
+        ProductKnowledge,
+        on_delete=models.CASCADE,
+        related_name="product_objections",
+    )
+
+    objection = models.TextField(
+        help_text=(
+            "Common objection the customer may raise."
+        ),
+    )
+
+    response = models.TextField(
+        help_text=(
+            "Recommended response for the sales representative."
+        ),
+    )
+
+    notes = models.TextField(
+        blank=True,
+        help_text=(
+            "Additional guidance for the representative."
+        ),
+    )
+
+    sort_order = models.PositiveIntegerField(
+        default=0,
+    )
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return self.objection[:100]
+
+
+    
 # ---------- ProductPricing -----------------------------------------------------
 class ProductPricing(models.Model):
     """
@@ -981,6 +1611,25 @@ def product_post_save_sync_variants(sender, instance: Product, created, **kwargs
     # Skip if a calling context explicitly requested no variant sync.
     if SKIP_VARIANT_SYNC.get():
         return
+
+    # -------------------------------------------------------------------------
+    # PRODUCT KNOWLEDGE
+    # -------------------------------------------------------------------------
+    # Every new Product automatically gets a ProductKnowledge record.
+    #
+    # get_or_create() makes this safe:
+    # - New Product     -> creates ProductKnowledge
+    # - Existing Product -> does nothing
+    # - Existing Knowledge -> does not create a duplicate
+    # -------------------------------------------------------------------------
+    if created:
+        ProductKnowledge.objects.get_or_create(
+            product=instance
+        )
+
+    # -------------------------------------------------------------------------
+    # EXISTING VARIANT SYNC
+    # -------------------------------------------------------------------------
     # Push new base prices down to scalable variants
     instance.sync_variant_prices(force=True)
 

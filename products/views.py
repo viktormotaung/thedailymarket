@@ -641,6 +641,7 @@ def download_price_list(request):
         # -------------------------------------------------
         data = [
             [
+                "Product No.",
                 "Subcategory",
                 "Product",
                 "Price (Incl VAT)",
@@ -662,6 +663,8 @@ def download_price_list(request):
             price = min(prices) if prices else None
 
             data.append([
+                product.product_no or "—",
+
                 (
                     product.category.name
                     if product.category
@@ -683,8 +686,9 @@ def download_price_list(request):
         table = Table(
             data,
             colWidths=[
+                3 * cm,
                 4 * cm,
-                10 * cm,
+                7 * cm,
                 5 * cm,
             ],
             repeatRows=1,
