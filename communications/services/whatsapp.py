@@ -1,75 +1,104 @@
 import requests
 
-from django.conf import settings
+
 from communications.services.whatsapp_templates import send_whatsapp_template
 
-WHATSAPP_API_VERSION = "v23.0"
+from django.conf import settings
+from twilio.rest import Client
 
 
 def send_whatsapp_message(to, message):
     """
-    Send a simple WhatsApp text message using Meta Cloud API.
+    Send a WhatsApp text message through Twilio.
 
-    IMPORTANT:
-    This free-form text message only works when the customer has already
-    opened the 24-hour chat window by messaging your WhatsApp business number.
+    Accepts South African numbers in either:
+        0723904202
+        +27723904202
+        whatsapp:+27723904202
     """
 
-    url = (
-        f"https://graph.facebook.com/"
-        f"{WHATSAPP_API_VERSION}/"
-        f"{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
-    )
-
-    headers = {
-        "Authorization": f"Bearer {settings.WHATSAPP_ACCESS_TOKEN}",
-        "Content-Type": "application/json",
-    }
-
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": to,
-        "type": "text",
-        "text": {
-            "preview_url": True,
-            "body": message,
-        },
-    }
-
-    try:
-        response = requests.post(
-            url,
-            headers=headers,
-            json=payload,
-            timeout=30,
-        )
-
-        try:
-            data = response.json()
-        except ValueError:
-            data = {
-                "success": False,
-                "status_code": response.status_code,
-                "raw_response": response.text,
-            }
-
-        print("========== WHATSAPP RESPONSE ==========")
-        print("Status:", response.status_code)
-        print("Response:", data)
-        print("=======================================")
-
-        return data
-
-    except requests.RequestException as e:
-        print("========== WHATSAPP ERROR ==========")
-        print(str(e))
-        print("====================================")
-
+    if not to:
         return {
             "success": False,
-            "error": str(e),
+            "message": "No WhatsApp number supplied.",
         }
 
+    to = str(to).strip()
+
+    # Remove whatsapp: prefix if already supplied
+    if to.lower().startswith("whatsapp:"):
+        to = to[9:]
+
+    # Remove spaces, brackets and hyphens
+    to = (
+        to.replace(" ", "")
+          .replace("-", "")
+          .replace("(", "")
+          .replace(")", "")
+    )
+
+    # Convert South African local format:
+    # 0723904202 → +27723904202
+    if to.startswith("0") and len(to) == 10:
+        to = "+27" + to[1:]
+
+    # Add WhatsApp prefix
+    to = f"whatsapp:{to}"
+
+    client = Client(
+        settings.TWILIO_ACCOUNT_SID,
+        settings.TWILIO_AUTH_TOKEN,
+    )
+
+    result = client.messages.create(
+        from_=settings.TWILIO_WHATSAPP_FROM,
+        to=to,
+        body=message,
+    )
+
+    return {
+        "success": True,
+        "sid": result.sid,
+        "status": result.status,
+        "to": to,
+    }
+
+
+WHATSAPP_API_VERSION = "v23.0"
+
+
+def send_client_activation_whatsapp(client):
+    """
+    Send the welcome WhatsApp message when a Client becomes ACTIVE.
+    """
+
+    if not client.whatsapp:
+        return {
+            "success": False,
+            "message": "Client has no WhatsApp number.",
+        }
+
+    customer_name = (
+        client.contact_person.strip()
+        if client.contact_person
+        else client.name.strip()
+    )
+
+    message = (
+        f"Welcome to The Daily Market! 👋\n\n"
+        f"Dear {customer_name},\n\n"
+        f"Your customer profile is now active.\n\n"
+        f"Customer Code: {client.client_number}\n\n"
+        f"You can now trade with The Daily Market.\n\n"
+        f"Please contact your Area Representative to place orders "
+        f"or enquire about products.\n\n"
+        f"Thank you for choosing The Daily Market."
+    )
+
+    return send_whatsapp_message(
+        client.whatsapp,
+        message,
+    )
 
 def send_quotation_whatsapp(
     to,

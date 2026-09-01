@@ -901,174 +901,935 @@
 
   </aside>
 
-  {% block content %}
-  <main class="content">
+    {% block content %}
+    <main class="content">
 
-    <h2 class="text-center mb-3">Products</h2>
+        <div class="container-fluid">
 
-    <!-- ACTION BUTTONS -->
-    <div class="d-flex justify-content-center gap-2 mb-3">
+            <!-- =========================================================
+                HEADER
+            ========================================================== -->
 
-      <!-- Add Product (write) -->
-      <a href="{% if can_write %}{% url 'product-create' %}{% else %}#{% endif %}"
-        class="btn btn-success {% if not can_write %}disabled{% endif %}"
-        {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
-        Add Product
-      </a>
+            <div class="text-center mb-4">
 
-      <!-- Import from Excel (write / modal) -->
-      <button
-        type="button"
-        class="btn btn-outline-primary"
-        {% if not can_write %}
-          disabled
-          title="View-only access"
-        {% else %}
-          data-bs-toggle="modal"
-          data-bs-target="#importModal"
-        {% endif %}
-      >
-        Import from Excel
-      </button>
+                <h2 class="mb-1">Product Knowledge</h2>
 
-      <button type="button"
-              class="btn btn-outline-success"
-              data-bs-toggle="modal"
-              data-bs-target="#priceListModal">
-        Download Price List
-      </button>
+                <h4 class="text-muted mb-3">
+                    {{ knowledge.product.name }}
+                </h4>
 
-    </div>
-
-
-    <div class="card shadow-sm">
-      <div class="card-header bg-white py-2">
-        <form method="get" class="row g-2 align-items-center">
-
-          <div class="col-md-4">
-            <select name="category" class="form-select form-select-sm">
-              <option value="">All Categories</option>
-              {% for c in filter_categories %}
-                <option value="{{ c.id }}" {% if request.GET.category == c.id|stringformat:"s" %}selected{% endif %}>
-                  {{ c.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-md-4">
-            <select name="supplier" class="form-select form-select-sm">
-              <option value="">All Suppliers</option>
-              {% for s in filter_suppliers %}
-                <option value="{{ s.id }}" {% if request.GET.supplier == s.id|stringformat:"s" %}selected{% endif %}>
-                  {{ s.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-md-4 d-flex justify-content-end gap-2">
-            <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-            <a href="{% url 'staff-products' %}" class="btn btn-sm btn-outline-secondary">Clear</a>
-          </div>
-
-        </form>
-      </div>
-
-      <div class="card-body">
-        <table class="table table-striped table-bordered mb-0">
-          <thead>
-            <tr>
-              
-              <th>Product No</th>
-              <th>Product</th>
-              <th>Special</th>
-              <th>Category</th>
-              <th>UOM</th>
-              <th>Suppliers</th>
-              <th>Retail (incl)</th>
-              <th>Wholesale (incl)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in rows %}
-              {% with p=row.product %}
-              <tr onclick="window.location.href='{% url 'product-view' p.id %}'" style="cursor:pointer;">
-                
-                <td>{{ p.product_no }}</td>
-                <td>{{ p.name }}</td>
-                <td class="text-center">
-                    {% if p.is_special %}
-                        <span class="badge bg-danger">
-                            {{ p.special_label|default:"SPECIAL" }}
-                        </span>
-                    {% else %}
-                        <span class="text-muted">—</span>
-                    {% endif %}
-                </td>
-                <td>{{ p.category.name }}</td>
-                <td>{{ p.get_uom_display }}</td>
-                <td>{{ row.active_supplier_count }}</td>
-                <td>{% if row.min_retail_inc %}R{{ row.min_retail_inc|floatformat:2 }}{% else %}—{% endif %}</td>
-                <td>{% if row.min_wholesale_inc %}R{{ row.min_wholesale_inc|floatformat:2 }}{% else %}—{% endif %}</td>
-              </tr>
-              {% endwith %}
-            {% empty %}
-              <tr>
-                <td colspan="8" class="text-center text-muted">No products found.</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-  </main>
-  {% endblock %}
-
-  <!-- Import Products Modal -->
-  <div class="modal fade" id="importModal" tabindex="-1">
-    <div class="modal-dialog">
-      <div class="modal-content">
-
-        <div class="modal-header">
-          <h5 class="modal-title">Import Products (Excel)</h5>
-          <button class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-
-        <div class="modal-body">
-
-          <!-- RESULT BOXES -->
-          <div id="importError" class="alert alert-danger d-none"></div>
-          <div id="importSuccess" class="alert alert-success d-none"></div>
-
-          <!-- PROGRESS BAR (ADDITION) -->
-          <div id="importProgress" class="d-none">
-            <div class="progress mb-2">
-              <div
-                id="progressBar"
-                class="progress-bar progress-bar-striped progress-bar-animated"
-                style="width: 0%">
-              </div>
             </div>
-            <small id="progressText" class="text-muted">Preparing import…</small>
-          </div>
 
-          <form id="excelImportForm">
-            {% csrf_token %}
-            <input type="file" name="excel_file" class="form-control" required>
-          </form>
+
+            <!-- =========================================================
+                FORM
+            ========================================================== -->
+
+            <form method="post">
+
+                {% csrf_token %}
+
+                <div class="row g-4">
+
+
+                    <!-- =====================================================
+                        LEFT COLUMN — PRODUCT KNOWLEDGE
+                    ====================================================== -->
+
+                    <div class="col-lg-6">
+
+                        <div class="card h-100">
+
+                            <div class="card-header">
+
+                                <h3 class="mb-1">
+                                    Product Knowledge
+                                </h3>
+
+                                <div class="text-muted">
+                                    Information about the product and how it
+                                    is used.
+                                </div>
+
+                            </div>
+
+
+                            <div class="card-body">
+
+
+                                <!-- =========================================
+                                    1. PRODUCT DESCRIPTION
+                                ========================================== -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        1. Product Description / Definition
+                                    </label>
+
+                                    <div class="text-muted small mb-2">
+                                        What is this product? Provide a clear
+                                        definition for the sales representative.
+                                    </div>
+
+                                    {{ form.product_description }}
+
+                                </div>
+
+
+                                <!-- =========================================
+                                    2. CUSTOMER / BUSINESS TYPE
+                                ========================================== -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        2. Customer / Business Type
+                                    </label>
+
+                                    <div class="text-muted small mb-2">
+                                        Add each applicable customer or business
+                                        type separately.
+                                    </div>
+
+                                    {{ customer_business_types.management_form }}
+
+                                    <div id="customer-business-types-container">
+
+                                        {% for item_form in customer_business_types %}
+
+                                            <div class="repeatable-row mb-2">
+
+                                                {{ item_form.id }}
+
+                                                <div class="input-group">
+
+                                                    {{ item_form.business_type }}
+
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-outline-danger remove-row"
+                                                    >
+                                                        Remove
+                                                    </button>
+
+                                                </div>
+
+                                                {% if item_form.business_type.errors %}
+                                                    <div class="text-danger small">
+                                                        {{ item_form.business_type.errors }}
+                                                    </div>
+                                                {% endif %}
+
+                                            </div>
+
+                                        {% endfor %}
+
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary mt-2"
+                                        data-container="customer-business-types-container"
+                                        data-prefix="{{ customer_business_types.prefix }}"
+                                        data-empty-form="{{ customer_business_types.empty_form.business_type|escapejs }}"
+                                    >
+                                        + Add Customer / Business Type
+                                    </button>
+
+                                </div>
+
+
+                                <!-- =========================================
+                                    3. USAGE / APPLICATION
+                                ========================================== -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        3. Where / What It Is Used For
+                                    </label>
+
+                                    <div class="text-muted small mb-2">
+                                        What meals, menu items or applications
+                                        is this product used for?
+                                    </div>
+
+                                    {{ form.usage_application }}
+
+                                </div>
+
+
+                                <!-- =========================================
+                                    4. PRODUCT BENEFITS
+                                ========================================== -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        4. Product Benefits
+                                    </label>
+
+                                    <div class="text-muted small mb-2">
+                                        Add each benefit separately.
+                                    </div>
+
+                                    {{ product_benefits.management_form }}
+
+                                    <div id="product-benefits-container">
+
+                                        {% for item_form in product_benefits %}
+
+                                            <div class="repeatable-row mb-2">
+
+                                                {{ item_form.id }}
+
+                                                <div class="input-group">
+
+                                                    {{ item_form.benefit }}
+
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-outline-danger remove-row"
+                                                    >
+                                                        Remove
+                                                    </button>
+
+                                                </div>
+
+                                            </div>
+
+                                        {% endfor %}
+
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary mt-2"
+                                        data-add-form="product-benefits"
+                                    >
+                                        + Add Benefit
+                                    </button>
+
+                                </div>
+
+
+                                <!-- =========================================
+                                    5. YIELD / PORTION
+                                ========================================== -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        5. Yield / Portion Information
+                                    </label>
+
+                                    <div class="text-muted small mb-2">
+                                        Provide useful yield, portion or serving
+                                        information. Enter N/A if not applicable.
+                                    </div>
+
+                                    {{ form.yield_portion_information }}
+
+                                </div>
+
+
+                                <!-- =========================================
+                                    6. VARIANTS
+                                ========================================== -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        6. Variants
+                                    </label>
+
+                                    <div class="text-muted small mb-2">
+                                        Add each product knowledge variant
+                                        separately. These are manually entered
+                                        and are independent of the operational
+                                        ProductVariant records.
+                                    </div>
+
+                                    {{ knowledge_variants.management_form }}
+
+                                    <div id="knowledge-variants-container">
+
+                                        {% for item_form in knowledge_variants %}
+
+                                            <div class="repeatable-row mb-2">
+
+                                                {{ item_form.id }}
+
+                                                <div class="input-group">
+
+                                                    {{ item_form.variant }}
+
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-outline-danger remove-row"
+                                                    >
+                                                        Remove
+                                                    </button>
+
+                                                </div>
+
+                                            </div>
+
+                                        {% endfor %}
+
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary mt-2"
+                                        data-add-form="knowledge-variants"
+                                    >
+                                        + Add Variant
+                                    </button>
+
+                                    <div class="form-check mt-3">
+
+                                        {{ form.variants_not_applicable }}
+
+                                        <label
+                                            class="form-check-label"
+                                            for="{{ form.variants_not_applicable.id_for_label }}"
+                                        >
+                                            Variants are not applicable
+                                        </label>
+
+                                    </div>
+
+                                </div>
+
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =====================================================
+                        RIGHT COLUMN — SELLING KNOWLEDGE
+                    ====================================================== -->
+
+                    <div class="col-lg-6">
+
+                        <div class="card h-100">
+
+                            <div class="card-header">
+
+                                <h3 class="mb-1">
+                                    Selling Knowledge
+                                </h3>
+
+                                <div class="text-muted">
+                                    Information the sales representative needs
+                                    to sell the product.
+                                </div>
+
+                            </div>
+
+
+                            <div class="card-body">
+
+
+                                <!-- =========================================
+                                    7. CUSTOMER ALTERNATIVES
+                                ========================================== -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        7. Customer Alternatives
+                                    </label>
+
+                                    <div class="text-muted small mb-2">
+                                        Add each alternative separately.
+                                    </div>
+
+                                    {{ customer_alternatives.management_form }}
+
+                                    <div id="customer-alternatives-container">
+
+                                        {% for item_form in customer_alternatives %}
+
+                                            <div class="repeatable-row mb-2">
+
+                                                {{ item_form.id }}
+
+                                                <div class="input-group">
+
+                                                    {{ item_form.alternative }}
+
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-outline-danger remove-row"
+                                                    >
+                                                        Remove
+                                                    </button>
+
+                                                </div>
+
+                                            </div>
+
+                                        {% endfor %}
+
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary mt-2"
+                                        data-add-form="customer-alternatives"
+                                    >
+                                        + Add Alternative
+                                    </button>
+
+                                </div>
+
+
+                                <!-- =========================================
+                                    8. COMPETITOR COMPARISON
+                                ========================================== -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        8. Competitor Comparison
+                                    </label>
+
+                                    <div class="text-muted small mb-2">
+                                        Add each competitor comparison separately.
+                                    </div>
+
+                                    {{ product_competitors.management_form }}
+
+                                    <div id="product-competitors-container">
+
+                                        {% for item_form in product_competitors %}
+
+                                            <div class="repeatable-row mb-3">
+
+                                                {{ item_form.id }}
+
+                                                {{ item_form.as_p }}
+
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-sm btn-outline-danger remove-row"
+                                                >
+                                                    Remove
+                                                </button>
+
+                                            </div>
+
+                                        {% endfor %}
+
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary mt-2"
+                                        data-add-form="product-competitors"
+                                    >
+                                        + Add Competitor Comparison
+                                    </button>
+
+                                </div>
+
+
+                                <!-- =========================================
+                                    9. WHY CHOOSE TDM
+                                ========================================== -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        9. Why Choose The Daily Market
+                                    </label>
+
+                                    <div class="text-muted small mb-2">
+                                        Why should the customer choose this
+                                        product from The Daily Market?
+                                    </div>
+
+                                    {{ form.why_choose_tdm }}
+
+                                </div>
+
+
+                                <!-- =========================================
+                                    10. CUSTOMER QUESTIONS
+                                ========================================== -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        10. Customer Questions
+                                    </label>
+
+                                    <div class="text-muted small mb-2">
+                                        Add each likely customer question
+                                        separately.
+                                    </div>
+
+                                    {{ customer_questions.management_form }}
+
+                                    <div id="customer-questions-container">
+
+                                        {% for item_form in customer_questions %}
+
+                                            <div class="repeatable-row mb-2">
+
+                                                {{ item_form.id }}
+
+                                                <div class="input-group">
+
+                                                    {{ item_form.question }}
+
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-outline-danger remove-row"
+                                                    >
+                                                        Remove
+                                                    </button>
+
+                                                </div>
+
+                                            </div>
+
+                                        {% endfor %}
+
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary mt-2"
+                                        data-add-form="customer-questions"
+                                    >
+                                        + Add Customer Question
+                                    </button>
+
+                                </div>
+
+
+                                <!-- =========================================
+                                    11. COMMON OBJECTIONS
+                                ========================================== -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        11. Common Objections
+                                    </label>
+
+                                    <div class="text-muted small mb-2">
+                                        Add each common objection separately.
+                                    </div>
+
+                                    {{ product_objections.management_form }}
+
+                                    <div id="product-objections-container">
+
+                                        {% for item_form in product_objections %}
+
+                                            <div class="repeatable-row mb-2">
+
+                                                {{ item_form.id }}
+
+                                                <div class="input-group">
+
+                                                    {{ item_form.objection }}
+
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-outline-danger remove-row"
+                                                    >
+                                                        Remove
+                                                    </button>
+
+                                                </div>
+
+                                            </div>
+
+                                        {% endfor %}
+
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary mt-2"
+                                        data-add-form="product-objections"
+                                    >
+                                        + Add Common Objection
+                                    </button>
+
+                                </div>
+
+
+                                <!-- =========================================
+                                    12. KEY TAKEAWAYS
+                                ========================================== -->
+
+                                <div class="mb-4">
+
+                                    <label class="form-label fw-semibold">
+                                        12. Key Takeaways
+                                    </label>
+
+                                    <div class="text-muted small mb-2">
+                                        The most important things the sales
+                                        representative must remember about
+                                        this product.
+                                    </div>
+
+                                    {{ form.key_takeaways }}
+
+                                </div>
+
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =========================================================
+                    ACTIONS
+                ========================================================== -->
+
+                <div class="d-flex justify-content-between align-items-center mt-4 mb-5">
+
+                    <a
+                        href="{% url 'product-knowledge-view' knowledge.pk %}"
+                        class="btn btn-outline-secondary"
+                    >
+                        Cancel
+                    </a>
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                    >
+                        Save Product Knowledge
+                    </button>
+
+                </div>
+
+            </form>
 
         </div>
 
-        <div class="modal-footer">
-          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button class="btn btn-success" id="uploadBtn">Upload & Import</button>
+    </main>
+
+
+    <!-- =========================================================
+        SIMPLE REPEATABLE ROW STYLING
+    ========================================================== -->
+
+    <style>
+
+        .repeatable-row {
+            position: relative;
+        }
+
+        .repeatable-row .form-control {
+            min-height: 38px;
+        }
+
+    </style>
+
+
+    <!-- =========================================================
+        REPEATABLE FORMSET JAVASCRIPT
+    ========================================================== -->
+
+    <script>
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+        document.querySelectorAll("[data-add-form]").forEach(function (button) {
+
+            button.addEventListener("click", function () {
+
+                const prefix = button.dataset.addForm;
+
+                const totalFormsInput = document.querySelector(
+                    `#id_${prefix}-TOTAL_FORMS`
+                );
+
+                const container = document.querySelector(
+                    `#${prefix}-container`
+                );
+
+                if (!totalFormsInput || !container) {
+                    return;
+                }
+
+                const formIndex = parseInt(
+                    totalFormsInput.value,
+                    10
+                );
+
+                /*
+                * The empty form must be supplied by Django.
+                */
+                const emptyFormTemplate = document.querySelector(
+                    `#empty-form-${prefix}`
+                );
+
+                if (!emptyFormTemplate) {
+                    return;
+                }
+
+                const html = emptyFormTemplate.innerHTML.replace(
+                    /__prefix__/g,
+                    formIndex
+                );
+
+                container.insertAdjacentHTML(
+                    "beforeend",
+                    html
+                );
+
+                totalFormsInput.value = formIndex + 1;
+
+            });
+
+        });
+
+
+        /*
+        * Remove a form row.
+        *
+        * Existing database records are marked DELETE.
+        * New unsaved records are simply removed from the DOM.
+        */
+
+        document.addEventListener("click", function (event) {
+
+            if (!event.target.classList.contains("remove-row")) {
+                return;
+            }
+
+            const row = event.target.closest(".repeatable-row");
+
+            if (!row) {
+                return;
+            }
+
+            const deleteInput = row.querySelector(
+                'input[name$="-DELETE"]'
+            );
+
+            if (deleteInput) {
+
+                deleteInput.value = "on";
+
+                row.style.display = "none";
+
+            } else {
+
+                row.remove();
+
+            }
+
+        });
+
+    });
+
+    </script>
+
+
+    <!-- =========================================================
+        EMPTY FORM TEMPLATES
+    ========================================================== -->
+
+    {% with customer_business_types.empty_form as empty_form %}
+    <script type="text/template" id="empty-form-customer-business-types">
+
+        <div class="repeatable-row mb-2">
+
+            {{ empty_form.id }}
+
+            <div class="input-group">
+
+                {{ empty_form.business_type }}
+
+                <button
+                    type="button"
+                    class="btn btn-outline-danger remove-row"
+                >
+                    Remove
+                </button>
+
+            </div>
+
         </div>
 
-      </div>
-    </div>
-  </div>
+    </script>
+    {% endwith %}
+
+
+    {% with product_benefits.empty_form as empty_form %}
+    <script type="text/template" id="empty-form-product-benefits">
+
+        <div class="repeatable-row mb-2">
+
+            {{ empty_form.id }}
+
+            <div class="input-group">
+
+                {{ empty_form.benefit }}
+
+                <button
+                    type="button"
+                    class="btn btn-outline-danger remove-row"
+                >
+                    Remove
+                </button>
+
+            </div>
+
+        </div>
+
+    </script>
+    {% endwith %}
+
+
+    {% with knowledge_variants.empty_form as empty_form %}
+    <script type="text/template" id="empty-form-knowledge-variants">
+
+        <div class="repeatable-row mb-2">
+
+            {{ empty_form.id }}
+
+            <div class="input-group">
+
+                {{ empty_form.variant }}
+
+                <button
+                    type="button"
+                    class="btn btn-outline-danger remove-row"
+                >
+                    Remove
+                </button>
+
+            </div>
+
+        </div>
+
+    </script>
+    {% endwith %}
+
+
+    {% with customer_alternatives.empty_form as empty_form %}
+    <script type="text/template" id="empty-form-customer-alternatives">
+
+        <div class="repeatable-row mb-2">
+
+            {{ empty_form.id }}
+
+            <div class="input-group">
+
+                {{ empty_form.alternative }}
+
+                <button
+                    type="button"
+                    class="btn btn-outline-danger remove-row"
+                >
+                    Remove
+                </button>
+
+            </div>
+
+        </div>
+
+    </script>
+    {% endwith %}
+
+
+    {% with product_competitors.empty_form as empty_form %}
+    <script type="text/template" id="empty-form-product-competitors">
+
+        <div class="repeatable-row mb-3">
+
+            {{ empty_form.id }}
+
+            {{ empty_form.as_p }}
+
+            <button
+                type="button"
+                class="btn btn-sm btn-outline-danger remove-row"
+            >
+                Remove
+            </button>
+
+        </div>
+
+    </script>
+    {% endwith %}
+
+
+    {% with customer_questions.empty_form as empty_form %}
+    <script type="text/template" id="empty-form-customer-questions">
+
+        <div class="repeatable-row mb-2">
+
+            {{ empty_form.id }}
+
+            <div class="input-group">
+
+                {{ empty_form.question }}
+
+                <button
+                    type="button"
+                    class="btn btn-outline-danger remove-row"
+                >
+                    Remove
+                </button>
+
+            </div>
+
+        </div>
+
+    </script>
+    {% endwith %}
+
+
+    {% with product_objections.empty_form as empty_form %}
+    <script type="text/template" id="empty-form-product-objections">
+
+        <div class="repeatable-row mb-2">
+
+            {{ empty_form.id }}
+
+            <div class="input-group">
+
+                {{ empty_form.objection }}
+
+                <button
+                    type="button"
+                    class="btn btn-outline-danger remove-row"
+                >
+                    Remove
+                </button>
+
+            </div>
+
+        </div>
+
+    </script>
+    {% endwith %}
+
+    {% endblock %}
+
+  
 
   <!-- SWITCH PLATFORM MODAL -->
   <div class="modal fade"
@@ -1145,121 +1906,7 @@
     </div>
   </div>
 
-  <div class="modal fade" id="priceListModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-scrollable">
-      <div class="modal-content">
-
-        <form method="get" action="{% url 'download-price-list' %}">
-
-          <div class="modal-header">
-            <h5 class="modal-title">Download Price List</h5>
-            <button type="button"
-                    class="btn-close"
-                    data-bs-dismiss="modal"></button>
-          </div>
-
-          <div class="modal-body">
-
-            <!-- Select All -->
-            <div class="form-check mb-3">
-              <input class="form-check-input"
-                    type="checkbox"
-                    id="selectAllSubcategories">
-
-              <label class="form-check-label fw-semibold"
-                    for="selectAllSubcategories">
-                Select All
-              </label>
-            </div>
-
-            <hr>
-
-            <!-- Price Type -->
-            <div class="mb-3">
-
-              <label class="form-label fw-bold">
-                Price List Type
-              </label>
-
-              <div class="form-check">
-                <input class="form-check-input"
-                      type="radio"
-                      name="price_type"
-                      id="wholesalePrice"
-                      value="wholesale"
-                      checked>
-
-                <label class="form-check-label"
-                      for="wholesalePrice">
-                  Wholesale Price List
-                </label>
-              </div>
-
-              <div class="form-check">
-                <input class="form-check-input"
-                      type="radio"
-                      name="price_type"
-                      id="retailPrice"
-                      value="retail">
-
-                <label class="form-check-label"
-                      for="retailPrice">
-                  Retail Price List
-                </label>
-              </div>
-
-            </div>
-
-            <hr>
-
-            <!-- Categories -->
-            {% for sub in price_list_subcategories %}
-
-              <div class="form-check">
-
-                <input class="form-check-input subcategory-check"
-                      type="checkbox"
-                      name="subcategories"
-                      value="{{ sub.id }}"
-                      id="sub{{ sub.id }}">
-
-                <label class="form-check-label"
-                      for="sub{{ sub.id }}">
-                  {{ sub.parent.name }} → {{ sub.name }}
-                </label>
-
-              </div>
-
-            {% empty %}
-
-              <p class="text-muted mb-0">
-                No subcategories found.
-              </p>
-
-            {% endfor %}
-
-          </div>
-
-          <div class="modal-footer">
-
-            <button type="button"
-                    class="btn btn-secondary"
-                    data-bs-dismiss="modal">
-              Cancel
-            </button>
-
-            <button type="submit"
-                    class="btn btn-success">
-              Confirm Download
-            </button>
-
-          </div>
-
-        </form>
-
-      </div>
-    </div>
-  </div>
+  
 
   <script>
   document.getElementById("selectAllSubcategories").addEventListener("change", function () {

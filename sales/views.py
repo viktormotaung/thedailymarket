@@ -8,7 +8,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 import calendar
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from clients.models import Prospect, ProspectUpdate, Client
+from clients.models import Prospect, ProspectUpdate, Client, Lead
 from clients.forms import ProspectForm, ProspectUpdateForm
 from django.utils.timezone import localdate
 from invoices.models import CommissionEntry, Invoice, MonthlyTarget, MonthlyTargetAllocation, MonthlyCommission
@@ -19,6 +19,7 @@ from django.forms import ModelForm, inlineformset_factory, widgets
 from django.db.models import (
     Sum, Count, F, Q, Value, DecimalField, IntegerField, ExpressionWrapper
 )
+
 
 from communications.services.whatsapp import send_invoice_whatsapp
 from communications.services.smsportal import send_sms
@@ -75,10 +76,16 @@ from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from django.shortcuts import render
 from django.utils.timezone import localdate
-
+from clients.models import (
+    Lead,
+    Territory,
+    Area,
+)
+from clients.models import LeadActivity
+from django.shortcuts import get_object_or_404, redirect, render
 from invoices.models import CommissionEntry, MonthlyTarget
 from profiles.models import SalesRepProfile
-
+from clients.forms import ProspectForm, ProspectUpdateForm, LeadForm
 User = get_user_model()
 User = get_user_model()
 DAY_OPTIONS = [7, 14, 30, 60]
@@ -473,38 +480,369 @@ def sales_dashboard(request):
     return render(request, "sales/dashboard.html", context)
 
 
+
+@login_required
+def leads(request):
+    """
+    Sales Leads pipeline.
+
+    Leads are captured before they become Prospects.
+    This is the Sales-facing view of the existing Lead model.
+    """
+
+    # ==========================================================
+    # BASE QUERYSET
+    # ==========================================================
+
+    qs = (
+        Lead.objects
+        .select_related(
+            "assigned_to",
+            "created_by",
+            "prospect",
+            "region",
+            "territory",
+            "area",
+        )
+        .prefetch_related(
+            "product_interests",
+            "activities__user",
+        )
+        .order_by("-created_at")
+    )
+
+    # ==========================================================
+    # SEARCH
+    # ==========================================================
+
+    q = (request.GET.get("q") or "").strip()
+
+    if q:
+        qs = qs.filter(
+            Q(lead_number__icontains=q)
+            | Q(business_name__icontains=q)
+            | Q(contact_person__icontains=q)
+            | Q(phone__icontains=q)
+            | Q(whatsapp__icontains=q)
+            | Q(email__icontains=q)
+        )
+
+    # ==========================================================
+    # TERRITORY
+    # ==========================================================
+
+    territory_id = (request.GET.get("territory") or "").strip()
+
+    if territory_id:
+        qs = qs.filter(
+            territory_id=territory_id
+        )
+
+    # ==========================================================
+    # AREA
+    # ==========================================================
+
+    area_id = (request.GET.get("area") or "").strip()
+
+    if area_id:
+        qs = qs.filter(
+            area_id=area_id
+        )
+
+    # ==========================================================
+    # SALES REP / ACCOUNT MANAGER
+    # ==========================================================
+
+    assigned_to_id = (request.GET.get("assigned_to") or "").strip()
+
+    if assigned_to_id:
+        qs = qs.filter(
+            assigned_to_id=assigned_to_id
+        )
+
+    # ==========================================================
+    # STATUS
+    # ==========================================================
+
+    status = (request.GET.get("status") or "").strip().upper()
+
+    valid_statuses = {
+        code
+        for code, _ in Lead.STATUS_CHOICES
+    }
+
+    if status and status in valid_statuses:
+        qs = qs.filter(
+            status=status
+        )
+
+    # ==========================================================
+    # FILTER OPTIONS
+    # ==========================================================
+
+    filter_territories = (
+        Territory.objects
+        .filter(status="ACTIVE")
+        .select_related("region")
+        .order_by(
+            "region__name",
+            "name",
+        )
+    )
+
+    filter_areas = (
+        Area.objects
+        .filter(status="ACTIVE")
+        .select_related("territory")
+        .order_by(
+            "territory__name",
+            "name",
+        )
+    )
+
+    filter_sales_reps = (
+        User.objects
+        .filter(is_active=True)
+        .order_by(
+            "first_name",
+            "last_name",
+            "username",
+        )
+    )
+
+    # ==========================================================
+    # SUMMARY
+    # ==========================================================
+
+    leads_total = qs.count()
+
+    new_leads = qs.filter(
+        status="NEW"
+    ).count()
+
+    contacted_leads = qs.filter(
+        status="CONTACTED"
+    ).count()
+
+    qualified_leads = qs.filter(
+        status="QUALIFIED"
+    ).count()
+
+    disqualified_leads = qs.filter(
+        status="DISQUALIFIED"
+    ).count()
+
+    converted_leads = qs.filter(
+        status="CONVERTED"
+    ).count()
+
+    # ==========================================================
+    # CONTEXT
+    # ==========================================================
+
+    context = {
+        "leads": qs,
+
+        # Summary
+        "leads_total": leads_total,
+        "new_leads": new_leads,
+        "contacted_leads": contacted_leads,
+        "qualified_leads": qualified_leads,
+        "disqualified_leads": disqualified_leads,
+        "converted_leads": converted_leads,
+
+        # Existing filters
+        "statuses": Lead.STATUS_CHOICES,
+        "sources": Lead.SOURCE_CHOICES,
+
+        # New filters
+        "filter_territories": filter_territories,
+        "filter_areas": filter_areas,
+        "filter_sales_reps": filter_sales_reps,
+
+        # Selected values
+        "selected_territory": territory_id,
+        "selected_area": area_id,
+        "selected_assigned_to": assigned_to_id,
+
+        "today": timezone.localdate(),
+    }
+
+    return render(
+        request,
+        "leads/leads_list.html",
+        context,
+    )
+
+@login_required
+def lead_create(request):
+    """
+    Create a new Lead from the Sales portal.
+    """
+
+    if request.method == "POST":
+        form = LeadForm(request.POST)
+
+        if form.is_valid():
+            lead = form.save(commit=False)
+
+            # The person creating the lead
+            lead.created_by = request.user
+
+            # Default new leads to NEW unless the form explicitly
+            # provides another valid status.
+            if not lead.status:
+                lead.status = "NEW"
+
+            lead.save()
+
+            messages.success(
+                request,
+                f"Lead {lead.lead_number} created successfully.",
+            )
+
+            return redirect(
+                "sales:sales-lead-view",
+                pk=lead.pk,
+            )
+
+        messages.error(
+            request,
+            "Please correct the errors below.",
+        )
+
+    else:
+        form = LeadForm()
+
+    return render(
+        request,
+        "leads/lead_create.html",
+        {
+            "form": form,
+            "title": "Create Lead",
+        },
+    )
+
+
+
+@login_required
+def lead_view(request, pk):
+    """
+    Sales Lead detail page.
+    """
+
+    lead = get_object_or_404(
+        Lead.objects.select_related(
+            "assigned_to",
+            "created_by",
+            "prospect",
+        ).prefetch_related(
+            "product_interests",
+            "activities__user",
+        ),
+        pk=pk,
+    )
+
+    return render(
+        request,
+        "leads/lead_detail.html",
+        {
+            "lead": lead,
+        },
+    )
+
+
+@login_required
+def lead_edit(request, pk):
+    """
+    Edit an existing sales lead.
+    """
+
+    lead = get_object_or_404(Lead, pk=pk)
+
+    if request.method == "POST":
+        form = LeadForm(request.POST, instance=lead)
+
+        if form.is_valid():
+            lead = form.save()
+
+            return redirect(
+                "sales:sales-lead-view",
+                pk=lead.pk,
+            )
+
+    else:
+        form = LeadForm(instance=lead)
+
+    return render(
+        request,
+        "leads/lead_edit.html",
+        {
+            "lead": lead,
+            "form": form,
+        },
+    )
+
+
+@login_required
+def lead_convert_to_prospect(request, pk):
+
+    lead = get_object_or_404(
+        Lead,
+        pk=pk,
+    )
+
+    prospect = lead.convert_to_prospect()
+
+    messages.success(
+        request,
+        f"{lead.business_name or lead.contact_person} has been converted to a prospect.",
+    )
+
+    return redirect(
+        "sales:sales-lead-view",
+        pk=lead.pk,
+    )
+
 @login_required
 def prospects(request):
     """
     Sales prospects pipeline:
     - GET: list prospects with search, stage filter, and status filter.
-    - No sample filtering or sample stats.
+    - Search includes prospect name, contact, notes, territory and area.
     """
 
     qs = (
         Prospect.objects
-        .select_related("owner")
+        .select_related(
+            "owner",
+            "territory",
+            "area",
+        )
     )
 
     # -------------------------------------------------
     # SEARCH
     # -------------------------------------------------
+
     q = (request.GET.get("q") or "").strip()
 
     if q:
         qs = qs.filter(
             Q(name__icontains=q)
-            | Q(organization__icontains=q)
             | Q(contact_name__icontains=q)
             | Q(notes__icontains=q)
-            | Q(suburb__icontains=q)
-            | Q(city__icontains=q)
+            | Q(territory__name__icontains=q)
+            | Q(area__name__icontains=q)
         )
 
     # -------------------------------------------------
     # STAGE FILTER
     # -------------------------------------------------
-    stage_filter = (request.GET.get("stage") or "").strip().upper()
+
+    stage_filter = (
+        request.GET.get("stage") or ""
+    ).strip().upper()
 
     valid_stages = {
         code
@@ -512,12 +850,17 @@ def prospects(request):
     }
 
     if stage_filter and stage_filter in valid_stages:
-        qs = qs.filter(stage=stage_filter)
+        qs = qs.filter(
+            stage=stage_filter
+        )
 
     # -------------------------------------------------
     # STATUS FILTER
     # -------------------------------------------------
-    status_filter = (request.GET.get("status") or "").strip().upper()
+
+    status_filter = (
+        request.GET.get("status") or ""
+    ).strip().upper()
 
     valid_statuses = {
         code
@@ -525,21 +868,30 @@ def prospects(request):
     }
 
     if status_filter and status_filter in valid_statuses:
-        qs = qs.filter(status=status_filter)
+        qs = qs.filter(
+            status=status_filter
+        )
 
     # -------------------------------------------------
     # TOTAL AFTER FILTERS
     # -------------------------------------------------
+
     prospects_total = qs.count()
 
     # -------------------------------------------------
     # PIPELINE SUMMARY
     # -------------------------------------------------
-    stage_label_map = dict(Prospect.STAGE_CHOICES)
+
+    stage_label_map = dict(
+        Prospect.STAGE_CHOICES
+    )
 
     pipeline_raw = (
-        qs.values("stage")
-        .annotate(count=Count("id"))
+        qs
+        .values("stage")
+        .annotate(
+            count=Count("id")
+        )
         .order_by("stage")
     )
 
@@ -558,11 +910,16 @@ def prospects(request):
     # -------------------------------------------------
     # FINAL QUERYSET
     # -------------------------------------------------
+
     prospects_qs = (
         qs
         .order_by("-created_at")
         .distinct()
     )
+
+    # -------------------------------------------------
+    # CONTEXT
+    # -------------------------------------------------
 
     context = {
         "prospects": prospects_qs,
@@ -576,8 +933,6 @@ def prospects(request):
         "prospects/prospects.html",
         context,
     )
-
-
 @login_required
 def prospect_create(request):
     """
@@ -972,6 +1327,8 @@ def prospect_stage_action(request, pk: int):
     # If unknown action, just go back without doing anything
     return redirect("sales:sales-prospect-detail", pk=pk)
 
+
+
 @login_required
 def prospect_edit(request, pk: int):
     """
@@ -1243,6 +1600,8 @@ def prospect_negotiation_log(request, pk: int):
     messages.success(request, "Negotiation update logged.")
     return redirect("sales:sales-prospect-detail", pk=pk)
 
+
+
 @login_required
 def prospect_reopen(request, pk: int):
     """
@@ -1279,6 +1638,8 @@ def prospect_reopen(request, pk: int):
 
     messages.success(request, "Prospect has been reopened and moved to Contacted.")
     return redirect("sales:sales-prospect-detail", pk=pk)
+
+
 
 # -------------------------------------------------------------------
 # Placeholder views for other sales sections (can be filled in later)
@@ -2647,6 +3008,7 @@ def delete_order(request, pk):
 
 
 @login_required
+@login_required
 def ajax_products_by_category(request):
     cat_id = request.GET.get("category_id")
 
@@ -2663,12 +3025,19 @@ def ajax_products_by_category(request):
     results = []
 
     for product in products:
+
+        # ============================================================
+        # NORMAL WHOLESALE PRICING
+        # ============================================================
         best_price_excl = None
         best_vat_percent = None
 
-        active_pricing_rows = product.pricing_rows.filter(is_active=True)
+        active_pricing_rows = product.pricing_rows.filter(
+            is_active=True
+        )
 
         for pricing in active_pricing_rows:
+
             price_excl = pricing.wholesale_price_excl
             vat_percent = pricing.wholesale_vat_percent
 
@@ -2679,37 +3048,105 @@ def ajax_products_by_category(request):
                 best_price_excl = price_excl
                 best_vat_percent = vat_percent
 
+        # ============================================================
+        # SPECIAL PRICE
+        # ============================================================
+        #
+        # If the product is on special and has a valid special
+        # wholesale price INCLUDING VAT, use that price.
+        #
+        # The quotation stores unit_price_excl, so we convert the
+        # special inclusive price back to EX VAT using the same VAT
+        # percentage that applies to the product.
+        #
+        # ============================================================
+
+        if (
+            product.is_special
+            and product.special_wholesale_price_inc is not None
+            and product.special_wholesale_price_inc > Decimal("0.00")
+            and best_vat_percent is not None
+        ):
+
+            vat_multiplier = (
+                Decimal("1.00")
+                + (best_vat_percent / Decimal("100.00"))
+            )
+
+            special_price_inc = product.special_wholesale_price_inc
+
+            special_price_excl = (
+                special_price_inc / vat_multiplier
+            ).quantize(Decimal("0.01"))
+
+            best_price_excl = special_price_excl
+
+        # ============================================================
+        # DISPLAY PRICE INCLUDING VAT
+        # ============================================================
+
         if best_price_excl is not None:
-            vat_multiplier = Decimal("1.00") + (
-                best_vat_percent / Decimal("100.00")
+
+            vat_multiplier = (
+                Decimal("1.00")
+                + (
+                    (best_vat_percent or Decimal("0.00"))
+                    / Decimal("100.00")
+                )
             )
 
             best_price_incl = (
                 best_price_excl * vat_multiplier
             ).quantize(Decimal("0.01"))
 
-            text = (
-                f"{product.sku} · {product.name} "
-                f"({product.uom}) — "
-                f"R{best_price_excl:.2f} excl · "
-                f"R{best_price_incl:.2f} incl"
-            )
+            # ========================================================
+            # PRODUCT DISPLAY
+            # ========================================================
+
+            if (
+                product.is_special
+                and product.special_wholesale_price_inc is not None
+                and product.special_wholesale_price_inc > Decimal("0.00")
+            ):
+                text = (
+                    f"{product.sku} · {product.name} "
+                    f"({product.uom}) — "
+                    f"SPECIAL R{best_price_excl:.2f} excl · "
+                    f"R{best_price_incl:.2f} incl"
+                )
+            else:
+                text = (
+                    f"{product.sku} · {product.name} "
+                    f"({product.uom}) — "
+                    f"R{best_price_excl:.2f} excl · "
+                    f"R{best_price_incl:.2f} incl"
+                )
+
         else:
+
             text = (
                 f"{product.sku} · {product.name} "
                 f"({product.uom}) — No active price"
             )
 
+        # ============================================================
+        # RETURN TO QUOTATION FORM
+        # ============================================================
+
         results.append({
             "id": product.id,
             "text": text,
-            "price_excl": str(best_price_excl or Decimal("0.00")),
-            "vat_percent": str(best_vat_percent or Decimal("0.00")),
+            "price_excl": str(
+                best_price_excl or Decimal("0.00")
+            ),
+            "vat_percent": str(
+                best_vat_percent or Decimal("0.00")
+            ),
         })
 
-    return JsonResponse({"results": results})
-
-
+    return JsonResponse({
+        "results": results
+    })
 
 @login_required
 def invoices(request):
@@ -2836,212 +3273,624 @@ def prev_year_month(year, month, offset=1):
 
 @login_required
 def commission(request):
+
+    # ============================================================
+    # CURRENT DATE
+    # ============================================================
+
     today = localdate()
 
-    selected_month = int(request.GET.get("month", today.month))
-    selected_year = int(request.GET.get("year", today.year))
-    selected_area = request.GET.get("area", "")
+    # ============================================================
+    # YEAR
+    # ============================================================
 
-    month_code = calendar.month_abbr[selected_month].upper()
-
-    first_day = date(selected_year, selected_month, 1)
-    last_day = date(
-        selected_year,
-        selected_month,
-        calendar.monthrange(selected_year, selected_month)[1],
-    )
-
-    # =========================
-    # PREVIOUS PERIOD SETUP
-    # =========================
-    prev_month = selected_month - 1 or 12
-    prev_year = selected_year if selected_month != 1 else selected_year - 1
-
-    prev_first_day = date(prev_year, prev_month, 1)
-    prev_last_day = date(
-        prev_year,
-        prev_month,
-        calendar.monthrange(prev_year, prev_month)[1],
-    )
-
-    if selected_year == today.year and selected_month == today.month:
-        comparison_start = prev_first_day
-        comparison_day = min(
-            today.day,
-            calendar.monthrange(prev_year, prev_month)[1],
+    try:
+        selected_year = int(
+            request.GET.get(
+                "year",
+                today.year,
+            )
         )
-        comparison_end = date(prev_year, prev_month, comparison_day)
-    else:
-        comparison_start = prev_first_day
-        comparison_end = prev_last_day
+    except (TypeError, ValueError):
+        selected_year = today.year
 
-    def build_change(current, previous):
-        current = current or Decimal("0.00")
-        previous = previous or Decimal("0.00")
+    # ============================================================
+    # REGION
+    # ============================================================
 
-        if not isinstance(current, Decimal):
-            current = Decimal(str(current))
+    selected_region = request.GET.get(
+        "region",
+        "",
+    )
 
-        if not isinstance(previous, Decimal):
-            previous = Decimal(str(previous))
+    # ============================================================
+    # TERRITORY
+    # ============================================================
 
-        diff = current - previous
+    selected_territory = request.GET.get(
+        "territory",
+        "",
+    )
 
-        if previous > 0:
-            pct = ((diff / previous) * Decimal("100")).quantize(Decimal("0.01"))
-        elif current > 0:
-            pct = Decimal("100.00")
+    # ============================================================
+    # PERIOD
+    # ============================================================
+
+    selected_period = request.GET.get(
+        "period",
+        "",
+    )
+
+    # ============================================================
+    # PERIOD OPTIONS
+    #
+    # Commission periods:
+    #
+    # 15 Jan - 15 Feb
+    # 15 Feb - 15 Mar
+    # etc.
+    # ============================================================
+
+    period_options = []
+
+    for month in range(1, 13):
+
+        if month == 1:
+
+            start_date = date(
+                selected_year - 1,
+                12,
+                15,
+            )
+
         else:
-            pct = Decimal("0.00")
 
-        if diff > 0:
-            direction = "up"
-        elif diff < 0:
-            direction = "down"
+            start_date = date(
+                selected_year,
+                month - 1,
+                15,
+            )
+
+        end_month = start_date.month + 1
+        end_year = start_date.year
+
+        if end_month == 13:
+
+            end_month = 1
+            end_year += 1
+
+        end_date = date(
+            end_year,
+            end_month,
+            15,
+        )
+
+        period_label = (
+            f"{start_date.strftime('%d %b')} - "
+            f"{end_date.strftime('%d %b')}"
+        )
+
+        period_options.append({
+            "value": period_label,
+            "label": period_label,
+        })
+
+    # ============================================================
+    # DEFAULT PERIOD
+    # ============================================================
+
+    if not selected_period:
+
+        if today.day >= 15:
+
+            current_start = date(
+                today.year,
+                today.month,
+                15,
+            )
+
+            if today.month == 12:
+
+                current_end = date(
+                    today.year + 1,
+                    1,
+                    15,
+                )
+
+            else:
+
+                current_end = date(
+                    today.year,
+                    today.month + 1,
+                    15,
+                )
+
         else:
-            direction = "flat"
 
-        return {
-            "direction": direction,
-            "amount": diff.quantize(Decimal("0.01")),
-            "percent": pct,
-        }
+            if today.month == 1:
 
-    # =========================
-    # BASE COMMISSION QUERY
-    # =========================
+                current_start = date(
+                    today.year - 1,
+                    12,
+                    15,
+                )
+
+            else:
+
+                current_start = date(
+                    today.year,
+                    today.month - 1,
+                    15,
+                )
+
+            current_end = date(
+                today.year,
+                today.month,
+                15,
+            )
+
+        selected_period = (
+            f"{current_start.strftime('%d %b')} - "
+            f"{current_end.strftime('%d %b')}"
+        )
+
+    # ============================================================
+    # CONVERT PERIOD TO DATE RANGE
+    # ============================================================
+
+    period_start = None
+    period_end = None
+
+    try:
+
+        start_text, end_text = selected_period.split(
+            " - "
+        )
+
+        start_day, start_month_name = (
+            start_text.split()
+        )
+
+        end_day, end_month_name = (
+            end_text.split()
+        )
+
+        start_month_number = list(
+            calendar.month_abbr
+        ).index(
+            start_month_name
+        )
+
+        end_month_number = list(
+            calendar.month_abbr
+        ).index(
+            end_month_name
+        )
+
+        start_day = int(start_day)
+        end_day = int(end_day)
+
+        # --------------------------------------------------------
+        # December -> January
+        # --------------------------------------------------------
+
+        if (
+            start_month_number == 12
+            and end_month_number == 1
+        ):
+
+            period_start = date(
+                selected_year - 1,
+                start_month_number,
+                start_day,
+            )
+
+            period_end = date(
+                selected_year,
+                end_month_number,
+                end_day,
+            )
+
+        else:
+
+            period_start = date(
+                selected_year,
+                start_month_number,
+                start_day,
+            )
+
+            period_end = date(
+                selected_year,
+                end_month_number,
+                end_day,
+            )
+
+    except (ValueError, TypeError):
+
+        period_start = date(
+            selected_year,
+            today.month,
+            15,
+        )
+
+        if today.month == 12:
+
+            period_end = date(
+                selected_year + 1,
+                1,
+                15,
+            )
+
+        else:
+
+            period_end = date(
+                selected_year,
+                today.month + 1,
+                15,
+            )
+
+    # ============================================================
+    # TARGET MONTH
+    #
+    # The target is represented by the END month.
+    #
+    # Example:
+    #
+    # 15 Aug - 15 Sep
+    #
+    # -> SEP
+    # ============================================================
+
+    target_month_code = (
+        calendar.month_abbr[
+            period_end.month
+        ].upper()
+    )
+
+    # ============================================================
+    # REGION OPTIONS
+    # ============================================================
+
+    try:
+
+        regions = (
+            Region.objects
+            .filter(
+                status="ACTIVE"
+            )
+            .order_by(
+                "name"
+            )
+        )
+
+    except Exception:
+
+        regions = (
+            Region.objects
+            .all()
+            .order_by(
+                "name"
+            )
+        )
+
+    # ============================================================
+    # TERRITORY OPTIONS
+    # ============================================================
+
+    territory_qs = (
+        Territory.objects
+        .filter(
+            status="ACTIVE"
+        )
+        .select_related(
+            "region"
+        )
+        .order_by(
+            "name"
+        )
+    )
+
+    if selected_region:
+
+        territory_qs = (
+            territory_qs.filter(
+                region_id=selected_region
+            )
+        )
+
+    territories = []
+
+    for territory in territory_qs:
+
+        territories.append({
+            "value": territory.id,
+            "label": territory.name,
+            "region": (
+                territory.region.name
+                if territory.region
+                else ""
+            ),
+        })
+
+    # ============================================================
+    # COMMISSION ENTRIES
+    #
+    # THIS IS THE SOURCE OF TRUTH FOR PERFORMANCE.
+    #
+    # The selected period is applied directly to
+    # CommissionEntry.
+    # ============================================================
+
     commission_entries = (
         CommissionEntry.objects
         .select_related(
             "invoice",
             "invoice__client",
+            "invoice__client__area",
+            "invoice__client__territory",
             "client",
+            "area",
+            "territory",
             "rep",
             "supervisor",
         )
         .filter(
-            created_at__date__gte=first_day,
-            created_at__date__lte=last_day,
+            period=selected_period,
+            invoice__paid_date__gte=period_start,
+            invoice__paid_date__lte=period_end,
         )
-        .order_by("-created_at")
+        .order_by(
+            "-invoice__paid_date",
+            "-created_at",
+        )
     )
 
-    if selected_area:
-        commission_entries = commission_entries.filter(
-            client__area=selected_area
+    # ============================================================
+    # REGION FILTER
+    # ============================================================
+
+    if selected_region:
+
+        commission_entries = (
+            commission_entries.filter(
+                territory__region_id=selected_region
+            )
         )
 
-    # =========================
-    # PREVIOUS COMMISSION QUERY
-    # =========================
+    # ============================================================
+    # TERRITORY FILTER
+    # ============================================================
+
+    if selected_territory:
+
+        commission_entries = (
+            commission_entries.filter(
+                territory_id=selected_territory
+            )
+        )
+
+    # ============================================================
+    # PREVIOUS PERIOD
+    # ============================================================
+
+    previous_period_end = period_start
+
+    if previous_period_end.month == 1:
+
+        previous_period_start = date(
+            previous_period_end.year - 1,
+            12,
+            15,
+        )
+
+    else:
+
+        previous_period_start = date(
+            previous_period_end.year,
+            previous_period_end.month - 1,
+            15,
+        )
+
+    previous_period_label = (
+        f"{previous_period_start.strftime('%d %b')} - "
+        f"{previous_period_end.strftime('%d %b')}"
+    )
+
     previous_commission_entries = (
         CommissionEntry.objects
         .select_related(
             "invoice",
             "invoice__client",
             "client",
+            "area",
+            "territory",
             "rep",
             "supervisor",
         )
         .filter(
-            created_at__date__gte=comparison_start,
-            created_at__date__lte=comparison_end,
+            period=previous_period_label,
+            invoice__paid_date__gte=previous_period_start,
+            invoice__paid_date__lt=previous_period_end,
         )
     )
 
-    if selected_area:
-        previous_commission_entries = previous_commission_entries.filter(
-            client__area=selected_area
+    if selected_region:
+
+        previous_commission_entries = (
+            previous_commission_entries.filter(
+                territory__region_id=selected_region
+            )
         )
 
-    # =========================
-    # TARGETS
-    # =========================
-    monthly_targets = MonthlyTarget.objects.filter(
-        year=selected_year,
-        month=month_code,
+    if selected_territory:
+
+        previous_commission_entries = (
+            previous_commission_entries.filter(
+                territory_id=selected_territory
+            )
+        )
+
+    # ============================================================
+    # MONTHLY TARGETS
+    # ============================================================
+
+    monthly_targets = (
+        MonthlyTarget.objects
+        .select_related(
+            "territory",
+            "territory__region",
+        )
+        .filter(
+            year=period_end.year,
+            month=target_month_code,
+        )
     )
 
-    if selected_area:
-        monthly_targets = monthly_targets.filter(area=selected_area)
+    if selected_region:
+
+        monthly_targets = (
+            monthly_targets.filter(
+                territory__region_id=selected_region
+            )
+        )
+
+    if selected_territory:
+
+        monthly_targets = (
+            monthly_targets.filter(
+                territory_id=selected_territory
+            )
+        )
+
+    # ============================================================
+    # TARGET TOTALS
+    # ============================================================
 
     monthly_target = (
-        monthly_targets.aggregate(t=Sum("monthly_target"))["t"]
+        monthly_targets.aggregate(
+            t=Sum("monthly_target")
+        )["t"]
         or Decimal("0.00")
     )
 
     client_target = (
-        monthly_targets.aggregate(t=Sum("total_client_target"))["t"]
+        monthly_targets.aggregate(
+            t=Sum("total_client_target")
+        )["t"]
         or 0
     )
 
-    # =========================
+    # ============================================================
     # TOTAL COMMISSION PAYABLE
-    # =========================
-    commission_totals = commission_entries.aggregate(
-        rep_total=Coalesce(
-            Sum("rep_amount"),
-            Decimal("0.00"),
-            output_field=DecimalField(max_digits=14, decimal_places=2),
-        ),
-        supervisor_total=Coalesce(
-            Sum("supervisor_amount"),
-            Decimal("0.00"),
-            output_field=DecimalField(max_digits=14, decimal_places=2),
-        ),
+    # ============================================================
+
+    commission_totals = (
+        commission_entries.aggregate(
+            rep_total=Coalesce(
+                Sum("rep_amount"),
+                Decimal("0.00"),
+                output_field=DecimalField(
+                    max_digits=14,
+                    decimal_places=2,
+                ),
+            ),
+            supervisor_total=Coalesce(
+                Sum("supervisor_amount"),
+                Decimal("0.00"),
+                output_field=DecimalField(
+                    max_digits=14,
+                    decimal_places=2,
+                ),
+            ),
+        )
     )
 
     total_commission_payable = (
         commission_totals["rep_total"]
         + commission_totals["supervisor_total"]
-    ).quantize(Decimal("0.01"))
+    ).quantize(
+        Decimal("0.01")
+    )
+
+    # ============================================================
+    # NEW BUSINESS BONUS
+    # ============================================================
 
     new_business_bonus_total = (
         commission_entries
-        .filter(is_new_business=True)
-        .aggregate(t=Sum("rep_amount"))["t"]
-        or Decimal("0.00")
-    )
-
-    total_revenue = (
-        commission_entries.aggregate(
-            t=Sum("invoice__order_total_inc")
+        .filter(
+            is_new_business=True
+        )
+        .aggregate(
+            t=Sum("rep_amount")
         )["t"]
         or Decimal("0.00")
     )
 
+    # ============================================================
+    # REVENUE
+    # ============================================================
+
+    total_revenue = (
+        commission_entries.aggregate(
+            t=Sum(
+                "invoice__order_total_inc"
+            )
+        )["t"]
+        or Decimal("0.00")
+    )
+
+    # ============================================================
+    # UNIQUE CLIENTS
+    # ============================================================
+
     total_clients = (
         commission_entries
         .values("client_id")
-        .exclude(client_id=None)
+        .exclude(
+            client_id=None
+        )
         .distinct()
         .count()
     )
 
-    # =========================
-    # PREVIOUS PERIOD KPI VALUES
-    # =========================
-    previous_commission_totals = previous_commission_entries.aggregate(
-        rep_total=Coalesce(
-            Sum("rep_amount"),
-            Decimal("0.00"),
-            output_field=DecimalField(max_digits=14, decimal_places=2),
-        ),
-        supervisor_total=Coalesce(
-            Sum("supervisor_amount"),
-            Decimal("0.00"),
-            output_field=DecimalField(max_digits=14, decimal_places=2),
-        ),
+    # ============================================================
+    # PREVIOUS KPI VALUES
+    # ============================================================
+
+    previous_commission_totals = (
+        previous_commission_entries.aggregate(
+            rep_total=Coalesce(
+                Sum("rep_amount"),
+                Decimal("0.00"),
+                output_field=DecimalField(
+                    max_digits=14,
+                    decimal_places=2,
+                ),
+            ),
+            supervisor_total=Coalesce(
+                Sum("supervisor_amount"),
+                Decimal("0.00"),
+                output_field=DecimalField(
+                    max_digits=14,
+                    decimal_places=2,
+                ),
+            ),
+        )
     )
 
     previous_commission_payable = (
         previous_commission_totals["rep_total"]
         + previous_commission_totals["supervisor_total"]
-    ).quantize(Decimal("0.01"))
+    ).quantize(
+        Decimal("0.01")
+    )
 
     previous_revenue = (
         previous_commission_entries.aggregate(
-            t=Sum("invoice__order_total_inc")
+            t=Sum(
+                "invoice__order_total_inc"
+            )
         )["t"]
         or Decimal("0.00")
     )
@@ -3049,169 +3898,588 @@ def commission(request):
     previous_clients = (
         previous_commission_entries
         .values("client_id")
-        .exclude(client_id=None)
+        .exclude(
+            client_id=None
+        )
         .distinct()
         .count()
     )
 
     previous_new_business_bonus = (
         previous_commission_entries
-        .filter(is_new_business=True)
-        .aggregate(t=Sum("rep_amount"))["t"]
+        .filter(
+            is_new_business=True
+        )
+        .aggregate(
+            t=Sum("rep_amount")
+        )["t"]
         or Decimal("0.00")
     )
 
-    commission_payable_change = build_change(
-        total_commission_payable,
-        previous_commission_payable,
+    # ============================================================
+    # CHANGE HELPER
+    # ============================================================
+
+    def build_change(
+        current,
+        previous,
+    ):
+
+        current = (
+            current
+            or Decimal("0.00")
+        )
+
+        previous = (
+            previous
+            or Decimal("0.00")
+        )
+
+        if not isinstance(
+            current,
+            Decimal,
+        ):
+
+            current = Decimal(
+                str(current)
+            )
+
+        if not isinstance(
+            previous,
+            Decimal,
+        ):
+
+            previous = Decimal(
+                str(previous)
+            )
+
+        diff = current - previous
+
+        if previous > 0:
+
+            pct = (
+                diff / previous
+            ) * Decimal("100")
+
+            pct = pct.quantize(
+                Decimal("0.01")
+            )
+
+        elif current > 0:
+
+            pct = Decimal("100.00")
+
+        else:
+
+            pct = Decimal("0.00")
+
+        if diff > 0:
+
+            direction = "up"
+
+        elif diff < 0:
+
+            direction = "down"
+
+        else:
+
+            direction = "flat"
+
+        return {
+            "direction": direction,
+            "amount": diff.quantize(
+                Decimal("0.01")
+            ),
+            "percent": pct,
+        }
+
+    # ============================================================
+    # KPI CHANGES
+    # ============================================================
+
+    commission_payable_change = (
+        build_change(
+            total_commission_payable,
+            previous_commission_payable,
+        )
     )
 
-    revenue_change = build_change(
-        total_revenue,
-        previous_revenue,
+    revenue_change = (
+        build_change(
+            total_revenue,
+            previous_revenue,
+        )
     )
 
-    clients_change = build_change(
-        Decimal(total_clients),
-        Decimal(previous_clients),
+    clients_change = (
+        build_change(
+            Decimal(total_clients),
+            Decimal(previous_clients),
+        )
     )
 
-    new_business_bonus_change = build_change(
-        new_business_bonus_total,
-        previous_new_business_bonus,
+    new_business_bonus_change = (
+        build_change(
+            new_business_bonus_total,
+            previous_new_business_bonus,
+        )
     )
+
+    # ============================================================
+    # TARGET PROGRESS
+    # ============================================================
 
     actual_revenue = total_revenue
     actual_clients = total_clients
 
     revenue_target_pct = (
-        (actual_revenue / monthly_target) * Decimal("100")
-        if monthly_target > 0 else Decimal("0.00")
+        (
+            actual_revenue
+            / monthly_target
+        )
+        * Decimal("100")
+        if monthly_target > 0
+        else Decimal("0.00")
     )
 
     client_target_pct = (
-        (Decimal(actual_clients) / Decimal(client_target)) * Decimal("100")
-        if client_target > 0 else Decimal("0.00")
+        (
+            Decimal(actual_clients)
+            / Decimal(client_target)
+        )
+        * Decimal("100")
+        if client_target > 0
+        else Decimal("0.00")
     )
 
-    revenue_gap = max(monthly_target - actual_revenue, Decimal("0.00"))
-    clients_needed_for_bonus = max(client_target - actual_clients, 0)
-    bonus_active = actual_clients > client_target if client_target else False
+    revenue_gap = max(
+        monthly_target - actual_revenue,
+        Decimal("0.00"),
+    )
 
-    # =========================
-    # WORKING DAYS / DAILY PACING
-    # =========================
+    clients_needed_for_bonus = max(
+        client_target - actual_clients,
+        0,
+    )
+
+    bonus_active = (
+        actual_clients > client_target
+        if client_target
+        else False
+    )
+
+    # ============================================================
+    # WORKING DAYS
+    # ============================================================
+
     working_days = 0
 
     for target in monthly_targets:
+
         try:
-            working_days = max(working_days, target.get_total_working_days())
+
+            working_days = max(
+                working_days,
+                target.get_total_working_days(),
+            )
+
         except Exception:
+
             pass
 
     if working_days <= 0:
+
         working_days = 1
 
-    if today.year == selected_year and today.month == selected_month:
-        current_day_limit = today.day
+    # ============================================================
+    # DAYS PASSED
+    # ============================================================
+
+    if (
+        period_start <= today < period_end
+    ):
+
+        current_day = today
+
     else:
-        current_day_limit = last_day.day
+
+        current_day = period_end
 
     days_passed = 0
-    for d in range(1, current_day_limit + 1):
-        current = date(selected_year, selected_month, d)
-        if current.weekday() < 5:
+
+    current_date = period_start
+
+    while current_date < current_day:
+
+        if current_date.weekday() < 5:
+
             days_passed += 1
 
-    days_remaining = max(working_days - days_passed, 0)
-
-    weeks_in_month = Decimal("4.00")
-
-    weekly_average = (
-        actual_revenue / weeks_in_month
-        if actual_revenue > 0 else Decimal("0.00")
-    ).quantize(Decimal("0.01"))
-
-    required_per_week = (
-        revenue_gap / weeks_in_month
-        if revenue_gap > 0 else Decimal("0.00")
-    ).quantize(Decimal("0.01"))
-
-    # =========================
-    # REP PERFORMANCE TABLE
-    # =========================
-    rep_commission_summary = []
-
-    allocations = (
-        MonthlyTargetAllocation.objects
-        .select_related("sales_rep", "monthly_target")
-        .filter(
-            monthly_target__year=selected_year,
-            monthly_target__month=month_code,
+        current_date += timedelta(
+            days=1
         )
+
+    days_remaining = max(
+        working_days - days_passed,
+        0,
     )
 
-    if selected_area:
-        allocations = allocations.filter(monthly_target__area=selected_area)
+    # ============================================================
+    # WEEKLY PACING
+    # ============================================================
 
-    for allocation in allocations:
-        rep = allocation.sales_rep
+    weeks_in_period = Decimal("4.00")
 
-        if not rep:
+    weekly_average = (
+        actual_revenue
+        / weeks_in_period
+        if actual_revenue > 0
+        else Decimal("0.00")
+    ).quantize(
+        Decimal("0.01")
+    )
+
+    required_per_week = (
+        revenue_gap
+        / weeks_in_period
+        if revenue_gap > 0
+        else Decimal("0.00")
+    ).quantize(
+        Decimal("0.01")
+    )
+
+    # ============================================================
+    # REP PERFORMANCE
+    #
+    # IMPORTANT:
+    #
+    # CommissionEntry is the source of truth.
+    #
+    # Every rep appears ONLY ONCE.
+    #
+    # Entries = number of CommissionEntry records
+    # for that rep during the selected period.
+    # ============================================================
+
+    rep_commission_summary = []
+
+    rep_ids = (
+        commission_entries
+        .exclude(
+            rep=None
+        )
+        .values_list(
+            "rep_id",
+            flat=True,
+        )
+        .distinct()
+    )
+
+    for rep_id in rep_ids:
+
+        rep_entries = (
+            commission_entries.filter(
+                rep_id=rep_id
+            )
+        )
+
+        rep_entry = (
+            rep_entries
+            .select_related(
+                "rep"
+            )
+            .first()
+        )
+
+        if (
+            not rep_entry
+            or not rep_entry.rep
+        ):
+
             continue
 
-        rep_entries = commission_entries.filter(rep=rep)
+        rep = rep_entry.rep
+
+        # --------------------------------------------------------
+        # ENTRY COUNT
+        # --------------------------------------------------------
+
+        rep_entry_count = (
+            rep_entries.count()
+        )
+
+        # --------------------------------------------------------
+        # REVENUE
+        # --------------------------------------------------------
 
         rep_revenue = (
-            rep_entries.aggregate(t=Sum("invoice__order_total_inc"))["t"]
+            rep_entries.aggregate(
+                t=Sum(
+                    "invoice__order_total_inc"
+                )
+            )["t"]
             or Decimal("0.00")
         )
 
+        # --------------------------------------------------------
+        # UNIQUE CLIENTS
+        # --------------------------------------------------------
+
         rep_clients = (
             rep_entries
-            .values("client_id")
-            .exclude(client_id=None)
+            .exclude(
+                client_id=None
+            )
+            .values(
+                "client_id"
+            )
             .distinct()
             .count()
         )
 
+        # --------------------------------------------------------
+        # BASE COMMISSION
+        # --------------------------------------------------------
+
         base_commission = (
             rep_entries
-            .filter(is_new_business=False)
-            .aggregate(t=Sum("rep_amount"))["t"]
+            .filter(
+                is_new_business=False
+            )
+            .aggregate(
+                t=Sum("rep_amount")
+            )["t"]
             or Decimal("0.00")
         )
+
+        # --------------------------------------------------------
+        # BONUS COMMISSION
+        # --------------------------------------------------------
 
         bonus_commission = (
             rep_entries
-            .filter(is_new_business=True)
-            .aggregate(t=Sum("rep_amount"))["t"]
+            .filter(
+                is_new_business=True
+            )
+            .aggregate(
+                t=Sum("rep_amount")
+            )["t"]
             or Decimal("0.00")
         )
 
-        total_rep_commission = base_commission + bonus_commission
+        # --------------------------------------------------------
+        # TOTAL REP COMMISSION
+        # --------------------------------------------------------
 
-        revenue_pct = (
-            (rep_revenue / allocation.monthly_target_value) * Decimal("100")
-            if allocation.monthly_target_value > 0 else Decimal("0.00")
+        total_rep_commission = (
+            base_commission
+            + bonus_commission
+        ).quantize(
+            Decimal("0.01")
         )
 
-        full_name = rep.get_full_name() or rep.username
+        # --------------------------------------------------------
+        # TERRITORY
+        # --------------------------------------------------------
+
+        territory_names = list(
+            rep_entries
+            .exclude(
+                territory=None
+            )
+            .values_list(
+                "territory__name",
+                flat=True,
+            )
+            .distinct()
+        )
+
+        if len(territory_names) == 1:
+
+            territory_name = (
+                territory_names[0]
+            )
+
+        elif len(territory_names) > 1:
+
+            territory_name = "Multiple"
+
+        else:
+
+            territory_name = "—"
+
+        territory_ids = list(
+            rep_entries
+            .exclude(
+                territory=None
+            )
+            .values_list(
+                "territory_id",
+                flat=True,
+            )
+            .distinct()
+        )
+
+        if len(territory_ids) == 1:
+
+            territory_id = (
+                territory_ids[0]
+            )
+
+        else:
+
+            territory_id = None
+
+        # --------------------------------------------------------
+        # SUPERVISOR
+        # --------------------------------------------------------
+
+        supervisor_names = []
+        supervisor_ids = []
+
+        supervisor_rows = (
+            rep_entries
+            .exclude(
+                supervisor=None
+            )
+            .values(
+                "supervisor_id",
+                "supervisor__first_name",
+                "supervisor__last_name",
+                "supervisor__username",
+            )
+            .distinct()
+        )
+
+        for supervisor_row in supervisor_rows:
+
+            supervisor_name = (
+                f"{supervisor_row['supervisor__first_name'] or ''} "
+                f"{supervisor_row['supervisor__last_name'] or ''}"
+            ).strip()
+
+            if not supervisor_name:
+
+                supervisor_name = (
+                    supervisor_row[
+                        "supervisor__username"
+                    ]
+                    or "—"
+                )
+
+            if (
+                supervisor_name
+                not in supervisor_names
+            ):
+
+                supervisor_names.append(
+                    supervisor_name
+                )
+
+            if (
+                supervisor_row[
+                    "supervisor_id"
+                ]
+                not in supervisor_ids
+            ):
+
+                supervisor_ids.append(
+                    supervisor_row[
+                        "supervisor_id"
+                    ]
+                )
+
+        if len(supervisor_names) == 1:
+
+            supervisor_name = (
+                supervisor_names[0]
+            )
+
+        elif len(supervisor_names) > 1:
+
+            supervisor_name = "Multiple"
+
+        else:
+
+            supervisor_name = "—"
+
+        if len(supervisor_ids) == 1:
+
+            supervisor_id = (
+                supervisor_ids[0]
+            )
+
+        else:
+
+            supervisor_id = None
+
+        # --------------------------------------------------------
+        # REP NAME
+        # --------------------------------------------------------
+
+        full_name = (
+            rep.get_full_name()
+            or rep.username
+        )
+
+        # --------------------------------------------------------
+        # ADD REP
+        # --------------------------------------------------------
 
         rep_commission_summary.append({
-            "rep_id": rep.id,
-            "rep_name": full_name,
-            "role": "Sales Rep",
-            "area": allocation.monthly_target.get_area_display(),
-            "revenue": rep_revenue,
-            "revenue_target": allocation.monthly_target_value,
-            "revenue_pct": revenue_pct,
-            "clients": rep_clients,
-            "client_target": allocation.client_target,
-            "base_commission": base_commission,
-            "bonus_commission": bonus_commission,
-            "total_commission": total_rep_commission,
+
+            "rep_id":
+                rep.id,
+
+            "rep_name":
+                full_name,
+
+            "role":
+                "Sales Rep",
+
+            "entries":
+                rep_entry_count,
+
+            "territory":
+                territory_name,
+
+            "territory_id":
+                territory_id,
+
+            "supervisor":
+                supervisor_name,
+
+            "supervisor_id":
+                supervisor_id,
+
+            "revenue":
+                rep_revenue,
+
+            "revenue_target":
+                Decimal("0.00"),
+
+            "revenue_pct":
+                Decimal("0.00"),
+
+            "clients":
+                rep_clients,
+
+            "client_target":
+                0,
+
+            "base_commission":
+                base_commission,
+
+            "bonus_commission":
+                bonus_commission,
+
+            "total_commission":
+                total_rep_commission,
         })
+
+    # ============================================================
+    # SORT REP PERFORMANCE
+    # ============================================================
 
     rep_commission_summary = sorted(
         rep_commission_summary,
@@ -3220,77 +4488,399 @@ def commission(request):
             x["bonus_commission"],
             x["revenue"],
             x["clients"],
+            x["entries"],
         ),
         reverse=True,
     )
 
-    for index, row in enumerate(rep_commission_summary, start=1):
+    # ============================================================
+    # REP RANKING
+    # ============================================================
+
+    for index, row in enumerate(
+        rep_commission_summary,
+        start=1,
+    ):
+
         row["ranking"] = index
 
-    # =========================
-    # AREA PERFORMANCE VIEW
-    # =========================
-    area_performance_summary = []
+    # ============================================================
+    # TERRITORY PERFORMANCE
+    # ============================================================
 
-    area_targets = monthly_targets
+    territory_performance_summary = []
 
-    for target in area_targets:
-        area_code = target.area
-        area_label = target.get_area_display()
+    seen_territories = set()
 
-        area_entries = commission_entries.filter(
-            client__area=area_code
+    for target in monthly_targets:
+
+        territory = target.territory
+
+        if not territory:
+            continue
+
+        if territory.id in seen_territories:
+            continue
+
+        seen_territories.add(
+            territory.id
         )
+
+        territory_entries = (
+            commission_entries.filter(
+                territory_id=territory.id
+            )
+        )
+
+        # --------------------------------------------------------
+        # REPS
+        # --------------------------------------------------------
 
         rep_count = (
-            area_entries
-            .exclude(rep=None)
-            .values("rep_id")
+            territory_entries
+            .exclude(
+                rep=None
+            )
+            .values(
+                "rep_id"
+            )
             .distinct()
             .count()
         )
 
-        total_clients_area = (
-            area_entries
-            .exclude(client=None)
-            .values("client_id")
+        # --------------------------------------------------------
+        # CLIENTS
+        # --------------------------------------------------------
+
+        total_clients_territory = (
+            territory_entries
+            .exclude(
+                client=None
+            )
+            .values(
+                "client_id"
+            )
             .distinct()
             .count()
         )
 
-        area_revenue = (
-            area_entries.aggregate(t=Sum("invoice__order_total_inc"))["t"]
+        # --------------------------------------------------------
+        # REVENUE
+        # --------------------------------------------------------
+
+        territory_revenue = (
+            territory_entries.aggregate(
+                t=Sum(
+                    "invoice__order_total_inc"
+                )
+            )["t"]
             or Decimal("0.00")
         )
+
+        # --------------------------------------------------------
+        # REP COMMISSION
+        # --------------------------------------------------------
 
         rep_commission_total = (
-            area_entries.aggregate(t=Sum("rep_amount"))["t"]
+            territory_entries.aggregate(
+                t=Sum("rep_amount")
+            )["t"]
             or Decimal("0.00")
         )
+
+        # --------------------------------------------------------
+        # SUPERVISOR COMMISSION
+        # --------------------------------------------------------
 
         supervisor_commission_total = (
-            area_entries.aggregate(t=Sum("supervisor_amount"))["t"]
+            territory_entries.aggregate(
+                t=Sum(
+                    "supervisor_amount"
+                )
+            )["t"]
             or Decimal("0.00")
         )
 
-        total_commission_area = (
-            rep_commission_total + supervisor_commission_total
-        ).quantize(Decimal("0.01"))
+        total_commission_territory = (
+            rep_commission_total
+            + supervisor_commission_total
+        ).quantize(
+            Decimal("0.01")
+        )
 
-        area_performance_summary.append({
-            "area": area_label,
-            "rep_count": rep_count,
-            "clients": total_clients_area,
-            "revenue": area_revenue,
-            "rep_commission_total": rep_commission_total,
-            "supervisor_commission_total": supervisor_commission_total,
-            "total_commission": total_commission_area,
+        # --------------------------------------------------------
+        # ALLOCATED REPS
+        # --------------------------------------------------------
+
+        allocated_rep_count = (
+            MonthlyTargetAllocation.objects
+            .filter(
+                monthly_target=target
+            )
+            .exclude(
+                sales_rep=None
+            )
+            .values(
+                "sales_rep_id"
+            )
+            .distinct()
+            .count()
+        )
+
+        territory_performance_summary.append({
+
+            "territory_id":
+                territory.id,
+
+            "territory":
+                territory.name,
+
+            "rep_count":
+                rep_count,
+
+            "allocated_rep_count":
+                allocated_rep_count,
+
+            "clients":
+                total_clients_territory,
+
+            "revenue":
+                territory_revenue,
+
+            "target":
+                target.monthly_target
+                or Decimal("0.00"),
+
+            "client_target":
+                target.total_client_target
+                or 0,
+
+            "rep_commission_total":
+                rep_commission_total,
+
+            "supervisor_commission_total":
+                supervisor_commission_total,
+
+            "total_commission":
+                total_commission_territory,
         })
 
-    # =========================
-    # PERFORMANCE TREND GRAPH
-    # Revenue / Commission / Active Clients / Orders
-    # =========================
+    # ============================================================
+    # SUPERVISOR PERFORMANCE
+    #
+    # IMPORTANT:
+    #
+    # This is NOT payroll.
+    #
+    # It is performance based directly on CommissionEntry.
+    #
+    # Every supervisor appears ONLY ONCE.
+    #
+    # Entries:
+    #     Number of CommissionEntry records.
+    #
+    # Reps:
+    #     Number of unique reps.
+    #
+    # Clients:
+    #     Number of unique clients.
+    #
+    # Revenue:
+    #     Total invoice revenue.
+    #
+    # Commission:
+    #     Total supervisor_amount.
+    #
+    # Total:
+    #     Same as supervisor commission.
+    # ============================================================
+
+    supervisor_performance_summary = []
+
+    supervisor_ids = (
+        commission_entries
+        .exclude(
+            supervisor=None
+        )
+        .values_list(
+            "supervisor_id",
+            flat=True,
+        )
+        .distinct()
+    )
+
+    for supervisor_id in supervisor_ids:
+
+        supervisor_entries = (
+            commission_entries.filter(
+                supervisor_id=supervisor_id
+            )
+        )
+
+        supervisor_entry = (
+            supervisor_entries
+            .select_related(
+                "supervisor"
+            )
+            .first()
+        )
+
+        if (
+            not supervisor_entry
+            or not supervisor_entry.supervisor
+        ):
+
+            continue
+
+        supervisor = (
+            supervisor_entry.supervisor
+        )
+
+        # --------------------------------------------------------
+        # ENTRY COUNT
+        # --------------------------------------------------------
+
+        supervisor_entry_count = (
+            supervisor_entries.count()
+        )
+
+        # --------------------------------------------------------
+        # UNIQUE REPS
+        # --------------------------------------------------------
+
+        supervisor_rep_count = (
+            supervisor_entries
+            .exclude(
+                rep=None
+            )
+            .values(
+                "rep_id"
+            )
+            .distinct()
+            .count()
+        )
+
+        # --------------------------------------------------------
+        # UNIQUE CLIENTS
+        # --------------------------------------------------------
+
+        supervisor_client_count = (
+            supervisor_entries
+            .exclude(
+                client=None
+            )
+            .values(
+                "client_id"
+            )
+            .distinct()
+            .count()
+        )
+
+        # --------------------------------------------------------
+        # REVENUE
+        # --------------------------------------------------------
+
+        supervisor_revenue = (
+            supervisor_entries.aggregate(
+                t=Sum(
+                    "invoice__order_total_inc"
+                )
+            )["t"]
+            or Decimal("0.00")
+        )
+
+        # --------------------------------------------------------
+        # SUPERVISOR COMMISSION
+        # --------------------------------------------------------
+
+        supervisor_commission = (
+            supervisor_entries.aggregate(
+                t=Sum(
+                    "supervisor_amount"
+                )
+            )["t"]
+            or Decimal("0.00")
+        )
+
+        supervisor_commission = (
+            supervisor_commission.quantize(
+                Decimal("0.01")
+            )
+        )
+
+        # --------------------------------------------------------
+        # NAME
+        # --------------------------------------------------------
+
+        supervisor_name = (
+            supervisor.get_full_name()
+            or supervisor.username
+        )
+
+        # --------------------------------------------------------
+        # ADD ONE SUPERVISOR ROW
+        # --------------------------------------------------------
+
+        supervisor_performance_summary.append({
+
+            "supervisor_id":
+                supervisor.id,
+
+            "supervisor_name":
+                supervisor_name,
+
+            "entries":
+                supervisor_entry_count,
+
+            "reps":
+                supervisor_rep_count,
+
+            "clients":
+                supervisor_client_count,
+
+            "revenue":
+                supervisor_revenue,
+
+            "commission":
+                supervisor_commission,
+
+            "total":
+                supervisor_commission,
+        })
+
+    # ============================================================
+    # SORT SUPERVISOR PERFORMANCE
+    #
+    # Highest commission first.
+    # ============================================================
+
+    supervisor_performance_summary = sorted(
+        supervisor_performance_summary,
+        key=lambda x: (
+            x["total"],
+            x["revenue"],
+            x["clients"],
+            x["reps"],
+            x["entries"],
+        ),
+        reverse=True,
+    )
+
+    # ============================================================
+    # SUPERVISOR RANKING
+    # ============================================================
+
+    for index, row in enumerate(
+        supervisor_performance_summary,
+        start=1,
+    ):
+
+        row["ranking"] = index
+
+    # ============================================================
+    # PERFORMANCE TREND
+    # ============================================================
+
     performance_trend_labels = []
     performance_trend_revenue = []
     performance_trend_commission = []
@@ -3298,178 +4888,358 @@ def commission(request):
     performance_trend_orders = []
 
     for month in range(1, 13):
-        start = date(selected_year, month, 1)
+
+        start = date(
+            selected_year,
+            month,
+            1,
+        )
+
         end = date(
             selected_year,
             month,
-            calendar.monthrange(selected_year, month)[1],
+            calendar.monthrange(
+                selected_year,
+                month,
+            )[1],
         )
 
         month_entries = (
             CommissionEntry.objects
-            .select_related("invoice", "client", "rep", "supervisor")
+            .select_related(
+                "invoice",
+                "client",
+                "territory",
+                "rep",
+                "supervisor",
+            )
             .filter(
-                created_at__date__gte=start,
-                created_at__date__lte=end,
+                invoice__paid_date__gte=start,
+                invoice__paid_date__lte=end,
             )
         )
 
-        if selected_area:
-            month_entries = month_entries.filter(client__area=selected_area)
+        if selected_region:
+
+            month_entries = (
+                month_entries.filter(
+                    territory__region_id=selected_region
+                )
+            )
+
+        if selected_territory:
+
+            month_entries = (
+                month_entries.filter(
+                    territory_id=selected_territory
+                )
+            )
+
+        # --------------------------------------------------------
+        # REVENUE
+        # --------------------------------------------------------
 
         month_revenue = (
             month_entries.aggregate(
-                t=Sum("invoice__order_total_inc")
+                t=Sum(
+                    "invoice__order_total_inc"
+                )
             )["t"]
             or Decimal("0.00")
         )
 
-        month_commission_totals = month_entries.aggregate(
-            rep_total=Coalesce(
-                Sum("rep_amount"),
-                Decimal("0.00"),
-                output_field=DecimalField(max_digits=14, decimal_places=2),
-            ),
-            supervisor_total=Coalesce(
-                Sum("supervisor_amount"),
-                Decimal("0.00"),
-                output_field=DecimalField(max_digits=14, decimal_places=2),
-            ),
+        # --------------------------------------------------------
+        # COMMISSION
+        # --------------------------------------------------------
+
+        month_commission_totals = (
+            month_entries.aggregate(
+                rep_total=Coalesce(
+                    Sum("rep_amount"),
+                    Decimal("0.00"),
+                    output_field=DecimalField(
+                        max_digits=14,
+                        decimal_places=2,
+                    ),
+                ),
+                supervisor_total=Coalesce(
+                    Sum("supervisor_amount"),
+                    Decimal("0.00"),
+                    output_field=DecimalField(
+                        max_digits=14,
+                        decimal_places=2,
+                    ),
+                ),
+            )
         )
 
         month_commission = (
-            month_commission_totals["rep_total"]
-            + month_commission_totals["supervisor_total"]
-        ).quantize(Decimal("0.01"))
+            month_commission_totals[
+                "rep_total"
+            ]
+            + month_commission_totals[
+                "supervisor_total"
+            ]
+        ).quantize(
+            Decimal("0.01")
+        )
+
+        # --------------------------------------------------------
+        # CLIENTS
+        # --------------------------------------------------------
 
         month_clients = (
             month_entries
-            .exclude(client=None)
-            .values("client_id")
+            .exclude(
+                client=None
+            )
+            .values(
+                "client_id"
+            )
             .distinct()
             .count()
         )
+
+        # --------------------------------------------------------
+        # ORDERS
+        # --------------------------------------------------------
 
         month_orders = (
             month_entries
-            .exclude(invoice=None)
-            .values("invoice_id")
+            .exclude(
+                invoice=None
+            )
+            .values(
+                "invoice_id"
+            )
             .distinct()
             .count()
         )
 
-        performance_trend_labels.append(calendar.month_abbr[month])
-        performance_trend_revenue.append(float(month_revenue))
-        performance_trend_commission.append(float(month_commission))
-        performance_trend_clients.append(month_clients)
-        performance_trend_orders.append(month_orders)
-
-    # =========================
-    # PAYROLL ROWS
-    # =========================
-    payroll_rows = []
-
-    monthly_commissions = MonthlyCommission.objects.filter(
-        year=selected_year,
-        month=selected_month,
-    ).select_related("rep")
-
-    if selected_area:
-        rep_ids_in_area = [
-            row["rep_id"]
-            for row in rep_commission_summary
-        ]
-        monthly_commissions = monthly_commissions.filter(rep_id__in=rep_ids_in_area)
-
-    for mc in monthly_commissions:
-        adjustments_total = (
-            mc.adjustments.aggregate(t=Sum("amount"))["t"]
-            or Decimal("0.00")
+        performance_trend_labels.append(
+            calendar.month_abbr[month]
         )
 
-        payroll_rows.append({
-            "rep_id": mc.rep_id,
-            "rep_name": mc.rep.get_full_name() or mc.rep.username,
-            "base_commission": mc.recurring_commission_total,
-            "bonus_commission": mc.new_business_commission,
-            "adjustments": adjustments_total,
-            "total_payout": mc.total_payout + adjustments_total,
-            "paid": mc.paid,
-            "paid_on": mc.paid_on,
-        })
+        performance_trend_revenue.append(
+            float(month_revenue)
+        )
 
-    # =========================
-    # FILTER OPTIONS
-    # =========================
-    months = [
-        {"value": i, "label": calendar.month_name[i]}
-        for i in range(1, 13)
-    ]
+        performance_trend_commission.append(
+            float(month_commission)
+        )
 
-    years = list(range(today.year - 2, today.year + 3))
+        performance_trend_clients.append(
+            month_clients
+        )
 
-    areas = [
-        {"value": code, "label": label}
-        for code, label in MonthlyTarget.AREA_CHOICES
-    ]
+        performance_trend_orders.append(
+            month_orders
+        )
 
-    # =========================
+    # ============================================================
     # EMAIL MODAL COMPATIBILITY
-    # =========================
+    # ============================================================
+
     target_rep = None
-    filter_date_from = first_day
-    filter_date_to = last_day
+
+    filter_date_from = period_start
+    filter_date_to = period_end
+
+    # ============================================================
+    # CONTEXT
+    # ============================================================
 
     context = {
-        "selected_month": selected_month,
-        "selected_year": selected_year,
-        "selected_area": selected_area,
-        "months": months,
-        "years": years,
-        "areas": areas,
 
-        "total_commission_payable": total_commission_payable,
-        "total_revenue": total_revenue,
-        "total_clients": total_clients,
-        "new_business_bonus_total": new_business_bonus_total,
+        # --------------------------------------------------------
+        # FILTERS
+        # --------------------------------------------------------
 
-        "commission_payable_change": commission_payable_change,
-        "revenue_change": revenue_change,
-        "clients_change": clients_change,
-        "new_business_bonus_change": new_business_bonus_change,
-        "comparison_start": comparison_start,
-        "comparison_end": comparison_end,
+        "selected_period":
+            selected_period,
 
-        "actual_revenue": actual_revenue,
-        "monthly_target": monthly_target,
-        "revenue_target_pct": revenue_target_pct,
-        "revenue_gap": revenue_gap,
-        "required_per_week": required_per_week,
-        "weekly_average": weekly_average,
+        "selected_year":
+            selected_year,
 
-        "actual_clients": actual_clients,
-        "client_target": client_target,
-        "client_target_pct": client_target_pct,
-        "bonus_active": bonus_active,
-        "clients_needed_for_bonus": clients_needed_for_bonus,
+        "selected_region":
+            selected_region,
 
-        "rep_commission_summary": rep_commission_summary,
-        "commission_entries": commission_entries[:20],
-        "area_performance_summary": area_performance_summary,
-        "payroll_rows": payroll_rows,
+        "selected_territory":
+            selected_territory,
 
-        "target_rep": target_rep,
-        "filter_date_from": filter_date_from,
-        "filter_date_to": filter_date_to,
+        "periods":
+            period_options,
 
-        "performance_trend_labels": performance_trend_labels,
-        "performance_trend_revenue": performance_trend_revenue,
-        "performance_trend_commission": performance_trend_commission,
-        "performance_trend_clients": performance_trend_clients,
-        "performance_trend_orders": performance_trend_orders,
+        "years":
+            list(
+                range(
+                    today.year - 2,
+                    today.year + 3,
+                )
+            ),
+
+        "regions":
+            regions,
+
+        "territories":
+            territories,
+
+        # --------------------------------------------------------
+        # PERIOD DATES
+        # --------------------------------------------------------
+
+        "period_start":
+            period_start,
+
+        "period_end":
+            period_end,
+
+        # --------------------------------------------------------
+        # KPI
+        # --------------------------------------------------------
+
+        "total_commission_payable":
+            total_commission_payable,
+
+        "total_revenue":
+            total_revenue,
+
+        "total_clients":
+            total_clients,
+
+        "new_business_bonus_total":
+            new_business_bonus_total,
+
+        "commission_payable_change":
+            commission_payable_change,
+
+        "revenue_change":
+            revenue_change,
+
+        "clients_change":
+            clients_change,
+
+        "new_business_bonus_change":
+            new_business_bonus_change,
+
+        "comparison_start":
+            previous_period_start,
+
+        "comparison_end":
+            previous_period_end,
+
+        # --------------------------------------------------------
+        # TARGETS
+        # --------------------------------------------------------
+
+        "actual_revenue":
+            actual_revenue,
+
+        "monthly_target":
+            monthly_target,
+
+        "revenue_target_pct":
+            revenue_target_pct,
+
+        "revenue_gap":
+            revenue_gap,
+
+        "required_per_week":
+            required_per_week,
+
+        "weekly_average":
+            weekly_average,
+
+        "actual_clients":
+            actual_clients,
+
+        "client_target":
+            client_target,
+
+        "client_target_pct":
+            client_target_pct,
+
+        "bonus_active":
+            bonus_active,
+
+        "clients_needed_for_bonus":
+            clients_needed_for_bonus,
+
+        "days_remaining":
+            days_remaining,
+
+        # --------------------------------------------------------
+        # REP PERFORMANCE
+        # --------------------------------------------------------
+
+        "rep_commission_summary":
+            rep_commission_summary,
+
+        # --------------------------------------------------------
+        # COMMISSION ENTRIES
+        # --------------------------------------------------------
+
+        "commission_entries":
+            commission_entries[:20],
+
+        # --------------------------------------------------------
+        # TERRITORY PERFORMANCE
+        # --------------------------------------------------------
+
+        "territory_performance_summary":
+            territory_performance_summary,
+
+        # --------------------------------------------------------
+        # SUPERVISOR PERFORMANCE
+        # --------------------------------------------------------
+
+        "supervisor_performance_summary":
+            supervisor_performance_summary,
+
+        # --------------------------------------------------------
+        # EMAIL
+        # --------------------------------------------------------
+
+        "target_rep":
+            target_rep,
+
+        "filter_date_from":
+            filter_date_from,
+
+        "filter_date_to":
+            filter_date_to,
+
+        # --------------------------------------------------------
+        # TREND
+        # --------------------------------------------------------
+
+        "performance_trend_labels":
+            performance_trend_labels,
+
+        "performance_trend_revenue":
+            performance_trend_revenue,
+
+        "performance_trend_commission":
+            performance_trend_commission,
+
+        "performance_trend_clients":
+            performance_trend_clients,
+
+        "performance_trend_orders":
+            performance_trend_orders,
     }
 
-    return render(request, "commission/commission.html", context)
+    # ============================================================
+    # RENDER
+    # ============================================================
+
+    return render(
+        request,
+        "commission/commission.html",
+        context,
+    )
+
+
 
 
 @login_required
@@ -4140,17 +5910,31 @@ def _parse_date_local(date_str: str):
 
 @login_required
 def tickets(request):
+
     qs = (
         Ticket.objects
-        .select_related("client", "created_by", "closed_by")
+        .select_related(
+            "client",
+            "created_by",
+            "closed_by",
+        )
         .order_by("-created_at")
     )
+
+    # =====================================================
+    # FILTERS
+    # =====================================================
 
     q = (request.GET.get("q") or "").strip()
     status = (request.GET.get("status") or "").strip()
     priority = (request.GET.get("priority") or "").strip()
     department = (request.GET.get("department") or "").strip()
     ticket_type = (request.GET.get("ticket_type") or "").strip()
+
+
+    # =====================================================
+    # SEARCH
+    # =====================================================
 
     if q:
         qs = qs.filter(
@@ -4163,37 +5947,92 @@ def tickets(request):
             | Q(client__organization__icontains=q)
         )
 
+
+    # =====================================================
+    # FILTER BY STATUS
+    # =====================================================
+
     if status:
         qs = qs.filter(status=status)
+
+
+    # =====================================================
+    # FILTER BY PRIORITY
+    # =====================================================
 
     if priority:
         qs = qs.filter(priority=priority)
 
+
+    # =====================================================
+    # FILTER BY DEPARTMENT
+    # =====================================================
+
     if department:
         qs = qs.filter(department=department)
 
+
+    # =====================================================
+    # FILTER BY TICKET TYPE
+    # =====================================================
+
     if ticket_type:
         qs = qs.filter(ticket_type=ticket_type)
+
+
+    # =====================================================
+    # STATISTICS
+    # =====================================================
 
     stats_qs = Ticket.objects.all()
 
     stats = {
         "total": stats_qs.count(),
-        "new": stats_qs.filter(status=Ticket.Status.NEW).count(),
-        "open": stats_qs.filter(status=Ticket.Status.OPEN).count(),
-        "pending": stats_qs.filter(status=Ticket.Status.PENDING).count(),
-        "resolved": stats_qs.filter(status=Ticket.Status.RESOLVED).count(),
-        "closed": stats_qs.filter(status=Ticket.Status.CLOSED).count(),
+
+        "new": stats_qs.filter(
+            status=Ticket.Status.NEW
+        ).count(),
+
+        "open": stats_qs.filter(
+            status=Ticket.Status.OPEN
+        ).count(),
+
+        "pending": stats_qs.filter(
+            status=Ticket.Status.PENDING
+        ).count(),
+
+        "resolved": stats_qs.filter(
+            status=Ticket.Status.RESOLVED
+        ).count(),
+
+        "closed": stats_qs.filter(
+            status=Ticket.Status.CLOSED
+        ).count(),
     }
 
+
+    # =====================================================
+    # PAGINATION
+    # =====================================================
+
     paginator = Paginator(qs, 25)
+
     page_number = request.GET.get("page")
+
     page_obj = paginator.get_page(page_number)
+
+
+    # =====================================================
+    # CONTEXT
+    # =====================================================
 
     context = {
         "object_list": page_obj.object_list,
+
         "page_obj": page_obj,
+
         "stats": stats,
+
         "filters": {
             "q": q,
             "status": status,
@@ -4201,17 +6040,26 @@ def tickets(request):
             "department": department,
             "ticket_type": ticket_type,
         },
+
         "choices": {
             "status": Ticket.Status.choices,
+
             "priority": Ticket.Priority.choices,
-            "department": Ticket.Department.choices,
+
+            "department": Ticket._meta.get_field(
+                "department"
+            ).choices,
+
             "ticket_type": Ticket.TicketType.choices,
         },
     }
 
-    return render(request, "tickets/tickets.html", context)
 
-
+    return render(
+        request,
+        "tickets/tickets.html",
+        context,
+    )
 
 @login_required
 def target_list(request):
@@ -4967,26 +6815,93 @@ def send_invoice_sms_view(request, pk):
 
 @login_required
 def commission_rep_detail(request, user_id):
+    """
+    Detailed commission performance for a single sales representative.
+
+    Shows:
+    - Commission entries for the selected period
+    - Rep commission
+    - New business bonus
+    - Revenue generated
+    - Unique clients
+    - Client target progress
+    - Monthly commission trend
+    """
+
     today = localdate()
 
-    selected_month = int(request.GET.get("month", today.month))
-    selected_year = int(request.GET.get("year", today.year))
-    selected_area = request.GET.get("area", "")
+    # =====================================================
+    # FILTERS
+    # =====================================================
+
+    # IMPORTANT:
+    # The commission page can send month="" or year="".
+    # int("") causes ValueError, so handle empty values safely.
+
+    month_param = request.GET.get("month")
+    year_param = request.GET.get("year")
+
+    try:
+        selected_month = int(month_param) if month_param else today.month
+    except (TypeError, ValueError):
+        selected_month = today.month
+
+    try:
+        selected_year = int(year_param) if year_param else today.year
+    except (TypeError, ValueError):
+        selected_year = today.year
+
+    selected_area = request.GET.get("area", "").strip()
+
+    # Keep values valid
+    if selected_month < 1 or selected_month > 12:
+        selected_month = today.month
+
+    if selected_year < 2000 or selected_year > 2100:
+        selected_year = today.year
 
     month_code = calendar.month_abbr[selected_month].upper()
 
-    first_day = date(selected_year, selected_month, 1)
+    # =====================================================
+    # SELECTED PERIOD
+    # =====================================================
+
+    first_day = date(
+        selected_year,
+        selected_month,
+        1,
+    )
+
     last_day = date(
         selected_year,
         selected_month,
-        calendar.monthrange(selected_year, selected_month)[1],
+        calendar.monthrange(
+            selected_year,
+            selected_month,
+        )[1],
     )
 
-    rep_user = get_object_or_404(User, id=user_id)
+    # =====================================================
+    # SALES REPRESENTATIVE
+    # =====================================================
+
+    rep_user = get_object_or_404(
+        User,
+        id=user_id,
+    )
+
+    # =====================================================
+    # COMMISSION ENTRIES
+    # =====================================================
 
     commission_entries = (
         CommissionEntry.objects
-        .select_related("invoice", "client", "rep", "supervisor")
+        .select_related(
+            "invoice",
+            "client",
+            "rep",
+            "supervisor",
+        )
         .filter(
             rep=rep_user,
             created_at__date__gte=first_day,
@@ -4995,25 +6910,53 @@ def commission_rep_detail(request, user_id):
         .order_by("-created_at")
     )
 
+    # =====================================================
+    # AREA FILTER
+    # =====================================================
+
     if selected_area:
-        commission_entries = commission_entries.filter(client__area=selected_area)
+        commission_entries = commission_entries.filter(
+            client__area=selected_area
+        )
+
+    # =====================================================
+    # REP COMMISSION
+    # =====================================================
 
     rep_total = (
-        commission_entries.aggregate(t=Sum("rep_amount"))["t"]
+        commission_entries.aggregate(
+            t=Sum("rep_amount")
+        )["t"]
         or Decimal("0.00")
     )
+
+    # =====================================================
+    # NEW BUSINESS BONUS
+    # =====================================================
 
     bonus_total = (
         commission_entries
         .filter(is_new_business=True)
-        .aggregate(t=Sum("rep_amount"))["t"]
+        .aggregate(
+            t=Sum("rep_amount")
+        )["t"]
         or Decimal("0.00")
     )
 
+    # =====================================================
+    # REVENUE
+    # =====================================================
+
     revenue_total = (
-        commission_entries.aggregate(t=Sum("invoice__order_total_inc"))["t"]
+        commission_entries.aggregate(
+            t=Sum("invoice__order_total_inc")
+        )["t"]
         or Decimal("0.00")
     )
+
+    # =====================================================
+    # UNIQUE CLIENTS
+    # =====================================================
 
     client_count = (
         commission_entries
@@ -5023,9 +6966,10 @@ def commission_rep_detail(request, user_id):
         .count()
     )
 
-    # =========================
+    # =====================================================
     # CLIENT TARGET PROGRESS
-    # =========================
+    # =====================================================
+
     allocation = (
         MonthlyTargetAllocation.objects
         .select_related("monthly_target")
@@ -5037,31 +6981,79 @@ def commission_rep_detail(request, user_id):
     )
 
     if selected_area:
-        allocation = allocation.filter(monthly_target__area=selected_area)
+        allocation = allocation.filter(
+            monthly_target__area=selected_area
+        )
 
     allocation = allocation.first()
 
-    client_target = allocation.client_target if allocation else 0
-
-    client_target_pct = (
-        (Decimal(client_count) / Decimal(client_target)) * Decimal("100")
-        if client_target > 0 else Decimal("0.00")
+    client_target = (
+        allocation.client_target
+        if allocation
+        else 0
     )
 
-    clients_needed_for_bonus = max(client_target - client_count, 0)
-    bonus_active = client_count > client_target if client_target else False
+    # =====================================================
+    # CLIENT TARGET %
+    # =====================================================
 
-    # =========================
-    # COMMISSION TREND - FULL SELECTED YEAR
-    # =========================
+    if client_target > 0:
+        client_target_pct = (
+            Decimal(client_count)
+            / Decimal(client_target)
+        ) * Decimal("100")
+    else:
+        client_target_pct = Decimal("0.00")
+
+    client_target_pct = client_target_pct.quantize(
+        Decimal("0.01")
+    )
+
+    # =====================================================
+    # CLIENTS NEEDED FOR BONUS
+    # =====================================================
+
+    clients_needed_for_bonus = max(
+        client_target - client_count,
+        0,
+    )
+
+    # =====================================================
+    # BONUS ACTIVE
+    # =====================================================
+
+    bonus_active = (
+        client_count > client_target
+        if client_target
+        else False
+    )
+
+    # =====================================================
+    # COMMISSION TREND
+    # FULL SELECTED YEAR
+    # =====================================================
+
     commission_trend_labels = []
     commission_trend_data = []
 
     selected_trend_index = selected_month - 1
 
     for month in range(1, 13):
-        start = date(selected_year, month, 1)
-        end = date(selected_year, month, calendar.monthrange(selected_year, month)[1])
+
+        start = date(
+            selected_year,
+            month,
+            1,
+        )
+
+        end = date(
+            selected_year,
+            month,
+            calendar.monthrange(
+                selected_year,
+                month,
+            )[1],
+        )
 
         qs = CommissionEntry.objects.filter(
             rep=rep_user,
@@ -5069,67 +7061,115 @@ def commission_rep_detail(request, user_id):
             created_at__date__lte=end,
         )
 
+        # Apply area to trend as well
+        if selected_area:
+            qs = qs.filter(
+                client__area=selected_area
+            )
+
         totals = qs.aggregate(
             rep_total=Coalesce(
                 Sum("rep_amount"),
                 Decimal("0.00"),
-                output_field=DecimalField(max_digits=14, decimal_places=2),
+                output_field=DecimalField(
+                    max_digits=14,
+                    decimal_places=2,
+                ),
             ),
             supervisor_total=Coalesce(
                 Sum("supervisor_amount"),
                 Decimal("0.00"),
-                output_field=DecimalField(max_digits=14, decimal_places=2),
+                output_field=DecimalField(
+                    max_digits=14,
+                    decimal_places=2,
+                ),
             ),
         )
 
         month_total = (
-            totals["rep_total"] + totals["supervisor_total"]
-        ).quantize(Decimal("0.01"))
+            totals["rep_total"]
+            + totals["supervisor_total"]
+        ).quantize(
+            Decimal("0.01")
+        )
 
         commission_trend_labels.append(
             f"{calendar.month_abbr[month]} {selected_year}"
         )
 
-        commission_trend_data.append(float(month_total))
+        commission_trend_data.append(
+            float(month_total)
+        )
 
-    # =========================
+    # =====================================================
     # FILTER OPTIONS
-    # =========================
+    # =====================================================
+
     months = [
-        {"value": i, "label": calendar.month_name[i]}
+        {
+            "value": i,
+            "label": calendar.month_name[i],
+        }
         for i in range(1, 13)
     ]
 
-    years = list(range(today.year - 2, today.year + 3))
+    years = list(
+        range(
+            today.year - 2,
+            today.year + 3,
+        )
+    )
+
+    # =====================================================
+    # CONTEXT
+    # =====================================================
 
     context = {
+        # Representative
         "rep_user": rep_user,
+
+        # Entries
         "commission_entries": commission_entries,
 
+        # Filters
         "selected_month": selected_month,
         "selected_year": selected_year,
         "selected_area": selected_area,
-        "selected_month_name": calendar.month_name[selected_month],
+        "selected_month_name": calendar.month_name[
+            selected_month
+        ],
 
         "months": months,
         "years": years,
 
+        # Totals
         "rep_total": rep_total,
         "bonus_total": bonus_total,
         "revenue_total": revenue_total,
         "client_count": client_count,
 
+        # Target
         "client_target": client_target,
         "client_target_pct": client_target_pct,
         "clients_needed_for_bonus": clients_needed_for_bonus,
         "bonus_active": bonus_active,
 
+        # Chart
         "commission_trend_labels": commission_trend_labels,
         "commission_trend_data": commission_trend_data,
         "selected_trend_index": selected_trend_index,
     }
 
-    return render(request, "commission/commission_rep_detail.html", context)
+    # =====================================================
+    # RENDER
+    # =====================================================
+
+    return render(
+        request,
+        "commission/commission_rep_detail.html",
+        context,
+    )
+
 
 
 @login_required

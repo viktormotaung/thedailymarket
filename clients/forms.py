@@ -1480,6 +1480,10 @@ class ClientOperationsForm(forms.Form):
 
 class LeadForm(forms.ModelForm):
 
+    # ============================================================
+    # PRODUCTS
+    # ============================================================
+
     product_1 = forms.CharField(
         required=False,
         label="Product 1",
@@ -1570,23 +1574,63 @@ class LeadForm(forms.ModelForm):
         })
     )
 
+
+    # ============================================================
+    # GPS LOCATION
+    # ============================================================
+
+    latitude = forms.DecimalField(
+        required=False,
+        label="Latitude",
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "step": "0.000001",
+            "readonly": "readonly",
+            "placeholder": "Captured automatically",
+        })
+    )
+
+    longitude = forms.DecimalField(
+        required=False,
+        label="Longitude",
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "step": "0.000001",
+            "readonly": "readonly",
+            "placeholder": "Captured automatically",
+        })
+    )
+
+
     class Meta:
         model = Lead
 
         fields = [
+            # ----------------------------------------------------
+            # LEAD
+            # ----------------------------------------------------
             "status",
             "priority",
             "assigned_to",
 
+            # ----------------------------------------------------
+            # BUSINESS
+            # ----------------------------------------------------
             "business_name",
             "entity_type",
             "potential_client_type",
 
+            # ----------------------------------------------------
+            # CONTACT
+            # ----------------------------------------------------
             "contact_person",
             "phone",
             "whatsapp",
             "email",
 
+            # ----------------------------------------------------
+            # LOCATION
+            # ----------------------------------------------------
             "address_line1",
             "address_line2",
             "suburb",
@@ -1599,26 +1643,52 @@ class LeadForm(forms.ModelForm):
             "territory",
             "area",
 
-            "estimated_weekly_spend",
+            # GPS
+            "latitude",
+            "longitude",
 
+            # ----------------------------------------------------
+            # SALES
+            # ----------------------------------------------------
+            "estimated_weekly_spend",
             "preferred_call_time",
 
+            # ----------------------------------------------------
+            # MARKETING
+            # ----------------------------------------------------
             "campaign",
             "advert",
             "medium",
 
+            # ----------------------------------------------------
+            # ACTIVITY
+            # ----------------------------------------------------
             "last_contact_at",
             "next_follow_up_at",
 
+            # ----------------------------------------------------
+            # NOTES
+            # ----------------------------------------------------
             "notes",
         ]
 
         widgets = {
+
             "last_contact_at": forms.DateTimeInput(
-                attrs={"type": "datetime-local"}
+                attrs={
+                    "type": "datetime-local",
+                    "class": "form-control",
+                }
             ),
 
             "next_follow_up_at": forms.DateTimeInput(
-                attrs={"type": "datetime-local"}
+                attrs={
+                    "type": "datetime-local",
+                    "class": "form-control",
+                }
             ),
+
         }
+
+
+        

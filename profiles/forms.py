@@ -8,7 +8,8 @@ from .models import (
     StaffProfile,
     DriverProfile,
 )
-
+from .models import StaffProfile
+from django.db.models import Q
 from clients.models import Region, Territory
 
 
@@ -61,6 +62,7 @@ class SalesRepProfileForm(forms.ModelForm):
             "status": forms.Select(attrs={
                 "class": "form-select",
             }),
+
             "sales_operator": forms.Select(attrs={
                 "class": "form-select",
             }),
@@ -72,24 +74,30 @@ class SalesRepProfileForm(forms.ModelForm):
             "territory": forms.Select(attrs={
                 "class": "form-select",
             }),
+
             "base_commission_pct": forms.NumberInput(attrs={
                 "class": "form-control",
                 "step": "0.01",
                 "min": "0",
             }),
+
             "bonus_commission_pct": forms.NumberInput(attrs={
                 "class": "form-control",
                 "step": "0.01",
                 "min": "0",
             }),
+
             "department": forms.TextInput(attrs={
                 "class": "form-control",
                 "readonly": "readonly",
             }),
+
             "roles": forms.CheckboxSelectMultiple(),
+
             "supervisor": forms.Select(attrs={
                 "class": "form-select",
             }),
+
             "notes": forms.Textarea(attrs={
                 "class": "form-control",
                 "rows": 4,
@@ -98,8 +106,6 @@ class SalesRepProfileForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        
 
         # --------------------------------------------------
         # Region
@@ -119,8 +125,6 @@ class SalesRepProfileForm(forms.ModelForm):
             .order_by("name")
         )
 
-        # If a region has been selected, only show
-        # territories belonging to that region.
         region_id = self.data.get("region") or getattr(
             self.instance,
             "region_id",
@@ -159,38 +163,30 @@ class SalesRepProfileForm(forms.ModelForm):
         # --------------------------------------------------
         # Supervisors
         # --------------------------------------------------
+        # supervisor is a StaffProfile ForeignKey.
+        #
+        # Therefore the dropdown must contain StaffProfile
+        # objects, NOT User objects.
+        #
+        # Any staff member can be selected as supervisor.
+        # A rep may also select themselves.
+        # --------------------------------------------------
+
         supervisor_qs = (
-            User.objects
-            .filter(
-                is_staff=True,
-                sales_rep_profile__roles__code="supervisor",
+            StaffProfile.objects
+            .select_related("user")
+            .order_by(
+                "user__first_name",
+                "user__last_name",
+                "user__username",
             )
-            .select_related("sales_rep_profile")
-            .distinct()
-            .order_by("first_name", "last_name", "username")
         )
 
-        # Restrict supervisors to the selected region.
-        if region_id:
-            supervisor_qs = supervisor_qs.filter(
-                sales_rep_profile__region_id=region_id
-            )
-
-        # Don't allow a user to supervise themselves.
-        if self.instance and self.instance.pk:
-            supervisor_qs = supervisor_qs.exclude(
-                pk=self.instance.user_id
-            )
-
-        # --------------------------------------------------
-        # Supervisor
-        # --------------------------------------------------
-
-        # Keep the real supervisors in the database.
         self.fields["supervisor"].queryset = supervisor_qs
 
-        # Add an explicit N/A option for a top-level supervisor.
-        self.fields["supervisor"].empty_label = "N/A – Self / Top-Level Supervisor"
+        self.fields["supervisor"].empty_label = (
+            "N/A – Self / Top-Level Supervisor"
+        )
 
         # --------------------------------------------------
         # Required / optional fields
@@ -201,7 +197,6 @@ class SalesRepProfileForm(forms.ModelForm):
         self.fields["roles"].required = False
         self.fields["supervisor"].required = False
         self.fields["notes"].required = False
-
 
     def clean(self):
         cleaned = super().clean()
@@ -222,6 +217,7 @@ class SalesRepProfileForm(forms.ModelForm):
         # Supervisor
         # --------------------------------------------------
         if is_supervisor:
+
             if not region:
                 self.add_error(
                     "region",
@@ -234,7 +230,14 @@ class SalesRepProfileForm(forms.ModelForm):
                     "A supervisor is assigned at Region level and should not have a territory."
                 )
 
-            if supervisor:
+            # CHANGED:
+            # A supervisor may supervise themselves.
+            #
+            # Only reject another supervisor.
+            if (
+                supervisor
+                and supervisor != getattr(self.instance, "user", None)
+            ):
                 self.add_error(
                     "supervisor",
                     "A supervisor cannot report to another supervisor."
@@ -244,6 +247,7 @@ class SalesRepProfileForm(forms.ModelForm):
         # Sales Rep
         # --------------------------------------------------
         if is_rep:
+
             if not territory:
                 self.add_error(
                     "territory",
@@ -257,6 +261,7 @@ class SalesRepProfileForm(forms.ModelForm):
                 )
 
             if territory:
+
                 # The territory determines the rep's region.
                 territory_region = territory.region
 
@@ -271,30 +276,18 @@ class SalesRepProfileForm(forms.ModelForm):
                         "The selected region must match the territory's region."
                     )
 
-                # Supervisor must belong to the same region.
                 if supervisor:
-                    supervisor_profile = getattr(
-                        supervisor,
-                        "sales_rep_profile",
-                        None
-                    )
+                    # supervisor is already a StaffProfile.
+                    #
+                    # We do not need to look for supervisor.sales_rep_profile.
+                    # The selected StaffProfile itself is the supervisor.
 
-                    if not supervisor_profile:
-                        self.add_error(
-                            "supervisor",
-                            "The selected supervisor does not have a sales profile."
-                        )
-                    elif supervisor_profile.region_id != territory_region.id:
-                        self.add_error(
-                            "supervisor",
-                            "The supervisor must be assigned to the same region as the rep's territory."
-                        )
+                    pass
 
         return cleaned
 
     def clean_department(self):
-        return "SALES"
-    
+        return "SALES" 
 
 
 class DriverProfileForm(forms.ModelForm):

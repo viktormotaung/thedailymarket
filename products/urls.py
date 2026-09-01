@@ -3,6 +3,7 @@ from . import views
 
 urlpatterns = [
     path("", views.product_list, name="staff-products"),
+    path("knowledge/", views.product_knowledge_list, name="product-knowledge-list",),
     path("new/", views.product_create, name="product-create"),
     path("<int:pk>/edit/", views.product_edit, name="product-edit"),
     path("<int:pk>/view/", views.product_view, name="product-view"),
@@ -18,6 +19,9 @@ urlpatterns = [
     path("products/import/", views.product_import, name="product-import"),
     path("products/dashboard/", views.product_dashboard, name="product_dashboard",), 
     path("price-list/download/", views.download_price_list, name="download-price-list"),
-    
+
+    path("knowledge/<int:pk>/", views.product_knowledge_view, name="product-knowledge-view",),
+    path("knowledge/manual/", views.product_knowledge_manual, name="product-knowledge-manual",),
+    path("products/knowledge/<int:pk>/edit/", views.product_knowledge_edit, name="product-knowledge-edit",),
 
 ]

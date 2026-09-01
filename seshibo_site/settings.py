@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
+    "communications.apps.CommunicationsConfig",
 
     # project apps
     'home',
@@ -74,7 +75,7 @@ INSTALLED_APPS = [
     "django_extensions",
     "payments",
     "online_payments",
-    "communications",
+    
     "membership",
 
     # third party
@@ -370,3 +371,11 @@ SMSPORTAL_CLIENT_ID = "dailymarket_api"
 SMSPORTAL_API_SECRET = "TDM_SMS_2026!SecureAPI"
 
 SITE_URL = "http://thedailymarket.co.za"
+
+# ============================================================
+# TWILIO WHATSAPP - TEST / SANDBOX
+# ============================================================
+
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "")

@@ -149,37 +149,188 @@
 
         <form method="get" class="d-flex flex-column flex-md-row gap-2 align-items-md-center">
 
-          <select name="month" class="form-select form-select-sm">
-            {% for m in months %}
-              <option value="{{ m.value }}" {% if m.value == selected_month %}selected{% endif %}>
-                {{ m.label }}
+          <!-- ===================== -->
+          <!-- PERIOD -->
+          <!-- ===================== -->
+          <select name="period" class="form-select form-select-sm">
+
+            {% for p in periods %}
+              <option
+                value="{{ p.value }}"
+                {% if p.value == selected_period %}selected{% endif %}
+              >
+                {{ p.label }}
               </option>
             {% endfor %}
+
           </select>
 
+
+          <!-- ===================== -->
+          <!-- YEAR -->
+          <!-- ===================== -->
           <select name="year" class="form-select form-select-sm">
+
             {% for y in years %}
-              <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>
+              <option
+                value="{{ y }}"
+                {% if y == selected_year %}selected{% endif %}
+              >
                 {{ y }}
               </option>
             {% endfor %}
+
           </select>
 
-          <select name="area" class="form-select form-select-sm">
-            <option value="">All Areas</option>
-            {% for a in areas %}
-              <option value="{{ a.value }}" {% if a.value == selected_area %}selected{% endif %}>
-                {{ a.label }}
+
+          <!-- ===================== -->
+          <!-- REGION -->
+          <!-- ===================== -->
+          <select
+            name="region"
+            id="regionFilter"
+            class="form-select form-select-sm"
+          >
+
+            <option value="">
+              All Regions
+            </option>
+
+            {% for r in regions %}
+              <option
+                value="{{ r.value }}"
+                {% if r.value|stringformat:"s" == selected_region|stringformat:"s" %}
+                  selected
+                {% endif %}
+              >
+                {{ r.label }}
               </option>
             {% endfor %}
+
           </select>
 
-          <button class="btn btn-primary btn-sm px-4">Apply</button>
+
+          <!-- ===================== -->
+          <!-- TERRITORY -->
+          <!-- ===================== -->
+          <select
+            name="territory"
+            id="territoryFilter"
+            class="form-select form-select-sm"
+          >
+
+            <option value="">
+              All Territories
+            </option>
+
+            {% for t in territories %}
+              <option
+                value="{{ t.value }}"
+                data-region="{{ t.region_value }}"
+                {% if t.value|stringformat:"s" == selected_territory|stringformat:"s" %}
+                  selected
+                {% endif %}
+              >
+                {{ t.label }}
+              </option>
+            {% endfor %}
+
+          </select>
+
+
+          <!-- ===================== -->
+          <!-- APPLY -->
+          <!-- ===================== -->
+          <button
+            type="submit"
+            class="btn btn-primary btn-sm px-4"
+          >
+            Apply
+          </button>
 
         </form>
 
       </div>
     </div>
+
+
+    <!-- ===================== -->
+    <!-- REGION → TERRITORY -->
+    <!-- ===================== -->
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const regionFilter = document.getElementById("regionFilter");
+        const territoryFilter = document.getElementById("territoryFilter");
+
+        if (!regionFilter || !territoryFilter) {
+            return;
+        }
+
+        const territoryOptions = Array.from(
+            territoryFilter.querySelectorAll("option")
+        );
+
+        function filterTerritories() {
+
+            const selectedRegion = regionFilter.value;
+            const selectedTerritory = "{{ selected_territory|default:'' }}";
+
+            territoryOptions.forEach(function (option) {
+
+                // Always keep "All Territories"
+                if (option.value === "") {
+                    option.hidden = false;
+                    return;
+                }
+
+                const territoryRegion = option.dataset.region;
+
+                if (
+                    selectedRegion === "" ||
+                    territoryRegion === selectedRegion
+                ) {
+                    option.hidden = false;
+                } else {
+                    option.hidden = true;
+
+                    // If the selected territory doesn't belong
+                    // to the selected region, deselect it.
+                    if (option.value === selectedTerritory) {
+                        option.selected = false;
+                    }
+                }
+            });
+
+            // If currently selected territory is not visible,
+            // reset to All Territories.
+            const selectedOption =
+                territoryFilter.options[territoryFilter.selectedIndex];
+
+            if (
+                selectedOption &&
+                selectedOption.hidden
+            ) {
+                territoryFilter.value = "";
+            }
+        }
+
+
+        // Filter immediately when page loads
+        filterTerritories();
+
+
+        // Re-filter whenever region changes
+        regionFilter.addEventListener("change", function () {
+
+            territoryFilter.value = "";
+
+            filterTerritories();
+
+        });
+
+    });
+    </script>
 
 
     <!-- ===================== -->
@@ -405,7 +556,8 @@
             <tr>
               <th style="width: 90px;">Rank</th>
               <th>Rep</th>
-              <th>Area</th>
+              <th>Entries</th>
+              <th>Supervisor</th>
               <th>Commission</th>
               <th>Bonus</th>
               <th>Total</th>
@@ -417,7 +569,9 @@
 
             <tr
               class="clickable-row"
-              data-href="{% url 'sales:sales-commission-rep-detail' r.rep_id %}?month={{ selected_month }}&year={{ selected_year }}{% if selected_area %}&area={{ selected_area }}{% endif %}"
+              data-href="{% url 'sales:sales-commission-rep-detail' r.rep_id %}?month={{ selected_month }}&year={{ selected_year }}{% if selected_territory %}
+    &territory={{ selected_territory }}
+{% endif %}"
             >
 
               <td>
@@ -436,7 +590,11 @@
                 <div class="fw-semibold">{{ r.rep_name }}</div>
               </td>
 
-              <td>{{ r.area|default:"—" }}</td>
+              <td>{{ r.entries|default:"0" }}</td>
+
+              <td>
+                  {{ r.supervisor|default:"—" }}
+              </td>
 
               <td>R{{ r.base_commission|default:0|floatformat:2|intcomma }}</td>
 
@@ -469,28 +627,165 @@
 
     </div>
 
+
+    <!-- ========================================================= -->
+    <!-- SUPERVISOR PERFORMANCE -->
+    <!-- ========================================================= -->
+    <div class="card p-4 mb-4">
+
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+
+        <div>
+          <h5 class="mb-0">Supervisor Performance</h5>
+          <small class="text-muted">
+            Supervisor performance based on commission entries for the selected period.
+          </small>
+        </div>
+
+      </div>
+
+
+      <div class="table-responsive">
+
+        <table class="table table-hover align-middle">
+
+          <thead>
+            <tr>
+              <th style="width: 90px;">Rank</th>
+              <th>Supervisor</th>
+              <th>Entries</th>
+              <th>Reps</th>
+              <th>Clients</th>
+              <th>Revenue</th>
+              <th>Commission</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+
+
+          <tbody>
+
+            {% for s in supervisor_performance_summary %}
+
+            <tr>
+
+              <!-- RANK -->
+              <td>
+                {% if s.ranking == 1 %}
+
+                  <span class="badge bg-warning text-dark px-3 py-2">
+                    #1
+                  </span>
+
+                {% elif s.ranking == 2 %}
+
+                  <span class="badge bg-secondary px-3 py-2">
+                    #2
+                  </span>
+
+                {% elif s.ranking == 3 %}
+
+                  <span class="badge bg-dark px-3 py-2">
+                    #3
+                  </span>
+
+                {% else %}
+
+                  <span class="fw-semibold">
+                    #{{ s.ranking }}
+                  </span>
+
+                {% endif %}
+              </td>
+
+
+              <!-- SUPERVISOR -->
+              <td>
+                <div class="fw-semibold">
+                  {{ s.supervisor_name|default:"—" }}
+                </div>
+              </td>
+
+
+              <!-- ENTRIES -->
+              <td>
+                {{ s.entries|default:0 }}
+              </td>
+
+
+              <!-- REPS -->
+              <td>
+                {{ s.reps|default:0 }}
+              </td>
+
+
+              <!-- CLIENTS -->
+              <td>
+                {{ s.clients|default:0 }}
+              </td>
+
+
+              <!-- REVENUE -->
+              <td>
+                R{{ s.revenue|default:0|floatformat:2|intcomma }}
+              </td>
+
+
+              <!-- COMMISSION -->
+              <td>
+                R{{ s.commission|default:0|floatformat:2|intcomma }}
+              </td>
+
+
+              <!-- TOTAL -->
+              <td class="fw-semibold">
+                R{{ s.total_commission|default:0|floatformat:2|intcomma }}
+              </td>
+
+            </tr>
+
+
+            {% empty %}
+
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">
+                No supervisor performance data available for this period.
+              </td>
+            </tr>
+
+            {% endfor %}
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </div>
+
     
 
 
     <!-- ===================== -->
-    <!-- AREA PERFORMANCE VIEW -->
+    <!-- TERRITORY PERFORMANCE VIEW -->
     <!-- ===================== -->
     <div class="card p-4 mb-4">
 
       <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <h5 class="mb-0">Area Performance</h5>
+          <h5 class="mb-0">Territory Performance</h5>
           <small class="text-muted">
-            Area-level view of reps, clients, revenue, and commission exposure.
+            Territory-level view of reps, clients, revenue, and commission exposure.
           </small>
         </div>
       </div>
 
       <div class="table-responsive">
         <table class="table table-hover align-middle">
+
           <thead>
             <tr>
-              <th>Area</th>
+              <th>Territory</th>
               <th>Reps</th>
               <th>Clients</th>
               <th>Revenue</th>
@@ -501,32 +796,57 @@
           </thead>
 
           <tbody>
-            {% for a in area_performance_summary %}
+
+            {% for t in territory_performance_summary %}
+
             <tr>
-              <td>{{ a.area }}</td>
-              <td>{{ a.rep_count|default:0 }}</td>
-              <td>{{ a.clients|default:0 }}</td>
-              <td>R{{ a.revenue|default:0|floatformat:2|intcomma }}</td>
-              <td>R{{ a.rep_commission_total|default:0|floatformat:2|intcomma }}</td>
-              <td>R{{ a.supervisor_commission_total|default:0|floatformat:2|intcomma }}</td>
-              <td class="fw-semibold">
-                R{{ a.total_commission|default:0|floatformat:2|intcomma }}
+
+              <td>
+                {{ t.territory }}
               </td>
+
+              <td>
+                {{ t.rep_count|default:0 }}
+              </td>
+
+              <td>
+                {{ t.clients|default:0 }}
+              </td>
+
+              <td>
+                R{{ t.revenue|default:0|floatformat:2|intcomma }}
+              </td>
+
+              <td>
+                R{{ t.rep_commission_total|default:0|floatformat:2|intcomma }}
+              </td>
+
+              <td>
+                R{{ t.supervisor_commission_total|default:0|floatformat:2|intcomma }}
+              </td>
+
+              <td class="fw-semibold">
+                R{{ t.total_commission|default:0|floatformat:2|intcomma }}
+              </td>
+
             </tr>
 
             {% empty %}
+
             <tr>
               <td colspan="7" class="text-center text-muted py-4">
-                No area performance data available.
+                No territory performance data available.
               </td>
             </tr>
+
             {% endfor %}
+
           </tbody>
+
         </table>
       </div>
 
     </div>
-
 
     <!-- ===================== -->
     <!-- PERFORMANCE TREND GRAPH -->
@@ -556,73 +876,10 @@
     </div>
 
 
-    <!-- ===================== -->
-    <!-- PAYROLL CONTROL -->
-    <!-- ===================== -->
-    <div class="card p-4">
+    
 
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
-        <div>
-          <h5 class="mb-0">Payroll Control</h5>
-          <small class="text-muted">Review, adjust, approve, and mark commission payouts.</small>
-        </div>
+    
 
-        <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#emailStatementModal">
-            Email Statement
-          </button>
-          <button class="btn btn-dark btn-sm">
-            Export Payroll
-          </button>
-        </div>
-      </div>
-
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead>
-            <tr>
-              <th>Rep</th>
-              <th>Base Commission</th>
-              <th>Bonus</th>
-              <th>Adjustments</th>
-              <th>Total Payout</th>
-              <th>Status</th>
-              <th>Paid On</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {% for p in payroll_rows %}
-            <tr>
-              <td>{{ p.rep_name }}</td>
-              <td>R{{ p.base_commission|default:0|floatformat:0|intcomma }}</td>
-              <td>R{{ p.bonus_commission|default:0|floatformat:0|intcomma }}</td>
-              <td>R{{ p.adjustments|default:0|floatformat:0|intcomma }}</td>
-              <td class="fw-semibold">
-                R{{ p.total_payout|default:0|floatformat:0|intcomma }}
-              </td>
-              <td>
-                {% if p.paid %}
-                  <span class="badge bg-success">Paid</span>
-                {% else %}
-                  <span class="badge bg-warning text-dark">Pending</span>
-                {% endif %}
-              </td>
-              <td>{{ p.paid_on|date:"d M Y"|default:"—" }}</td>
-            </tr>
-
-            {% empty %}
-            <tr>
-              <td colspan="7" class="text-center text-muted py-4">
-                No payroll records available.
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-    </div>
 
   </main>
 

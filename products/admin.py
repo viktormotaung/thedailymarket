@@ -7,14 +7,25 @@ from .models import (
     Product,
     ProductPricing,
     ProductVariant,
+
+    # Product Knowledge
+    ProductKnowledge,
+    ProductKnowledgeBusinessType,
+    ProductKnowledgeBenefit,
+    ProductKnowledgeVariant,
+    ProductKnowledgeAlternative,
+    ProductKnowledgeCompetitor,
+    ProductKnowledgeQuestion,
+    ProductKnowledgeObjection,
 )
+
 from .forms import ProductExcelUploadForm
 from .services.product_excel_importer import import_products_from_excel
 
 
-# ------------------------------------------------------------------------------
+# =============================================================================
 # CATEGORY ADMIN
-# ------------------------------------------------------------------------------
+# =============================================================================
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -25,21 +36,41 @@ class CategoryAdmin(admin.ModelAdmin):
         "is_active",
         "sort_order",
     )
+
     list_filter = ("is_active", "parent")
-    search_fields = ("name", "slug", "abbreviation", "parent__name")
-    ordering = ("parent__name", "sort_order", "name")
+
+    search_fields = (
+        "name",
+        "slug",
+        "abbreviation",
+        "parent__name",
+    )
+
+    ordering = (
+        "parent__name",
+        "sort_order",
+        "name",
+    )
+
     autocomplete_fields = ("parent",)
-    prepopulated_fields = {"slug": ("name",)}
+
+    prepopulated_fields = {
+        "slug": ("name",)
+    }
 
 
-# ------------------------------------------------------------------------------
+# =============================================================================
 # PRODUCT PRICING INLINE
-# ------------------------------------------------------------------------------
+# =============================================================================
 
 class ProductPricingInline(admin.TabularInline):
     model = ProductPricing
     extra = 0
-    autocomplete_fields = ("supplier",)
+
+    autocomplete_fields = (
+        "supplier",
+    )
+
     show_change_link = True
 
     fields = (
@@ -82,12 +113,13 @@ class ProductPricingInline(admin.TabularInline):
     )
 
 
-# ------------------------------------------------------------------------------
-# PRODUCT ADMIN (WITH EXCEL IMPORT ACTION)
-# ------------------------------------------------------------------------------
+# =============================================================================
+# PRODUCT ADMIN
+# =============================================================================
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
+
     list_display = (
         "sku",
         "product_no",
@@ -97,12 +129,14 @@ class ProductAdmin(admin.ModelAdmin):
         "is_special",
         "wholesale_price",
         "special_saving_display",
+        "knowledge_status_display",
         "created_at",
         "updated_at",
     )
 
-    # ✅ Sort admin by Product Number
-    ordering = ("product_no",)
+    ordering = (
+        "product_no",
+    )
 
     search_fields = (
         "sku",
@@ -130,129 +164,472 @@ class ProductAdmin(admin.ModelAdmin):
         "updated_at",
     )
 
-    autocomplete_fields = ("category",)
-    inlines = [ProductPricingInline]
-
-    fieldsets = (
-        ("Basic Info", {
-            "fields": (
-                "product_no",
-                "name",
-                "category",
-                "visible",
-                "description",
-                "uom",
-                "image",
-            )
-        }),
-        ("System Fields", {
-            "fields": (
-                "sku",
-                "slug",
-                "created_at",
-                "updated_at",
-            )
-        }),
-        ("Base Prices (EXCL VAT)", {
-            "fields": (
-                "cost_price",
-                "wholesale_price",
-                "retail_price",
-                "retail_margin_pct",
-            )
-        }),
-        ("Specials", {
-            "fields": (
-                "is_special",
-                "special_label",
-                "old_wholesale_price_inc",
-                "wholesale_price_inc",
-                "special_saving",
-                "special_percentage",
-            )
-        }),
+    autocomplete_fields = (
+        "category",
     )
 
-    # ✅ ADMIN ACTION
-    actions = ["import_products_excel_action"]
+    inlines = [
+        ProductPricingInline,
+    ]
+
+    fieldsets = (
+        (
+            "Basic Info",
+            {
+                "fields": (
+                    "product_no",
+                    "name",
+                    "category",
+                    "visible",
+                    "description",
+                    "uom",
+                    "image",
+                )
+            },
+        ),
+
+        (
+            "System Fields",
+            {
+                "fields": (
+                    "sku",
+                    "slug",
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
+
+        (
+            "Base Prices (EXCL VAT)",
+            {
+                "fields": (
+                    "cost_price",
+                    "wholesale_price",
+                    "retail_price",
+                    "retail_margin_pct",
+                )
+            },
+        ),
+
+        (
+            "Specials",
+            {
+                "fields": (
+                    "is_special",
+                    "special_label",
+                    "old_wholesale_price_inc",
+                    "special_wholesale_price_inc",
+                    "wholesale_price_inc",
+                    "special_saving",
+                    "special_percentage",
+                )
+            },
+        ),
+    )
+
+    # =========================================================================
+    # PRODUCT KNOWLEDGE STATUS
+    # =========================================================================
+
+    @admin.display(
+        description="Product Knowledge",
+        ordering="knowledge__updated_at",
+    )
+    def knowledge_status_display(self, obj):
+
+        knowledge = getattr(obj, "knowledge", None)
+
+        if not knowledge:
+            return "NOT CREATED"
+
+        return f"{knowledge.completion_percentage}%"
+
+    # =========================================================================
+    # SPECIAL SAVING
+    # =========================================================================
+
+    @admin.display(description="Save")
+    def special_saving_display(self, obj):
+
+        if obj.special_saving > 0:
+            return f"R{obj.special_saving:.2f}"
+
+        return "-"
+
+    # =========================================================================
+    # EXCEL IMPORT ACTION
+    # =========================================================================
+
+    actions = [
+        "import_products_excel_action"
+    ]
 
     def import_products_excel_action(self, request, queryset):
         """
         Redirects to Excel upload screen.
+
         Selected rows are intentionally ignored.
         """
-        return redirect("admin:products_product_import_excel")
+
+        return redirect(
+            "admin:products_product_import_excel"
+        )
 
     import_products_excel_action.short_description = (
         "📥 Import / Update Products from Excel"
     )
 
-    # ✅ CUSTOM URL FOR UPLOAD SCREEN
+    # =========================================================================
+    # CUSTOM URL FOR EXCEL UPLOAD
+    # =========================================================================
+
     def get_urls(self):
+
         urls = super().get_urls()
+
         custom_urls = [
             path(
                 "import-excel/",
-                self.admin_site.admin_view(self.import_excel),
+                self.admin_site.admin_view(
+                    self.import_excel
+                ),
                 name="products_product_import_excel",
             ),
         ]
+
         return custom_urls + urls
 
-    # ✅ UPLOAD VIEW
+    # =========================================================================
+    # EXCEL UPLOAD VIEW
+    # =========================================================================
+
     def import_excel(self, request):
 
-        # 🔥 FORCE DB BASED ON ADMIN SITE
+        # Force DB based on admin site
         if request.path.startswith("/dummy-admin/"):
             request._db = "dummy"
         else:
             request._db = "default"
 
         if request.method == "POST":
-            form = ProductExcelUploadForm(request.POST, request.FILES)
+
+            form = ProductExcelUploadForm(
+                request.POST,
+                request.FILES,
+            )
 
             if form.is_valid():
+
                 try:
+
                     result = import_products_from_excel(
                         form.cleaned_data["excel_file"],
-                        db=request._db
+                        db=request._db,
                     )
 
                     messages.success(
                         request,
                         f"Import successful: "
                         f"{result['created']} created, "
-                        f"{result['updated']} updated."
+                        f"{result['updated']} updated.",
                     )
 
                     return redirect("..")
 
                 except Exception as e:
-                    messages.error(request, f"Import failed: {e}")
+
+                    messages.error(
+                        request,
+                        f"Import failed: {e}",
+                    )
 
         else:
+
             form = ProductExcelUploadForm()
 
         return render(
             request,
             "admin/products/import_excel.html",
-            {"form": form},
+            {
+                "form": form,
+            },
         )
-    
-    @admin.display(description="Save")
-    def special_saving_display(self, obj):
-        if obj.special_saving > 0:
-            return f"R{obj.special_saving:.2f}"
-        return "-"
-    
 
-    
-# ------------------------------------------------------------------------------
+
+# =============================================================================
+# PRODUCT KNOWLEDGE INLINE BASE
+# =============================================================================
+
+class ProductKnowledgeBusinessTypeInline(
+    admin.TabularInline
+):
+    model = ProductKnowledgeBusinessType
+    extra = 1
+    fields = (
+        "business_type",
+        "notes",
+        "sort_order",
+    )
+
+
+class ProductKnowledgeBenefitInline(
+    admin.TabularInline
+):
+    model = ProductKnowledgeBenefit
+    extra = 1
+    fields = (
+        "benefit",
+        "explanation",
+        "sort_order",
+    )
+
+
+class ProductKnowledgeVariantInline(
+    admin.TabularInline
+):
+    model = ProductKnowledgeVariant
+    extra = 1
+    fields = (
+        "variant_name",
+        "description",
+        "best_suited_for",
+        "customer_benefit",
+        "sort_order",
+    )
+
+
+class ProductKnowledgeAlternativeInline(
+    admin.TabularInline
+):
+    model = ProductKnowledgeAlternative
+    extra = 1
+    fields = (
+        "brand",
+        "product_name",
+        "notes",
+        "sort_order",
+    )
+
+
+class ProductKnowledgeCompetitorInline(
+    admin.TabularInline
+):
+    model = ProductKnowledgeCompetitor
+    extra = 1
+    fields = (
+        "competitor_brand",
+        "competitor_product",
+        "why_customer_uses_it",
+        "tdm_positioning",
+        "sort_order",
+    )
+
+
+class ProductKnowledgeQuestionInline(
+    admin.TabularInline
+):
+    model = ProductKnowledgeQuestion
+    extra = 1
+    fields = (
+        "question",
+        "purpose",
+        "sort_order",
+    )
+
+
+class ProductKnowledgeObjectionInline(
+    admin.TabularInline
+):
+    model = ProductKnowledgeObjection
+    extra = 1
+    fields = (
+        "objection",
+        "response",
+        "notes",
+        "sort_order",
+    )
+
+
+# =============================================================================
+# PRODUCT KNOWLEDGE ADMIN
+# =============================================================================
+
+@admin.register(ProductKnowledge)
+class ProductKnowledgeAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "product",
+        "completion_display",
+        "status_display",
+        "is_approved",
+        "updated_at",
+    )
+
+    search_fields = (
+        "product__product_no",
+        "product__name",
+        "product__sku",
+    )
+
+    list_filter = (
+        "is_approved",
+        "variants_not_applicable",
+        "updated_at",
+    )
+
+    ordering = (
+        "product__name",
+    )
+
+    autocomplete_fields = (
+        "product",
+    )
+
+    readonly_fields = (
+        "completion_display",
+        "status_display",
+        "created_at",
+        "updated_at",
+    )
+
+    fieldsets = (
+
+        (
+            "Product",
+            {
+                "fields": (
+                    "product",
+                )
+            },
+        ),
+
+        (
+            "Product Knowledge Completion",
+            {
+                "fields": (
+                    "completion_display",
+                    "status_display",
+                )
+            },
+        ),
+
+        (
+            "1. Product Description / Definition",
+            {
+                "fields": (
+                    "product_description",
+                )
+            },
+        ),
+
+        (
+            "3. Usage / Application",
+            {
+                "fields": (
+                    "usage_application",
+                )
+            },
+        ),
+
+        (
+            "5. Yield / Portion Information",
+            {
+                "fields": (
+                    "yield_portion_information",
+                )
+            },
+        ),
+
+        (
+            "6. Variants",
+            {
+                "fields": (
+                    "variants_not_applicable",
+                )
+            },
+        ),
+
+        (
+            "9. Why Choose The Daily Market",
+            {
+                "fields": (
+                    "why_choose_tdm",
+                )
+            },
+        ),
+
+        (
+            "12. Key Takeaways",
+            {
+                "fields": (
+                    "key_takeaways",
+                )
+            },
+        ),
+
+        (
+            "Approval",
+            {
+                "fields": (
+                    "is_approved",
+                    "approved_at",
+                )
+            },
+        ),
+
+        (
+            "System Information",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                )
+            }
+        ),
+    )
+
+    inlines = [
+        ProductKnowledgeBusinessTypeInline,
+        ProductKnowledgeBenefitInline,
+        ProductKnowledgeVariantInline,
+        ProductKnowledgeAlternativeInline,
+        ProductKnowledgeCompetitorInline,
+        ProductKnowledgeQuestionInline,
+        ProductKnowledgeObjectionInline,
+    ]
+
+    # =========================================================================
+    # COMPLETION DISPLAY
+    # =========================================================================
+
+    @admin.display(
+        description="Completion",
+        ordering="updated_at",
+    )
+    def completion_display(self, obj):
+
+        return f"{obj.completion_percentage}%"
+
+    # =========================================================================
+    # STATUS DISPLAY
+    # =========================================================================
+
+    @admin.display(
+        description="Status",
+    )
+    def status_display(self, obj):
+
+        return obj.knowledge_status
+
+
+# =============================================================================
 # PRODUCT VARIANT ADMIN
-# ------------------------------------------------------------------------------
+# =============================================================================
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
+
     list_display = (
         "id",
         "product",
@@ -264,8 +641,18 @@ class ProductVariantAdmin(admin.ModelAdmin):
         "updated_at",
     )
 
-    list_filter = ("product", "scales_with_pack", "uom")
-    search_fields = ("product__name", "name", "sku", "slug")
+    list_filter = (
+        "product",
+        "scales_with_pack",
+        "uom",
+    )
+
+    search_fields = (
+        "product__name",
+        "name",
+        "sku",
+        "slug",
+    )
 
     readonly_fields = (
         "wholesale_price",
@@ -273,22 +660,63 @@ class ProductVariantAdmin(admin.ModelAdmin):
     )
 
     fieldsets = (
-        (None, {
-            "fields": ("product", "name", "sku", "slug", "image", "uom", "pack_size", "scales_with_pack")
-        }),
-        ("Pricing (ex VAT overrides)", {
-            "fields": ("wholesale_price_override", "retail_price_override")
-        }),
-        ("Pricing (inclusive VAT, auto-calculated)", {
-            "fields": ("wholesale_price", "retail_price")
-        }),
+        (
+            None,
+            {
+                "fields": (
+                    "product",
+                    "name",
+                    "sku",
+                    "slug",
+                    "image",
+                    "uom",
+                    "pack_size",
+                    "scales_with_pack",
+                )
+            },
+        ),
+
+        (
+            "Pricing (ex VAT overrides)",
+            {
+                "fields": (
+                    "wholesale_price_override",
+                    "retail_price_override",
+                )
+            },
+        ),
+
+        (
+            "Pricing (inclusive VAT, auto-calculated)",
+            {
+                "fields": (
+                    "wholesale_price",
+                    "retail_price",
+                )
+            },
+        ),
     )
 
-    # --- Custom display methods for inclusive prices ---
-    def wholesale_price_display(self, obj):
-        return obj.wholesale_price or obj.wholesale_derived
-    wholesale_price_display.short_description = "Wholesale Price (incl VAT)"
+    # =========================================================================
+    # CUSTOM DISPLAY METHODS
+    # =========================================================================
 
+    @admin.display(
+        description="Wholesale Price (incl VAT)"
+    )
+    def wholesale_price_display(self, obj):
+
+        return (
+            obj.wholesale_price
+            or obj.wholesale_derived
+        )
+
+    @admin.display(
+        description="Retail Price (incl VAT)"
+    )
     def retail_price_display(self, obj):
-        return obj.retail_price or obj.retail_derived
-    retail_price_display.short_description = "Retail Price (incl VAT)"
+
+        return (
+            obj.retail_price
+            or obj.retail_derived
+        )

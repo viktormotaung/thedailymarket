@@ -134,350 +134,333 @@
 
     <main class="content container-fluid">
 
-        <!-- ===================== -->
-        <!-- PAGE HEADER -->
-        <!-- ===================== -->
-        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-3">
+        <!-- =========================================================
+            REP PERFORMANCE
+            ========================================================= -->
 
-            <div>
-            <h2 class="fw-bold mb-1">
-                {{ rep_user.get_full_name|default:rep_user.username }}
-            </h2>
+        <div class="card mb-4">
+            <div class="card-body">
 
-            <p class="text-muted mb-0">
-                Commission performance for {{ selected_month_name }} {{ selected_year }}
-            </p>
+                <div class="d-flex justify-content-between align-items-start mb-3">
+
+                    <div>
+                        <h2 class="mb-1">Rep Performance</h2>
+
+                        <div class="text-muted">
+                            Targets, client count, commission, and bonus visibility.
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+
+                        <div>
+                            <h2 class="mb-1">Rep Performance</h2>
+
+                            <div class="text-muted">
+                                Targets, client count, commission, and bonus visibility.
+                            </div>
+                        </div>
+
+                        <a href="{% url 'sales:sales-target-list' %}"
+                        class="btn btn-outline-dark">
+                            Manage Targets
+                        </a>
+
+                    </div>
+
+                </div>
+
+                <div class="table-responsive">
+
+                    <table class="table align-middle mb-0">
+
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Rep</th>
+                                <th>Entries</th>
+                                <th>Supervisor</th>
+                                <th>Commission</th>
+                                <th>Bonus</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            {% for r in rep_commission_summary %}
+
+                            <tr
+                                class="clickable-row"
+                                data-href="{% url 'sales:sales-commission-rep-detail' r.rep_id %}?period={{ selected_period|urlencode }}&year={{ selected_year }}{% if selected_region %}&region={{ selected_region }}{% endif %}{% if selected_territory %}&territory={{ selected_territory }}{% endif %}"
+                                style="cursor:pointer;"
+                            >
+
+                                <!-- RANK -->
+                                <td>
+
+                                    {% if r.ranking == 1 %}
+
+                                        <span class="badge bg-warning text-dark px-3 py-2">
+                                            #1
+                                        </span>
+
+                                    {% elif r.ranking == 2 %}
+
+                                        <span class="badge bg-secondary px-3 py-2">
+                                            #2
+                                        </span>
+
+                                    {% elif r.ranking == 3 %}
+
+                                        <span class="badge bg-dark px-3 py-2">
+                                            #3
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="fw-semibold">
+                                            #{{ r.ranking }}
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+                                <!-- REP -->
+                                <td>
+                                    <strong>
+                                        {{ r.rep_name }}
+                                    </strong>
+                                </td>
+
+                                <!-- ENTRIES -->
+                                <td>
+                                    {{ r.entries|default:0 }}
+                                </td>
+
+                                <!-- SUPERVISOR -->
+                                <td>
+                                    {{ r.supervisor|default:"—" }}
+                                </td>
+
+                                <!-- COMMISSION -->
+                                <td>
+                                    R{{ r.base_commission|floatformat:2 }}
+                                </td>
+
+                                <!-- BONUS -->
+                                <td>
+
+                                    <span class="text-success">
+                                        R{{ r.bonus_commission|floatformat:2 }}
+                                    </span>
+
+                                </td>
+
+                                <!-- TOTAL -->
+                                <td>
+                                    <strong>
+                                        R{{ r.total_commission|floatformat:2 }}
+                                    </strong>
+                                </td>
+
+                            </tr>
+
+                            {% empty %}
+
+                            <tr>
+                                <td colspan="7"
+                                    class="text-center text-muted py-4">
+                                    No rep commission entries found for this period.
+                                </td>
+                            </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
             </div>
-
-            <div>
-            <a href="{% url 'sales:sales-commission' %}?month={{ selected_month }}&year={{ selected_year }}{% if selected_area %}&area={{ selected_area }}{% endif %}"
-                class="btn btn-outline-dark">
-                Back to Commission Centre
-            </a>
-            </div>
-
         </div>
 
 
-        <!-- ===================== -->
-        <!-- FILTERS -->
-        <!-- ===================== -->
-        <div class="card p-3 mb-4 border-0 shadow-sm">
-        <form method="get" class="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-end">
+        <!-- =========================================================
+            SUPERVISOR PERFORMANCE
+            ========================================================= -->
 
-            <select name="month" class="form-select form-select-sm">
-            {% for m in months %}
-                <option value="{{ m.value }}" {% if m.value == selected_month %}selected{% endif %}>
-                {{ m.label }}
-                </option>
-            {% endfor %}
-            </select>
-
-            <select name="year" class="form-select form-select-sm">
-            {% for y in years %}
-                <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>
-                {{ y }}
-                </option>
-            {% endfor %}
-            </select>
-
-            <button class="btn btn-primary btn-sm px-4">
-            Apply
-            </button>
-
-        </form>
-        </div>
-
-
-        <!-- ===================== -->
-        <!-- REP KPI CARDS -->
-        <!-- ===================== -->
-        <div class="row g-3 mb-4">
-
-            <div class="col-md-3">
-            <div class="card p-3 h-100 border-0 shadow-sm">
-                <small class="text-muted">Commission Earned</small>
-
-                <h3 class="mb-1 fw-bold">
-                R{{ rep_total|default:0|floatformat:2|intcomma }}
-                </h3>
-
-                <small class="text-muted">
-                Standard + bonus commission
-                </small>
-            </div>
-            </div>
-
-            <div class="col-md-3">
-            <div class="card p-3 h-100 border-0 shadow-sm">
-                <small class="text-muted">Bonus Unlocked</small>
-
-                <h3 class="mb-1 fw-bold text-success">
-                R{{ bonus_total|default:0|floatformat:2|intcomma }}
-                </h3>
-
-                <small class="text-muted">
-                New business bonus earnings
-                </small>
-            </div>
-            </div>
-
-            <div class="col-md-3">
-            <div class="card p-3 h-100 border-0 shadow-sm">
-                <small class="text-muted">Revenue Generated</small>
-
-                <h3 class="mb-1 fw-bold">
-                R{{ revenue_total|default:0|floatformat:2|intcomma }}
-                </h3>
-
-                <small class="text-muted">
-                Paid invoices linked to rep
-                </small>
-            </div>
-            </div>
-
-            <div class="col-md-3">
-            <div class="card p-3 h-100 border-0 shadow-sm">
-                <small class="text-muted">Buying Clients</small>
-
-                <h3 class="mb-1 fw-bold">
-                {{ client_count|default:0 }}
-                </h3>
-
-                <small class="text-muted">
-                Unique commission-generating clients
-                </small>
-            </div>
-            </div>
-
-        </div>
-
-
-        <!-- ===================== -->
-        <!-- CLIENT TARGET PROGRESS -->
-        <!-- ===================== -->
-        <div class="card p-4 mb-4 border-0 shadow-sm">
-
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <div>
-            <h5 class="mb-0 fw-bold">Client Target Progress</h5>
-
-            <small class="text-muted">
-                {{ client_count|default:0 }}
-                /
-                {{ client_target|default:0 }} clients
-            </small>
-            </div>
-
-            <span class="fw-semibold">
-            {{ client_target_pct|default:0|floatformat:2 }}%
-            </span>
-        </div>
-
-        <div class="progress mb-3" style="height: 8px;">
-            <div
-            class="progress-bar bg-success"
-            style="width: {{ client_target_pct|default:0 }}%;">
-            </div>
-        </div>
-
-        <div class="alert border bg-light mb-0">
-
-            {% if bonus_active %}
-
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
-                <div>
-                <div class="fw-bold text-success mb-1">
-                    Bonus Commission Active
-                </div>
-
-                <div class="text-muted">
-                    Client target achieved. New business payouts are now unlocked for this month.
-                </div>
-                </div>
-
-                <div class="text-end">
-                <div class="small text-muted">Bonus Earnings</div>
-
-                <div class="fw-bold text-success">
-                    R{{ bonus_total|default:0|floatformat:2|intcomma }}
-                </div>
-                </div>
-            </div>
-
-            {% else %}
-
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
-                <div>
-                <div class="fw-bold mb-1">
-                    Bonus Commission Locked
-                </div>
-
-                <div class="text-muted">
-                    {{ clients_needed_for_bonus|default:0 }}
-                    more client(s) needed before bonus commission activates.
-                </div>
-                </div>
-
-                <div class="text-end">
-                <div class="small text-muted">Current Progress</div>
-
-                <div class="fw-bold">
-                    {{ client_count|default:0 }} / {{ client_target|default:0 }}
-                </div>
-                </div>
-            </div>
-
-            <div class="mt-3 pt-3 border-top">
-                {% if client_target_pct >= 75 %}
-                <small class="text-success fw-semibold">
-                    You're close. One strong week could unlock bonus territory.
-                </small>
-                {% elif client_target_pct >= 50 %}
-                <small class="text-primary fw-semibold">
-                    Momentum is building. Keep pushing client acquisition.
-                </small>
-                {% elif client_target_pct > 0 %}
-                <small class="text-warning fw-semibold">
-                    Early progress made. Consistency now matters.
-                </small>
-                {% else %}
-                <small class="text-muted fw-semibold">
-                    No bonus progress yet. First activated client changes everything.
-                </small>
-                {% endif %}
-            </div>
-
-            {% endif %}
-
-        </div>
-
-        </div>
-
-
-        <!-- ===================== -->
-        <!-- 12 MONTH COMMISSION TREND -->
-        <!-- ===================== -->
-        <div class="card p-4 mb-4 border-0 shadow-sm">
-
-            <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <h5 class="mb-0 fw-bold">Commission Trend</h5>
-                <small class="text-muted">
-                Rep commission generated over the last 12 months.
-                </small>
-            </div>
-            </div>
-
-            <div style="height: 320px;">
-            <canvas id="commissionTrendChart"></canvas>
-            </div>
-
-        </div>
-
-
-        <!-- ===================== -->
-        <!-- COMMISSION ENTRIES TABLE -->
-        <!-- ===================== -->
-        <div class="card border-0 shadow-sm">
+        <div class="card mb-4">
 
             <div class="card-body">
 
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                <h4 class="fw-bold mb-1">
-                    Commission Entries
-                </h4>
+                <div class="mb-3">
 
-                <p class="text-muted mb-0">
-                    Invoice-level commission activity for this rep.
-                </p>
+                    <h2 class="mb-1">
+                        Supervisor Performance
+                    </h2>
+
+                    <div class="text-muted">
+                        Supervisor performance based on commission entries
+                        for the selected period.
+                    </div>
+
                 </div>
-            </div>
 
-            <div class="table-responsive">
 
-                <table class="table align-middle table-hover">
+                <div class="table-responsive">
 
-                <thead class="table-light">
-                    <tr>
-                    <th>Date</th>
-                    <th>Invoice</th>
-                    <th>Client</th>
-                    <th>Cost</th>
-                    <th>Rate</th>
-                    <th>Commission</th>
-                    <th>Type</th>
-                    </tr>
-                </thead>
+                    <table class="table align-middle mb-0">
 
-                <tbody>
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Supervisor</th>
+                                <th>Entries</th>
+                                <th>Reps</th>
+                                <th>Clients</th>
+                                <th>Revenue</th>
+                                <th>Commission</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
 
-                    {% for entry in commission_entries %}
+                        <tbody>
 
-                    <tr>
+                            {% for s in supervisor_performance_summary %}
 
-                    <td>
-                        {{ entry.created_at|date:"d M Y" }}
-                    </td>
+                            <tr>
 
-                    <td>
-                        #{{ entry.invoice.id }}
-                    </td>
+                                <!-- RANK -->
+                                <td>
 
-                    <td>
-                        {{ entry.client.name|default:"—" }}
-                    </td>
+                                    {% if s.ranking == 1 %}
 
-                    
+                                        <span class="badge bg-warning text-dark px-3 py-2">
+                                            #1
+                                        </span>
 
-                    <td>
-                        R{{ entry.cost_total|default:0|floatformat:2|intcomma }}
-                    </td>
+                                    {% elif s.ranking == 2 %}
 
-                    <td>
-                        {{ entry.rep_rate|default:0|floatformat:2 }}%
-                    </td>
+                                        <span class="badge bg-secondary px-3 py-2">
+                                            #2
+                                        </span>
 
-                    <td class="fw-semibold">
-                        R{{ entry.rep_amount|default:0|floatformat:2|intcomma }}
-                    </td>
+                                    {% elif s.ranking == 3 %}
 
-                    <td>
-                        {% if entry.is_new_business %}
-                        <span class="badge bg-success">
-                            Bonus
-                        </span>
-                        {% else %}
-                        <span class="badge bg-secondary">
-                            Standard
-                        </span>
-                        {% endif %}
-                    </td>
+                                        <span class="badge bg-dark px-3 py-2">
+                                            #3
+                                        </span>
 
-                    </tr>
+                                    {% else %}
 
-                    {% empty %}
+                                        <span class="fw-semibold">
+                                            #{{ s.ranking }}
+                                        </span>
 
-                    <tr>
-                    <td colspan="8" class="text-center text-muted py-4">
-                        No commission entries found for this period.
-                    </td>
-                    </tr>
+                                    {% endif %}
 
-                    {% endfor %}
+                                </td>
 
-                </tbody>
 
-                </table>
+                                <!-- SUPERVISOR -->
+                                <td>
 
-            </div>
+                                    <strong>
+                                        {{ s.supervisor_name }}
+                                    </strong>
+
+                                </td>
+
+
+                                <!-- ENTRIES -->
+                                <td>
+                                    {{ s.entries|default:0 }}
+                                </td>
+
+
+                                <!-- REPS -->
+                                <td>
+                                    {{ s.reps|default:0 }}
+                                </td>
+
+
+                                <!-- CLIENTS -->
+                                <td>
+                                    {{ s.clients|default:0 }}
+                                </td>
+
+
+                                <!-- REVENUE -->
+                                <td>
+                                    R{{ s.revenue|floatformat:2 }}
+                                </td>
+
+
+                                <!-- COMMISSION -->
+                                <td>
+                                    R{{ s.commission|floatformat:2 }}
+                                </td>
+
+
+                                <!-- TOTAL -->
+                                <td>
+                                    <strong>
+                                        R{{ s.total|floatformat:2 }}
+                                    </strong>
+                                </td>
+
+                            </tr>
+
+                            {% empty %}
+
+                            <tr>
+                                <td colspan="8"
+                                    class="text-center text-muted py-4">
+
+                                    No supervisor performance data found
+                                    for this period.
+
+                                </td>
+                            </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
 
             </div>
 
         </div>
 
-        </main>
+
+    </main>
+
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        document.querySelectorAll(".clickable-row").forEach(function (row) {
+
+            row.addEventListener("click", function () {
+
+                const url = this.dataset.href;
+
+                if (url) {
+                    window.location.href = url;
+                }
+
+            });
+
+        });
+
+    });
+    </script>
 
     <!-- SWITCH PLATFORM MODAL -->
     <div class="modal fade"

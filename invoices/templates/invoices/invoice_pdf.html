@@ -46,6 +46,21 @@
       text-align: center;
     }
 
+    .banking-details-title {
+      color: #006b45;
+      font-weight: 600;
+    }
+
+    .banking-details-table th {
+      width: 45%;
+      font-weight: 600;
+    }
+
+    .banking-details-table td,
+    .banking-details-table th {
+      vertical-align: middle;
+    }
+
     @media print {
       body {
         background: #fff;
@@ -53,6 +68,11 @@
 
       .no-print {
         display: none !important;
+      }
+
+      .card {
+        box-shadow: none !important;
+        border: none !important;
       }
     }
   </style>
@@ -81,6 +101,7 @@
       <div class="row align-items-start mb-4">
         <div class="col-md-6">
           <h4 class="fw-bold mb-1">The Daily Market</h4>
+
           <div class="text-muted small">
             The Daily Market (Pty) Ltd<br>
             2024 / 232233 / 07
@@ -88,6 +109,7 @@
         </div>
 
         <div class="col-md-6 text-md-end mt-3 mt-md-0">
+
           <span class="badge status-badge
             {% if invoice.status == 'paid' %} bg-success
             {% elif invoice.status == 'overdue' %} bg-danger
@@ -99,13 +121,24 @@
           </span>
 
           <div class="invoice-meta mt-3">
-            <div><strong>Invoice #</strong> INV-{{ invoice.id }}</div>
-            <div><strong>Invoice Date:</strong> {{ invoice.invoice_date|date:"d M Y" }}</div>
+            <div>
+              <strong>Invoice #</strong>
+              INV-{{ invoice.id }}
+            </div>
+
+            <div>
+              <strong>Invoice Date:</strong>
+              {{ invoice.invoice_date|date:"d M Y" }}
+            </div>
 
             {% if invoice.due_date %}
-              <div><strong>Due Date:</strong> {{ invoice.due_date|date:"d M Y" }}</div>
+              <div>
+                <strong>Due Date:</strong>
+                {{ invoice.due_date|date:"d M Y" }}
+              </div>
             {% endif %}
           </div>
+
         </div>
       </div>
 
@@ -113,10 +146,12 @@
 
       <!-- CLIENT DETAILS -->
       <div class="row mb-4">
+
         <div class="col-md-6">
           <h6 class="fw-semibold">Invoiced To</h6>
 
           <div class="small">
+
             {{ client.organization|default:client.name }}<br>
 
             {% if client.contact_person_name %}
@@ -138,22 +173,27 @@
             {% if client.country %}
               {{ client.country }}
             {% endif %}
+
           </div>
         </div>
 
         <div class="col-md-6 text-md-end mt-3 mt-md-0">
+
           <h6 class="fw-semibold">Pay To</h6>
+
           <div class="small">
-            The Daily Market (Pty) Ltd<br>
-            Capitec Business<br>
-            105 548 3683
+            The Daily Market (Pty) Ltd
           </div>
+
         </div>
+
       </div>
 
       <!-- ITEMS -->
       <div class="table-responsive mb-4">
+
         <table class="table table-bordered invoice-table align-middle">
+
           <thead class="table-light">
             <tr>
               <th>Item</th>
@@ -164,9 +204,14 @@
           </thead>
 
           <tbody>
+
             {% for item in items %}
+
             <tr>
-              <td>{{ item.product_name }}</td>
+
+              <td>
+                {{ item.product_name }}
+              </td>
 
               <td class="text-end">
                 {{ item.quantity|floatformat:2 }}
@@ -179,56 +224,151 @@
               <td class="text-end fw-semibold">
                 R{{ item.display_line_total_inc|floatformat:2|intcomma }}
               </td>
+
             </tr>
+
             {% empty %}
+
             <tr>
               <td colspan="4" class="text-center text-muted">
                 No invoice items found.
               </td>
             </tr>
+
             {% endfor %}
+
           </tbody>
+
         </table>
+
       </div>
 
       <!-- TOTALS -->
       <div class="row justify-content-end mb-4">
+
         <div class="col-md-5">
 
           <div class="d-flex justify-content-between mb-2">
             <span>Invoice Total</span>
-            <span>R {{ invoice.order_total_inc|floatformat:2|intcomma }}</span>
+
+            <span>
+              R {{ invoice.order_total_inc|floatformat:2|intcomma }}
+            </span>
           </div>
 
           {% if invoice.deposit_required > 0 %}
+
           <div class="d-flex justify-content-between mb-2">
             <span>Deposit Required</span>
-            <span>R {{ invoice.deposit_required|floatformat:2|intcomma }}</span>
+
+            <span>
+              R {{ invoice.deposit_required|floatformat:2|intcomma }}
+            </span>
           </div>
+
           {% endif %}
 
           {% if invoice.deposit_paid > 0 %}
+
           <div class="d-flex justify-content-between mb-2">
             <span>Deposit Paid</span>
-            <span>-R {{ invoice.deposit_paid|floatformat:2|intcomma }}</span>
+
+            <span>
+              -R {{ invoice.deposit_paid|floatformat:2|intcomma }}
+            </span>
           </div>
+
           {% endif %}
 
           {% if invoice.credit_used > 0 %}
+
           <div class="d-flex justify-content-between mb-2">
             <span>Credit Used</span>
-            <span>R {{ invoice.credit_used|floatformat:2|intcomma }}</span>
+
+            <span>
+              R {{ invoice.credit_used|floatformat:2|intcomma }}
+            </span>
           </div>
+
           {% endif %}
 
           <hr>
 
           <div class="d-flex justify-content-between fw-bold fs-5">
-            <span>Amount Due</span>
-            <span>R {{ invoice.amount_due|floatformat:2|intcomma }}</span>
+
+            <span>
+              Amount Due
+            </span>
+
+            <span>
+              R {{ invoice.amount_due|floatformat:2|intcomma }}
+            </span>
+
           </div>
 
         </div>
+
+      </div>
+
+      <!-- BANKING DETAILS -->
+      <div class="mt-4">
+
+        <h6 class="banking-details-title mb-3">
+          Banking Details
+        </h6>
+
+        <div class="table-responsive">
+
+          <table class="table table-bordered banking-details-table mb-0">
+
+            <tbody>
+
+              <tr>
+                <th>
+                  Account Name:
+                </th>
+
+                <td>
+                  The Daily Market (Pty) Ltd
+                </td>
+              </tr>
+
+              <tr>
+                <th>
+                  Bank:
+                </th>
+
+                <td>
+                  Capitec Business
+                </td>
+              </tr>
+
+              <tr>
+                <th>
+                  Account Number:
+                </th>
+
+                <td>
+                  105 548 3683
+                </td>
+              </tr>
+
+              <tr>
+                <th>
+                  Payment Reference:
+                </th>
+
+                <td>
+                  <strong>INV-{{ invoice.id }}</strong>
+                </td>
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
       </div>
 
       <!-- PAYMENT ACTION -->
@@ -237,34 +377,52 @@
         {% if invoice.status == "paid" %}
 
           <div class="alert alert-success">
-            <strong>Paid.</strong> This invoice has already been paid.
+            <strong>Paid.</strong>
+            This invoice has already been paid.
           </div>
 
           <div class="d-flex justify-content-end gap-2">
-            <button class="btn btn-outline-secondary" onclick="window.print()">
-              <i class="bi bi-download"></i> Download / Save PDF
+
+            <button
+              class="btn btn-outline-secondary"
+              onclick="window.print()"
+            >
+              <i class="bi bi-download"></i>
+              Download / Save PDF
             </button>
 
             <button class="btn btn-success" disabled>
-              <i class="bi bi-check-circle"></i> Paid
+              <i class="bi bi-check-circle"></i>
+              Paid
             </button>
+
           </div>
 
         {% else %}
 
           <div class="alert alert-warning">
-            <strong>Payment required.</strong> This invoice still has an outstanding amount.
+            <strong>Payment required.</strong>
+            This invoice still has an outstanding amount.
           </div>
 
           <div class="d-flex justify-content-end gap-2 flex-wrap">
-            <button class="btn btn-outline-secondary" onclick="window.print()">
-              <i class="bi bi-download"></i> Download / Save PDF
+
+            <button
+              class="btn btn-outline-secondary"
+              onclick="window.print()"
+            >
+              <i class="bi bi-download"></i>
+              Download / Save PDF
             </button>
 
-            <a href="{% url 'online_payments:start-payment' invoice.id %}"
-                class="btn btn-success">
-                    <i class="bi bi-credit-card"></i> Pay Invoice
+            <a
+              href="{% url 'online_payments:start-payment' invoice.id %}"
+              class="btn btn-success"
+            >
+              <i class="bi bi-credit-card"></i>
+              Pay Invoice
             </a>
+
           </div>
 
         {% endif %}
@@ -282,9 +440,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-
-</script>
 
 </body>
 </html>

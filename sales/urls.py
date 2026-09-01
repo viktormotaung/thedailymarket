@@ -6,8 +6,13 @@ app_name = "sales"
 urlpatterns = [
     # Main sales dashboard
     path("", views.sales_dashboard, name="sales-dashboard"),
-
-    # Prospects
+    path("leads/", views.leads, name="sales-leads"),
+    path( "leads/add/", views.lead_create, name="sales-lead-create", ),
+    path( "leads/<int:pk>/", views.lead_view, name="sales-lead-view", ),
+    path("leads/<int:pk>/edit/", views.lead_edit, name="sales-lead-edit",),
+    path("leads/<int:pk>/convert-to-prospect/", views.lead_convert_to_prospect, name="lead-convert-to-prospect",),
+    path("prospects/", views.prospects, name="sales-prospects"),
+    
     path("prospects/", views.prospects, name="sales-prospects"),
     path("prospects/add/", views.prospect_create, name="sales-prospect-create"),
     path("prospects/<int:pk>/", views.prospect_detail, name="sales-prospect-detail"),

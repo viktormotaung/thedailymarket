@@ -2,7 +2,7 @@
 from decimal import Decimal
 from django import forms
 from django.forms import inlineformset_factory
-from products.models import ProductPricing, Product, ProductVariant
+from products.models import ProductPricing, Product, ProductVariant, ProductKnowledge
 from suppliers.models import Supplier
 
 
@@ -218,3 +218,141 @@ class ProductExcelUploadForm(forms.Form):
             raise forms.ValidationError("File too large (max 5MB).")
 
         return file
+
+
+class ProductKnowledgeForm(forms.ModelForm):
+
+    class Meta:
+        model = ProductKnowledge
+
+        fields = [
+            "product_description",
+            "usage_application",
+            "yield_portion_information",
+            "why_choose_tdm",
+            "key_takeaways",
+            "variants_not_applicable",
+        ]
+
+        widgets = {
+
+            # =============================================================
+            # 1. PRODUCT DESCRIPTION / DEFINITION
+            # =============================================================
+
+            "product_description": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 4,
+                    "placeholder": (
+                        "Describe what this product is and provide "
+                        "a clear definition for the sales representative."
+                    ),
+                }
+            ),
+
+            # =============================================================
+            # 3. WHERE / WHAT IT IS USED FOR
+            # =============================================================
+
+            "usage_application": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 4,
+                    "placeholder": (
+                        "Describe what meals, menu items or applications "
+                        "this product is used for."
+                    ),
+                }
+            ),
+
+            # =============================================================
+            # 5. YIELD / PORTION INFORMATION
+            # =============================================================
+
+            "yield_portion_information": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 4,
+                    "placeholder": (
+                        "Provide useful yield, portion or serving information."
+                    ),
+                }
+            ),
+
+            # =============================================================
+            # 9. WHY CHOOSE THE DAILY MARKET
+            # =============================================================
+
+            "why_choose_tdm": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 4,
+                    "placeholder": (
+                        "Explain why the customer should choose "
+                        "this product from The Daily Market."
+                    ),
+                }
+            ),
+
+            # =============================================================
+            # 12. KEY TAKEAWAYS
+            # =============================================================
+
+            "key_takeaways": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 4,
+                    "placeholder": (
+                        "Enter the most important things the sales "
+                        "representative must remember about this product."
+                    ),
+                }
+            ),
+
+            # =============================================================
+            # 6. VARIANTS — NOT APPLICABLE
+            # =============================================================
+
+            "variants_not_applicable": forms.CheckboxInput(
+                attrs={
+                    "class": "form-check-input",
+                }
+            ),
+        }
+
+        labels = {
+            "product_description": "Product Description / Definition",
+            "usage_application": "Where / What It Is Used For",
+            "yield_portion_information": "Yield / Portion Information",
+            "why_choose_tdm": "Why Choose The Daily Market",
+            "key_takeaways": "Key Takeaways",
+            "variants_not_applicable": "Variants are not applicable",
+        }
+
+        help_texts = {
+            "product_description": (
+                "What is this product? Provide a clear definition "
+                "for the sales representative."
+            ),
+
+            "usage_application": (
+                "What meals, menu items or applications is this "
+                "product used for?"
+            ),
+
+            "yield_portion_information": (
+                "Provide useful yield, portion or serving information. "
+                "Enter N/A if not applicable."
+            ),
+
+            "why_choose_tdm": (
+                "Why should the customer choose this product from "
+                "The Daily Market?"
+            ),
+
+            "key_takeaways": (
+                "The most important things the sales representative "
+                "must remember about this product."
+            ),
+        }

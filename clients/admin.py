@@ -19,9 +19,32 @@ from .models import (
 )
 
 
+
 # ============================================================
 # GEOGRAPHY
 # ============================================================
+
+class TerritoryInline(admin.TabularInline):
+    model = Territory
+    extra = 0
+    fields = (
+        "name",
+        "code",
+        "status",
+    )
+    show_change_link = True
+
+
+class AreaInline(admin.TabularInline):
+    model = Area
+    extra = 1
+    fields = (
+        "name",
+        "code",
+        "status",
+    )
+    show_change_link = True
+
 
 @admin.register(Region)
 class RegionAdmin(admin.ModelAdmin):
@@ -42,6 +65,10 @@ class RegionAdmin(admin.ModelAdmin):
 
     ordering = (
         "name",
+    )
+
+    inlines = (
+        TerritoryInline,
     )
 
 
@@ -68,6 +95,10 @@ class TerritoryAdmin(admin.ModelAdmin):
     ordering = (
         "region__name",
         "name",
+    )
+
+    inlines = (
+        AreaInline,
     )
 
 
@@ -98,6 +129,13 @@ class AreaAdmin(admin.ModelAdmin):
         "territory__name",
         "name",
     )
+
+
+
+
+
+
+
 
 
 # ============================================================
@@ -510,7 +548,6 @@ class ProspectAdmin(admin.ModelAdmin):
         "maps_link",
     )
 
-    date_hierarchy = "created_at"
     list_per_page = 50
     save_on_top = True
     inlines = [ProspectUpdateInline]
@@ -831,6 +868,7 @@ class LeadAdmin(admin.ModelAdmin):
         "territory",
         "area",
         "province",
+        "location_status",
         "assigned_to",
         "is_converted_display",
         "created_at",
@@ -860,6 +898,8 @@ class LeadAdmin(admin.ModelAdmin):
         "campaign",
         "advert",
         "notes",
+        "latitude",
+        "longitude",
     )
 
     ordering = (
@@ -882,11 +922,14 @@ class LeadAdmin(admin.ModelAdmin):
         "preferred_call_time_selected_at",
         "is_converted_display",
         "age_days",
+        "location_captured_at",
     )
 
-    
-
     fieldsets = (
+
+        # =====================================================
+        # LEAD
+        # =====================================================
 
         (
             "Lead",
@@ -899,6 +942,10 @@ class LeadAdmin(admin.ModelAdmin):
             },
         ),
 
+        # =====================================================
+        # MARKETING
+        # =====================================================
+
         (
             "Marketing",
             {
@@ -910,6 +957,10 @@ class LeadAdmin(admin.ModelAdmin):
             },
         ),
 
+        # =====================================================
+        # BUSINESS
+        # =====================================================
+
         (
             "Business",
             {
@@ -917,10 +968,13 @@ class LeadAdmin(admin.ModelAdmin):
                     "business_name",
                     ("entity_type", "potential_client_type"),
                     "estimated_weekly_spend",
-                    
                 )
             },
         ),
+
+        # =====================================================
+        # CONTACT
+        # =====================================================
 
         (
             "Contact",
@@ -933,6 +987,10 @@ class LeadAdmin(admin.ModelAdmin):
             },
         ),
 
+        # =====================================================
+        # LOCATION
+        # =====================================================
+
         (
             "Location",
             {
@@ -944,9 +1002,17 @@ class LeadAdmin(admin.ModelAdmin):
                     "country",
                     ("region", "territory"),
                     "area",
+
+                    # GPS LOCATION
+                    ("latitude", "longitude"),
+                    "location_captured_at",
                 )
             },
         ),
+
+        # =====================================================
+        # SALES ACTIVITY
+        # =====================================================
 
         (
             "Sales Activity",
@@ -959,6 +1025,10 @@ class LeadAdmin(admin.ModelAdmin):
             },
         ),
 
+        # =====================================================
+        # CONVERSION
+        # =====================================================
+
         (
             "Conversion",
             {
@@ -968,6 +1038,10 @@ class LeadAdmin(admin.ModelAdmin):
                 )
             },
         ),
+
+        # =====================================================
+        # META
+        # =====================================================
 
         (
             "Meta",
@@ -982,13 +1056,39 @@ class LeadAdmin(admin.ModelAdmin):
         ),
     )
 
+    # =========================================================
+    # DISPLAY NAME
+    # =========================================================
+
     @admin.display(description="Business")
     def display_name(self, obj):
         return obj.business_name or obj.contact_person
 
-    @admin.display(boolean=True, description="Converted")
+    # =========================================================
+    # CONVERTED STATUS
+    # =========================================================
+
+    @admin.display(
+        boolean=True,
+        description="Converted"
+    )
     def is_converted_display(self, obj):
         return obj.is_converted
+
+    # =========================================================
+    # GPS STATUS
+    # =========================================================
+
+    @admin.display(
+        boolean=True,
+        description="GPS"
+    )
+    def location_status(self, obj):
+        return bool(
+            obj.latitude is not None
+            and obj.longitude is not None
+        )
+
     
 
 @admin.register(LeadActivity)

@@ -189,10 +189,10 @@
             class="d-inline">
         {% csrf_token %}
 
-        {% if not run.driver or not run.vehicle %}
+        {% if not run.driver or not run.vehicle or not run.start_supplier %}
           <button class="btn btn-sm btn-secondary"
                   disabled
-                  title="Assign both a driver and a vehicle to generate a route">
+                  title="Assign a driver, vehicle and starting supplier to generate a route">
             Generate Route Suggestion
           </button>
         {% else %}
@@ -229,124 +229,352 @@
       <form method="post">
         {% csrf_token %}
 
-        <div class="row g-4 align-items-end">
+        <div class="row g-4 align-items-start">
 
           <!-- ===================== -->
           <!-- ASSIGNMENTS -->
           <!-- ===================== -->
           <div class="col-lg-7">
+
             <h6 class="text-uppercase text-muted mb-3">
               Assignment
             </h6>
 
             <div class="row g-3">
 
-              <!-- Driver -->
+              <!-- ===================== -->
+              <!-- DRIVER -->
+              <!-- ===================== -->
               <div class="col-md-6">
+
                 <label class="form-label fw-semibold">
                   Driver
                 </label>
+
                 {{ form.driver }}
+
+                {% if run.driver %}
+
+                  <div class="form-text">
+                    The driver's address is used as the
+                    <strong>route start and route end</strong>.
+                  </div>
+
+                {% else %}
+
+                  <div class="form-text text-muted">
+                    Select the driver who will start and finish this run.
+                  </div>
+
+                {% endif %}
+
               </div>
 
-              <!-- Vehicle -->
+
+              <!-- ===================== -->
+              <!-- VEHICLE -->
+              <!-- ===================== -->
               <div class="col-md-6">
+
                 <label class="form-label fw-semibold">
                   Vehicle
                 </label>
+
                 {{ form.vehicle }}
+
               </div>
 
-              <!-- Starting Supplier -->
-              <div class="col-12">
-                <label class="form-label fw-semibold">
+
+              <!-- ===================== -->
+              <!-- STARTING SUPPLIER -->
+              <!-- ===================== -->
+              <div class="col-md-6">
+
+                <label
+                  for="start_supplier"
+                  class="form-label fw-semibold"
+                >
                   Starting Supplier
                 </label>
 
                 <select
                   name="start_supplier"
-                  id="id_start_supplier"
+                  id="start_supplier"
                   class="form-select"
                 >
+
                   <option value="">
-                    -- Select Starting Supplier --
+                    Select starting supplier
                   </option>
 
                   {% for supplier in suppliers %}
+
                     <option
                       value="{{ supplier.id }}"
-                      {% if run.start_supplier_id == supplier.id %}selected{% endif %}
+                      {% if run.start_supplier_id == supplier.id %}
+                        selected
+                      {% endif %}
                     >
                       {{ supplier.name }}
                     </option>
-                  {% empty %}
-                    <option disabled>
-                      No active suppliers available
-                    </option>
+
                   {% endfor %}
+
                 </select>
 
                 <div class="form-text">
-                  Select the supplier where the vehicle will begin its delivery journey.
-                  This will be used as the starting point when generating the delivery route.
+                  This supplier will be the
+                  <strong>first physical stop</strong>
+                  after the driver.
                 </div>
+
               </div>
 
             </div>
+
           </div>
+
 
           <!-- ===================== -->
           <!-- RUN STATS -->
           <!-- ===================== -->
           <div class="col-lg-5">
+
             <h6 class="text-uppercase text-muted mb-3">
               Run Summary
             </h6>
 
             <div class="row text-center g-3">
 
+              <!-- ===================== -->
+              <!-- STOPS -->
+              <!-- ===================== -->
               <div class="col-4">
+
                 <div class="border rounded py-3 bg-light">
+
                   <div class="text-muted small">
                     Stops
                   </div>
+
                   <strong class="fs-5">
                     {{ run.stop_count }}
                   </strong>
+
                 </div>
+
               </div>
 
+
+              <!-- ===================== -->
+              <!-- DISTANCE -->
+              <!-- ===================== -->
               <div class="col-4">
+
                 <div class="border rounded py-3 bg-light">
+
                   <div class="text-muted small">
                     Distance
                   </div>
+
                   <strong class="fs-6">
-                    {{ run.total_distance_km|default:"—" }} km
+
+                    {% if run.total_distance_km %}
+                      {{ run.total_distance_km }} km
+                    {% else %}
+                      —
+                    {% endif %}
+
                   </strong>
+
                 </div>
+
               </div>
 
+
+              <!-- ===================== -->
+              <!-- DRIVE TIME -->
+              <!-- ===================== -->
               <div class="col-4">
+
                 <div class="border rounded py-3 bg-light">
+
                   <div class="text-muted small">
                     Drive Time
                   </div>
+
                   <strong class="fs-6">
-                    {{ run.total_drive_min|default:"—" }} min
+
+                    {% if run.total_drive_min %}
+                      {{ run.total_drive_min }} min
+                    {% else %}
+                      —
+                    {% endif %}
+
                   </strong>
+
                 </div>
+
               </div>
 
             </div>
+
+
+            <!-- ===================== -->
+            <!-- ROUTE START / END -->
+            <!-- ===================== -->
+            <div class="border rounded mt-3 p-3 bg-light">
+
+              <div class="small text-uppercase text-muted fw-semibold mb-2">
+                Route
+              </div>
+
+              <!-- ROUTE START -->
+              <div class="d-flex align-items-start mb-2">
+
+                <div class="me-2">
+                  <span class="badge bg-primary">
+                    START
+                  </span>
+                </div>
+
+                <div>
+
+                  {% if run.driver %}
+
+                    <strong>
+                      {{ run.driver.get_full_name|default:run.driver.username }}
+                    </strong>
+
+                    <div class="small text-muted">
+                      Driver address
+                    </div>
+
+                  {% else %}
+
+                    <span class="text-muted">
+                      Driver not selected
+                    </span>
+
+                  {% endif %}
+
+                </div>
+
+              </div>
+
+
+              <!-- ARROW -->
+              <div class="text-muted ms-2 mb-2">
+                ↓
+              </div>
+
+
+              <!-- FIRST STOP -->
+              <div class="d-flex align-items-start mb-2">
+
+                <div class="me-2">
+                  <span class="badge bg-warning text-dark">
+                    FIRST STOP
+                  </span>
+                </div>
+
+                <div>
+
+                  {% if run.start_supplier %}
+
+                    <strong>
+                      {{ run.start_supplier.name }}
+                    </strong>
+
+                    <div class="small text-muted">
+                      Supplier pickup
+                    </div>
+
+                  {% else %}
+
+                    <span class="text-muted">
+                      Starting supplier not selected
+                    </span>
+
+                  {% endif %}
+
+                </div>
+
+              </div>
+
+
+              <!-- ARROW -->
+              <div class="text-muted ms-2 mb-2">
+                ↓
+              </div>
+
+
+              <!-- END -->
+              <div class="d-flex align-items-start">
+
+                <div class="me-2">
+                  <span class="badge bg-secondary">
+                    END
+                  </span>
+                </div>
+
+                <div>
+
+                  {% if run.driver %}
+
+                    <strong>
+                      Same driver address
+                    </strong>
+
+                    <div class="small text-muted">
+                      Return to driver
+                    </div>
+
+                  {% else %}
+
+                    <span class="text-muted">
+                      Driver not selected
+                    </span>
+
+                  {% endif %}
+
+                </div>
+
+              </div>
+
+            </div>
+
           </div>
 
         </div>
+
+
+        <!-- ===================== -->
+        <!-- ROUTE LOGIC NOTICE -->
+        <!-- ===================== -->
+        <div class="alert alert-info mt-4 mb-0">
+
+          <div class="fw-semibold mb-1">
+            Route sequence
+          </div>
+
+          <div class="small">
+
+            The vehicle starts at the selected driver's address,
+            travels to the selected starting supplier first,
+            then continues through the remaining suppliers and
+            customer deliveries before returning to the driver's address.
+
+          </div>
+
+        </div>
+
 
         <!-- ===================== -->
         <!-- SAVE ACTION -->
         <!-- ===================== -->
         <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+
           <button
             type="submit"
             class="btn btn-success px-4 py-2"
@@ -357,6 +585,7 @@
           >
             Save
           </button>
+
         </div>
 
       </form>

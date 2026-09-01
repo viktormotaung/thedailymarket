@@ -305,14 +305,14 @@ class SalesRepProfile(models.Model):
         related_name="sales_rep_profile",
     )
 
-    # Link to the staff profile (optional if user might not have one yet)
+    # Link to the staff profile
     staff_profile = models.OneToOneField(
         "StaffProfile",
         on_delete=models.CASCADE,
         related_name="sales_profile",
         null=True,
         blank=True,
-        help_text="Link to the staff profile (every sales rep must have a staff profile)."
+        help_text="Link to the staff profile (every sales rep must have a staff profile).",
     )
 
     status = models.CharField(
@@ -329,7 +329,7 @@ class SalesRepProfile(models.Model):
         null=True,
         blank=True,
         related_name="sales_reps",
-        help_text="Sales operator this sales rep belongs to."
+        help_text="Sales operator this sales rep belongs to.",
     )
 
     region = models.ForeignKey(
@@ -338,7 +338,7 @@ class SalesRepProfile(models.Model):
         null=True,
         blank=True,
         related_name="sales_profiles",
-        help_text="Region assigned to this sales user."
+        help_text="Region assigned to this sales user.",
     )
 
     territory = models.ForeignKey(
@@ -347,25 +347,23 @@ class SalesRepProfile(models.Model):
         null=True,
         blank=True,
         related_name="sales_profiles",
-        help_text="Territory assigned to this sales user."
+        help_text="Territory assigned to this sales user.",
     )
-    
 
     base_commission_pct = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         default=Decimal("0.00"),
-        help_text="Standard commission percentage paid to this sales rep."
+        help_text="Standard commission percentage paid to this sales rep.",
     )
 
     bonus_commission_pct = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         default=Decimal("0.00"),
-        help_text="Additional bonus commission percentage paid when targets or conditions are met."
+        help_text="Additional bonus commission percentage paid when targets or conditions are met.",
     )
 
-    # store a HASH, not the raw code
     auth_code_hash = models.CharField(
         "authorisation code (hashed)",
         max_length=128,
@@ -380,7 +378,8 @@ class SalesRepProfile(models.Model):
         null=True,
     )
 
-    # ✅ NEW: multi-role support
+    # User can have one or multiple sales roles.
+    # This allows the same person to be both Rep and Supervisor.
     roles = models.ManyToManyField(
         "SalesRole",
         blank=True,
@@ -388,50 +387,103 @@ class SalesRepProfile(models.Model):
         help_text="Roles this sales user fulfills (rep, supervisor, or both).",
     )
 
-    # ✅ NEW: supervisor for this rep
+    # ---- supervisor ----
+
     supervisor = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        "StaffProfile",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="supervised_reps",
-        help_text="Supervisor/manager responsible for this sales rep.",
+        related_name="supervised_sales_reps",
+        help_text="Staff member responsible for this sales rep. The supervisor may also be the rep themselves.",
     )
 
     notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    last_seen_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    last_seen_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+    )
 
-    
+    # ---------------------------------------------------------
+    # AUTH CODE
+    # ---------------------------------------------------------
 
-    # ---- helpers for the secret code ----
     def set_auth_code(self, raw_code: str, *, save: bool = True) -> None:
         self.auth_code_hash = "" if not raw_code else make_password(raw_code)
+
         if save:
-            self.save(update_fields=["auth_code_hash", "updated_at"])
+            self.save(
+                update_fields=[
+                    "auth_code_hash",
+                    "updated_at",
+                ]
+            )
 
     def verify_auth_code(self, raw_code: str) -> bool:
-        return bool(self.auth_code_hash and check_password(raw_code, self.auth_code_hash))
+        return bool(
+            self.auth_code_hash
+            and check_password(raw_code, self.auth_code_hash)
+        )
 
-    # ---- online helpers ----
+    # ---------------------------------------------------------
+    # ONLINE STATUS
+    # ---------------------------------------------------------
+
     def mark_seen(self, *, save=True):
         self.last_seen_at = timezone.now()
+
         if save:
-            self.save(update_fields=["last_seen_at", "updated_at"])
+            self.save(
+                update_fields=[
+                    "last_seen_at",
+                    "updated_at",
+                ]
+            )
 
     @property
     def is_online(self) -> bool:
         if not self.last_seen_at:
             return False
-        return timezone.now() - self.last_seen_at <= _online_window()
+
+        return (
+            timezone.now() - self.last_seen_at
+            <= _online_window()
+        )
+
+    # ---------------------------------------------------------
+    # ROLE HELPERS
+    # ---------------------------------------------------------
+
+    def has_role(self, role_code):
+        return self.roles.filter(code=role_code).exists()
+
+    @property
+    def is_supervisor(self):
+        return self.has_role("SUPERVISOR")
+
+    @property
+    def is_rep(self):
+        return self.has_role("REP")
+
+    @property
+    def is_rep_and_supervisor(self):
+        return self.is_rep and self.is_supervisor
+
+    # ---------------------------------------------------------
+    # DISPLAY
+    # ---------------------------------------------------------
 
     def __str__(self):
-        name = (self.user.get_full_name() or self.user.get_username()).strip()
+        name = (
+            self.user.get_full_name()
+            or self.user.get_username()
+        ).strip()
+
         return f"SalesRepProfile for {name}"
-
-
 
 class DriverProfile(models.Model):
     """
@@ -466,12 +518,69 @@ class DriverProfile(models.Model):
         db_index=True,
     )
 
+    # =========================================================
+    # ADDRESS
+    # =========================================================
+
+    address_line_1 = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Driver's primary residential address.",
+    )
+
+    address_line_2 = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    suburb = models.CharField(
+        max_length=120,
+        blank=True,
+    )
+
+    city = models.CharField(
+        max_length=120,
+        blank=True,
+    )
+
+    province = models.CharField(
+        max_length=120,
+        blank=True,
+    )
+
+    postal_code = models.CharField(
+        max_length=20,
+        blank=True,
+    )
+
+    # =========================================================
+    # GPS COORDINATES
+    # =========================================================
+
+    latitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        null=True,
+        blank=True,
+        help_text="Latitude of the driver's address.",
+    )
+
+    longitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        null=True,
+        blank=True,
+        help_text="Longitude of the driver's address.",
+    )
+
+    # =========================================================
+    # NOTES / TIMESTAMPS
+    # =========================================================
+
     notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-
 
 class SalesOperator(models.Model):
     """

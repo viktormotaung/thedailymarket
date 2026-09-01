@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from suppliers.models import Supplier
 from .models import Product, Category, ProductPricing
-from .forms import ProductForm, ProductVariantFormSet, ProductPricingForm 
+from .forms import ProductForm, ProductVariantFormSet, ProductPricingForm, ProductKnowledgeForm
 from django.db import transaction
 from .forms import ProductForm, ProductVariantForm
 from django.contrib import messages
@@ -40,7 +40,7 @@ from products.forms import (
     ProductVariantForm,
 )
 from .forms import ProductForm, ProductVariantForm
-from .models import Product, ProductVariant
+from .models import Product, ProductVariant, ProductKnowledge
 from django.http import HttpResponse
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -51,7 +51,16 @@ from reportlab.platypus import Image
 from django.conf import settings
 import os
 from datetime import timedelta
+from io import BytesIO
 
+from reportlab.lib.utils import ImageReader
+
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Image,
+)
 
 # -----------------------------------------------------
 # Auth helpers
@@ -120,19 +129,37 @@ def product_list(request):
         min_retail_inc = None
 
         if active_rows:
-            w_vals = [
-                r.wholesale_price_inc
-                for r in active_rows
-                if r.wholesale_price_inc is not None
-            ]
+
+            # -------------------------------------------------
+            # WHOLESALE PRICE
+            # -------------------------------------------------
+            # If the product is on special, use the special
+            # wholesale price instead of the normal price.
+            if (
+                p.is_special
+                and p.special_wholesale_price_inc is not None
+            ):
+                min_wholesale_inc = p.special_wholesale_price_inc
+
+            else:
+                w_vals = [
+                    r.wholesale_price_inc
+                    for r in active_rows
+                    if r.wholesale_price_inc is not None
+                ]
+
+                if w_vals:
+                    min_wholesale_inc = min(w_vals)
+
+            # -------------------------------------------------
+            # RETAIL PRICE
+            # -------------------------------------------------
             r_vals = [
                 r.retail_price_inc
                 for r in active_rows
                 if r.retail_price_inc is not None
             ]
 
-            if w_vals:
-                min_wholesale_inc = min(w_vals)
             if r_vals:
                 min_retail_inc = min(r_vals)
 
@@ -161,6 +188,986 @@ def product_list(request):
     )
 
 
+# -----------------------------------------------------
+# Product Knowledge
+# -----------------------------------------------------
+
+@login_required
+@staff_required
+def product_knowledge_list(request):
+    """
+    List all Product Knowledge records.
+
+    Product Knowledge is automatically created for Products,
+    so this page provides the staff-facing overview of the
+    knowledge profiles and their completion status.
+    """
+
+    qs = (
+        ProductKnowledge.objects
+        .select_related(
+            "product",
+            "product__category",
+        )
+        .order_by(
+            "product__product_no",
+            "product__name",
+        )
+    )
+
+    # -----------------------------------------------------
+    # Search
+    # -----------------------------------------------------
+
+    search = request.GET.get("search", "").strip()
+
+    if search:
+        qs = qs.filter(
+            Q(product__product_no__icontains=search)
+            | Q(product__name__icontains=search)
+            | Q(product__sku__icontains=search)
+            | Q(product__category__name__icontains=search)
+        )
+
+    # -----------------------------------------------------
+    # Category filter
+    # -----------------------------------------------------
+
+    category_id = request.GET.get("category")
+
+    if category_id:
+        qs = qs.filter(
+            product__category_id=category_id
+        )
+
+    # -----------------------------------------------------
+    # Knowledge status filter
+    # -----------------------------------------------------
+
+    status = request.GET.get("status")
+
+    if status == "complete":
+        qs = [
+            knowledge
+            for knowledge in qs
+            if knowledge.completion_percentage == 100
+        ]
+
+    elif status == "incomplete":
+        qs = [
+            knowledge
+            for knowledge in qs
+            if knowledge.completion_percentage < 100
+        ]
+
+    elif status == "approved":
+        qs = qs.filter(
+            is_approved=True
+        )
+
+    elif status == "not-approved":
+        qs = qs.filter(
+            is_approved=False
+        )
+
+    # -----------------------------------------------------
+    # Categories
+    # -----------------------------------------------------
+
+    categories = (
+        Category.objects
+        .filter(
+            products__isnull=False
+        )
+        .distinct()
+        .order_by("name")
+    )
+
+    # -----------------------------------------------------
+    # Render
+    # -----------------------------------------------------
+
+    return render(
+        request,
+        "products/product_knowledge_list.html",
+        {
+            "product_knowledge_list": qs,
+            "categories": categories,
+            "search": search,
+            "selected_category": category_id,
+            "selected_status": status,
+            "current": "product-knowledge-list",
+        },
+    )
+
+
+# -----------------------------------------------------
+# Product Knowledge View
+# -----------------------------------------------------
+
+@login_required
+@staff_required
+def product_knowledge_view(request, pk):
+    """
+    Display the complete Product Knowledge profile for one product.
+    """
+
+    knowledge = get_object_or_404(
+        ProductKnowledge.objects
+        .select_related(
+            "product",
+            "product__category",
+        )
+        .prefetch_related(
+            "customer_business_types",
+            "product_benefits",
+            "knowledge_variants",
+            "customer_alternatives",
+            "product_competitors",
+            "customer_questions",
+            "product_objections",
+        ),
+        pk=pk,
+    )
+
+    return render(
+        request,
+        "products/product_knowledge_view.html",
+        {
+            "knowledge": knowledge,
+            "product": knowledge.product,
+            "current": "product-knowledge-view",
+        },
+    )
+
+
+
+# -----------------------------------------------------
+# Product Knowledge Manual PDF
+# -----------------------------------------------------
+
+@login_required
+@staff_required
+def product_knowledge_manual(request):
+    """
+    Generate a PDF Product Knowledge Manual containing
+    all Product Knowledge records currently stored.
+
+    Each product includes:
+        - Product number
+        - Product name
+        - Product image
+        - Category
+        - UOM
+        - Completion percentage
+        - Knowledge status
+        - All Product Knowledge sections
+    """
+
+    from xml.sax.saxutils import escape
+
+    knowledge_records = (
+        ProductKnowledge.objects
+        .select_related(
+            "product",
+            "product__category",
+        )
+        .prefetch_related(
+            "customer_business_types",
+            "product_benefits",
+            "knowledge_variants",
+            "customer_alternatives",
+            "product_competitors",
+            "customer_questions",
+            "product_objections",
+        )
+        .order_by(
+            "product__product_no",
+            "product__name",
+        )
+    )
+
+    response = HttpResponse(
+        content_type="application/pdf"
+    )
+
+    response[
+        "Content-Disposition"
+    ] = (
+        'attachment; '
+        'filename="The_Daily_Market_Product_Knowledge_Manual.pdf"'
+    )
+
+    doc = SimpleDocTemplate(
+        response,
+        pagesize=A4,
+        rightMargin=1.5 * cm,
+        leftMargin=1.5 * cm,
+        topMargin=1.5 * cm,
+        bottomMargin=1.5 * cm,
+    )
+
+    styles = getSampleStyleSheet()
+
+    # =====================================================
+    # STYLES
+    # =====================================================
+
+    title_style = ParagraphStyle(
+        "ManualTitle",
+        parent=styles["Title"],
+        fontSize=20,
+        leading=24,
+        spaceAfter=10,
+    )
+
+    product_style = ParagraphStyle(
+        "ProductTitle",
+        parent=styles["Heading1"],
+        fontSize=16,
+        leading=20,
+        spaceBefore=10,
+        spaceAfter=8,
+    )
+
+    section_style = ParagraphStyle(
+        "SectionTitle",
+        parent=styles["Heading2"],
+        fontSize=11,
+        leading=14,
+        spaceBefore=8,
+        spaceAfter=4,
+    )
+
+    body_style = ParagraphStyle(
+        "Body",
+        parent=styles["BodyText"],
+        fontSize=9,
+        leading=12,
+        spaceAfter=4,
+    )
+
+    small_style = ParagraphStyle(
+        "Small",
+        parent=styles["BodyText"],
+        fontSize=8,
+        leading=10,
+    )
+
+    elements = []
+
+    # =====================================================
+    # MANUAL COVER
+    # =====================================================
+
+    elements.append(
+        Paragraph(
+            "THE DAILY MARKET",
+            title_style,
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            "PRODUCT KNOWLEDGE MANUAL",
+            product_style,
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            "Sales Product Knowledge",
+            body_style,
+        )
+    )
+
+    elements.append(
+        Spacer(1, 0.5 * cm)
+    )
+
+    elements.append(
+        Paragraph(
+            f"Products included: {len(knowledge_records)}",
+            body_style,
+        )
+    )
+
+    elements.append(
+        Spacer(1, 0.5 * cm)
+    )
+
+    # =====================================================
+    # PRODUCT RECORDS
+    # =====================================================
+
+    for index, knowledge in enumerate(
+        knowledge_records
+    ):
+
+        product = knowledge.product
+
+        if index > 0:
+            elements.append(
+                Spacer(1, 0.8 * cm)
+            )
+
+        # -------------------------------------------------
+        # Product Header
+        # -------------------------------------------------
+
+        elements.append(
+            Paragraph(
+                escape(
+                    f"{product.product_no} · {product.name}"
+                ),
+                product_style,
+            )
+        )
+
+        # -------------------------------------------------
+        # Product Image
+        # -------------------------------------------------
+
+        if product.image:
+
+            try:
+                image_buffer = BytesIO()
+
+                image_file = product.image.open("rb")
+
+                try:
+                    image_buffer.write(
+                        image_file.read()
+                    )
+                finally:
+                    image_file.close()
+
+                image_buffer.seek(0)
+
+                image_reader = ImageReader(
+                    image_buffer
+                )
+
+                image_width, image_height = (
+                    image_reader.getSize()
+                )
+
+                # Maximum image size
+                max_width = 5 * cm
+                max_height = 5 * cm
+
+                # Prevent division by zero
+                if image_width > 0 and image_height > 0:
+
+                    # Preserve original aspect ratio
+                    scale = min(
+                        max_width / image_width,
+                        max_height / image_height,
+                    )
+
+                    display_width = (
+                        image_width * scale
+                    )
+
+                    display_height = (
+                        image_height * scale
+                    )
+
+                    elements.append(
+                        Image(
+                            image_buffer,
+                            width=display_width,
+                            height=display_height,
+                        )
+                    )
+
+                    elements.append(
+                        Spacer(
+                            1,
+                            0.3 * cm,
+                        )
+                    )
+
+            except Exception:
+                # If the image cannot be loaded,
+                # continue generating the manual.
+                pass
+
+        # -------------------------------------------------
+        # Product Information
+        # -------------------------------------------------
+
+        category_name = (
+            product.category.name
+            if product.category
+            else "N/A"
+        )
+
+        elements.append(
+            Paragraph(
+                escape(
+                    f"Category: {category_name} | "
+                    f"UOM: {product.get_uom_display()} | "
+                    f"Completion: "
+                    f"{knowledge.completion_percentage}% | "
+                    f"Status: "
+                    f"{knowledge.knowledge_status}"
+                ),
+                small_style,
+            )
+        )
+
+        # -------------------------------------------------
+        # 1. Description
+        # -------------------------------------------------
+
+        elements.append(
+            Paragraph(
+                "1. Product Description / Definition",
+                section_style,
+            )
+        )
+
+        elements.append(
+            Paragraph(
+                escape(
+                    knowledge.product_description
+                    or "N/A"
+                ),
+                body_style,
+            )
+        )
+
+        # -------------------------------------------------
+        # 2. Customer / Business Types
+        # -------------------------------------------------
+
+        elements.append(
+            Paragraph(
+                "2. Customer / Business Types",
+                section_style,
+            )
+        )
+
+        business_types = (
+            knowledge.customer_business_types.all()
+        )
+
+        if business_types:
+
+            for item in business_types:
+
+                text = escape(
+                    item.business_type
+                )
+
+                if item.notes:
+                    text += (
+                        f" — "
+                        f"{escape(item.notes)}"
+                    )
+
+                elements.append(
+                    Paragraph(
+                        f"• {text}",
+                        body_style,
+                    )
+                )
+
+        else:
+
+            elements.append(
+                Paragraph(
+                    "N/A",
+                    body_style,
+                )
+            )
+
+        # -------------------------------------------------
+        # 3. Usage
+        # -------------------------------------------------
+
+        elements.append(
+            Paragraph(
+                "3. Where / What It Is Used For",
+                section_style,
+            )
+        )
+
+        elements.append(
+            Paragraph(
+                escape(
+                    knowledge.usage_application
+                    or "N/A"
+                ),
+                body_style,
+            )
+        )
+
+        # -------------------------------------------------
+        # 4. Benefits
+        # -------------------------------------------------
+
+        elements.append(
+            Paragraph(
+                "4. Product Benefits",
+                section_style,
+            )
+        )
+
+        benefits = (
+            knowledge.product_benefits.all()
+        )
+
+        if benefits:
+
+            for item in benefits:
+
+                text = (
+                    f"<b>"
+                    f"{escape(item.benefit)}"
+                    f"</b>"
+                )
+
+                if item.explanation:
+                    text += (
+                        f" — "
+                        f"{escape(item.explanation)}"
+                    )
+
+                elements.append(
+                    Paragraph(
+                        f"• {text}",
+                        body_style,
+                    )
+                )
+
+        else:
+
+            elements.append(
+                Paragraph(
+                    "N/A",
+                    body_style,
+                )
+            )
+
+        # -------------------------------------------------
+        # 5. Yield / Portion
+        # -------------------------------------------------
+
+        elements.append(
+            Paragraph(
+                "5. Yield / Portion Information",
+                section_style,
+            )
+        )
+
+        elements.append(
+            Paragraph(
+                escape(
+                    knowledge.yield_portion_information
+                    or "N/A"
+                ),
+                body_style,
+            )
+        )
+
+        # -------------------------------------------------
+        # 6. Knowledge Variants
+        # -------------------------------------------------
+
+        elements.append(
+            Paragraph(
+                "6. Product Knowledge Variants",
+                section_style,
+            )
+        )
+
+        variants = (
+            knowledge.knowledge_variants.all()
+        )
+
+        if knowledge.variants_not_applicable:
+
+            elements.append(
+                Paragraph(
+                    "N/A — No relevant knowledge variants.",
+                    body_style,
+                )
+            )
+
+        elif variants:
+
+            for item in variants:
+
+                elements.append(
+                    Paragraph(
+                        f"<b>"
+                        f"{escape(item.variant_name)}"
+                        f"</b>",
+                        body_style,
+                    )
+                )
+
+                elements.append(
+                    Paragraph(
+                        escape(
+                            item.description
+                        ),
+                        small_style,
+                    )
+                )
+
+                elements.append(
+                    Paragraph(
+                        f"<b>Best suited for:</b> "
+                        f"{escape(item.best_suited_for)}",
+                        small_style,
+                    )
+                )
+
+                elements.append(
+                    Paragraph(
+                        f"<b>Customer benefit:</b> "
+                        f"{escape(item.customer_benefit)}",
+                        small_style,
+                    )
+                )
+
+        else:
+
+            elements.append(
+                Paragraph(
+                    "N/A",
+                    body_style,
+                )
+            )
+
+        # -------------------------------------------------
+        # 7. Alternatives
+        # -------------------------------------------------
+
+        elements.append(
+            Paragraph(
+                "7. Customer Alternatives",
+                section_style,
+            )
+        )
+
+        alternatives = (
+            knowledge.customer_alternatives.all()
+        )
+
+        if alternatives:
+
+            for item in alternatives:
+
+                name = escape(
+                    item.brand
+                )
+
+                if item.product_name:
+                    name += (
+                        f" · "
+                        f"{escape(item.product_name)}"
+                    )
+
+                if item.notes:
+                    name += (
+                        f" — "
+                        f"{escape(item.notes)}"
+                    )
+
+                elements.append(
+                    Paragraph(
+                        f"• {name}",
+                        body_style,
+                    )
+                )
+
+        else:
+
+            elements.append(
+                Paragraph(
+                    "N/A",
+                    body_style,
+                )
+            )
+
+        # -------------------------------------------------
+        # 8. Competitors
+        # -------------------------------------------------
+
+        elements.append(
+            Paragraph(
+                "8. Competitor Comparison",
+                section_style,
+            )
+        )
+
+        competitors = (
+            knowledge.product_competitors.all()
+        )
+
+        if competitors:
+
+            for item in competitors:
+
+                competitor = escape(
+                    item.competitor_brand
+                )
+
+                if item.competitor_product:
+                    competitor += (
+                        f" · "
+                        f"{escape(item.competitor_product)}"
+                    )
+
+                elements.append(
+                    Paragraph(
+                        f"<b>{competitor}</b>",
+                        body_style,
+                    )
+                )
+
+                elements.append(
+                    Paragraph(
+                        f"<b>Why customers use it:</b> "
+                        f"{escape(item.why_customer_uses_it)}",
+                        small_style,
+                    )
+                )
+
+                elements.append(
+                    Paragraph(
+                        f"<b>TDM positioning:</b> "
+                        f"{escape(item.tdm_positioning)}",
+                        small_style,
+                    )
+                )
+
+        else:
+
+            elements.append(
+                Paragraph(
+                    "N/A",
+                    body_style,
+                )
+            )
+
+        # -------------------------------------------------
+        # 9. Why Choose TDM
+        # -------------------------------------------------
+
+        elements.append(
+            Paragraph(
+                "9. Why Choose The Daily Market",
+                section_style,
+            )
+        )
+
+        elements.append(
+            Paragraph(
+                escape(
+                    knowledge.why_choose_tdm
+                    or "N/A"
+                ),
+                body_style,
+            )
+        )
+
+        # -------------------------------------------------
+        # 10. Customer Questions
+        # -------------------------------------------------
+
+        elements.append(
+            Paragraph(
+                "10. Customer Questions",
+                section_style,
+            )
+        )
+
+        questions = (
+            knowledge.customer_questions.all()
+        )
+
+        if questions:
+
+            for item in questions:
+
+                elements.append(
+                    Paragraph(
+                        f"<b>Question:</b> "
+                        f"{escape(item.question)}",
+                        body_style,
+                    )
+                )
+
+                if item.purpose:
+
+                    elements.append(
+                        Paragraph(
+                            f"<b>Purpose:</b> "
+                            f"{escape(item.purpose)}",
+                            small_style,
+                        )
+                    )
+
+        else:
+
+            elements.append(
+                Paragraph(
+                    "N/A",
+                    body_style,
+                )
+            )
+
+        # -------------------------------------------------
+        # 11. Objections
+        # -------------------------------------------------
+
+        elements.append(
+            Paragraph(
+                "11. Common Objections & Responses",
+                section_style,
+            )
+        )
+
+        objections = (
+            knowledge.product_objections.all()
+        )
+
+        if objections:
+
+            for item in objections:
+
+                elements.append(
+                    Paragraph(
+                        f"<b>Objection:</b> "
+                        f"{escape(item.objection)}",
+                        body_style,
+                    )
+                )
+
+                elements.append(
+                    Paragraph(
+                        f"<b>Recommended response:</b> "
+                        f"{escape(item.response)}",
+                        small_style,
+                    )
+                )
+
+                if item.notes:
+
+                    elements.append(
+                        Paragraph(
+                            f"<b>Notes:</b> "
+                            f"{escape(item.notes)}",
+                            small_style,
+                        )
+                    )
+
+        else:
+
+            elements.append(
+                Paragraph(
+                    "N/A",
+                    body_style,
+                )
+            )
+
+        # -------------------------------------------------
+        # 12. Key Takeaways
+        # -------------------------------------------------
+
+        elements.append(
+            Paragraph(
+                "12. Key Takeaways",
+                section_style,
+            )
+        )
+
+        elements.append(
+            Paragraph(
+                escape(
+                    knowledge.key_takeaways
+                    or "N/A"
+                ),
+                body_style,
+            )
+        )
+
+        # -------------------------------------------------
+        # Approval
+        # -------------------------------------------------
+
+        elements.append(
+            Spacer(
+                1,
+                0.2 * cm,
+            )
+        )
+
+        elements.append(
+            Paragraph(
+                escape(
+                    "Approved"
+                    if knowledge.is_approved
+                    else "Not Approved"
+                ),
+                small_style,
+            )
+        )
+
+    # =====================================================
+    # BUILD PDF
+    # =====================================================
+
+    doc.build(elements)
+
+    return response
+
+
+@login_required
+def product_knowledge_edit(request, pk):
+    knowledge = get_object_or_404(
+        ProductKnowledge.objects.select_related("product"),
+        pk=pk,
+    )
+
+    if request.method == "POST":
+        form = ProductKnowledgeForm(
+            request.POST,
+            instance=knowledge,
+        )
+
+        if form.is_valid():
+            form.save()
+
+            messages.success(
+                request,
+                "Product Knowledge updated successfully.",
+            )
+
+            return redirect(
+                "product-knowledge-view",
+                pk=knowledge.pk,
+            )
+
+    else:
+        form = ProductKnowledgeForm(
+            instance=knowledge,
+        )
+
+    return render(
+        request,
+        "products/product_knowledge_edit.html",
+        {
+            "knowledge": knowledge,
+            "form": form,
+            "current": "product-knowledge-edit",
+        },
+    )
 
 
 
@@ -325,10 +1332,41 @@ def download_price_list(request):
     )
 
     # =====================================================
+    # SPECIAL PRODUCT STYLE
+    # =====================================================
+    special_product_style = ParagraphStyle(
+        "SpecialProduct",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=8,
+        leading=10,
+        textColor=DARK_TEXT,
+    )
+
+    special_price_style = ParagraphStyle(
+        "SpecialPrice",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=8,
+        leading=10,
+        textColor=TDM_GREEN,
+        alignment=2,
+    )
+
+    normal_price_style = ParagraphStyle(
+        "NormalPrice",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=8,
+        leading=10,
+        textColor=DARK_TEXT,
+        alignment=2,
+    )
+
+    # =====================================================
     # FOOTER
     # =====================================================
     generated_at = timezone.localtime().strftime("%d %B %Y %H:%M")
-   
 
     def add_footer(canvas, doc):
         canvas.saveState()
@@ -367,7 +1405,6 @@ def download_price_list(request):
         )
 
         canvas.restoreState()
-
 
     # =====================================================
     # LOGO
@@ -531,8 +1568,6 @@ def download_price_list(request):
                     week_label,
                     updated_style
                 )
-
-                
             ],
         ],
         colWidths=[19 * cm],
@@ -582,7 +1617,6 @@ def download_price_list(request):
 
         category_groups[category_name].append(product)
 
-
     # =====================================================
     # CATEGORY SECTION STYLES
     # =====================================================
@@ -596,7 +1630,6 @@ def download_price_list(request):
         textColor=colors.white,
         alignment=1,
     )
-
 
     # =====================================================
     # BUILD EACH CATEGORY SECTION
@@ -651,16 +1684,83 @@ def download_price_list(request):
         for product in products:
 
             # =============================================
-            # WHOLESALE ONLY
+            # DETERMINE PRICE
             # =============================================
-            prices = [
-                row.wholesale_price_inc
-                for row in product.pricing_rows.all()
-                if row.is_active
-                and row.wholesale_price_inc is not None
-            ]
+            #
+            # If the product is on special and has a
+            # special price, use that price.
+            #
+            # Otherwise use the cheapest active
+            # wholesale supplier price.
+            # =============================================
 
-            price = min(prices) if prices else None
+            if (
+                product.is_special
+                and product.special_wholesale_price_inc is not None
+            ):
+                price = product.special_wholesale_price_inc
+                is_special_price = True
+
+            else:
+                prices = [
+                    row.wholesale_price_inc
+                    for row in product.pricing_rows.all()
+                    if row.is_active
+                    and row.wholesale_price_inc is not None
+                ]
+
+                price = min(prices) if prices else None
+                is_special_price = False
+
+            # =============================================
+            # PRODUCT NAME
+            # =============================================
+
+            if is_special_price:
+
+                special_label = (
+                    product.special_label
+                    or "SPECIAL"
+                )
+
+                product_display = Paragraph(
+                    (
+                        f'<b><font color="#0b5c39">'
+                        f'★ {special_label.upper()}'
+                        f'</font></b><br/>'
+                        f'{product.name}'
+                    ),
+                    special_product_style
+                )
+
+                price_display = (
+                    Paragraph(
+                        f"<b>R{price:.2f}</b>",
+                        special_price_style
+                    )
+                    if price is not None
+                    else "—"
+                )
+
+            else:
+
+                product_display = Paragraph(
+                    product.name,
+                    special_product_style
+                )
+
+                price_display = (
+                    Paragraph(
+                        f"R{price:.2f}",
+                        normal_price_style
+                    )
+                    if price is not None
+                    else "—"
+                )
+
+            # =============================================
+            # ADD ROW
+            # =============================================
 
             data.append([
                 product.product_no or "—",
@@ -671,13 +1771,9 @@ def download_price_list(request):
                     else "—"
                 ),
 
-                product.name,
+                product_display,
 
-                (
-                    f"R{price:.2f}"
-                    if price is not None
-                    else "—"
-                ),
+                price_display,
             ])
 
         # -------------------------------------------------
@@ -1042,7 +2138,12 @@ def product_view(request, pk):
         "is_special": product.is_special,
         "label": product.special_label,
         "old_price": product.old_wholesale_price_inc,
-        "current_price": product.wholesale_price_inc,
+        "current_price": (
+            product.special_wholesale_price_inc
+            if product.is_special
+            and product.special_wholesale_price_inc is not None
+            else product.wholesale_price_inc
+        ),
         "saving": product.special_saving,
         "percentage": product.special_percentage,
     }

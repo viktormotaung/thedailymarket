@@ -197,115 +197,367 @@ class PickingBatch(models.Model):
         DeliveryStopItem = apps.get_model("deliveries", "DeliveryStopItem")
         Order = apps.get_model("orders", "Order")
 
-        db = self._state.db or "default"   # ✅ CRITICAL
+        db = self._state.db or "default"
 
         target_date = _delivery_date_for(self.service_date, self.wave)
         depot_label, depot_lat, depot_lng = DEPOT_PREFERENCE[0]
 
         with transaction.atomic(using=db):
 
-            # 1️⃣ Create / reuse delivery run
+            # =========================================================
+            # 1. CREATE / REUSE DELIVERY RUN
+            # =========================================================
+
             run, _ = DeliveryRun.objects.using(db).get_or_create(
                 service_date=target_date,
                 name=self.name or f"{target_date.isoformat()} Run",
                 defaults={
                     "status": "planned",
                     "start_time": DELIVERY_START_TIME,
+
+                    # Kept for existing DeliveryRun data / admin.
+                    # The actual route will now start and end at
+                    # the selected driver's address.
                     "depot_label": depot_label,
                     "depot_lat": depot_lat,
                     "depot_lng": depot_lng,
                 },
             )
 
-            next_seq = (
-                run.stops.using(db).aggregate(m=Max("sequence"))["m"] or 0
-            ) + 1
+            # =========================================================
+            # 2. REMOVE RETURN / DEPOT STOP
+            #
+            # The route no longer ends at the depot.
+            #
+            # Actual route:
+            #
+            # DRIVER ADDRESS
+            #       ↓
+            # SUPPLIER(S)
+            #       ↓
+            # CUSTOMER(S)
+            #       ↓
+            # DRIVER ADDRESS
+            # =========================================================
 
-            
-            # -----------------------------
-            # 2️⃣ CUSTOMER STOPS
-            # -----------------------------
+            run.stops.using(db).filter(
+                stop_type="RETURN"
+            ).delete()
+
+            # =========================================================
+            # 3. SUPPLIER STOPS
+            #
+            # The Picking Batch contains PickingItems.
+            #
+            # Each PickingItem has a supplier.
+            #
+            # If 10 items come from the same supplier, that supplier
+            # must still be ONE physical pickup stop.
+            #
+            # Example:
+            #
+            # Chicken → Supplier A
+            # Beef    → Supplier A
+            # Chips   → Supplier A
+            #
+            # becomes:
+            #
+            # Supplier A → ONE pickup stop
+            # =========================================================
+
+            supplier_ids = list(
+                self.items.using(db)
+                .filter(
+                    supplier_id__isnull=False,
+                    supplier__delivery_lat__isnull=False,
+                    supplier__delivery_lng__isnull=False,
+                )
+                .values_list(
+                    "supplier_id",
+                    flat=True,
+                )
+                .distinct()
+            )
+
+            for supplier_id in supplier_ids:
+
+                supplier_stop, created = (
+                    DeliveryStop.objects.using(db).get_or_create(
+                        run=run,
+                        supplier_id=supplier_id,
+                        stop_type="SUPPLIER",
+                        defaults={
+                            "status": "assigned",
+                            "sequence": 0,
+                            "service_min": 5,
+                        },
+                    )
+                )
+
+                # Always refresh the supplier address snapshot.
+                #
+                # DeliveryStop already has snapshot_from_supplier(),
+                # which copies the supplier address and GPS coordinates.
+                supplier_stop.snapshot_from_supplier()
+
+                supplier_stop.status = (
+                    supplier_stop.status
+                    if supplier_stop.status not in ("pending", "")
+                    else "assigned"
+                )
+
+                supplier_stop.save(
+                    using=db,
+                    update_fields=[
+                        "customer_name",
+                        "address_line1",
+                        "address_line2",
+                        "suburb",
+                        "city",
+                        "province",
+                        "postal_code",
+                        "country",
+                        "lat",
+                        "lng",
+                        "status",
+                        "updated_at",
+                    ],
+                )
+
+            # =========================================================
+            # 4. GET ALL ORDERS IN THIS PICKING BATCH
+            # =========================================================
+
             order_ids = list(
-                self.items.using(db).values_list("order_id", flat=True).distinct()
+                self.items.using(db)
+                .values_list(
+                    "order_id",
+                    flat=True,
+                )
+                .distinct()
             )
 
-            existing_orders = set(
-                run.stops.using(db)
-                .filter(order_id__in=order_ids)
-                .values_list("order_id", flat=True)
+            # =========================================================
+            # 5. LOAD ORDERS AND THEIR CLIENTS
+            #
+            # IMPORTANT:
+            #
+            # We are NOT grouping by order.
+            #
+            # We are grouping by CLIENT.
+            #
+            # Therefore:
+            #
+            # Client A
+            #   Order 1
+            #   Order 2
+            #   Order 3
+            #
+            # becomes ONE physical DeliveryStop.
+            # =========================================================
+
+            orders = list(
+                Order.objects.using(db)
+                .filter(id__in=order_ids)
+                .select_related("client")
             )
 
-            for oid in order_ids:
-                if oid in existing_orders:
+            orders_by_client = {}
+
+            for order in orders:
+
+                if not order.client_id:
                     continue
 
-                stop, created = DeliveryStop.objects.using(db).get_or_create(
-                    run=run,
-                    order_id=oid,
-                    defaults={
-                        "status": "assigned",
-                        "sequence": next_seq,
-                        "stop_type": "CUSTOMER",
-                    },
+                orders_by_client.setdefault(
+                    order.client_id,
+                    []
+                ).append(order)
+
+            # =========================================================
+            # 6. CREATE / REUSE ONE CUSTOMER STOP PER CLIENT
+            # =========================================================
+
+            for client_id, client_orders in orders_by_client.items():
+
+                # -----------------------------------------------------
+                # Look for an existing CUSTOMER stop for this client
+                # on this delivery run.
+                #
+                # This is important because a client may have:
+                #
+                # Order 101
+                # Order 102
+                # Order 103
+                #
+                # We want ONE stop.
+                # -----------------------------------------------------
+
+                stop = (
+                    run.stops.using(db)
+                    .filter(
+                        stop_type="CUSTOMER",
+                        order__client_id=client_id,
+                    )
+                    .select_related("order")
+                    .first()
                 )
 
-                if created:
-                    next_seq += 1
+                # -----------------------------------------------------
+                # If there is no existing stop, create ONE using the
+                # first order as the representative order.
+                #
+                # The other orders are NOT lost.
+                #
+                # Their items will be attached to this same stop
+                # through DeliveryStopItem below.
+                # -----------------------------------------------------
+
+                if stop is None:
+
+                    representative_order = client_orders[0]
+
+                    stop = DeliveryStop.objects.using(db).create(
+                        run=run,
+                        order=representative_order,
+                        status="assigned",
+                        sequence=0,
+                        stop_type="CUSTOMER",
+                    )
+
+                    # Copy the client's delivery address and coordinates.
+                    stop.snapshot_from_order()
+
+                    stop.save(
+                        using=db,
+                        update_fields=[
+                            "customer_name",
+                            "phone",
+                            "email",
+                            "address_line1",
+                            "address_line2",
+                            "suburb",
+                            "city",
+                            "province",
+                            "postal_code",
+                            "country",
+                            "lat",
+                            "lng",
+                            "updated_at",
+                        ],
+                    )
+
+                else:
+
+                    # -------------------------------------------------
+                    # Existing customer stop.
+                    #
+                    # Refresh the address snapshot from the
+                    # representative order so the stop remains
+                    # current.
+                    # -------------------------------------------------
 
                     stop.snapshot_from_order()
-                    stop.save(using=db, update_fields=[
-                        "customer_name", "phone", "email",
-                        "address_line1", "address_line2",
-                        "suburb", "city", "province",
-                        "postal_code", "country",
-                        "lat", "lng", "updated_at",
-                    ])
 
-                    for pi in self.items.using(db).filter(order_id=oid):
-                        planned = pi.picked_qty or pi.expected_qty or Decimal("0.00")
+                    stop.save(
+                        using=db,
+                        update_fields=[
+                            "customer_name",
+                            "phone",
+                            "email",
+                            "address_line1",
+                            "address_line2",
+                            "suburb",
+                            "city",
+                            "province",
+                            "postal_code",
+                            "country",
+                            "lat",
+                            "lng",
+                            "updated_at",
+                        ],
+                    )
 
-                        DeliveryStopItem.objects.using(db).get_or_create(
-                            stop=stop,
-                            order_item_id=pi.order_item_id,
-                            defaults={
-                                "product_name": pi.product_name,
-                                "sku": pi.sku,
-                                "uom": pi.uom,
-                                "planned_qty": planned,
-                                "loaded_qty": pi.picked_qty or Decimal("0.00"),
-                                "delivered_qty": Decimal("0.00"),
-                            },
-                        )
+                # =====================================================
+                # 7. ADD ALL ITEMS FROM ALL ORDERS FOR THIS CLIENT
+                #    TO THE SAME DELIVERY STOP
+                # =====================================================
 
-            # -----------------------------
-            # 3️⃣ RETURN STOP
-            # -----------------------------
-            if not run.stops.using(db).filter(stop_type="RETURN").exists():
-                DeliveryStop.objects.using(db).create(
-                    run=run,
-                    stop_type="RETURN",
-                    status="assigned",
-                    sequence=next_seq,
-                    customer_name=run.depot_label or "Depot",
-                    address_line1=run.depot_label or "Depot",
-                    lat=run.depot_lat,
-                    lng=run.depot_lng,
-                    service_min=0,
+                client_order_ids = [
+                    order.id
+                    for order in client_orders
+                ]
+
+                client_picking_items = (
+                    self.items.using(db)
+                    .filter(
+                        order_id__in=client_order_ids
+                    )
                 )
 
-            # -----------------------------
-            # 4️⃣ Update orders
-            # -----------------------------
-            Order.objects.using(db).filter(id__in=order_ids).exclude(
+                for pi in client_picking_items:
+
+                    planned = (
+                        pi.picked_qty
+                        or pi.expected_qty
+                        or Decimal("0.00")
+                    )
+
+                    DeliveryStopItem.objects.using(db).get_or_create(
+                        stop=stop,
+                        order_item_id=pi.order_item_id,
+                        defaults={
+                            "product_name": pi.product_name,
+                            "sku": pi.sku,
+                            "uom": pi.uom,
+                            "planned_qty": planned,
+                            "loaded_qty": (
+                                pi.picked_qty
+                                or Decimal("0.00")
+                            ),
+                            "delivered_qty": Decimal("0.00"),
+                        },
+                    )
+
+                # Make sure the stop is assigned.
+                if stop.status in ("pending", ""):
+                    stop.status = "assigned"
+                    stop.save(
+                        using=db,
+                        update_fields=[
+                            "status",
+                            "updated_at",
+                        ],
+                    )
+
+            # =========================================================
+            # 8. UPDATE ORDER STATUS
+            #
+            # All orders in the Picking Batch are moved to
+            # ready_for_delivery.
+            # =========================================================
+
+            Order.objects.using(db).filter(
+                id__in=order_ids
+            ).exclude(
                 status__in=[
                     "out_for_delivery",
                     "complete",
                     "returned",
                     "cancelled",
                 ]
-            ).update(status="ready_for_delivery")
+            ).update(
+                status="ready_for_delivery"
+            )
 
-            run.recalc_aggregates(save=True)
+            # =========================================================
+            # 9. RE-CALCULATE RUN TOTALS
+            # =========================================================
+
+            run.recalc_aggregates(
+                save=True
+            ) 
+
 
     # -------------------------------------------------
     # Wave helper
@@ -898,7 +1150,8 @@ class DeliveryStop(models.Model):
         ("START", "Start / Departure"),
         ("SUPPLIER", "Supplier Pickup"),
         ("CUSTOMER", "Customer Delivery"),
-        ("RETURN", "Return to Depot"),
+        ("RETURN", "Return to Driver"),
+
     ]
 
     stop_type = models.CharField(

@@ -255,7 +255,7 @@ class UtilizationSegmentAdmin(admin.ModelAdmin):
 # =========================================================
 class MonthlyTargetAllocationInline(admin.TabularInline):
     model = MonthlyTargetAllocation
-    extra = 1
+    extra = 0
 
     fields = (
         "sales_rep",
@@ -266,11 +266,12 @@ class MonthlyTargetAllocationInline(admin.TabularInline):
     )
 
     readonly_fields = (
+        "sales_rep",
+        "monthly_target_value",
+        "client_target",
         "monthly_target_reached_at",
         "client_target_reached_at",
     )
-
-    autocomplete_fields = ("sales_rep",)
 
 
 # =========================================================
@@ -278,8 +279,9 @@ class MonthlyTargetAllocationInline(admin.TabularInline):
 # =========================================================
 @admin.register(MonthlyTarget)
 class MonthlyTargetAdmin(admin.ModelAdmin):
+
     list_display = (
-        "area",
+        "territory",
         "month",
         "year",
         "quarter",
@@ -293,11 +295,11 @@ class MonthlyTargetAdmin(admin.ModelAdmin):
     list_filter = (
         "year",
         "quarter",
-        "area",
+        "territory",
     )
 
     search_fields = (
-        "area",
+        "territory__name",
     )
 
     ordering = (
@@ -314,24 +316,27 @@ class MonthlyTargetAdmin(admin.ModelAdmin):
     fieldsets = (
         ("Target Period", {
             "fields": (
-                "area",
+                "territory",
                 "month",
                 "year",
                 "quarter",
             )
         }),
+
         ("Monthly Targets", {
             "fields": (
                 "monthly_target",
                 "total_client_target",
             )
         }),
+
         ("Target Achievement", {
             "fields": (
                 "monthly_target_reached_at",
                 "client_target_reached_at",
             )
         }),
+
         ("System Info", {
             "fields": (
                 "created_at",
@@ -341,6 +346,21 @@ class MonthlyTargetAdmin(admin.ModelAdmin):
 
     inlines = [MonthlyTargetAllocationInline]
 
+    def save_related(self, request, form, formsets, change):
+        """
+        Save the MonthlyTarget first, then automatically
+        create/update allocations for reps belonging to
+        the selected territory.
+        """
+
+        # Save normal inline data first.
+        super().save_related(request, form, formsets, change)
+
+        # Now the MonthlyTarget definitely exists in the database.
+        monthly_target = form.instance
+
+        # Automatically build/update rep allocations.
+        monthly_target.sync_rep_allocations()
     
 # =========================================================
 # DailyOverdueSummary admin
@@ -359,10 +379,16 @@ class DailyOverdueSummaryAdmin(admin.ModelAdmin):
 @admin.register(CommissionEntry)
 class CommissionEntryAdmin(admin.ModelAdmin):
 
+    # =========================================================
+    # LIST DISPLAY
+    # =========================================================
     list_display = (
         "id",
         "invoice_id",
         "client",
+        "area",
+        "territory",
+        "period",
         "segment",
         "rep",
         "supervisor",
@@ -375,81 +401,150 @@ class CommissionEntryAdmin(admin.ModelAdmin):
         "created_at",
     )
 
+    # =========================================================
+    # FILTERS
+    # =========================================================
     list_filter = (
         "is_new_business",
+        "area",
+        "territory",
         "rep",
         "supervisor",
         "client",
         "invoice__segment",
     )
 
+    # =========================================================
+    # SEARCH
+    # =========================================================
     search_fields = (
         "invoice__id",
+
         "client__name",
         "client__client_number",
+
+        "area__name",
+        "territory__name",
+
+        "period",
+
         "rep__username",
         "rep__first_name",
         "rep__last_name",
+
         "supervisor__username",
         "supervisor__first_name",
         "supervisor__last_name",
     )
 
+    # =========================================================
+    # AUTOCOMPLETE
+    # =========================================================
     autocomplete_fields = (
         "client",
         "rep",
         "supervisor",
     )
 
+    # =========================================================
+    # READ ONLY
+    #
+    # These values are system-derived:
+    #
+    # - area      -> from invoice client
+    # - territory -> from invoice client
+    # - period    -> calculated automatically on save
+    # - amounts   -> calculated automatically
+    # - created_at -> system timestamp
+    # =========================================================
     readonly_fields = (
+        "area",
+        "territory",
+        "period",
         "created_at",
         "rep_amount",
         "supervisor_amount",
     )
 
+    # =========================================================
+    # ORDERING
+    # =========================================================
     ordering = ("-created_at",)
 
+    # =========================================================
+    # FIELDSETS
+    # =========================================================
     fieldsets = (
-        ("Commission Info", {
-            "fields": (
-                "invoice",
-                "client",
-                "is_new_business",
-            )
-        }),
+        (
+            "Commission Info",
+            {
+                "fields": (
+                    "invoice",
+                    "client",
+                    "area",
+                    "territory",
+                    "period",
+                    "is_new_business",
+                )
+            },
+        ),
 
-        ("Sales Structure", {
-            "fields": (
-                "rep",
-                "supervisor",
-            )
-        }),
+        (
+            "Sales Structure",
+            {
+                "fields": (
+                    "rep",
+                    "supervisor",
+                )
+            },
+        ),
 
-        ("Commission Calculation", {
-            "fields": (
-                "cost_total",
-                "rep_rate",
-                "rep_amount",
-                "supervisor_rate",
-                "supervisor_amount",
-            )
-        }),
+        (
+            "Commission Calculation",
+            {
+                "fields": (
+                    "cost_total",
+                    "rep_rate",
+                    "rep_amount",
+                    "supervisor_rate",
+                    "supervisor_amount",
+                )
+            },
+        ),
 
-        ("System Info", {
-            "fields": (
-                "created_at",
-            )
-        }),
+        (
+            "System Info",
+            {
+                "fields": (
+                    "created_at",
+                )
+            },
+        ),
     )
 
+    # =========================================================
+    # INVOICE DISPLAY
+    # =========================================================
+    @admin.display(
+        description="Invoice",
+        ordering="invoice__id",
+    )
     def invoice_id(self, obj):
         return obj.invoice.id if obj.invoice else "-"
-    invoice_id.short_description = "Invoice"
 
+    # =========================================================
+    # SEGMENT DISPLAY
+    # =========================================================
+    @admin.display(
+        description="Segment",
+        ordering="invoice__segment",
+    )
     def segment(self, obj):
         return obj.invoice.segment if obj.invoice else "-"
-    segment.short_description = "Segment"
 
+    # =========================================================
+    # QUERYSET
+    # =========================================================
     def get_queryset(self, request):
         return (
             super()
@@ -457,19 +552,21 @@ class CommissionEntryAdmin(admin.ModelAdmin):
             .select_related(
                 "invoice",
                 "client",
+                "area",
+                "territory",
                 "rep",
                 "supervisor",
             )
         )
-    
 
 
-    
+
 # =========================================================
 # MonthlyCommission admin
 # =========================================================
 @admin.register(MonthlyCommission)
 class MonthlyCommissionAdmin(admin.ModelAdmin):
+
     list_display = (
         "rep",
         "year",
@@ -486,7 +583,11 @@ class MonthlyCommissionAdmin(admin.ModelAdmin):
         "paid_on",
     )
 
-    list_filter = ("year", "month", "paid")
+    list_filter = (
+        "year",
+        "month",
+        "paid",
+    )
 
     search_fields = (
         "rep__username",
@@ -496,7 +597,10 @@ class MonthlyCommissionAdmin(admin.ModelAdmin):
 
     date_hierarchy = "paid_on"
 
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+    )
 
 
 # =========================================================

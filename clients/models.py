@@ -1498,6 +1498,25 @@ class Lead(models.Model):
         null=True,
         blank=True,
     )
+
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+
+    location_captured_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
     
 
     # ==========================================================
@@ -1529,6 +1548,8 @@ class Lead(models.Model):
         null=True,
         blank=True,
     )
+
+    
 
     # ==========================================================
     # RELATIONSHIPS
@@ -1585,11 +1606,18 @@ class Lead(models.Model):
     # ==========================================================
 
     def save(self, *args, **kwargs):
-
         creating = self.pk is None
+        old_status = None
+
+        if not creating:
+            old_status = (
+                Lead.objects
+                .filter(pk=self.pk)
+                .values_list("status", flat=True)
+                .first()
+            )
 
         if not self.lead_number:
-
             last = (
                 Lead.objects
                 .filter(lead_number__startswith="LD")
@@ -1609,8 +1637,11 @@ class Lead(models.Model):
 
         super().save(*args, **kwargs)
 
-        if creating:
+        # ----------------------------------------------------------
+        # NEW LEAD SETUP
+        # ----------------------------------------------------------
 
+        if creating:
             self.ensure_new_lead_task()
 
             self.log_activity(
@@ -1618,6 +1649,17 @@ class Lead(models.Model):
                 outcome="SUCCESS",
                 notes="Lead created.",
             )
+
+        # ----------------------------------------------------------
+        # AUTOMATIC LEAD → PROSPECT CONVERSION
+        # ----------------------------------------------------------
+
+        if (
+            self.status == "QUALIFIED"
+            and old_status != "QUALIFIED"
+            and not self.prospect_id
+        ):
+            self.convert_to_prospect()
 
     @transaction.atomic
     def convert_to_prospect(self):

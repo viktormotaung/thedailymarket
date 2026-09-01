@@ -1,0 +1,544 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Dashboard - The Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    /* --- Desktop: fixed (non-movable) sidebar --- */
+    @media (min-width: 992px) {
+      html, body { height: 100%; }
+      body { min-height: 100vh; overflow-x: hidden; }
+      .sidebar-desktop {
+        position: fixed; top: 0; left: 0; width: 220px; height: 100vh; overflow-y: auto;
+      }
+      main.content { margin-left: 220px; min-height: 100vh; }
+    }
+
+    /* Shared styles */
+    .sidebar-skin { background-color: #0b5c39; color: #fff; padding: 1rem; }
+    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+    .logo-img { max-height: 80px; width: auto; }
+    .content { background: #f8f9fa; padding: 20px; }
+    .sidebar-skin .nav-link.ps-4 { font-size: .95rem; opacity: .95; }
+
+    /* --- Compact chart height --- */
+    .chart-wrap { position: relative; width: 100%; height: 220px; }
+    @media (max-width: 991.98px) { .chart-wrap { height: 180px; } }
+    @media (max-width: 575.98px) { .chart-wrap { height: 150px; } }
+    .chart-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- MOBILE/TABLET TOP BAR -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  <!-- MOBILE OFFCANVAS MENU -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header sidebar-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Menu</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body sidebar-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" class="logo-img">
+      </div>
+
+      <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'sales:sales-leads' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-leads' %}active{% endif %}">Leads</a>
+      <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
+      <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
+      <a href="{% url 'sales:sales-quotations' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-quotations' %}active{% endif %}">Quotations</a>
+      <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
+      <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
+      <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets</a>
+      <hr class="border-light">
+      <form action="{% url 'logout' %}" method="post" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light w-100">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="The Daily Market" class="logo-img">
+    </div>
+
+    <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'sales:sales-leads' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-leads' %}active{% endif %}">Leads</a>
+    <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
+    <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
+    <a href="{% url 'sales:sales-quotations' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-quotations' %}active{% endif %}">Quotations</a>
+    <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
+    <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
+    <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
+    <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets</a>
+    <div class="mt-3">
+      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
+        {% csrf_token %}
+        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
+      </form>
+    </div>
+
+    <hr class="border-light">
+
+    <a href="#"
+      class="nav-link"
+      data-bs-toggle="modal"
+      data-bs-target="#switchPlatformModal">
+      Switch Platform
+    </a>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+
+   
+    <main class="content">
+
+        <h2 class="text-center mb-3">Leads</h2>
+
+        <div class="text-center mb-4">
+            <a href="{% url 'sales:sales-lead-create' %}" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                Create Lead
+            </a>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+
+               
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+
+                        <form method="get">
+
+                            <div class="row g-3 align-items-end">
+
+                                <!-- Search -->
+                                <div class="col-md-3">
+                                    <label class="form-label" style="font-size:13px;">
+                                        Search
+                                    </label>
+
+                                    <input
+                                        type="text"
+                                        name="q"
+                                        value="{{ request.GET.q|default:'' }}"
+                                        class="form-control"
+                                        placeholder="Lead, business, contact..."
+                                        style="font-size:13px;"
+                                    >
+                                </div>
+
+                                <!-- Territory -->
+                                <div class="col-md-3">
+                                    <label class="form-label" style="font-size:13px;">
+                                        Territory
+                                    </label>
+
+                                    <select
+                                        name="territory"
+                                        class="form-select"
+                                        style="font-size:13px;"
+                                    >
+                                        <option value="">All Territories</option>
+
+                                        {% for territory in filter_territories %}
+                                            <option
+                                                value="{{ territory.id }}"
+                                                {% if selected_territory|stringformat:"s" == territory.id|stringformat:"s" %}
+                                                    selected
+                                                {% endif %}
+                                            >
+                                                {{ territory.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <!-- Area -->
+                                <div class="col-md-3">
+                                    <label class="form-label" style="font-size:13px;">
+                                        Area
+                                    </label>
+
+                                    <select
+                                        name="area"
+                                        class="form-select"
+                                        style="font-size:13px;"
+                                    >
+                                        <option value="">All Areas</option>
+
+                                        {% for area in filter_areas %}
+                                            <option
+                                                value="{{ area.id }}"
+                                                {% if selected_area|stringformat:"s" == area.id|stringformat:"s" %}
+                                                    selected
+                                                {% endif %}
+                                            >
+                                                {{ area.name }}
+                                                {% if area.territory %}
+                                                    — {{ area.territory.name }}
+                                                {% endif %}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <!-- Sales Rep -->
+                                <div class="col-md-3">
+                                    <label class="form-label" style="font-size:13px;">
+                                        Sales Rep / Account Manager
+                                    </label>
+
+                                    <select
+                                        name="assigned_to"
+                                        class="form-select"
+                                        style="font-size:13px;"
+                                    >
+                                        <option value="">All Sales Reps</option>
+
+                                        {% for rep in filter_sales_reps %}
+                                            <option
+                                                value="{{ rep.id }}"
+                                                {% if selected_assigned_to|stringformat:"s" == rep.id|stringformat:"s" %}
+                                                    selected
+                                                {% endif %}
+                                            >
+                                                {% if rep.get_full_name %}
+                                                    {{ rep.get_full_name }}
+                                                {% else %}
+                                                    {{ rep.username }}
+                                                {% endif %}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <!-- Buttons -->
+                                <div class="col-md-12">
+
+                                    <button
+                                        type="submit"
+                                        class="btn btn-primary"
+                                        style="font-size:13px;"
+                                    >
+                                        <i class="bi bi-search"></i>
+                                        Filter Leads
+                                    </button>
+
+                                    <a
+                                        href="{% url 'sales:sales-leads' %}"
+                                        class="btn btn-outline-secondary"
+                                        style="font-size:13px;"
+                                    >
+                                        Clear
+                                    </a>
+
+                                </div>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+                </div>
+
+
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead class="table-light">
+                            <tr>
+                                <th style="font-size:13px;">#</th>
+                                <th style="font-size:13px;">Lead No.</th>
+                                <th style="font-size:13px;">Business / Name</th>
+                                <th style="font-size:13px;">Contact</th>
+                                <th style="font-size:13px;">Phone</th>
+                                <th style="font-size:13px;">Territory</th>
+                                <th style="font-size:13px;">Status</th>
+                                <th style="font-size:13px;">Assigned To</th>
+                                <th style="font-size:13px;">Area</th>
+                                <th style="font-size:13px;">Created</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            {% for lead in leads %}
+
+                            <tr
+                                style="cursor:pointer;"
+                                onclick="window.location.href='{% url 'sales:sales-lead-view' lead.pk %}'"
+                            >
+
+                                <td style="font-size:13px;">
+                                    {{ forloop.counter }}
+                                </td>
+
+                                <td style="font-size:13px;">
+                                    <strong>{{ lead.lead_number }}</strong>
+                                </td>
+
+                                <td style="font-size:13px;">
+                                    {% if lead.business_name %}
+                                        <div class="fw-medium">
+                                            {{ lead.business_name }}
+                                        </div>
+                                    {% else %}
+                                        <div class="fw-medium">
+                                            {{ lead.contact_person }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+
+                                <td style="font-size:13px;">
+                                    {{ lead.contact_person|default:"—" }}
+                                </td>
+
+                                <td style="font-size:13px;">
+                                    {% if lead.phone %}
+                                        {{ lead.phone }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+
+                                
+                                <td style="font-size:13px;">
+                                    {% if lead.territory %}
+                                        {{ lead.territory.name }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+
+
+                                <td style="font-size:13px;">
+
+                                    {% if lead.status == "NEW" %}
+
+                                        <span class="badge bg-primary">
+                                            {{ lead.get_status_display }}
+                                        </span>
+
+                                    {% elif lead.status == "CONTACTED" %}
+
+                                        <span class="badge bg-info text-dark">
+                                            {{ lead.get_status_display }}
+                                        </span>
+
+                                    {% elif lead.status == "QUALIFIED" %}
+
+                                        <span class="badge bg-success">
+                                            {{ lead.get_status_display }}
+                                        </span>
+
+                                    {% elif lead.status == "DISQUALIFIED" %}
+
+                                        <span class="badge bg-secondary">
+                                            {{ lead.get_status_display }}
+                                        </span>
+
+                                    {% elif lead.status == "CONVERTED" %}
+
+                                        <span class="badge bg-dark">
+                                            {{ lead.get_status_display }}
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="badge bg-light text-dark">
+                                            {{ lead.get_status_display }}
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+                                <td style="font-size:13px;">
+                                    {% if lead.assigned_to %}
+                                        {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+
+                                <td style="font-size:13px;">
+                                    {% if lead.area %}
+                                        {{ lead.area }}
+                                    {% elif lead.city %}
+                                        {{ lead.city }}
+                                    {% elif lead.suburb %}
+                                        {{ lead.suburb }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+
+                                <td style="font-size:13px;">
+                                    {{ lead.created_at|date:"d M Y" }}
+                                </td>
+
+                            </tr>
+
+                            {% empty %}
+
+                            <tr>
+                                <td colspan="10" class="text-center py-5 text-muted">
+                                    <i class="bi bi-person-lines-fill fs-3 d-block mb-2"></i>
+                                    No leads found.
+                                </td>
+                            </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+
+
+
+
+  <!-- SWITCH PLATFORM MODAL -->
+  <div class="modal fade"
+      id="switchPlatformModal"
+      tabindex="-1"
+      aria-labelledby="switchPlatformModalLabel"
+      aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+
+        <div class="modal-header justify-content-center position-relative">
+          <h5 class="modal-title w-100 text-center" id="switchPlatformModalLabel">
+            Switch Platform
+          </h5>
+          <button type="button"
+                  class="btn-close position-absolute"
+                  style="right:1rem; top:1rem;"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body text-center">
+          <p class="mb-3 text-muted">Choose a platform to continue:</p>
+
+          <div class="d-grid gap-2">
+
+            <!-- Main Staff Portal -->
+            <a
+              href="{% url 'staff-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_staff_portal %} disabled{% endif %}"
+              {% if not can_staff_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Main Staff Portal
+            </a>
+
+            <!-- Funder Portal -->
+            <a
+              href="{% url 'funder-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_lender_portal %} disabled{% endif %}"
+              {% if not can_lender_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Funder Portal
+            </a>
+
+            <!-- Sales Portal -->
+            <a
+              href="{% url 'sales:sales-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_sales_portal %} disabled{% endif %}"
+              {% if not can_sales_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Sales Portal
+            </a>
+
+            <!-- Logistics Portal -->
+            <a
+              href="{% url 'logistics:logistics-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_logistics_portal %} disabled{% endif %}"
+              {% if not can_logistics_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Logistics Portal
+            </a>
+
+          </div>
+        </div>
+
+        <div class="modal-footer justify-content-center border-0">
+          <small class="text-muted">
+            Platforms you don’t have access to are disabled.
+          </small>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    // Chart data from Django
+    const labels = {{ sales_labels|safe }};
+    const dataPoints = {{ sales_data|safe }};
+
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Orders',
+          data: dataPoints,
+          tension: 0.3,
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true },
+          tooltip: { mode: 'index', intersect: false }
+        },
+        scales: {
+          x: { title: { display: false } },
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+

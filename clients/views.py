@@ -58,10 +58,11 @@ staff_required = user_passes_test(staff_check, login_url='/portal/client/login/'
 @login_required
 @staff_required
 def client_list(request):
-    qs = (Client.objects
-          .select_related("account_manager")
-          .prefetch_related("categories")
-          .order_by("name"))
+    qs = (
+        Client.objects
+        .select_related("account_manager")
+        .order_by("name")
+    )
 
     # Dropdown data (pulled from model choices so it stays in sync)
     client_types = Client.CLIENT_TYPES
@@ -69,7 +70,7 @@ def client_list(request):
     account_types = Client.ACCOUNT_TYPES
     credit_statuses = Client.CREDIT_STATUS
     statuses = Client.STATUS
-    filter_categories = Category.objects.filter(is_active=True).order_by("name")
+   
 
     # GET params
     search = (request.GET.get("search") or "").strip()
@@ -78,7 +79,7 @@ def client_list(request):
     account_type = request.GET.get("account_type") or ""
     credit_status = request.GET.get("credit_status") or ""
     status = request.GET.get("status") or ""
-    category_id = request.GET.get("category") or ""
+    
 
     # Search
     if search:
@@ -104,14 +105,12 @@ def client_list(request):
         qs = qs.filter(credit_status=credit_status)
     if status:
         qs = qs.filter(status=status)
-    if category_id.isdigit():
-        qs = qs.filter(categories__id=int(category_id))
+    
 
     clients = qs.distinct()
 
     return render(request, "clients/client_list.html", {
         "clients": clients,
-        "filter_categories": filter_categories,
         "client_types": client_types,
         "provinces": provinces,
         "account_types": account_types,
@@ -140,8 +139,8 @@ def client_create(request):
 @staff_required
 def client_edit(request, pk):
     client = get_object_or_404(
-        Client.objects.select_related("account_manager")
-                      .prefetch_related("categories"),
+        Client.objects.select_related("account_manager"),
+                      
         pk=pk
     )
 
@@ -493,6 +492,7 @@ def send_email_active_to_inactive(client, user):
     msg.attach_alternative(html_body, "text/html")
     msg.send(fail_silently=False)
 
+
 def send_email_inactive_to_active(client, user):
     subject = "The Daily Market – Your account is now active"
 
@@ -527,7 +527,7 @@ def client_view(request, pk):
     client = get_object_or_404(
         Client.objects
         .select_related("account_manager", "funder")
-        .prefetch_related("categories", "operating_hours"),
+        .prefetch_related("operating_hours"),
         pk=pk
     )
 
@@ -1330,6 +1330,8 @@ def membership_edit(request, pk):
     )
 
 
+
+
 @login_required
 @staff_required
 def leads_list(request):
@@ -1340,7 +1342,7 @@ def leads_list(request):
             "assigned_to",
             "prospect",
         )
-        .prefetch_related("interested_in")
+        .prefetch_related("product_interests")
         .order_by("-created_at")
     )
 
@@ -1388,6 +1390,8 @@ def leads_list(request):
     )
 
 
+
+
 @login_required
 def lead_view(request, pk):
 
@@ -1397,7 +1401,7 @@ def lead_view(request, pk):
             "created_by",
             "prospect",
         ).prefetch_related(
-            "interested_in",
+            "product_interests",
             "activities__user",
         ),
         pk=pk,

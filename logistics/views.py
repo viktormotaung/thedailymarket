@@ -40,6 +40,7 @@ from deliveries.models import (
     PickingItem,
     DeliveryRun,
     DeliveryStop,
+    
 )
 
 User = get_user_model()
@@ -573,6 +574,18 @@ def delivery_run_detail(request, run_id):
     - Driver
     - Vehicle
     - Starting Supplier
+
+    ROUTE LOGIC:
+
+        Driver Address
+              ↓
+        Starting Supplier
+              ↓
+        Other Suppliers
+              ↓
+        Customers
+              ↓
+        Driver Address
     """
 
     run = get_object_or_404(
@@ -600,7 +613,7 @@ def delivery_run_detail(request, run_id):
     ).order_by("name")
 
     # -----------------------------------
-    # Save
+    # Save assignment
     # -----------------------------------
 
     if request.method == "POST":
@@ -615,26 +628,137 @@ def delivery_run_detail(request, run_id):
 
             run = form.save(commit=False)
 
-            supplier_id = request.POST.get("start_supplier")
+            # =====================================================
+            # 1. SELECTED STARTING SUPPLIER
+            #
+            # The supplier remains the FIRST PHYSICAL STOP.
+            #
+            # BUT:
+            #
+            # The supplier is NOT the route origin.
+            #
+            # The route origin is the selected driver's address.
+            # =====================================================
+
+            supplier_id = request.POST.get(
+                "start_supplier"
+            )
 
             if supplier_id:
 
                 try:
-                    supplier = suppliers.get(pk=supplier_id)
 
+                    supplier = suppliers.get(
+                        pk=supplier_id
+                    )
+
+                    # Keep the selected supplier attached
+                    # to the DeliveryRun.
                     run.start_supplier = supplier
-                    run.start_location_label = supplier.name
-                    run.start_lat = supplier.delivery_lat
-                    run.start_lng = supplier.delivery_lng
 
                 except Supplier.DoesNotExist:
-                    pass
+
+                    run.start_supplier = None
 
             else:
+
                 run.start_supplier = None
+
+            # =====================================================
+            # 2. DRIVER = ROUTE ORIGIN + ROUTE DESTINATION
+            # =====================================================
+
+            if run.driver:
+
+                try:
+
+                    driver_profile = (
+                        run.driver.driver_profile
+                    )
+
+                except Exception:
+
+                    driver_profile = None
+
+                if driver_profile:
+
+                    # -------------------------------------------------
+                    # Build a readable driver address.
+                    # -------------------------------------------------
+
+                    address_parts = [
+                        driver_profile.address_line_1,
+                        driver_profile.address_line_2,
+                        driver_profile.suburb,
+                        driver_profile.city,
+                        driver_profile.province,
+                        driver_profile.postal_code,
+                    ]
+
+                    address_parts = [
+                        str(part).strip()
+                        for part in address_parts
+                        if part
+                        and str(part).strip()
+                    ]
+
+                    driver_address = ", ".join(
+                        address_parts
+                    )
+
+                    # -------------------------------------------------
+                    # Driver name
+                    # -------------------------------------------------
+
+                    driver_name = (
+                        run.driver.get_full_name()
+                        or run.driver.get_username()
+                    )
+
+                    # -------------------------------------------------
+                    # Store DRIVER as the run start location.
+                    #
+                    # This is intentionally NOT the supplier.
+                    # -------------------------------------------------
+
+                    if driver_address:
+
+                        run.start_location_label = (
+                            f"{driver_name} - "
+                            f"{driver_address}"
+                        )
+
+                    else:
+
+                        run.start_location_label = (
+                            driver_name
+                        )
+
+                    run.start_lat = (
+                        driver_profile.latitude
+                    )
+
+                    run.start_lng = (
+                        driver_profile.longitude
+                    )
+
+                else:
+
+                    # Driver exists but has no DriverProfile.
+                    run.start_location_label = ""
+                    run.start_lat = None
+                    run.start_lng = None
+
+            else:
+
+                # No driver selected.
                 run.start_location_label = ""
                 run.start_lat = None
                 run.start_lng = None
+
+            # =====================================================
+            # 3. SAVE RUN
+            # =====================================================
 
             run.save()
 
@@ -672,7 +796,11 @@ def delivery_run_detail(request, run_id):
 
 @login_required
 def delivery_run_plan(request, run_id):
-    run = get_object_or_404(DeliveryRun, id=run_id)
+
+    run = get_object_or_404(
+        DeliveryRun,
+        id=run_id,
+    )
 
     return render(
         request,
@@ -683,52 +811,239 @@ def delivery_run_plan(request, run_id):
     )
 
 
-
 @login_required
 def delivery_run_auto_plan(request, run_id):
-    run = get_object_or_404(DeliveryRun, id=run_id)
+
+    run = get_object_or_404(
+        DeliveryRun,
+        id=run_id,
+    )
 
     if request.method == "POST":
 
-        # 🔑 ENSURE GEO EXISTS BEFORE ROUTING
-        for stop in run.stops.select_related("order__client"):
-            if not stop.has_geo:
-                stop.snapshot_from_order()
-                stop.save(update_fields=[
-                    "customer_name",
-                    "phone",
-                    "email",
-                    "address_line1",
-                    "address_line2",
-                    "suburb",
-                    "city",
-                    "province",
-                    "postal_code",
-                    "country",
-                    "lat",
-                    "lng",
-                    "updated_at",
-                ])
+        # =========================================================
+        # 1. DRIVER MUST BE ASSIGNED
+        # =========================================================
 
-        if not run.start_supplier:
+        if not run.driver:
+
             messages.error(
                 request,
-                "Please select a starting supplier before generating the route."
+                "Please assign a driver before generating the route."
             )
+
             return redirect(
                 "logistics:delivery-run-detail",
                 run.id,
             )
 
-        from deliveries.services import plan_run_sequence
-        success, message = plan_run_sequence(run)
+        # =========================================================
+        # 2. DRIVER PROFILE MUST EXIST
+        # =========================================================
+
+        try:
+
+            driver_profile = (
+                run.driver.driver_profile
+            )
+
+        except Exception:
+
+            driver_profile = None
+
+        if not driver_profile:
+
+            messages.error(
+                request,
+                "The selected driver does not have a driver profile."
+            )
+
+            return redirect(
+                "logistics:delivery-run-detail",
+                run.id,
+            )
+
+        # =========================================================
+        # 3. DRIVER GPS MUST EXIST
+        #
+        # The driver's address is the route origin AND destination.
+        # =========================================================
+
+        if (
+            driver_profile.latitude is None
+            or driver_profile.longitude is None
+        ):
+
+            messages.error(
+                request,
+                "The selected driver does not have GPS coordinates on their profile."
+            )
+
+            return redirect(
+                "logistics:delivery-run-detail",
+                run.id,
+            )
+
+        # =========================================================
+        # 4. STARTING SUPPLIER MUST BE SELECTED
+        #
+        # This supplier is the FIRST physical stop.
+        #
+        # It is NOT the route origin.
+        # =========================================================
+
+        if not run.start_supplier:
+
+            messages.error(
+                request,
+                "Please select a starting supplier before generating the route."
+            )
+
+            return redirect(
+                "logistics:delivery-run-detail",
+                run.id,
+            )
+
+        # =========================================================
+        # 5. ENSURE CUSTOMER GEO EXISTS
+        #
+        # IMPORTANT:
+        #
+        # Only CUSTOMER stops need snapshot_from_order().
+        #
+        # Supplier stops already get their coordinates from
+        # the supplier.
+        #
+        # RETURN stops belong to the driver and must NOT be
+        # passed through snapshot_from_order().
+        # =========================================================
+
+        customer_stops = (
+            run.stops
+            .filter(
+                stop_type="CUSTOMER"
+            )
+            .select_related(
+                "order__client"
+            )
+        )
+
+        for stop in customer_stops:
+
+            if not stop.has_geo:
+
+                stop.snapshot_from_order()
+
+                stop.save(
+                    update_fields=[
+                        "customer_name",
+                        "phone",
+                        "email",
+                        "address_line1",
+                        "address_line2",
+                        "suburb",
+                        "city",
+                        "province",
+                        "postal_code",
+                        "country",
+                        "lat",
+                        "lng",
+                        "updated_at",
+                    ]
+                )
+
+        # =========================================================
+        # 6. SAVE DRIVER AS THE RUN START LOCATION
+        #
+        # This is important because the DeliveryRun's start fields
+        # should now represent the DRIVER, not the supplier.
+        # =========================================================
+
+        address_parts = [
+            driver_profile.address_line_1,
+            driver_profile.address_line_2,
+            driver_profile.suburb,
+            driver_profile.city,
+            driver_profile.province,
+            driver_profile.postal_code,
+        ]
+
+        address_parts = [
+            str(part).strip()
+            for part in address_parts
+            if part
+            and str(part).strip()
+        ]
+
+        driver_address = ", ".join(
+            address_parts
+        )
+
+        driver_name = (
+            run.driver.get_full_name()
+            or run.driver.get_username()
+        )
+
+        if driver_address:
+
+            run.start_location_label = (
+                f"{driver_name} - "
+                f"{driver_address}"
+            )
+
+        else:
+
+            run.start_location_label = (
+                driver_name
+            )
+
+        run.start_lat = (
+            driver_profile.latitude
+        )
+
+        run.start_lng = (
+            driver_profile.longitude
+        )
+
+        run.save(
+            update_fields=[
+                "start_location_label",
+                "start_lat",
+                "start_lng",
+                "updated_at",
+            ]
+        )
+
+        # =========================================================
+        # 7. RUN ROUTE PLANNER
+        # =========================================================
+
+        from deliveries.services import (
+            plan_run_sequence
+        )
+
+        success, message = (
+            plan_run_sequence(run)
+        )
 
         if success:
-            messages.success(request, message)
-        else:
-            messages.error(request, message)
 
-    return redirect("logistics:delivery-run-detail", run_id=run.id)
+            messages.success(
+                request,
+                message
+            )
+
+        else:
+
+            messages.error(
+                request,
+                message
+            )
+
+    return redirect(
+        "logistics:delivery-run-detail",
+        run_id=run.id
+    )
 
 
 # ----------------------

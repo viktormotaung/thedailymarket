@@ -297,171 +297,151 @@
             </span>
           </div>
 
-          <div class="card-body p-0">
+          <!-- =====================================================
+              LEADS TABLE
+          ====================================================== -->
 
-            <div class="table-responsive">
+          <div class="card shadow-sm">
 
-              <table class="table table-striped table-bordered mb-0 align-middle">
+              <div class="card-body p-0">
 
-                <thead>
-                  <tr>
-                    <th style="width:18%; font-size:13px;">Name</th>
-                    <th style="width:14%; font-size:13px;">Organization</th>
-                    <th style="width:12%; font-size:13px;">Suburb</th>
-                    <th style="width:10%; font-size:13px;">City</th>
-                    <th style="width:14%; font-size:13px;">Created</th>
-                    <th style="width:12%; font-size:13px;">Rep</th>
-                    <th style="width:10%; font-size:13px;">Type</th>
-                    <th style="width:10%; font-size:13px;">Stage</th>
-                    <th style="width:10%; font-size:13px;">Status</th>
-                  </tr>
-                </thead>
+                  <div class="table-responsive">
 
-                <tbody>
+                      <table class="table table-hover align-middle mb-0">
 
-                  {% if prospects %}
+                          <thead class="table-light">
 
-                    {% for p in prospects %}
+                              <tr>
 
-                      <tr class="clickable-row"
-                          data-href="{% url 'sales:sales-prospect-detail' p.pk %}"
-                          style="cursor:pointer;">
+                                  <th style="font-size:13px;">#</th>
 
-                        <!-- NAME -->
-                        <td style="font-size:13px;">
-                          <div class="fw-semibold">
-                            {{ p.name }}
-                          </div>
+                                  
 
-                          
-                        </td>
+                                  <th style="font-size:13px;">
+                                      Business / Name
+                                  </th>
 
-                        <!-- ORGANIZATION -->
-                        <td style="font-size:13px;">
-                          {{ p.organization|default:"—" }}
-                        </td>
+                                  <th style="font-size:13px;">
+                                      Contact
+                                  </th>
 
-                        <!-- SUBURB -->
-                        <td style="font-size:13px;">
-                          {{ p.suburb|default:"—" }}
-                        </td>
+                                  <th style="font-size:13px;">
+                                      Phone
+                                  </th>
 
-                        <!-- CITY -->
-                        <td style="font-size:13px;">
-                          {{ p.city|default:"—" }}
-                        </td>
+                                  <th style="font-size:13px;">
+                                      Territory
+                                  </th>
 
-                        <!-- CREATED -->
-                        <td style="font-size:13px;">
-                          {{ p.created_at|date:"Y-m-d H:i" }}
-                        </td>
+                                  <th style="font-size:13px;">
+                                      Area
+                                  </th>
 
-                        <!-- REP -->
-                        <td style="font-size:13px;">
+                                  <th style="font-size:13px;">
+                                      Status
+                                  </th>
 
-                          {% if p.owner %}
-                            {{ p.owner.get_full_name|default:p.owner.username }}
-                          {% else %}
-                            <span class="text-muted">
-                              Unassigned
-                            </span>
-                          {% endif %}
+                                  <th style="font-size:13px;">
+                                      Assigned To
+                                  </th>
 
-                        </td>
+                                  <th style="font-size:13px;">
+                                      Created
+                                  </th>
 
-                        <!-- TYPE -->
-                        <td style="font-size:13px;">
+                              </tr>
 
-                          {% if p.potential_client_type %}
-                            {{ p.get_potential_client_type_display }}
-                          {% else %}
-                            —
-                          {% endif %}
+                          </thead>
 
-                        </td>
 
-                        <!-- STAGE -->
-                        <td style="font-size:13px;">
+                          <tbody>
 
-                          {% if p.stage == "NEW" %}
-                            <span class="badge bg-secondary">
-                              New
-                            </span>
+                              {% for prospect in prospects %}
 
-                          {% elif p.stage == "CONTACTED" %}
-                            <span class="badge bg-primary">
-                              Contacted
-                            </span>
+                              <tr
+                                  style="cursor:pointer;"
+                                  onclick="window.location.href='{% url 'sales:sales-prospect-detail' prospect.pk %}'"
+                              >
 
-                          {% elif p.stage == "SAMPLES_GIVEN" %}
-                            <span class="badge bg-info text-dark">
-                              Samples Given
-                            </span>
+                                  <td style="font-size:13px;">
+                                      {{ forloop.counter }}
+                                  </td>
 
-                          {% elif p.stage == "NEGOTIATION" %}
-                            <span class="badge bg-warning text-dark">
-                              Negotiation
-                            </span>
+                                  
 
-                          {% elif p.stage == "WON" %}
-                            <span class="badge bg-success">
-                              Won
-                            </span>
+                                  <!-- BUSINESS / NAME -->
+                                  <td style="font-size:13px;">
+                                      <strong>
+                                          {{ prospect.name|default:"—" }}
+                                      </strong>
+                                  </td>
 
-                          {% elif p.stage == "LOST" %}
-                            <span class="badge bg-danger">
-                              Lost
-                            </span>
+                                  <!-- CONTACT -->
+                                  <td style="font-size:13px;">
+                                      {{ prospect.contact_name|default:"—" }}
+                                  </td>
 
-                          {% else %}
-                            <span class="badge bg-secondary">
-                              {{ p.get_stage_display }}
-                            </span>
-                          {% endif %}
+                                  <!-- PHONE -->
+                                  <td style="font-size:13px;">
+                                      {{ prospect.phone|default:"—" }}
+                                  </td>
 
-                        </td>
+                                  <!-- TERRITORY -->
+                                  <td style="font-size:13px;">
+                                      {% if prospect.territory %}
+                                          {{ prospect.territory }}
+                                      {% else %}
+                                          —
+                                      {% endif %}
+                                  </td>
 
-                        <!-- STATUS -->
-                        <td style="font-size:13px;">
+                                  <!-- AREA -->
+                                  <td style="font-size:13px;">
+                                      {% if prospect.area %}
+                                          {{ prospect.area }}
+                                      {% else %}
+                                          —
+                                      {% endif %}
+                                  </td>
 
-                          {% if p.status == "ACTIVE" %}
-                            <span class="badge bg-success">
-                              Active
-                            </span>
+                                  <!-- STATUS -->
+                                  <td style="font-size:13px;">
+                                      {{ prospect.get_status_display|default:prospect.status }}
+                                  </td>
 
-                          {% elif p.status == "ARCHIVED" %}
-                            <span class="badge bg-dark">
-                              Archived
-                            </span>
+                                  <!-- ASSIGNED TO -->
+                                  <td style="font-size:13px;">
+                                      {% if prospect.owner %}
+                                          {{ prospect.owner.get_full_name|default:prospect.owner.username }}
+                                      {% else %}
+                                          —
+                                      {% endif %}
+                                  </td>
 
-                          {% else %}
-                            <span class="badge bg-secondary">
-                              {{ p.get_status_display }}
-                            </span>
-                          {% endif %}
+                                  <!-- CREATED -->
+                                  <td style="font-size:13px;">
+                                      {{ prospect.created_at|date:"d M Y" }}
+                                  </td>
 
-                        </td>
+                              </tr>
 
-                      </tr>
+                              {% empty %}
 
-                    {% endfor %}
+                              <tr>
+                                  <td colspan="10" class="text-center py-4 text-muted">
+                                      No prospects found.
+                                  </td>
+                              </tr>
 
-                  {% else %}
+                              {% endfor %}
 
-                    <tr>
-                      <td colspan="9"
-                          class="text-center text-muted py-4">
-                        No prospects found.
-                      </td>
-                    </tr>
+                          </tbody>
 
-                  {% endif %}
+                      </table>
 
-                </tbody>
+                  </div>
 
-              </table>
-
-            </div>
+              </div>
 
           </div>
         </div>

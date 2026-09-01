@@ -679,23 +679,38 @@ class CustomerProfileAdmin(admin.ModelAdmin):
 # ----------------------------
 # DriverProfile admin
 # ----------------------------
+# ----------------------------
+# DriverProfile admin
+# ----------------------------
 @admin.register(DriverProfile)
 class DriverProfileAdmin(admin.ModelAdmin):
     list_display = (
         "user",
         "staff_profile",
         "status",
+        "city",
+        "suburb",
+        "latitude",
+        "longitude",
         "created_at",
     )
 
     list_filter = (
         "status",
+        "province",
+        "city",
     )
 
     search_fields = (
         "user__username",
         "user__first_name",
         "user__last_name",
+        "address_line_1",
+        "address_line_2",
+        "suburb",
+        "city",
+        "province",
+        "postal_code",
     )
 
     autocomplete_fields = (
@@ -720,6 +735,32 @@ class DriverProfileAdmin(admin.ModelAdmin):
             },
         ),
         (
+            "Address",
+            {
+                "fields": (
+                    "address_line_1",
+                    "address_line_2",
+                    "suburb",
+                    "city",
+                    "province",
+                    "postal_code",
+                )
+            },
+        ),
+        (
+            "GPS Coordinates",
+            {
+                "fields": (
+                    "latitude",
+                    "longitude",
+                ),
+                "description": (
+                    "Enter the driver's residential location coordinates. "
+                    "These can be used for driver allocation and route planning."
+                ),
+            },
+        ),
+        (
             "Notes",
             {
                 "fields": (
@@ -737,8 +778,6 @@ class DriverProfileAdmin(admin.ModelAdmin):
             },
         ),
     )
-
-
 
 
 

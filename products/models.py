@@ -285,12 +285,26 @@ class Product(models.Model):
         help_text="Tick if this product is currently on special."
     )
 
+    special_label = models.CharField(
+        max_length=50,
+        blank=True,
+        default="SPECIAL",
+    )
+
     old_wholesale_price_inc = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
         help_text="Previous wholesale selling price INCLUDING VAT."
+    )
+
+    special_wholesale_price_inc = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Special wholesale selling price INCLUDING VAT."
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -343,12 +357,17 @@ class Product(models.Model):
         if (
             not self.is_special
             or self.old_wholesale_price_inc is None
+            or self.special_wholesale_price_inc is None
         ):
             return D0
 
-        saving = self.old_wholesale_price_inc - self.wholesale_price_inc
+        saving = (
+            self.old_wholesale_price_inc
+            - self.special_wholesale_price_inc
+        )
 
         return saving if saving > D0 else D0
+
 
 
     @property
@@ -359,12 +378,16 @@ class Product(models.Model):
         if (
             not self.is_special
             or self.old_wholesale_price_inc is None
+            or self.special_wholesale_price_inc is None
             or self.old_wholesale_price_inc <= D0
         ):
             return D0
 
         return (
-            (self.special_saving / self.old_wholesale_price_inc) * Decimal("100")
+            (
+                self.special_saving
+                / self.old_wholesale_price_inc
+            ) * Decimal("100")
         ).quantize(
             Decimal("0.1"),
             rounding=ROUND_HALF_UP,
@@ -1608,32 +1631,37 @@ def _apply_primary_pricing_to_product(pp: ProductPricing) -> None:
 
 @receiver(post_save, sender=Product, dispatch_uid="product_sync_variants_on_save")
 def product_post_save_sync_variants(sender, instance: Product, created, **kwargs):
-    # Skip if a calling context explicitly requested no variant sync.
-    if SKIP_VARIANT_SYNC.get():
-        return
 
     # -------------------------------------------------------------------------
     # PRODUCT KNOWLEDGE
     # -------------------------------------------------------------------------
-    # Every new Product automatically gets a ProductKnowledge record.
+    # Make sure every Product has a ProductKnowledge record.
     #
-    # get_or_create() makes this safe:
-    # - New Product     -> creates ProductKnowledge
-    # - Existing Product -> does nothing
-    # - Existing Knowledge -> does not create a duplicate
+    # New Product:
+    #     Creates ProductKnowledge.
+    #
+    # Existing Product:
+    #     If Knowledge exists -> does nothing.
+    #     If Knowledge is missing -> creates it.
+    #
+    # get_or_create() prevents duplicates because ProductKnowledge.product
+    # is a OneToOneField.
     # -------------------------------------------------------------------------
-    if created:
-        ProductKnowledge.objects.get_or_create(
-            product=instance
-        )
+
+    ProductKnowledge.objects.get_or_create(
+        product=instance
+    )
 
     # -------------------------------------------------------------------------
     # EXISTING VARIANT SYNC
     # -------------------------------------------------------------------------
-    # Push new base prices down to scalable variants
+
+    # Skip variant syncing if explicitly requested.
+    if SKIP_VARIANT_SYNC.get():
+        return
+
     instance.sync_variant_prices(force=True)
-
-
+    
 @receiver(pre_save, sender=ProductPricing, dispatch_uid="pricing_enforce_single_primary")
 def pricing_pre_save_enforce_single_primary(sender, instance: ProductPricing, **kwargs):
     """

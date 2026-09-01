@@ -14,13 +14,12 @@ from django.db.models import Sum
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.timezone import localdate, now
-
+from datetime import timedelta
 from clients.models import Client
 from orders.models import Order
 from credit.models import CreditEntry
 from django.db.models.signals import post_save, post_delete
 from django.db.models.functions import Coalesce
-from datetime import date
 import uuid
 
 def r2(x: Decimal | None) -> Decimal:
@@ -756,6 +755,24 @@ class CommissionEntry(models.Model):
         help_text="Snapshot of the client associated with this commission entry."
     )
 
+    territory = models.ForeignKey(
+        "clients.Territory",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="commission_entries",
+        help_text="Territory of the client at the time of commission.",
+    )
+
+    area = models.ForeignKey(
+        "clients.Area",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="commission_entries",
+        help_text="Area of the client at the time of commission.",
+    )
+
     invoice = models.OneToOneField(
         "Invoice",
         on_delete=models.CASCADE,
@@ -802,7 +819,16 @@ class CommissionEntry(models.Model):
     )
 
     is_new_business = models.BooleanField(default=False)
+
+    
     created_at = models.DateTimeField(auto_now_add=True)
+
+    period = models.CharField(
+        max_length=50,
+        blank=True,
+        editable=False,
+        help_text="Commission period, e.g. 15 Aug - 14 Sep.",
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -817,6 +843,8 @@ class CommissionEntry(models.Model):
             f"CommissionEntry #{self.id} - Invoice {self.invoice_id} - "
             f"Rep R{self.rep_amount} / Sup R{self.supervisor_amount}"
         )
+
+    
 
     # ---------- amount recomputation ----------
 
@@ -849,30 +877,163 @@ class CommissionEntry(models.Model):
     def save(self, *args, **kwargs):
         """
         Before saving:
-        - If client is missing, copy it from the linked invoice.
+        - Copy client from the linked invoice if missing.
+        - Copy territory and area from the invoice's client.
+        - Automatically determine the supervisor from the rep's SalesRepProfile.
+        - Determine the commission period.
         - Keep commission amounts in sync.
         """
 
-        if not self.client and self.invoice_id:
+        # ---------------------------------------------------------
+        # 1. Get invoice and client
+        # ---------------------------------------------------------
+        invoice = None
+
+        if self.invoice_id:
             invoice = getattr(self, "invoice", None)
 
-            if invoice and invoice.client_id:
-                self.client = invoice.client
+            if invoice is None:
+                invoice = (
+                    Invoice.objects
+                    .select_related(
+                        "client",
+                        "client__territory",
+                        "client__area",
+                    )
+                    .get(pk=self.invoice_id)
+                )
 
-        # Always keep amounts in sync with rates, cost_total and supervisor
+        # ---------------------------------------------------------
+        # 2. Copy client, territory and area from invoice client
+        # ---------------------------------------------------------
+        if invoice and invoice.client_id:
+
+            client = invoice.client
+
+            # Client
+            if not self.client_id:
+                self.client = client
+
+            # Territory
+            self.territory = getattr(
+                client,
+                "territory",
+                None,
+            )
+
+            # Area
+            self.area = getattr(
+                client,
+                "area",
+                None,
+            )
+
+        # ---------------------------------------------------------
+        # 3. Automatically get supervisor from Rep profile
+        # ---------------------------------------------------------
+        if self.rep_id:
+            from profiles.models import SalesRepProfile
+
+            rep_profile = (
+                SalesRepProfile.objects
+                .filter(user_id=self.rep_id)
+                .select_related("supervisor")
+                .first()
+            )
+
+            if rep_profile:
+                self.supervisor = (
+                    rep_profile.supervisor.user
+                    if rep_profile.supervisor
+                    else None
+                )
+            else:
+                self.supervisor = None
+
+        else:
+            self.supervisor = None
+
+        # ---------------------------------------------------------
+        # 4. Determine commission period
+        #
+        # Commission cycle:
+        #
+        # 15 Aug - 15 Sep
+        # 15 Sep - 15 Oct
+        # 15 Oct - 15 Nov
+        #
+        # The invoice date determines the period.
+        # ---------------------------------------------------------
+        if invoice:
+
+            invoice_date = getattr(invoice, "invoice_date", None)
+
+            if invoice_date:
+
+                if invoice_date.day >= 15:
+                    # Period starts on the 15th of the invoice month
+                    period_start = invoice_date.replace(day=15)
+
+                    # Period ends on the 15th of the following month
+                    if invoice_date.month == 12:
+                        period_end = invoice_date.replace(
+                            year=invoice_date.year + 1,
+                            month=1,
+                            day=15,
+                        )
+                    else:
+                        period_end = invoice_date.replace(
+                            month=invoice_date.month + 1,
+                            day=15,
+                        )
+
+                else:
+                    # Period started on the 15th of the previous month
+                    if invoice_date.month == 1:
+                        period_start = invoice_date.replace(
+                            year=invoice_date.year - 1,
+                            month=12,
+                            day=15,
+                        )
+                    else:
+                        period_start = invoice_date.replace(
+                            month=invoice_date.month - 1,
+                            day=15,
+                        )
+
+                    # Period ends on the 15th of the invoice month
+                    period_end = invoice_date.replace(day=15)
+
+                self.period = (
+                    f"{period_start.strftime('%d %b')} - "
+                    f"{period_end.strftime('%d %b')}"
+                )
+
+        # ---------------------------------------------------------
+        # 5. Calculate commission amounts
+        # ---------------------------------------------------------
         self.recompute_amounts()
 
+        # ---------------------------------------------------------
+        # 6. Save
+        # ---------------------------------------------------------
         super().save(*args, **kwargs)
 
 
 
-
 @receiver(post_save, sender=CommissionEntry)
-def commission_entry_post_save_update_targets(sender, instance: CommissionEntry, **kwargs):
+def commission_entry_post_save_update_targets(
+    sender,
+    instance: CommissionEntry,
+    **kwargs
+):
     """
     After a commission entry is saved:
-    - update/check the rep's MonthlyTargetAllocation timestamps
-    - update/check the area MonthlyTarget timestamps
+
+    - Find the rep's MonthlyTargetAllocation
+      for the invoice's territory and reporting month.
+    - Update the rep allocation target status.
+    - Update the territory MonthlyTarget status.
     """
 
     invoice = instance.invoice
@@ -881,8 +1042,25 @@ def commission_entry_post_save_update_targets(sender, instance: CommissionEntry,
     if not invoice or not invoice.paid_date or not rep:
         return
 
+    # ---------------------------------------------------------
+    # Invoice reporting period
+    # ---------------------------------------------------------
+
     paid_day = invoice.paid_date
     month_code = paid_day.strftime("%b").upper()[:3]
+
+    # ---------------------------------------------------------
+    # Client territory
+    # ---------------------------------------------------------
+
+    territory_id = invoice.client.territory_id
+
+    if not territory_id:
+        return
+
+    # ---------------------------------------------------------
+    # Find this rep's allocation for this territory/month
+    # ---------------------------------------------------------
 
     allocation = (
         MonthlyTargetAllocation.objects
@@ -890,10 +1068,14 @@ def commission_entry_post_save_update_targets(sender, instance: CommissionEntry,
             sales_rep=rep,
             monthly_target__year=paid_day.year,
             monthly_target__month=month_code,
-            monthly_target__area=invoice.client.area,
+            monthly_target__territory_id=territory_id,
         )
         .first()
     )
+
+    # ---------------------------------------------------------
+    # Update target statuses
+    # ---------------------------------------------------------
 
     if allocation:
         allocation.check_and_set_target_reached()
@@ -986,6 +1168,84 @@ class CommissionAdjustment(models.Model):
 # Commission helpers & aggregation
 # ====================================================================
 
+def get_commission_period_for_date(paid_day):
+    """
+    Return the 15th-to-15th commission period
+    containing the supplied date.
+    """
+
+    if paid_day.day >= 15:
+        if paid_day.month == 12:
+            start_date = date(
+                paid_day.year,
+                paid_day.month,
+                15,
+            )
+            end_date = date(
+                paid_day.year + 1,
+                1,
+                15,
+            )
+        else:
+            start_date = date(
+                paid_day.year,
+                paid_day.month,
+                15,
+            )
+            end_date = date(
+                paid_day.year,
+                paid_day.month + 1,
+                15,
+            )
+
+    else:
+        if paid_day.month == 1:
+            start_date = date(
+                paid_day.year - 1,
+                12,
+                15,
+            )
+        else:
+            start_date = date(
+                paid_day.year,
+                paid_day.month - 1,
+                15,
+            )
+
+        end_date = date(
+            paid_day.year,
+            paid_day.month,
+            15,
+        )
+
+    return start_date, end_date
+
+def get_commission_period(year: int, month: int):
+    """
+    Return the commission period for a reporting month.
+
+    The commission month runs from the 15th of the
+    previous calendar month through the 15th of
+    the requested calendar month, inclusive.
+
+    Example:
+        August 2026
+        = 15 July 2026 -> 15 August 2026
+    """
+
+    if month == 1:
+        previous_month = 12
+        previous_year = year - 1
+    else:
+        previous_month = month - 1
+        previous_year = year
+
+    start_date = date(previous_year, previous_month, 15)
+    end_date = date(year, month, 15)
+
+    return start_date, end_date
+
+
 def weeks_in_month(year: int, month: int) -> Decimal:
     """Return a reasonable week count for a month (ceil(days/7))."""
     days = monthrange(year, month)[1]
@@ -1073,21 +1333,52 @@ def resolve_rep_and_supervisor_for_invoice(invoice: Invoice):
     Decide who the sales rep and supervisor are for this invoice.
 
     - Rep: taken from client.account_manager (User).
-    - Supervisor: taken from that rep's SalesRepProfile.supervisor (if it exists).
+    - Supervisor: taken from the rep's SalesRepProfile.supervisor.
+    - SalesRepProfile.supervisor is a StaffProfile, so we convert it
+      to the linked User before assigning it to CommissionEntry.supervisor.
     """
+
     client = invoice.client
 
-    # Main sales rep = account_manager on the client
+    # ---------------------------------------------------------
+    # 1. Main sales rep
+    # ---------------------------------------------------------
+    # Client.account_manager is already a User.
     rep = getattr(client, "account_manager", None)
 
+    # ---------------------------------------------------------
+    # 2. Supervisor
+    # ---------------------------------------------------------
     supervisor = None
+
     if rep is not None:
-        # rep.sales_rep_profile is the OneToOne from SalesRepProfile.user
-        sales_profile = getattr(rep, "sales_rep_profile", None)
-        supervisor = getattr(sales_profile, "supervisor", None) if sales_profile else None
+
+        # SalesRepProfile linked to the rep's User
+        sales_profile = getattr(
+            rep,
+            "sales_rep_profile",
+            None,
+        )
+
+        if sales_profile:
+
+            # SalesRepProfile.supervisor is a StaffProfile.
+            staff_profile = getattr(
+                sales_profile,
+                "supervisor",
+                None,
+            )
+
+            if staff_profile:
+
+                # CommissionEntry.supervisor expects a User.
+                supervisor = getattr(
+                    staff_profile,
+                    "user",
+                    None,
+                )
 
     return rep, supervisor
-
 
 
 def create_or_update_commission_entry_for_invoice(invoice: Invoice) -> CommissionEntry:
@@ -1157,8 +1448,7 @@ def calculate_monthly_commissions(
       (recurring_commission_total / recurring_sales_total)
     - monthly_cash_bonus is 0 for now; you can plug in require_kpi_fn to turn it on/off.
     """
-    first_day = date(year, month, 1)
-    last_day = date(year, month, monthrange(year, month)[1])
+    first_day, last_day = get_commission_period(year, month)
 
     # pull all commission entries whose invoice was paid in this month
     ces = (
@@ -1250,12 +1540,13 @@ class UtilizationSegment(models.Model):
 
 class MonthlyTarget(models.Model):
     """
-    Master monthly target for a territory/area.
+    Master target for a territory and reporting period.
 
     Example:
-        North/Central - May 2026
-            Total Revenue Target: R300,000
-            Total Client Target: 24
+        Soweto Territory 1 - August 2026
+            Reporting Period: 15 July - 15 August 2026
+            Total Revenue Target: R50,000
+            Total Client Target: 10
 
     Rep allocations are handled by MonthlyTargetAllocation.
     """
@@ -1284,30 +1575,32 @@ class MonthlyTarget(models.Model):
         ("Q4", "Q4"),
     ]
 
-    AREA_CHOICES = [
-        ("SOUTH_WEST", "South / West"),
-        ("EAST", "East"),
-        ("NORTH_CENTRAL", "North / Central"),
-        ("MIDVAAL", "Midvaal"),
-        ("PRETORIA", "Pretoria"),
-        ("OTHER", "Other"),
-    ]
-
-    month = models.CharField(max_length=3, choices=MONTH_CHOICES)
+    
+    month = models.CharField(
+        max_length=3,
+        choices=MONTH_CHOICES,
+        help_text="Month in which the reporting period ends on the 15th."
+    )
     year = models.IntegerField(choices=YEAR_CHOICES)
     quarter = models.CharField(max_length=2, choices=QUARTER_CHOICES)
-    area = models.CharField(max_length=20, choices=AREA_CHOICES)
+    territory = models.ForeignKey(
+        "clients.Territory",
+        on_delete=models.PROTECT,
+        related_name="monthly_targets",
+        null=True,
+        blank=True,
+    )
 
     monthly_target = models.DecimalField(
         max_digits=14,
         decimal_places=2,
         default=Decimal("0.00"),
-        help_text="Total rand value target for this month and area."
+        help_text="Total rand value target for this territory and reporting period."
     )
 
     total_client_target = models.PositiveIntegerField(
         default=0,
-        help_text="Total new recurring client target for this month and area."
+        help_text="Total new recurring client target for this territory and reporting period."
     )
 
     monthly_target_reached_at = models.DateTimeField(
@@ -1325,11 +1618,11 @@ class MonthlyTarget(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("month", "year", "area")
+        unique_together = ("month", "year", "territory")
         ordering = ["-year", "month"]
 
     def __str__(self):
-        return f"{self.get_area_display()} - {self.get_month_display()} {self.year}"
+        return f"{self.territory} - {self.get_month_display()} {self.year}"
 
     def get_month_number(self):
         month_map = {
@@ -1349,24 +1642,43 @@ class MonthlyTarget(models.Model):
         return month_map[self.month]
 
     def get_total_days(self):
-        return calendar.monthrange(self.year, self.get_month_number())[1]
+        """
+        Number of calendar days in the 15th-to-15th
+        reporting period.
+        """
+
+        start_date, end_date = self.get_period_dates()
+
+        return (end_date - start_date).days + 1
 
     def get_total_working_days(self):
-        month_number = self.get_month_number()
-        total_days = calendar.monthrange(self.year, month_number)[1]
+        """
+        Count working days in the 15th-to-15th reporting period.
+
+        Weekends and configured public holidays are excluded.
+        """
+
+        first_day, last_day = self.get_period_dates()
 
         holidays = PUBLIC_HOLIDAYS.get(self.year)
 
         if holidays is None:
-            raise ValueError(f"No public holidays configured for year {self.year}")
+            raise ValueError(
+                f"No public holidays configured for year {self.year}"
+            )
 
         working_days = 0
+        current_date = first_day
 
-        for day in range(1, total_days + 1):
-            current_date = date(self.year, month_number, day)
+        while current_date <= last_day:
 
-            if current_date.weekday() < 5 and current_date not in holidays:
+            if (
+                current_date.weekday() < 5
+                and current_date not in holidays
+            ):
                 working_days += 1
+
+            current_date += timedelta(days=1)
 
         return working_days
 
@@ -1381,16 +1693,43 @@ class MonthlyTarget(models.Model):
         ).quantize(Decimal("0.01"))
 
     def get_period_dates(self):
+        """
+        Return the 15th-to-15th reporting period for this target.
+
+        Example:
+            August 2026
+            = 15 July 2026 through 15 August 2026.
+        """
+
         month_number = self.get_month_number()
 
-        first_day = date(self.year, month_number, 1)
-        last_day = date(self.year, month_number, self.get_total_days())
+        # Start = 15th of the previous calendar month
+        if month_number == 1:
+            start_date = date(
+                self.year - 1,
+                12,
+                15,
+            )
+        else:
+            start_date = date(
+                self.year,
+                month_number - 1,
+                15,
+            )
 
-        return first_day, last_day
+        # End = 15th of the target month
+        end_date = date(
+            self.year,
+            month_number,
+            15,
+        )
+
+        return start_date, end_date
 
     def get_actual_revenue(self):
         """
-        Total paid invoice revenue for this area and month.
+        Total paid invoice revenue for this territory
+        during the 15th-to-15th reporting period.
         """
 
         first_day, last_day = self.get_period_dates()
@@ -1400,7 +1739,7 @@ class MonthlyTarget(models.Model):
                 status="paid",
                 paid_date__gte=first_day,
                 paid_date__lte=last_day,
-                client__area=self.area,
+                client__territory=self.territory,
             ).aggregate(
                 s=Sum("order_total_inc")
             )["s"]
@@ -1411,7 +1750,8 @@ class MonthlyTarget(models.Model):
 
     def get_actual_clients(self):
         """
-        Total unique commission-generating clients for this area and month.
+        Total unique commission-generating clients for this territory
+        during the 15th-to-15th reporting period.
         """
 
         first_day, last_day = self.get_period_dates()
@@ -1421,7 +1761,7 @@ class MonthlyTarget(models.Model):
             .filter(
                 invoice__paid_date__gte=first_day,
                 invoice__paid_date__lte=last_day,
-                invoice__client__area=self.area,
+                invoice__client__territory=self.territory,
             )
             .values("invoice__client_id")
             .distinct()
@@ -1459,9 +1799,176 @@ class MonthlyTarget(models.Model):
             * Decimal("100")
         ).quantize(Decimal("0.01"))
 
+    def sync_rep_allocations(self):
+        """
+        Automatically create/update MonthlyTargetAllocation records
+        for every active sales representative assigned to this territory.
+
+        The territory determines which representatives belong to
+        this monthly target.
+
+        Example:
+
+            Territory: Orlando East
+            Total Revenue Target: R100,000
+            Total Client Target: 20
+            Representatives: 5
+
+            Each representative receives:
+
+                Revenue Target: R20,000
+                Client Target: 4
+        """
+
+        # --------------------------------------------------
+        # 1. Target must already exist and have a territory
+        # --------------------------------------------------
+        if not self.pk or not self.territory_id:
+            return
+
+        from profiles.models import SalesRepProfile
+
+        # --------------------------------------------------
+        # 2. Find representatives assigned to this territory
+        #
+        #    Requirements:
+        #    - SalesRepProfile territory = this target territory
+        #    - Profile is active
+        #    - User has the Representative role
+        # --------------------------------------------------
+        rep_profiles = (
+            SalesRepProfile.objects
+            .filter(
+                territory_id=self.territory_id,
+                roles__name__iexact="Representative",
+            )
+            .select_related("user")
+            .distinct()
+            .order_by(
+                "user__first_name",
+                "user__last_name",
+                "user__username",
+            )
+        )
+
+        # --------------------------------------------------
+        # 3. Get the actual Users
+        # --------------------------------------------------
+        reps = [
+            profile.user
+            for profile in rep_profiles
+            if profile.user_id
+        ]
+
+        # --------------------------------------------------
+        # 4. No representatives = no allocations
+        # --------------------------------------------------
+        if not reps:
+            self.rep_allocations.all().delete()
+            return
+
+        rep_count = len(reps)
+
+        # --------------------------------------------------
+        # 5. Divide the revenue target equally
+        # --------------------------------------------------
+        total_value = self.monthly_target or Decimal("0.00")
+
+        base_value = (
+            total_value / Decimal(rep_count)
+        ).quantize(Decimal("0.01"))
+
+        # --------------------------------------------------
+        # 6. Divide the client target equally
+        # --------------------------------------------------
+        total_clients = self.total_client_target or 0
+
+        base_clients = total_clients // rep_count
+        client_remainder = total_clients % rep_count
+
+        # --------------------------------------------------
+        # 7. Create/update an allocation for each rep
+        # --------------------------------------------------
+        existing_rep_ids = set()
+
+        for index, rep in enumerate(reps):
+
+            # Distribute any remainder across the first reps.
+            if index < client_remainder:
+                client_target = base_clients + 1
+            else:
+                client_target = base_clients
+
+            existing_rep_ids.add(rep.id)
+
+            MonthlyTargetAllocation.objects.update_or_create(
+                monthly_target=self,
+                sales_rep=rep,
+                defaults={
+                    "monthly_target_value": base_value,
+                    "client_target": client_target,
+                },
+            )
+
+        # --------------------------------------------------
+        # 8. Fix revenue rounding
+        #
+        # Example:
+        # R100 / 3 = R33.33 each
+        #
+        # R33.33 x 3 = R99.99
+        #
+        # Add the R0.01 remainder to the last rep.
+        # --------------------------------------------------
+        allocations = list(
+            self.rep_allocations
+            .filter(
+                sales_rep_id__in=existing_rep_ids
+            )
+            .order_by(
+                "sales_rep__first_name",
+                "sales_rep__last_name",
+                "sales_rep__username",
+            )
+        )
+
+        allocated_total = sum(
+            allocation.monthly_target_value
+            for allocation in allocations
+        )
+
+        difference = (
+            total_value - allocated_total
+        ).quantize(Decimal("0.01"))
+
+        if difference and allocations:
+
+            last_allocation = allocations[-1]
+
+            last_allocation.monthly_target_value = (
+                last_allocation.monthly_target_value + difference
+            )
+
+            last_allocation.save(
+                update_fields=[
+                    "monthly_target_value",
+                    "updated_at",
+                ]
+            )
+
+        # --------------------------------------------------
+        # 9. Remove allocations for reps who are no longer
+        #    assigned to this territory.
+        # --------------------------------------------------
+        self.rep_allocations.exclude(
+            sales_rep_id__in=existing_rep_ids
+        ).delete()   
+
+
+
     def check_and_set_target_reached(self):
         """
-        Automatically sets timestamps once area-level targets are achieved.
+        Automatically sets timestamps once territory-level targets are achieved.
         """
 
         changed = False
@@ -1487,6 +1994,15 @@ class MonthlyTarget(models.Model):
                     "client_target_reached_at",
                 ]
             )
+
+    
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        # Automatically rebuild rep allocations
+        # whenever the monthly target is saved.
+        self.sync_rep_allocations()
 
 
 # =========================================================
@@ -1586,7 +2102,7 @@ class MonthlyTargetAllocation(models.Model):
                 paid_date__gte=first_day,
                 paid_date__lte=last_day,
                 client__account_manager=self.sales_rep,
-                client__area=self.monthly_target.area,
+                client__territory=self.monthly_target.territory,
             ).aggregate(
                 s=Sum("order_total_inc")
             )["s"]
@@ -1612,7 +2128,7 @@ class MonthlyTargetAllocation(models.Model):
                 rep=self.sales_rep,
                 invoice__paid_date__gte=first_day,
                 invoice__paid_date__lte=last_day,
-                invoice__client__area=self.monthly_target.area,
+                invoice__client__territory=self.monthly_target.territory,
             )
             .values("invoice__client_id")
             .distinct()
