@@ -20,7 +20,6 @@ from django.db.models import (
     Sum, Count, F, Q, Value, DecimalField, IntegerField, ExpressionWrapper
 )
 
-
 from communications.services.whatsapp import send_invoice_whatsapp
 from communications.services.smsportal import send_sms
 from django.core.mail import EmailMultiAlternatives
@@ -28,7 +27,7 @@ from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
 from django.views.decorators.http import require_POST
-from communications.models import CommunicationLog
+from communications.models import CommunicationLog, CommunicationDocs
 from communications.services.whatsapp import send_quotation_whatsapp
 from django.contrib import messages
 from django.db import transaction
@@ -488,7 +487,47 @@ def leads(request):
 
     Leads are captured before they become Prospects.
     This is the Sales-facing view of the existing Lead model.
+
+    Lead visibility rules:
+        - A user whose ONLY role is Representative can see
+          only leads assigned to themselves.
+        - Users with any other role can see all leads.
     """
+
+    # ==========================================================
+    # CURRENT DATE
+    # ==========================================================
+
+    today = timezone.localdate()
+
+    # Monday of the current week
+    week_start = today - timedelta(days=today.weekday())
+
+    # ==========================================================
+    # DATE FILTERS
+    # Default:
+    #   From = Monday of current week
+    #   To   = today
+    # ==========================================================
+
+    date_from = (request.GET.get("date_from") or "").strip()
+    date_to = (request.GET.get("date_to") or "").strip()
+
+    try:
+        selected_date_from = date.fromisoformat(date_from)
+    except (ValueError, TypeError):
+        selected_date_from = week_start
+
+    try:
+        selected_date_to = date.fromisoformat(date_to)
+    except (ValueError, TypeError):
+        selected_date_to = today
+
+    # If the user selects an invalid range,
+    # return to the current week.
+    if selected_date_from > selected_date_to:
+        selected_date_from = week_start
+        selected_date_to = today
 
     # ==========================================================
     # BASE QUERYSET
@@ -509,6 +548,82 @@ def leads(request):
             "activities__user",
         )
         .order_by("-created_at")
+    )
+
+    # ==========================================================
+    # REP-ONLY VISIBILITY
+    #
+    # If the logged-in user has ONLY the Representative role,
+    # they may see ONLY leads assigned to themselves.
+    #
+    # If they have any other role as well, they can see all leads.
+    # ==========================================================
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=request.user)
+        )
+
+        current_role_names = {
+            role.name
+            for role in current_profile.roles.all()
+        }
+
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    # User is a REP ONLY if:
+    #
+    #   1. They have a SalesRepProfile
+    #   2. Their roles contain Representative
+    #   3. They have no other role
+    #
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    if rep_only:
+        qs = qs.filter(
+            assigned_to=request.user
+        )
+
+    # ==========================================================
+    # DATE RANGE
+    #
+    # Use datetime boundaries instead of __date so that the
+    # complete selected days are included.
+    # ==========================================================
+
+    start_datetime = datetime.combine(
+        selected_date_from,
+        datetime.min.time(),
+    )
+
+    end_datetime = datetime.combine(
+        selected_date_to + timedelta(days=1),
+        datetime.min.time(),
+    )
+
+    # Make the datetimes timezone-aware when USE_TZ=True
+    if timezone.is_naive(start_datetime):
+        start_datetime = timezone.make_aware(
+            start_datetime,
+            timezone.get_current_timezone(),
+        )
+
+    if timezone.is_naive(end_datetime):
+        end_datetime = timezone.make_aware(
+            end_datetime,
+            timezone.get_current_timezone(),
+        )
+
+    qs = qs.filter(
+        created_at__gte=start_datetime,
+        created_at__lt=end_datetime,
     )
 
     # ==========================================================
@@ -553,18 +668,31 @@ def leads(request):
     # SALES REP / ACCOUNT MANAGER
     # ==========================================================
 
-    assigned_to_id = (request.GET.get("assigned_to") or "").strip()
+    assigned_to_id = (
+        request.GET.get("assigned_to") or ""
+    ).strip()
 
     if assigned_to_id:
-        qs = qs.filter(
-            assigned_to_id=assigned_to_id
-        )
+
+        if rep_only:
+            # A REP-ONLY user cannot override the visibility
+            # restriction by changing the URL.
+            qs = qs.filter(
+                assigned_to=request.user
+            )
+
+        else:
+            qs = qs.filter(
+                assigned_to_id=assigned_to_id
+            )
 
     # ==========================================================
     # STATUS
     # ==========================================================
 
-    status = (request.GET.get("status") or "").strip().upper()
+    status = (
+        request.GET.get("status") or ""
+    ).strip().upper()
 
     valid_statuses = {
         code
@@ -580,39 +708,107 @@ def leads(request):
     # FILTER OPTIONS
     # ==========================================================
 
+    # ----------------------------------------------------------
+    # Territories
+    # ----------------------------------------------------------
+
     filter_territories = (
         Territory.objects
-        .filter(status="ACTIVE")
-        .select_related("region")
+        .filter(
+            status="ACTIVE"
+        )
+        .select_related(
+            "region"
+        )
         .order_by(
             "region__name",
             "name",
         )
     )
 
+    # ----------------------------------------------------------
+    # Areas
+    # ----------------------------------------------------------
+
     filter_areas = (
         Area.objects
-        .filter(status="ACTIVE")
-        .select_related("territory")
+        .filter(
+            status="ACTIVE"
+        )
+        .select_related(
+            "territory"
+        )
         .order_by(
             "territory__name",
             "name",
         )
     )
 
-    filter_sales_reps = (
-        User.objects
-        .filter(is_active=True)
-        .order_by(
-            "first_name",
-            "last_name",
-            "username",
+    # ----------------------------------------------------------
+    # Sales Reps / Account Managers
+    #
+    # Only users who:
+    #   1. Are active
+    #   2. Have a SalesRepProfile
+    #   3. Have Representative OR Supervisor role
+    #
+    # For a REP-ONLY logged-in user:
+    #   Only themselves are shown.
+    # ----------------------------------------------------------
+
+    if rep_only:
+
+        filter_sales_reps = (
+            SalesRepProfile.objects
+            .filter(
+                user=request.user,
+                user__is_active=True,
+            )
+            .select_related(
+                "user",
+            )
+            .prefetch_related(
+                "roles",
+            )
         )
-    )
+
+    else:
+
+        filter_sales_reps = (
+            SalesRepProfile.objects
+            .filter(
+                user__is_active=True,
+                roles__name__in=[
+                    "Representative",
+                    "Supervisor",
+                ],
+            )
+            .select_related(
+                "user",
+            )
+            .prefetch_related(
+                "roles",
+            )
+            .distinct()
+            .order_by(
+                "user__first_name",
+                "user__last_name",
+                "user__username",
+            )
+        )
 
     # ==========================================================
     # SUMMARY
     # ==========================================================
+
+    # These counts respect:
+    #   - REP visibility
+    #   - Date range
+    #   - Search
+    #   - Territory
+    #   - Area
+    #   - Assigned user
+    #   - Status
 
     leads_total = qs.count()
 
@@ -643,7 +839,10 @@ def leads(request):
     context = {
         "leads": qs,
 
+        # ------------------------------------------------------
         # Summary
+        # ------------------------------------------------------
+
         "leads_total": leads_total,
         "new_leads": new_leads,
         "contacted_leads": contacted_leads,
@@ -651,22 +850,47 @@ def leads(request):
         "disqualified_leads": disqualified_leads,
         "converted_leads": converted_leads,
 
-        # Existing filters
+        # ------------------------------------------------------
+        # Filter choices
+        # ------------------------------------------------------
+
         "statuses": Lead.STATUS_CHOICES,
         "sources": Lead.SOURCE_CHOICES,
 
-        # New filters
+        # ------------------------------------------------------
+        # Filter options
+        # ------------------------------------------------------
+
         "filter_territories": filter_territories,
         "filter_areas": filter_areas,
         "filter_sales_reps": filter_sales_reps,
 
-        # Selected values
+        # ------------------------------------------------------
+        # Selected filters
+        # ------------------------------------------------------
+
         "selected_territory": territory_id,
         "selected_area": area_id,
         "selected_assigned_to": assigned_to_id,
 
-        "today": timezone.localdate(),
+        # ------------------------------------------------------
+        # Date filters
+        # ------------------------------------------------------
+
+        "selected_date_from": selected_date_from,
+        "selected_date_to": selected_date_to,
+        "today": today,
+
+        # ------------------------------------------------------
+        # Visibility information
+        # ------------------------------------------------------
+
+        "rep_only": rep_only,
     }
+
+    # ==========================================================
+    # RENDER
+    # ==========================================================
 
     return render(
         request,
@@ -804,13 +1028,124 @@ def lead_convert_to_prospect(request, pk):
         pk=lead.pk,
     )
 
+
+
+
 @login_required
 def prospects(request):
     """
-    Sales prospects pipeline:
-    - GET: list prospects with search, stage filter, and status filter.
-    - Search includes prospect name, contact, notes, territory and area.
+    Sales prospects pipeline.
+
+    Visibility rules:
+        - A user whose ONLY role is Representative can see
+          only prospects assigned to themselves.
+        - Users with any other role can see all prospects.
+
+    Filters:
+        - Date range
+        - Search
+        - Stage
+        - Status
     """
+
+    # ==========================================================
+    # CURRENT USER / ROLE
+    # ==========================================================
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(
+                user=request.user
+            )
+        )
+
+        current_role_names = {
+            role.name
+            for role in current_profile.roles.all()
+        }
+
+    except SalesRepProfile.DoesNotExist:
+
+        current_profile = None
+        current_role_names = set()
+
+    # ==========================================================
+    # REP-ONLY CHECK
+    #
+    # ONLY a user whose complete role set is:
+    #
+    #     {"Representative"}
+    #
+    # is restricted to their own prospects.
+    #
+    # Representative + Supervisor = ALL
+    # Representative + Manager    = ALL
+    # Supervisor                  = ALL
+    # Manager                     = ALL
+    # ==========================================================
+
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    # ==========================================================
+    # CURRENT DATE
+    # ==========================================================
+
+    today = timezone.localdate()
+
+    # Monday of the current week
+    week_start = today - timedelta(
+        days=today.weekday()
+    )
+
+    # ==========================================================
+    # DATE FILTERS
+    #
+    # Default:
+    #   From = Monday of current week
+    #   To   = today
+    # ==========================================================
+
+    date_from = (
+        request.GET.get("date_from") or ""
+    ).strip()
+
+    date_to = (
+        request.GET.get("date_to") or ""
+    ).strip()
+
+    try:
+        selected_date_from = date.fromisoformat(
+            date_from
+        )
+    except (ValueError, TypeError):
+
+        selected_date_from = week_start
+
+    try:
+        selected_date_to = date.fromisoformat(
+            date_to
+        )
+    except (ValueError, TypeError):
+
+        selected_date_to = today
+
+    # ----------------------------------------------------------
+    # If dates are reversed, reset to current week
+    # ----------------------------------------------------------
+
+    if selected_date_from > selected_date_to:
+
+        selected_date_from = week_start
+        selected_date_to = today
+
+    # ==========================================================
+    # BASE QUERYSET
+    # ==========================================================
 
     qs = (
         Prospect.objects
@@ -821,24 +1156,83 @@ def prospects(request):
         )
     )
 
-    # -------------------------------------------------
-    # SEARCH
-    # -------------------------------------------------
+    # ==========================================================
+    # REP-ONLY VISIBILITY
+    #
+    # This is applied directly to the queryset.
+    #
+    # A Representative therefore cannot bypass the restriction
+    # by changing URL parameters.
+    # ==========================================================
 
-    q = (request.GET.get("q") or "").strip()
+    if rep_only:
+
+        qs = qs.filter(
+            owner=request.user
+        )
+
+    # ==========================================================
+    # DATE RANGE
+    #
+    # Use datetime boundaries so the complete selected days
+    # are included.
+    # ==========================================================
+
+    start_datetime = datetime.combine(
+        selected_date_from,
+        datetime.min.time(),
+    )
+
+    end_datetime = datetime.combine(
+        selected_date_to + timedelta(days=1),
+        datetime.min.time(),
+    )
+
+    # Make timezone-aware when USE_TZ=True
+    if timezone.is_naive(start_datetime):
+
+        start_datetime = timezone.make_aware(
+            start_datetime,
+            timezone.get_current_timezone(),
+        )
+
+    if timezone.is_naive(end_datetime):
+
+        end_datetime = timezone.make_aware(
+            end_datetime,
+            timezone.get_current_timezone(),
+        )
+
+    qs = qs.filter(
+        created_at__gte=start_datetime,
+        created_at__lt=end_datetime,
+    )
+
+    # ==========================================================
+    # SEARCH
+    # ==========================================================
+
+    q = (
+        request.GET.get("q") or ""
+    ).strip()
 
     if q:
+
         qs = qs.filter(
             Q(name__icontains=q)
+            | Q(organization__icontains=q)
             | Q(contact_name__icontains=q)
+            | Q(phone__icontains=q)
+            | Q(whatsapp__icontains=q)
+            | Q(email__icontains=q)
             | Q(notes__icontains=q)
             | Q(territory__name__icontains=q)
             | Q(area__name__icontains=q)
         )
 
-    # -------------------------------------------------
+    # ==========================================================
     # STAGE FILTER
-    # -------------------------------------------------
+    # ==========================================================
 
     stage_filter = (
         request.GET.get("stage") or ""
@@ -849,14 +1243,18 @@ def prospects(request):
         for code, _ in Prospect.STAGE_CHOICES
     }
 
-    if stage_filter and stage_filter in valid_stages:
+    if (
+        stage_filter
+        and stage_filter in valid_stages
+    ):
+
         qs = qs.filter(
             stage=stage_filter
         )
 
-    # -------------------------------------------------
+    # ==========================================================
     # STATUS FILTER
-    # -------------------------------------------------
+    # ==========================================================
 
     status_filter = (
         request.GET.get("status") or ""
@@ -867,20 +1265,24 @@ def prospects(request):
         for code, _ in Prospect.STATUS_CHOICES
     }
 
-    if status_filter and status_filter in valid_statuses:
+    if (
+        status_filter
+        and status_filter in valid_statuses
+    ):
+
         qs = qs.filter(
             status=status_filter
         )
 
-    # -------------------------------------------------
+    # ==========================================================
     # TOTAL AFTER FILTERS
-    # -------------------------------------------------
+    # ==========================================================
 
     prospects_total = qs.count()
 
-    # -------------------------------------------------
+    # ==========================================================
     # PIPELINE SUMMARY
-    # -------------------------------------------------
+    # ==========================================================
 
     stage_label_map = dict(
         Prospect.STAGE_CHOICES
@@ -907,9 +1309,9 @@ def prospects(request):
         for row in pipeline_raw
     ]
 
-    # -------------------------------------------------
+    # ==========================================================
     # FINAL QUERYSET
-    # -------------------------------------------------
+    # ==========================================================
 
     prospects_qs = (
         qs
@@ -917,22 +1319,57 @@ def prospects(request):
         .distinct()
     )
 
-    # -------------------------------------------------
+    # ==========================================================
     # CONTEXT
-    # -------------------------------------------------
+    # ==========================================================
 
     context = {
+        # ------------------------------------------------------
+        # Prospects
+        # ------------------------------------------------------
+
         "prospects": prospects_qs,
+
         "prospects_total": prospects_total,
+
+        # ------------------------------------------------------
+        # Pipeline
+        # ------------------------------------------------------
+
         "pipeline_summary": pipeline_summary,
-        "today": timezone.localdate(),
+
+        # ------------------------------------------------------
+        # Current date
+        # ------------------------------------------------------
+
+        "today": today,
+
+        # ------------------------------------------------------
+        # Date filters
+        # ------------------------------------------------------
+
+        "selected_date_from": selected_date_from,
+
+        "selected_date_to": selected_date_to,
+
+        # ------------------------------------------------------
+        # Visibility
+        # ------------------------------------------------------
+
+        "rep_only": rep_only,
     }
+
+    # ==========================================================
+    # RENDER
+    # ==========================================================
 
     return render(
         request,
         "prospects/prospects.html",
         context,
     )
+
+
 @login_required
 def prospect_create(request):
     """
@@ -1658,7 +2095,36 @@ def clients(request):
         .order_by("name")
     )
 
-    # Dropdown data (pulled from model choices so it stays in sync)
+    # -------------------------------------------------
+    # ROLE / ACCESS
+    # -------------------------------------------------
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=request.user)
+        )
+
+        current_role_names = {
+            role.name
+            for role in current_profile.roles.all()
+        }
+
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    # ONLY Representative = rep-only user
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    # -------------------------------------------------
+    # DROPDOWN DATA
+    # -------------------------------------------------
+
     client_types = Client.CLIENT_TYPES
     provinces = Client.PROVINCES
     account_types = Client.ACCOUNT_TYPES
@@ -1677,7 +2143,10 @@ def clients(request):
         status="ACTIVE"
     ).select_related("territory").order_by("name")
 
-    # GET params
+    # -------------------------------------------------
+    # GET PARAMS
+    # -------------------------------------------------
+
     search = (request.GET.get("search") or "").strip()
     client_type = request.GET.get("client_type") or ""
     province = request.GET.get("province") or ""
@@ -1688,31 +2157,41 @@ def clients(request):
     territory_id = request.GET.get("territory") or ""
     area_id = request.GET.get("area") or ""
 
+    # -------------------------------------------------
+    # SEARCH
+    # -------------------------------------------------
 
-    # Search
     if search:
         qs = qs.filter(
-            Q(name__icontains=search) |
-            Q(organization__icontains=search) |
-            Q(contact_person__icontains=search) |
-            Q(email__icontains=search) |
-            Q(phone__icontains=search) |
-            Q(whatsapp__icontains=search) |
-            Q(suburb__icontains=search) |
-            Q(city__icontains=search)
+            Q(name__icontains=search)
+            | Q(organization__icontains=search)
+            | Q(contact_person__icontains=search)
+            | Q(email__icontains=search)
+            | Q(phone__icontains=search)
+            | Q(whatsapp__icontains=search)
+            | Q(suburb__icontains=search)
+            | Q(city__icontains=search)
         )
 
-    # Filters
+    # -------------------------------------------------
+    # FILTERS
+    # -------------------------------------------------
+
     if client_type:
         qs = qs.filter(client_type=client_type)
+
     if province:
         qs = qs.filter(province=province)
+
     if account_type:
         qs = qs.filter(account_type=account_type)
+
     if credit_status:
         qs = qs.filter(credit_status=credit_status)
+
     if status:
         qs = qs.filter(status=status)
+
     if region_id.isdigit():
         qs = qs.filter(region_id=int(region_id))
 
@@ -1724,21 +2203,31 @@ def clients(request):
 
     clients = qs.distinct()
 
-    return render(request, "clients/clients.html", {
-        "clients": clients,
-        "regions": regions,
-        "territories": territories,
-        "areas": areas,
-        "client_types": client_types,
-        "provinces": provinces,
-        "account_types": account_types,
-        "credit_statuses": credit_statuses,
-        "statuses": statuses,
-    })
-    
+    return render(
+        request,
+        "clients/clients.html",
+        {
+            "clients": clients,
+            "regions": regions,
+            "territories": territories,
+            "areas": areas,
+            "client_types": client_types,
+            "provinces": provinces,
+            "account_types": account_types,
+            "credit_statuses": credit_statuses,
+            "statuses": statuses,
+
+            # Access control
+            "rep_only": rep_only,
+        },
+    )
 
 
+
+
+@login_required
 def view_client(request, pk):
+
     # ---------------------------
     # Core client
     # ---------------------------
@@ -1756,12 +2245,54 @@ def view_client(request, pk):
     )
 
     # ---------------------------
+    # Role / Access Control
+    # ---------------------------
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=request.user)
+        )
+
+        current_role_names = {
+            role.name
+            for role in current_profile.roles.all()
+        }
+
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    # Only users whose ONLY role is Representative
+    # are restricted to their own clients.
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    # Rep can only view clients where they are
+    # the assigned Account Manager.
+    if rep_only and client.account_manager_id != request.user.id:
+
+        messages.error(
+            request,
+            "You do not have access to this profile."
+        )
+
+        return redirect("sales:clients")
+
+    # ---------------------------
     # Orders (tab)
     # ---------------------------
     orders = (
         Order.objects
         .filter(client=client)
-        .only("id", "order_date", "status", "grand_total_inc")
+        .only(
+            "id",
+            "order_date",
+            "status",
+            "grand_total_inc",
+        )
         .order_by("-order_date")[:10]
     )
 
@@ -1773,31 +2304,46 @@ def view_client(request, pk):
     credit_utilization_status = None
 
     if client.account_type == "CREDIT":
-        credit_account = CreditAccount.objects.filter(client=client).first()
+
+        credit_account = (
+            CreditAccount.objects
+            .filter(client=client)
+            .first()
+        )
 
         if credit_account and credit_account.credit_limit > 0:
+
             credit_utilization_pct = (
-                credit_account.credit_used / credit_account.credit_limit
+                credit_account.credit_used
+                / credit_account.credit_limit
             ) * Decimal("100.00")
 
             if credit_utilization_pct < 50:
                 credit_utilization_status = "Healthy"
+
             elif credit_utilization_pct < 80:
                 credit_utilization_status = "Watch"
+
             elif credit_utilization_pct <= 100:
                 credit_utilization_status = "High Risk"
+
             else:
                 credit_utilization_status = "Over Limit"
 
     # ---------------------------
     # Compliance (tab)
     # ---------------------------
-    compliance = getattr(client, "compliance", None)
+    compliance = getattr(
+        client,
+        "compliance",
+        None
+    )
 
     compliance_documents = []
     compliance_completion_pct = Decimal("0.00")
 
     if compliance:
+
         compliance_documents = (
             compliance.documents
             .all()
@@ -1806,14 +2352,44 @@ def view_client(request, pk):
 
         total_docs = compliance_documents.count()
 
-        approved_docs = compliance_documents.filter(
-            status="APPROVED"
-        ).count()
+        approved_docs = (
+            compliance_documents
+            .filter(status="APPROVED")
+            .count()
+        )
 
         if total_docs > 0:
+
             compliance_completion_pct = (
-                Decimal(approved_docs) / Decimal(total_docs)
+                Decimal(approved_docs)
+                / Decimal(total_docs)
             ) * Decimal("100.00")
+
+    # ---------------------------
+    # Communication (tab)
+    # ---------------------------
+    communication_logs = (
+        CommunicationLog.objects
+        .filter(
+            related_model="Client",
+            related_object_id=client.id,
+        )
+        .select_related("sent_by")
+        .order_by("-created_at")
+    )
+
+    # ---------------------------
+    # Communication Documents (Docs tab)
+    # ---------------------------
+    communication_docs = (
+        CommunicationDocs.objects
+        .filter(
+            communication__related_model="Client",
+            communication__related_object_id=client.id,
+        )
+        .select_related("communication")
+        .order_by("-created_at")
+    )
 
     # ---------------------------
     # Overview KPIs
@@ -1822,12 +2398,16 @@ def view_client(request, pk):
         Order.objects
         .filter(client=client)
         .aggregate(
-            s=Coalesce(Sum("grand_total_inc"), Decimal("0.00"))
+            s=Coalesce(
+                Sum("grand_total_inc"),
+                Decimal("0.00")
+            )
         )["s"]
     )
 
     days_active = (
-        timezone.now().date() - client.created_at.date()
+        timezone.now().date()
+        - client.created_at.date()
     ).days
 
     # ---------------------------
@@ -1841,11 +2421,18 @@ def view_client(request, pk):
                 Decimal("0.00")
             )
         )
-        .order_by("-total_spend", "id")
-        .values_list("id", flat=True)
+        .order_by(
+            "-total_spend",
+            "id"
+        )
+        .values_list(
+            "id",
+            flat=True
+        )
     )
 
     ranked_ids = list(ranked_clients)
+
     total_clients = len(ranked_ids)
 
     spend_rank = (
@@ -1879,6 +2466,12 @@ def view_client(request, pk):
         "compliance_documents": compliance_documents,
         "compliance_completion_pct": compliance_completion_pct,
 
+        # Communication
+        "communication_logs": communication_logs,
+
+        # Docs
+        "communication_docs": communication_docs,
+
         # UI feedback
         "success_message": request.GET.get("ok", ""),
         "error_message": request.GET.get("err", ""),
@@ -1889,6 +2482,8 @@ def view_client(request, pk):
         "clients/client_detail.html",
         context
     )
+
+
 
 
 
@@ -1952,10 +2547,42 @@ def edit_client(request, pk):
 @login_required
 def quotations(request):
 
+    # -------------------------------------------------
+    # ROLE / ACCESS CONTROL
+    # -------------------------------------------------
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=request.user)
+        )
+
+        current_role_names = {
+            role.name
+            for role in current_profile.roles.all()
+        }
+
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    # A user is rep-only ONLY when their complete
+    # role set is exactly {"Representative"}.
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    # -------------------------------------------------
+    # BASE QUERYSET
+    # -------------------------------------------------
+
     qs = (
         Quotation.objects
         .select_related(
             "client",
+            "client__account_manager",
             "prospect",
             "created_by",
             "accepted_by",
@@ -1964,6 +2591,17 @@ def quotations(request):
         .prefetch_related("items")
         .order_by("-created_at")
     )
+
+    # -------------------------------------------------
+    # REP ACCESS
+    # -------------------------------------------------
+
+    # Representative-only users can only see quotations
+    # belonging to their own clients.
+    if rep_only:
+        qs = qs.filter(
+            client__account_manager=request.user
+        )
 
     # -------------------------------------------------
     # FILTER DROPDOWNS
@@ -1975,15 +2613,33 @@ def quotations(request):
     # GET PARAMS
     # -------------------------------------------------
 
-    search = (request.GET.get("search") or "").strip()
+    search = (
+        request.GET.get("search") or ""
+    ).strip()
 
-    status = request.GET.get("status") or ""
+    status = (
+        request.GET.get("status") or ""
+    ).strip()
 
-    has_order = request.GET.get("has_order") or ""
+    has_order = (
+        request.GET.get("has_order") or ""
+    ).strip()
 
-    target_type = request.GET.get("target_type") or ""
+    target_type = (
+        request.GET.get("target_type") or ""
+    ).strip()
 
-    created_by = request.GET.get("created_by") or ""
+    created_by = (
+        request.GET.get("created_by") or ""
+    ).strip()
+
+    date_from = (
+        request.GET.get("date_from") or ""
+    ).strip()
+
+    date_to = (
+        request.GET.get("date_to") or ""
+    ).strip()
 
     # -------------------------------------------------
     # SEARCH
@@ -1993,18 +2649,18 @@ def quotations(request):
 
         qs = qs.filter(
 
-            Q(id__icontains=search) |
+            Q(id__icontains=search)
 
-            Q(client__name__icontains=search) |
-            Q(client__organization__icontains=search) |
-            Q(client__contact_person__icontains=search) |
-            Q(client__email__icontains=search) |
-            Q(client__phone__icontains=search) |
+            | Q(client__name__icontains=search)
+            | Q(client__organization__icontains=search)
+            | Q(client__contact_person__icontains=search)
+            | Q(client__email__icontains=search)
+            | Q(client__phone__icontains=search)
 
-            Q(prospect__name__icontains=search) |
-            Q(prospect__organization__icontains=search) |
-            Q(prospect__email__icontains=search) |
-            Q(prospect__phone__icontains=search)
+            | Q(prospect__name__icontains=search)
+            | Q(prospect__organization__icontains=search)
+            | Q(prospect__email__icontains=search)
+            | Q(prospect__phone__icontains=search)
 
         )
 
@@ -2013,34 +2669,126 @@ def quotations(request):
     # -------------------------------------------------
 
     if status:
-        qs = qs.filter(status=status)
+        qs = qs.filter(
+            status=status
+        )
 
     # -------------------------------------------------
     # HAS CONVERTED ORDER
     # -------------------------------------------------
 
     if has_order == "yes":
-        qs = qs.filter(converted_order__isnull=False)
+
+        qs = qs.filter(
+            converted_order__isnull=False
+        )
 
     elif has_order == "no":
-        qs = qs.filter(converted_order__isnull=True)
+
+        qs = qs.filter(
+            converted_order__isnull=True
+        )
 
     # -------------------------------------------------
     # TARGET TYPE
     # -------------------------------------------------
 
     if target_type == "client":
-        qs = qs.filter(client__isnull=False)
+
+        qs = qs.filter(
+            client__isnull=False
+        )
 
     elif target_type == "prospect":
-        qs = qs.filter(prospect__isnull=False)
+
+        qs = qs.filter(
+            prospect__isnull=False
+        )
 
     # -------------------------------------------------
     # CREATED BY
     # -------------------------------------------------
 
     if created_by.isdigit():
-        qs = qs.filter(created_by_id=int(created_by))
+
+        qs = qs.filter(
+            created_by_id=int(created_by)
+        )
+
+    # -------------------------------------------------
+    # DATE FILTER
+    # -------------------------------------------------
+
+    today = timezone.localdate()
+
+    # Default:
+    # Monday -> today
+    week_start = today - timedelta(
+        days=today.weekday()
+    )
+
+    try:
+        selected_date_from = date.fromisoformat(
+            date_from
+        )
+    except (ValueError, TypeError):
+        selected_date_from = week_start
+
+    try:
+        selected_date_to = date.fromisoformat(
+            date_to
+        )
+    except (ValueError, TypeError):
+        selected_date_to = today
+
+    # If From > To, reset to Monday -> today.
+    if selected_date_from > selected_date_to:
+
+        selected_date_from = week_start
+        selected_date_to = today
+
+    # -------------------------------------------------
+    # DATETIME BOUNDARIES
+    # -------------------------------------------------
+
+    # Start of selected From date.
+    start_datetime = datetime.combine(
+        selected_date_from,
+        datetime.min.time(),
+    )
+
+    # Start of the day AFTER selected To date.
+    #
+    # Using __lt__ means the entire selected To date
+    # is included.
+    end_datetime = datetime.combine(
+        selected_date_to + timedelta(days=1),
+        datetime.min.time(),
+    )
+
+    # Make timezone-aware where required.
+    if timezone.is_naive(start_datetime):
+
+        start_datetime = timezone.make_aware(
+            start_datetime,
+            timezone.get_current_timezone(),
+        )
+
+    if timezone.is_naive(end_datetime):
+
+        end_datetime = timezone.make_aware(
+            end_datetime,
+            timezone.get_current_timezone(),
+        )
+
+    # -------------------------------------------------
+    # APPLY DATE FILTER
+    # -------------------------------------------------
+
+    qs = qs.filter(
+        created_at__gte=start_datetime,
+        created_at__lt=end_datetime,
+    )
 
     # -------------------------------------------------
     # FINAL DISTINCT
@@ -2048,20 +2796,209 @@ def quotations(request):
 
     quotations = qs.distinct()
 
-    return render(request, "quotations/quotations.html", {
+    # -------------------------------------------------
+    # RENDER
+    # -------------------------------------------------
 
-        "quotations": quotations,
+    return render(
+        request,
+        "quotations/quotations.html",
+        {
+            "quotations": quotations,
 
-        "statuses": statuses,
+            "statuses": statuses,
 
-        "selected_status": status,
-        "selected_has_order": has_order,
-        "selected_target_type": target_type,
-        "selected_created_by": created_by,
-        "search": search,
+            "selected_status": status,
+            "selected_has_order": has_order,
+            "selected_target_type": target_type,
+            "selected_created_by": created_by,
 
-    })
-    
+            "search": search,
+
+            # Date filter
+            "date_from": selected_date_from,
+            "date_to": selected_date_to,
+
+            # Role
+            "rep_only": rep_only,
+        },
+    )
+
+
+@login_required
+def view_quotation(request, pk):
+
+    # -------------------------------------------------
+    # ROLE / ACCESS CONTROL
+    # -------------------------------------------------
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=request.user)
+        )
+
+        current_role_names = {
+            role.name
+            for role in current_profile.roles.all()
+        }
+
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    # A user is rep-only ONLY when their complete
+    # role set is exactly {"Representative"}.
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    # -------------------------------------------------
+    # GET QUOTATION
+    # -------------------------------------------------
+
+    quotation = get_object_or_404(
+        Quotation.objects
+        .select_related(
+            "client",
+            "client__account_manager",
+            "prospect",
+            "created_by",
+            "accepted_by",
+            "converted_order",
+        )
+        .prefetch_related(
+            "items__product",
+            "items__category",
+        ),
+        pk=pk,
+    )
+
+    # -------------------------------------------------
+    # REP ACCESS CHECK
+    # -------------------------------------------------
+
+    # Representative-only users may only access
+    # quotations belonging to their own clients.
+    #
+    # Direct URL access is also protected.
+    if (
+        rep_only
+        and quotation.client_id is not None
+        and quotation.client.account_manager_id != request.user.id
+    ):
+        messages.error(
+            request,
+            "You do not have access to this quotation."
+        )
+
+        return redirect(
+            "sales:sales-quotations"
+        )
+
+    # -------------------------------------------------
+    # TOTALS
+    # -------------------------------------------------
+
+    quotation.recalc_totals(
+        save=False
+    )
+
+    # -------------------------------------------------
+    # ITEM ROWS
+    # -------------------------------------------------
+
+    item_rows = []
+
+    for item in quotation.items.all().order_by("id"):
+
+        qty = (
+            item.quantity
+            or Decimal("0.00")
+        )
+
+        unit_excl = (
+            item.unit_price_excl
+            or Decimal("0.00")
+        )
+
+        discount_per_unit = (
+            item.discount_excl
+            or Decimal("0.00")
+        )
+
+        vat_pct = (
+            item.vat_percent
+            or Decimal("0.00")
+        )
+
+        gross_excl = (
+            unit_excl * qty
+        )
+
+        discount_total = (
+            discount_per_unit * qty
+        )
+
+        line_excl = (
+            gross_excl
+            - discount_total
+        )
+
+        vat_amount = (
+            line_excl
+            * (
+                vat_pct
+                / Decimal("100.00")
+            )
+        )
+
+        line_inc = (
+            line_excl
+            + vat_amount
+        )
+
+        discount_pct = Decimal("0.00")
+
+        if (
+            unit_excl > 0
+            and discount_per_unit > 0
+        ):
+            discount_pct = (
+                discount_per_unit
+                / unit_excl
+            ) * Decimal("100.00")
+
+        item_rows.append(
+            {
+                "item": item,
+                "qty": qty,
+                "unit_excl": unit_excl,
+                "discount_per_unit": discount_per_unit,
+                "discount_total": discount_total,
+                "discount_pct": discount_pct,
+                "vat_pct": vat_pct,
+                "line_excl": line_excl,
+                "vat_amount": vat_amount,
+                "line_inc": line_inc,
+            }
+        )
+
+    # -------------------------------------------------
+    # RENDER
+    # -------------------------------------------------
+
+    return render(
+        request,
+        "quotations/view_quotation.html",
+        {
+            "quotation": quotation,
+            "item_rows": item_rows,
+            "rep_only": rep_only,
+        },
+    )
 
 
 
@@ -2484,69 +3421,6 @@ def send_quotation_whatsapp_view(request, pk):
     })
 
 
-@login_required
-def view_quotation(request, pk):
-
-    quotation = get_object_or_404(
-        Quotation.objects
-        .select_related(
-            "client",
-            "prospect",
-            "created_by",
-            "accepted_by",
-            "converted_order",
-        )
-        .prefetch_related(
-            "items__product",
-            "items__category",
-        ),
-        pk=pk,
-    )
-
-    quotation.recalc_totals(save=False)
-
-    item_rows = []
-
-    for item in quotation.items.all().order_by("id"):
-
-        qty = item.quantity or Decimal("0.00")
-        unit_excl = item.unit_price_excl or Decimal("0.00")
-        discount_per_unit = item.discount_excl or Decimal("0.00")
-        vat_pct = item.vat_percent or Decimal("0.00")
-
-        gross_excl = unit_excl * qty
-        discount_total = discount_per_unit * qty
-        line_excl = gross_excl - discount_total
-        vat_amount = line_excl * (vat_pct / Decimal("100.00"))
-        line_inc = line_excl + vat_amount
-
-        discount_pct = Decimal("0.00")
-
-        if unit_excl > 0 and discount_per_unit > 0:
-            discount_pct = (discount_per_unit / unit_excl) * Decimal("100.00")
-
-        item_rows.append({
-            "item": item,
-            "qty": qty,
-            "unit_excl": unit_excl,
-            "discount_per_unit": discount_per_unit,
-            "discount_total": discount_total,
-            "discount_pct": discount_pct,
-            "vat_pct": vat_pct,
-            "line_excl": line_excl,
-            "vat_amount": vat_amount,
-            "line_inc": line_inc,
-        })
-
-    return render(
-        request,
-        "quotations/view_quotation.html",
-        {
-            "quotation": quotation,
-            "item_rows": item_rows,
-        },
-    )
-
 
 
 
@@ -2707,58 +3581,238 @@ class ClientForm(forms.ModelForm):
 
 @login_required
 def orders(request):
+
+    # -------------------------------------------------
+    # ROLE / ACCESS CONTROL
+    # -------------------------------------------------
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=request.user)
+        )
+
+        current_role_names = {
+            role.name
+            for role in current_profile.roles.all()
+        }
+
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    # A user is rep-only ONLY when their complete
+    # role set is exactly {"Representative"}.
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    # -------------------------------------------------
+    # BASE QUERYSET
+    # -------------------------------------------------
+
     qs = (
         Order.objects
-        .select_related("client")
+        .select_related(
+            "client",
+            "client__account_manager",
+        )
         .prefetch_related("items")
     )
 
-    # Optional filters
-    status = request.GET.get("status")
-    channel = request.GET.get("channel")
-    q = request.GET.get("q")
+    # -------------------------------------------------
+    # REP ACCESS
+    # -------------------------------------------------
+
+    # Representative-only users only see orders
+    # belonging to their own clients.
+    if rep_only:
+        qs = qs.filter(
+            client__account_manager=request.user
+        )
+
+    # -------------------------------------------------
+    # OPTIONAL FILTERS
+    # -------------------------------------------------
+
+    status = (request.GET.get("status") or "").strip()
+    channel = (request.GET.get("channel") or "").strip()
+    q = (request.GET.get("q") or "").strip()
 
     if status:
         qs = qs.filter(status=status)
+
     if channel:
         qs = qs.filter(channel=channel)
+
     if q:
         qs = qs.filter(
-            Q(client__name__icontains=q) |
-            Q(client__organization__icontains=q) |
-            Q(customer_notes__icontains=q) |
-            Q(notes__icontains=q)
+            Q(client__name__icontains=q)
+            | Q(client__organization__icontains=q)
+            | Q(customer_notes__icontains=q)
+            | Q(notes__icontains=q)
         )
 
-    # Safe decimal fallbacks
-    ZERO_DEC = Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2))
-    ZERO_INT = Value(0, output_field=IntegerField())
+    # -------------------------------------------------
+    # DATE FILTER
+    # -------------------------------------------------
 
-    # A computed fallback for total (inc) if grand_total_inc is 0.00
-    computed_total_fallback = ExpressionWrapper(
-        Coalesce(F("subtotal_excl"), ZERO_DEC) +
-        Coalesce(F("vat_total"), ZERO_DEC) +
-        Coalesce(F("delivery_fee_excl"), ZERO_DEC),
-        output_field=DecimalField(max_digits=12, decimal_places=2)
+    today = timezone.localdate()
+
+    # Default date range:
+    # Monday of the current week -> today
+    week_start = today - timedelta(days=today.weekday())
+
+    date_from = (request.GET.get("date_from") or "").strip()
+    date_to = (request.GET.get("date_to") or "").strip()
+
+    try:
+        selected_date_from = date.fromisoformat(date_from)
+    except (ValueError, TypeError):
+        selected_date_from = week_start
+
+    try:
+        selected_date_to = date.fromisoformat(date_to)
+    except (ValueError, TypeError):
+        selected_date_to = today
+
+    # If the user selects an invalid range,
+    # reset to Monday -> today.
+    if selected_date_from > selected_date_to:
+        selected_date_from = week_start
+        selected_date_to = today
+
+    # -------------------------------------------------
+    # DATETIME BOUNDARIES
+    # -------------------------------------------------
+
+    # Start of selected "From" date.
+    start_datetime = datetime.combine(
+        selected_date_from,
+        datetime.min.time(),
     )
 
+    # Start of the day AFTER selected "To" date.
+    # Using __lt__ means the entire selected To date
+    # is included, right up to 23:59:59...
+    end_datetime = datetime.combine(
+        selected_date_to + timedelta(days=1),
+        datetime.min.time(),
+    )
+
+    # Make datetimes timezone-aware when required.
+    if timezone.is_naive(start_datetime):
+        start_datetime = timezone.make_aware(
+            start_datetime,
+            timezone.get_current_timezone(),
+        )
+
+    if timezone.is_naive(end_datetime):
+        end_datetime = timezone.make_aware(
+            end_datetime,
+            timezone.get_current_timezone(),
+        )
+
+    # -------------------------------------------------
+    # APPLY DATE FILTER
+    # -------------------------------------------------
+
+    qs = qs.filter(
+        submitted_at__gte=start_datetime,
+        submitted_at__lt=end_datetime,
+    )
+
+    # -------------------------------------------------
+    # SAFE DECIMAL FALLBACKS
+    # -------------------------------------------------
+
+    ZERO_DEC = Value(
+        Decimal("0.00"),
+        output_field=DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        ),
+    )
+
+    ZERO_INT = Value(
+        0,
+        output_field=IntegerField(),
+    )
+
+    # -------------------------------------------------
+    # COMPUTED TOTAL FALLBACK
+    # -------------------------------------------------
+
+    computed_total_fallback = ExpressionWrapper(
+        Coalesce(F("subtotal_excl"), ZERO_DEC)
+        + Coalesce(F("vat_total"), ZERO_DEC)
+        + Coalesce(F("delivery_fee_excl"), ZERO_DEC),
+        output_field=DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        ),
+    )
+
+    # -------------------------------------------------
+    # ANNOTATIONS
+    # -------------------------------------------------
+
     qs = qs.annotate(
-        total_quantity=Coalesce(Sum("items__quantity"), ZERO_DEC, output_field=DecimalField(max_digits=12, decimal_places=2)),
-        item_count=Coalesce(Count("items", distinct=True), ZERO_INT, output_field=IntegerField()),
+        total_quantity=Coalesce(
+            Sum("items__quantity"),
+            ZERO_DEC,
+            output_field=DecimalField(
+                max_digits=12,
+                decimal_places=2,
+            ),
+        ),
+
+        item_count=Coalesce(
+            Count(
+                "items",
+                distinct=True,
+            ),
+            ZERO_INT,
+            output_field=IntegerField(),
+        ),
+
         total_amount=Coalesce(
             F("grand_total_inc"),
             computed_total_fallback,
-            output_field=DecimalField(max_digits=12, decimal_places=2),
+            output_field=DecimalField(
+                max_digits=12,
+                decimal_places=2,
+            ),
         ),
-    ).order_by("-submitted_at").distinct()
 
-    return render(request, "orders/orders.html", {
-        "orders": qs,
-        "filter_status": status or "",
-        "filter_channel": channel or "",
-        "search": q or "",
-    })
+    ).order_by(
+        "-submitted_at"
+    ).distinct()
 
+    # -------------------------------------------------
+    # RENDER
+    # -------------------------------------------------
+
+    return render(
+        request,
+        "orders/orders.html",
+        {
+            "orders": qs,
+
+            "filter_status": status,
+            "filter_channel": channel,
+            "search": q,
+
+            # Date filter values for the template
+            "date_from": selected_date_from,
+            "date_to": selected_date_to,
+
+            # Role information
+            "rep_only": rep_only,
+        },
+    )
 
 class OrderForm(ModelForm):
     class Meta:
@@ -2906,39 +3960,133 @@ def edit_order(request, pk):
 def view_order(request, pk):
     """
     Order detail view — shows order, items and related invoice (if any).
-    Recalculates totals in-memory (no DB write) so displayed totals are fresh.
+
+    Representative-only users may only access orders belonging to
+    clients assigned to them.
+
+    Reps with any additional role (for example Representative + Supervisor)
+    retain broader access.
+
+    Totals are recalculated in-memory only (no DB write).
     """
-    order = get_object_or_404(
-        Order.objects
-             .select_related("client", "created_by", "reviewed_by", "approved_by")
-             .prefetch_related("items__product", "items__category"),
-        pk=pk
+
+    # -------------------------------------------------
+    # ROLE / ACCESS CONTROL
+    # -------------------------------------------------
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=request.user)
+        )
+
+        current_role_names = {
+            role.name
+            for role in current_profile.roles.all()
+        }
+
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    # A user is rep-only ONLY when their complete role
+    # set is exactly {"Representative"}.
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
     )
 
-    # keep totals fresh (no DB write)
-    # (assumes Order.recalc_totals(save=False) exists)
+    # -------------------------------------------------
+    # GET ORDER
+    # -------------------------------------------------
+
+    order = get_object_or_404(
+        Order.objects
+        .select_related(
+            "client",
+            "client__account_manager",
+            "created_by",
+            "reviewed_by",
+            "approved_by",
+        )
+        .prefetch_related(
+            "items__product",
+            "items__category",
+        ),
+        pk=pk,
+    )
+
+    # -------------------------------------------------
+    # REP ACCESS CHECK
+    # -------------------------------------------------
+
+    # Representative-only users can only access orders
+    # belonging to their own clients.
+    #
+    # IMPORTANT:
+    # This protects the actual URL as well as the list UI.
+    if rep_only and order.client.account_manager_id != request.user.id:
+        messages.error(
+            request,
+            "You do not have access to this order."
+        )
+        return redirect("sales:orders")
+
+    # -------------------------------------------------
+    # KEEP TOTALS FRESH
+    # -------------------------------------------------
+
+    # Recalculate in memory only.
+    # No database write.
     try:
         order.recalc_totals(save=False)
     except Exception:
-        # If recalc_totals doesn't exist or fails, we continue — it's not fatal for view rendering
+        # If recalc_totals doesn't exist or fails,
+        # continue so the order can still be displayed.
         pass
 
-    # invoice (if one-to-one exists)
+    # -------------------------------------------------
+    # INVOICE
+    # -------------------------------------------------
+
     invoice = None
+
     try:
-        invoice = order.invoice  # uses OneToOne relation if present
+        invoice = order.invoice
+
     except AttributeError:
         invoice = None
+
     except Exception:
-        # fallback: if some other error occurs, don't crash the view
+        # If the OneToOne relation raises another error,
+        # don't allow it to break the order detail page.
         invoice = None
 
-    items = order.items.all().order_by("id")
-    return render(request, "orders/view_order.html", {
-        "order": order,
-        "items": items,
-        "invoice": invoice,
-    })
+    # -------------------------------------------------
+    # ORDER ITEMS
+    # -------------------------------------------------
+
+    items = (
+        order.items
+        .all()
+        .order_by("id")
+    )
+
+    # -------------------------------------------------
+    # RENDER
+    # -------------------------------------------------
+
+    return render(
+        request,
+        "orders/view_order.html",
+        {
+            "order": order,
+            "items": items,
+            "invoice": invoice,
+            "rep_only": rep_only,
+        },
+    )
 
 
 
@@ -3148,96 +4296,359 @@ def ajax_products_by_category(request):
         "results": results
     })
 
+
+
 @login_required
 def invoices(request):
     """
     List invoices with optional filters:
-      - q: search across client name, client organization, order CL number
-      - status: invoice status (unpaid/partial/paid/overdue)
-      - from / to: invoice_date range (YYYY-MM-DD)
-      - page: paginator page
-    """
-    qs = Invoice.objects.select_related("client", "order").all().order_by("-invoice_date", "-created_at")
 
-    # --- Filters from GET ---
-    search = request.GET.get("q", "").strip()
-    filter_status = request.GET.get("status", "").strip()
-    date_from = request.GET.get("from", "").strip()
-    date_to = request.GET.get("to", "").strip()
+      - q: search across client name, client organization, order CL number
+      - status: invoice status
+      - date_from: invoice date range start (YYYY-MM-DD)
+      - date_to: invoice date range end (YYYY-MM-DD)
+      - page: paginator page
+
+    Representative-only users can only see invoices belonging
+    to their own clients.
+    """
+
+    # -------------------------------------------------
+    # ROLE / ACCESS CONTROL
+    # -------------------------------------------------
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=request.user)
+        )
+
+        current_role_names = {
+            role.name
+            for role in current_profile.roles.all()
+        }
+
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    # A user is rep-only ONLY when their complete
+    # role set is exactly {"Representative"}.
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    # -------------------------------------------------
+    # BASE QUERYSET
+    # -------------------------------------------------
+
+    qs = (
+        Invoice.objects
+        .select_related(
+            "client",
+            "client__account_manager",
+            "order",
+        )
+        .all()
+        .order_by(
+            "-invoice_date",
+            "-created_at",
+        )
+    )
+
+    # -------------------------------------------------
+    # REP ACCESS
+    # -------------------------------------------------
+
+    # Representative-only users can only see invoices
+    # belonging to clients assigned to them.
+    if rep_only:
+        qs = qs.filter(
+            client__account_manager=request.user
+        )
+
+    # -------------------------------------------------
+    # FILTERS FROM GET
+    # -------------------------------------------------
+
+    search = (request.GET.get("q") or "").strip()
+    filter_status = (request.GET.get("status") or "").strip()
+
+    date_from = (request.GET.get("date_from") or "").strip()
+    date_to = (request.GET.get("date_to") or "").strip()
+
+    # -------------------------------------------------
+    # SEARCH
+    # -------------------------------------------------
 
     if search:
         qs = qs.filter(
-            Q(client__name__icontains=search) |
-            Q(client__organization__icontains=search) |
-            Q(order__cl_number__icontains=search)
+            Q(client__name__icontains=search)
+            | Q(client__organization__icontains=search)
+            | Q(order__cl_number__icontains=search)
         )
 
+    # -------------------------------------------------
+    # STATUS
+    # -------------------------------------------------
+
     if filter_status:
-        qs = qs.filter(status=filter_status)
+        qs = qs.filter(
+            status=filter_status
+        )
 
-    if date_from:
-        try:
-            qs = qs.filter(invoice_date__gte=date_from)
-        except Exception:
-            # ignore invalid date formats (template will just show nothing)
-            pass
+    # -------------------------------------------------
+    # DATE FILTER
+    # -------------------------------------------------
 
-    if date_to:
-        try:
-            qs = qs.filter(invoice_date__lte=date_to)
-        except Exception:
-            pass
+    today = timezone.localdate()
 
-    # --- Pagination (optional) ---
-    per_page = 25
-    page = request.GET.get("page", 1)
-    paginator = Paginator(qs, per_page)
+    # Default:
+    # Monday of current week -> today
+    week_start = today - timedelta(
+        days=today.weekday()
+    )
+
     try:
-        invoices_page = paginator.page(page)
-    except PageNotAnInteger:
-        invoices_page = paginator.page(1)
-    except EmptyPage:
-        invoices_page = paginator.page(paginator.num_pages)
+        selected_date_from = date.fromisoformat(
+            date_from
+        )
+    except (ValueError, TypeError):
+        selected_date_from = week_start
 
-    # --- status choices for template ---
-    status_choices = Invoice.STATUS_CHOICES  # tuples (val, label)
+    try:
+        selected_date_to = date.fromisoformat(
+            date_to
+        )
+    except (ValueError, TypeError):
+        selected_date_to = today
+
+    # If From > To, reset to Monday -> today.
+    if selected_date_from > selected_date_to:
+        selected_date_from = week_start
+        selected_date_to = today
+
+    # -------------------------------------------------
+    # DATETIME BOUNDARIES
+    # -------------------------------------------------
+
+    # Start of selected From date.
+    start_datetime = datetime.combine(
+        selected_date_from,
+        datetime.min.time(),
+    )
+
+    # Start of the day AFTER selected To date.
+    end_datetime = datetime.combine(
+        selected_date_to + timedelta(days=1),
+        datetime.min.time(),
+    )
+
+    # Make timezone-aware where required.
+    if timezone.is_naive(start_datetime):
+        start_datetime = timezone.make_aware(
+            start_datetime,
+            timezone.get_current_timezone(),
+        )
+
+    if timezone.is_naive(end_datetime):
+        end_datetime = timezone.make_aware(
+            end_datetime,
+            timezone.get_current_timezone(),
+        )
+
+    # -------------------------------------------------
+    # APPLY DATE FILTER
+    # -------------------------------------------------
+
+    qs = qs.filter(
+        invoice_date__gte=start_datetime,
+        invoice_date__lt=end_datetime,
+    )
+
+    # -------------------------------------------------
+    # PAGINATION
+    # -------------------------------------------------
+
+    per_page = 25
+
+    page = request.GET.get(
+        "page",
+        1,
+    )
+
+    paginator = Paginator(
+        qs,
+        per_page,
+    )
+
+    try:
+        invoices_page = paginator.page(
+            page
+        )
+
+    except PageNotAnInteger:
+        invoices_page = paginator.page(
+            1
+        )
+
+    except EmptyPage:
+        invoices_page = paginator.page(
+            paginator.num_pages
+        )
+
+    # -------------------------------------------------
+    # STATUS CHOICES
+    # -------------------------------------------------
+
+    status_choices = Invoice.STATUS_CHOICES
+
+    # -------------------------------------------------
+    # CONTEXT
+    # -------------------------------------------------
 
     context = {
-        "invoices": invoices_page,        # page object (iterable in template)
+        "invoices": invoices_page,
+
         "search": search,
+
         "status_choices": status_choices,
         "filter_status": filter_status,
-        "date_from": date_from,
-        "date_to": date_to,
+
+        "date_from": selected_date_from,
+        "date_to": selected_date_to,
+
         "paginator": paginator,
         "page_obj": invoices_page,
+
+        "rep_only": rep_only,
     }
 
-    return render(request, "invoices/invoices.html", context)
-    
+    return render(
+        request,
+        "invoices/invoices.html",
+        context,
+    )
+
 
 @login_required
 def view_invoice(request, pk):
+    """
+    Invoice detail view.
+
+    Representative-only users may only access invoices
+    belonging to clients assigned to them.
+
+    Direct URL access is also protected.
+    """
+
+    # -------------------------------------------------
+    # ROLE / ACCESS CONTROL
+    # -------------------------------------------------
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=request.user)
+        )
+
+        current_role_names = {
+            role.name
+            for role in current_profile.roles.all()
+        }
+
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    # A user is rep-only ONLY when their complete
+    # role set is exactly {"Representative"}.
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    # -------------------------------------------------
+    # GET INVOICE
+    # -------------------------------------------------
+
     invoice = get_object_or_404(
-        Invoice.objects.select_related(
-            "client", "order", "order__client", "order__created_by"
-        ).prefetch_related(
-            "order__items", "order__items__product", "order__items__category"
+        Invoice.objects
+        .select_related(
+            "client",
+            "client__account_manager",
+            "order",
+            "order__client",
+            "order__created_by",
+        )
+        .prefetch_related(
+            "order__items",
+            "order__items__product",
+            "order__items__category",
         ),
         pk=pk,
     )
 
+    # -------------------------------------------------
+    # REP ACCESS CHECK
+    # -------------------------------------------------
+
+    # Representative-only users may only access invoices
+    # belonging to their own clients.
+    if (
+        rep_only
+        and invoice.client.account_manager_id != request.user.id
+    ):
+        messages.error(
+            request,
+            "You do not have access to this invoice."
+        )
+
+        return redirect(
+            "sales:sales-invoices"
+        )
+
+    # -------------------------------------------------
+    # ORDER / CLIENT / ITEMS
+    # -------------------------------------------------
+
     order = invoice.order
     client = invoice.client
-    items = order.items.all()
+
+    items = (
+        order.items
+        .all()
+        .order_by("id")
+    )
+
+    # -------------------------------------------------
+    # OVERDUE
+    # -------------------------------------------------
 
     today = localdate()
+
     is_overdue = (
         invoice.status != "paid"
         and invoice.due_date is not None
         and invoice.due_date < today
     )
-    deposit_outstanding = max(invoice.amount_due - (invoice.deposit_paid or 0), 0)
+
+    # -------------------------------------------------
+    # DEPOSIT OUTSTANDING
+    # -------------------------------------------------
+
+    deposit_outstanding = max(
+        invoice.amount_due
+        - (invoice.deposit_paid or 0),
+        0,
+    )
+
+    # -------------------------------------------------
+    # RENDER
+    # -------------------------------------------------
 
     return render(
         request,
@@ -3249,8 +4660,10 @@ def view_invoice(request, pk):
             "items": items,
             "is_overdue": is_overdue,
             "deposit_outstanding": deposit_outstanding,
+            "rep_only": rep_only,
         },
     )
+
 
 
 
@@ -3281,6 +4694,53 @@ def commission(request):
     today = localdate()
 
     # ============================================================
+    # LOGGED-IN USER SALES ROLE
+    # ============================================================
+    #
+    # Representative-only users must only see their own sales data.
+    # They must not be given access to management-level sections.
+    #
+    # A user is representative-only when they have the
+    # Representative role and do NOT have the Supervisor role.
+    # A user with both roles retains management visibility.
+    # ============================================================
+
+    sales_profile = getattr(
+        request.user,
+        "sales_rep_profile",
+        None,
+    )
+
+    is_representative_only = False
+
+    if sales_profile:
+        role_names = list(
+            sales_profile.roles.values_list(
+                "name",
+                flat=True,
+            )
+        )
+
+        normalized_roles = {
+            str(role).strip().lower()
+            for role in role_names
+            if role
+        }
+
+        has_representative_role = (
+            "representative" in normalized_roles
+        )
+
+        has_supervisor_role = (
+            "supervisor" in normalized_roles
+        )
+
+        is_representative_only = (
+            has_representative_role
+            and not has_supervisor_role
+        )
+
+    # ============================================================
     # YEAR
     # ============================================================
 
@@ -3301,6 +4761,75 @@ def commission(request):
     selected_region = request.GET.get(
         "region",
         "",
+    )
+
+    # ============================================================
+    # SALES REPRESENTATIVE
+    # ============================================================
+
+    selected_rep = request.GET.get(
+        "rep",
+        "",
+    )
+
+    # ------------------------------------------------------------
+    # REPRESENTATIVE-ONLY ACCESS CONTROL
+    # ------------------------------------------------------------
+    #
+    # A representative cannot choose another representative through
+    # the URL or dropdown. Their own User is always the selected rep.
+    # This is enforced server-side, not only in the HTML.
+    # ------------------------------------------------------------
+
+    if is_representative_only:
+        selected_rep = str(request.user.pk)
+
+    # Sales representatives available in CommissionEntry.
+    # The template expects each rep to have:
+    #     r.value
+    #     r.label
+    #
+    # Resolve the related model from the FK so this view does not
+    # depend on a hard-coded User model import.
+    rep_model = CommissionEntry._meta.get_field("rep").remote_field.model
+
+    if is_representative_only:
+        # Only expose the logged-in representative in the dropdown.
+        rep_qs = (
+            rep_model.objects
+            .filter(
+                pk=request.user.pk,
+            )
+        )
+    else:
+        rep_qs = (
+            rep_model.objects
+            .filter(
+                id__in=CommissionEntry.objects
+                .exclude(rep=None)
+                .values_list("rep_id", flat=True)
+                .distinct()
+            )
+        )
+
+    reps = []
+
+    for rep in rep_qs:
+        try:
+            label = rep.get_full_name()
+        except Exception:
+            label = ""
+
+        if not label:
+            label = getattr(rep, "username", "") or str(rep)
+
+        reps.append({
+            "value": rep.pk,
+            "label": label,
+        })
+
+    reps.sort(
+        key=lambda item: item["label"].lower()
     )
 
     # ============================================================
@@ -3637,7 +5166,7 @@ def commission(request):
         .filter(
             period=selected_period,
             invoice__paid_date__gte=period_start,
-            invoice__paid_date__lte=period_end,
+            invoice__paid_date__lt=period_end,
         )
         .order_by(
             "-invoice__paid_date",
@@ -3666,6 +5195,18 @@ def commission(request):
         commission_entries = (
             commission_entries.filter(
                 territory_id=selected_territory
+            )
+        )
+
+    # ============================================================
+    # SALES REPRESENTATIVE FILTER
+    # ============================================================
+
+    if selected_rep:
+
+        commission_entries = (
+            commission_entries.filter(
+                rep_id=selected_rep
             )
         )
 
@@ -3730,6 +5271,14 @@ def commission(request):
             )
         )
 
+    if selected_rep:
+
+        previous_commission_entries = (
+            previous_commission_entries.filter(
+                rep_id=selected_rep
+            )
+        )
+
     # ============================================================
     # MONTHLY TARGETS
     # ============================================================
@@ -3764,21 +5313,103 @@ def commission(request):
 
     # ============================================================
     # TARGET TOTALS
+    #
+    # IMPORTANT:
+    #
+    # NO REP SELECTED
+    #     Use the master MonthlyTarget totals for the selected
+    #     region/territory.
+    #
+    # SPECIFIC REP SELECTED
+    #     DO NOT use the master territory target.
+    #
+    #     Use MonthlyTargetAllocation for that specific rep:
+    #
+    #         monthly_target_value -> revenue target
+    #         client_target        -> client target
+    #
+    # This keeps the actual performance and the target being
+    # measured on the same level.
     # ============================================================
 
-    monthly_target = (
-        monthly_targets.aggregate(
-            t=Sum("monthly_target")
-        )["t"]
-        or Decimal("0.00")
-    )
+    rep_allocations = MonthlyTargetAllocation.objects.none()
 
-    client_target = (
-        monthly_targets.aggregate(
-            t=Sum("total_client_target")
-        )["t"]
-        or 0
-    )
+    if selected_rep:
+
+        # --------------------------------------------------------
+        # REP-SPECIFIC MONTHLY TARGET ALLOCATIONS
+        # --------------------------------------------------------
+
+        rep_allocations = (
+            MonthlyTargetAllocation.objects
+            .select_related(
+                "monthly_target",
+                "monthly_target__territory",
+                "monthly_target__territory__region",
+                "sales_rep",
+            )
+            .filter(
+                sales_rep_id=selected_rep,
+                monthly_target__year=period_end.year,
+                monthly_target__month=target_month_code,
+            )
+        )
+
+        # Respect the selected region.
+        if selected_region:
+            rep_allocations = rep_allocations.filter(
+                monthly_target__territory__region_id=selected_region
+            )
+
+        # Respect the selected territory.
+        if selected_territory:
+            rep_allocations = rep_allocations.filter(
+                monthly_target__territory_id=selected_territory
+            )
+
+        # --------------------------------------------------------
+        # REP REVENUE TARGET
+        # --------------------------------------------------------
+
+        monthly_target = (
+            rep_allocations.aggregate(
+                t=Sum("monthly_target_value")
+            )["t"]
+            or Decimal("0.00")
+        )
+
+        # --------------------------------------------------------
+        # REP CLIENT TARGET
+        # --------------------------------------------------------
+
+        client_target = (
+            rep_allocations.aggregate(
+                t=Sum("client_target")
+            )["t"]
+            or 0
+        )
+
+    else:
+
+        # --------------------------------------------------------
+        # ALL REPS
+        #
+        # Use the master MonthlyTarget totals.
+        # --------------------------------------------------------
+
+        monthly_target = (
+            monthly_targets.aggregate(
+                t=Sum("monthly_target")
+            )["t"]
+            or Decimal("0.00")
+        )
+
+        client_target = (
+            monthly_targets.aggregate(
+                t=Sum("total_client_target")
+            )["t"]
+            or 0
+        )
 
     # ============================================================
     # TOTAL COMMISSION PAYABLE
@@ -4062,9 +5693,11 @@ def commission(request):
         0,
     )
 
+    # Accelerator/bonus activates only when BOTH targets are met.
     bonus_active = (
-        actual_clients > client_target
-        if client_target
+        actual_revenue >= monthly_target
+        and actual_clients >= client_target
+        if monthly_target > 0 and client_target > 0
         else False
     )
 
@@ -4426,6 +6059,78 @@ def commission(request):
         # ADD REP
         # --------------------------------------------------------
 
+        # --------------------------------------------------------
+        # REP TARGET ALLOCATION
+        #
+        # When a rep is selected, the allocation query above is
+        # already restricted to that rep.
+        #
+        # For the rep-performance table, also expose the
+        # allocation when possible. This means the row and the
+        # target cards are using the same allocation source.
+        #
+        # When no specific rep is selected, calculate the
+        # allocation for this individual rep so every rep row
+        # can display its own target.
+        # --------------------------------------------------------
+
+        if selected_rep and str(rep.id) == str(selected_rep):
+
+            individual_rep_allocations = rep_allocations
+
+        else:
+
+            individual_rep_allocations = (
+                MonthlyTargetAllocation.objects
+                .filter(
+                    sales_rep_id=rep.id,
+                    monthly_target__year=period_end.year,
+                    monthly_target__month=target_month_code,
+                )
+            )
+
+            if selected_region:
+                individual_rep_allocations = (
+                    individual_rep_allocations.filter(
+                        monthly_target__territory__region_id=selected_region
+                    )
+                )
+
+            if selected_territory:
+                individual_rep_allocations = (
+                    individual_rep_allocations.filter(
+                        monthly_target__territory_id=selected_territory
+                    )
+                )
+
+        rep_revenue_target = (
+            individual_rep_allocations.aggregate(
+                t=Sum("monthly_target_value")
+            )["t"]
+            or Decimal("0.00")
+        )
+
+        rep_client_target = (
+            individual_rep_allocations.aggregate(
+                t=Sum("client_target")
+            )["t"]
+            or 0
+        )
+
+        rep_revenue_pct = (
+            (
+                rep_revenue
+                / rep_revenue_target
+            )
+            * Decimal("100")
+            if rep_revenue_target > 0
+            else Decimal("0.00")
+        )
+
+        rep_revenue_pct = rep_revenue_pct.quantize(
+            Decimal("0.01")
+        )
+
         rep_commission_summary.append({
 
             "rep_id":
@@ -4456,16 +6161,16 @@ def commission(request):
                 rep_revenue,
 
             "revenue_target":
-                Decimal("0.00"),
+                rep_revenue_target,
 
             "revenue_pct":
-                Decimal("0.00"),
+                rep_revenue_pct,
 
             "clients":
                 rep_clients,
 
             "client_target":
-                0,
+                rep_client_target,
 
             "base_commission":
                 base_commission,
@@ -4476,6 +6181,29 @@ def commission(request):
             "total_commission":
                 total_rep_commission,
         })
+
+    # ============================================================
+    # HARD DEDUPLICATION OF REP PERFORMANCE
+    # ============================================================
+    # One row per representative.
+    # CommissionEntry may contain multiple records for the same rep,
+    # but the performance table must always show that rep once.
+    # ============================================================
+
+    unique_rep_summary = {}
+
+    for row in rep_commission_summary:
+        rep_id = row.get("rep_id")
+
+        if rep_id is None:
+            continue
+
+        if rep_id not in unique_rep_summary:
+            unique_rep_summary[rep_id] = row
+
+    rep_commission_summary = list(
+        unique_rep_summary.values()
+    )
 
     # ============================================================
     # SORT REP PERFORMANCE
@@ -4849,6 +6577,30 @@ def commission(request):
         })
 
     # ============================================================
+    # HARD DEDUPLICATION OF SUPERVISOR PERFORMANCE
+    # ============================================================
+    # One row per supervisor.
+    # All CommissionEntry records belonging to the same supervisor
+    # are already aggregated above; this final guard ensures the
+    # template can never receive duplicate supervisor rows.
+    # ============================================================
+
+    unique_supervisor_summary = {}
+
+    for row in supervisor_performance_summary:
+        supervisor_id = row.get("supervisor_id")
+
+        if supervisor_id is None:
+            continue
+
+        if supervisor_id not in unique_supervisor_summary:
+            unique_supervisor_summary[supervisor_id] = row
+
+    supervisor_performance_summary = list(
+        unique_supervisor_summary.values()
+    )
+
+    # ============================================================
     # SORT SUPERVISOR PERFORMANCE
     #
     # Highest commission first.
@@ -4895,14 +6647,24 @@ def commission(request):
             1,
         )
 
-        end = date(
-            selected_year,
-            month,
-            calendar.monthrange(
+        # Use the first day of the following month as an
+        # exclusive upper bound. This works correctly whether
+        # invoice__paid_date is a DateField or DateTimeField.
+        if month == 12:
+
+            end = date(
+                selected_year + 1,
+                1,
+                1,
+            )
+
+        else:
+
+            end = date(
                 selected_year,
-                month,
-            )[1],
-        )
+                month + 1,
+                1,
+            )
 
         month_entries = (
             CommissionEntry.objects
@@ -4915,7 +6677,7 @@ def commission(request):
             )
             .filter(
                 invoice__paid_date__gte=start,
-                invoice__paid_date__lte=end,
+                invoice__paid_date__lt=end,
             )
         )
 
@@ -4932,6 +6694,14 @@ def commission(request):
             month_entries = (
                 month_entries.filter(
                     territory_id=selected_territory
+                )
+            )
+
+        if selected_rep:
+
+            month_entries = (
+                month_entries.filter(
+                    rep_id=selected_rep
                 )
             )
 
@@ -5064,6 +6834,12 @@ def commission(request):
         "selected_region":
             selected_region,
 
+        "selected_rep":
+            selected_rep,
+
+        "reps":
+            reps,
+
         "selected_territory":
             selected_territory,
 
@@ -5083,6 +6859,13 @@ def commission(request):
 
         "territories":
             territories,
+
+        # --------------------------------------------------------
+        # USER ACCESS / ROLE
+        # --------------------------------------------------------
+
+        "is_representative_only":
+            is_representative_only,
 
         # --------------------------------------------------------
         # PERIOD DATES
@@ -6818,110 +8601,400 @@ def commission_rep_detail(request, user_id):
     """
     Detailed commission performance for a single sales representative.
 
+    The detail page uses the SAME 15th-to-15th reporting period
+    used by the main Commission Centre.
+
     Shows:
-    - Commission entries for the selected period
+    - All commission entries for the selected rep
+    - All entries within the selected reporting period
     - Rep commission
     - New business bonus
     - Revenue generated
     - Unique clients
+    - Rep revenue target from MonthlyTargetAllocation
+    - Rep client target from MonthlyTargetAllocation
     - Client target progress
     - Monthly commission trend
+
+    The selected period is passed from the Commission Centre as:
+
+        ?period=<selected_period>
+
+    For backwards compatibility, month/year parameters are also
+    supported when period is not supplied.
     """
 
     today = localdate()
 
-    # =====================================================
-    # FILTERS
-    # =====================================================
-
-    # IMPORTANT:
-    # The commission page can send month="" or year="".
-    # int("") causes ValueError, so handle empty values safely.
-
-    month_param = request.GET.get("month")
-    year_param = request.GET.get("year")
-
-    try:
-        selected_month = int(month_param) if month_param else today.month
-    except (TypeError, ValueError):
-        selected_month = today.month
-
-    try:
-        selected_year = int(year_param) if year_param else today.year
-    except (TypeError, ValueError):
-        selected_year = today.year
-
-    selected_area = request.GET.get("area", "").strip()
-
-    # Keep values valid
-    if selected_month < 1 or selected_month > 12:
-        selected_month = today.month
-
-    if selected_year < 2000 or selected_year > 2100:
-        selected_year = today.year
-
-    month_code = calendar.month_abbr[selected_month].upper()
-
-    # =====================================================
-    # SELECTED PERIOD
-    # =====================================================
-
-    first_day = date(
-        selected_year,
-        selected_month,
-        1,
-    )
-
-    last_day = date(
-        selected_year,
-        selected_month,
-        calendar.monthrange(
-            selected_year,
-            selected_month,
-        )[1],
-    )
-
-    # =====================================================
+    # ============================================================
     # SALES REPRESENTATIVE
-    # =====================================================
+    # ============================================================
 
     rep_user = get_object_or_404(
         User,
         id=user_id,
     )
 
-    # =====================================================
+    # ============================================================
+    # FILTERS
+    # ============================================================
+
+    selected_period = (
+        request.GET.get("period", "")
+        or ""
+    ).strip()
+
+    selected_area = (
+        request.GET.get("area", "")
+        or ""
+    ).strip()
+
+    selected_territory = (
+        request.GET.get("territory", "")
+        or ""
+    ).strip()
+
+    # ============================================================
+    # PERIOD HELPERS
+    # ============================================================
+
+    def build_reporting_period(
+        year,
+        month,
+    ):
+        """
+        Build the 15th-to-15th reporting period.
+
+        Example:
+
+            August 2026
+            = 15 July 2026 through 15 August 2026
+
+        The end date is EXCLUSIVE when querying paid invoices.
+        """
+
+        if month == 1:
+            period_start = date(
+                year - 1,
+                12,
+                15,
+            )
+        else:
+            period_start = date(
+                year,
+                month - 1,
+                15,
+            )
+
+        period_end = date(
+            year,
+            month,
+            15,
+        )
+
+        return period_start, period_end
+
+    # ============================================================
+    # DETERMINE SELECTED REPORTING PERIOD
+    # ============================================================
+
+    period_start = None
+    period_end = None
+
+    # ------------------------------------------------------------
+    # OPTION 1:
+    # Main Commission Centre sends an ISO period.
+    #
+    # Supported examples:
+    #
+    # 2026-07-15_2026-08-15
+    # 2026-07-15/2026-08-15
+    # 2026-07-15 to 2026-08-15
+    # ------------------------------------------------------------
+
+    if selected_period:
+
+        period_text = (
+            selected_period
+            .replace(
+                "–",
+                "-",
+            )
+            .replace(
+                "—",
+                "-",
+            )
+            .strip()
+        )
+
+        # Try ISO-style dates first.
+        iso_matches = re.findall(
+            r"(\d{4}-\d{2}-\d{2})",
+            period_text,
+        )
+
+        if len(iso_matches) >= 2:
+            try:
+                period_start = date.fromisoformat(
+                    iso_matches[0]
+                )
+
+                period_end = date.fromisoformat(
+                    iso_matches[1]
+                )
+            except ValueError:
+                period_start = None
+                period_end = None
+
+    # ------------------------------------------------------------
+    # OPTION 2:
+    # Period label such as:
+    #
+    # 15 Jul - 15 Aug
+    # Aug 15 - Sep 15
+    #
+    # In this case use selected_year / today.year.
+    # ------------------------------------------------------------
+
+    if selected_period and (
+        period_start is None
+        or period_end is None
+    ):
+
+        year_param = request.GET.get(
+            "year"
+        )
+
+        try:
+            selected_year = (
+                int(year_param)
+                if year_param
+                else today.year
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            selected_year = today.year
+
+        # Try to identify the ending month.
+        month_number = None
+
+        month_abbreviations = {
+            calendar.month_abbr[i].lower(): i
+            for i in range(1, 13)
+        }
+
+        month_names = {
+            calendar.month_name[i].lower(): i
+            for i in range(1, 13)
+        }
+
+        lower_period = period_text.lower()
+
+        # Look for full month names first.
+        for month_name, number in month_names.items():
+
+            if month_name in lower_period:
+                month_number = number
+
+        # Then abbreviations.
+        if month_number is None:
+
+            for month_name, number in month_abbreviations.items():
+
+                if month_name in lower_period:
+                    month_number = number
+
+        if month_number:
+
+            period_start, period_end = (
+                build_reporting_period(
+                    selected_year,
+                    month_number,
+                )
+            )
+
+    # ============================================================
+    # OPTION 3:
+    # BACKWARDS COMPATIBILITY
+    #
+    # If no usable period was supplied, use month/year.
+    # ============================================================
+
+    if period_start is None or period_end is None:
+
+        month_param = request.GET.get(
+            "month"
+        )
+
+        year_param = request.GET.get(
+            "year"
+        )
+
+        try:
+            selected_month = (
+                int(month_param)
+                if month_param
+                else today.month
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            selected_month = today.month
+
+        try:
+            selected_year = (
+                int(year_param)
+                if year_param
+                else today.year
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            selected_year = today.year
+
+        if (
+            selected_month < 1
+            or selected_month > 12
+        ):
+            selected_month = today.month
+
+        if (
+            selected_year < 2000
+            or selected_year > 2100
+        ):
+            selected_year = today.year
+
+        period_start, period_end = (
+            build_reporting_period(
+                selected_year,
+                selected_month,
+            )
+        )
+
+    # ============================================================
+    # FINAL PERIOD VALIDATION
+    # ============================================================
+
+    if period_start >= period_end:
+
+        # Safe fallback to the current reporting period.
+
+        if today.day >= 15:
+
+            if today.month == 12:
+                fallback_year = today.year + 1
+                fallback_month = 1
+            else:
+                fallback_year = today.year
+                fallback_month = today.month + 1
+
+        else:
+
+            fallback_year = today.year
+            fallback_month = today.month
+
+        period_start, period_end = (
+            build_reporting_period(
+                fallback_year,
+                fallback_month,
+            )
+        )
+
+    # The target month/year is determined by the
+    # MONTH IN WHICH THE REPORTING PERIOD ENDS.
+    target_year = period_end.year
+    target_month = period_end.month
+
+    month_code = (
+        calendar.month_abbr[
+            target_month
+        ].upper()
+    )
+
+    # ============================================================
+    # HUMAN-READABLE PERIOD LABEL
+    # ============================================================
+
+    selected_period = (
+        f"{period_start.strftime('%d %b %Y')}"
+        f" - "
+        f"{period_end.strftime('%d %b %Y')}"
+    )
+
+    # ============================================================
     # COMMISSION ENTRIES
-    # =====================================================
+    # ============================================================
+    #
+    # IMPORTANT:
+    #
+    # Use invoice__paid_date, NOT CommissionEntry.created_at.
+    #
+    # CommissionEntry is generated when the invoice becomes
+    # paid, and the Commission Centre also uses paid_date.
+    #
+    # The period end is EXCLUSIVE:
+    #
+    #     >= period_start
+    #     <  period_end
+    #
+    # This prevents the 15th from being counted in two periods.
+    # ============================================================
 
     commission_entries = (
         CommissionEntry.objects
         .select_related(
             "invoice",
+            "invoice__client",
+            "invoice__client__territory",
+            "invoice__client__area",
             "client",
+            "territory",
+            "area",
             "rep",
             "supervisor",
         )
         .filter(
             rep=rep_user,
-            created_at__date__gte=first_day,
-            created_at__date__lte=last_day,
+            invoice__paid_date__gte=period_start,
+            invoice__paid_date__lt=period_end,
         )
-        .order_by("-created_at")
+        .order_by(
+            "-invoice__paid_date",
+            "-created_at",
+        )
     )
 
-    # =====================================================
+    # ============================================================
     # AREA FILTER
-    # =====================================================
+    # ============================================================
 
     if selected_area:
-        commission_entries = commission_entries.filter(
-            client__area=selected_area
+
+        commission_entries = (
+            commission_entries.filter(
+                client__area=selected_area
+            )
         )
 
-    # =====================================================
+    # ============================================================
+    # TERRITORY FILTER
+    # ============================================================
+
+    if selected_territory:
+
+        commission_entries = (
+            commission_entries.filter(
+                territory_id=selected_territory
+            )
+        )
+
+    # ============================================================
     # REP COMMISSION
-    # =====================================================
+    # ============================================================
 
     rep_total = (
         commission_entries.aggregate(
@@ -6930,141 +9003,453 @@ def commission_rep_detail(request, user_id):
         or Decimal("0.00")
     )
 
-    # =====================================================
+    rep_total = rep_total.quantize(
+        Decimal("0.01")
+    )
+
+    # ============================================================
+    # SUPERVISOR COMMISSION
+    # ============================================================
+
+    supervisor_total = (
+        commission_entries.aggregate(
+            t=Sum("supervisor_amount")
+        )["t"]
+        or Decimal("0.00")
+    )
+
+    supervisor_total = supervisor_total.quantize(
+        Decimal("0.01")
+    )
+
+    # ============================================================
+    # TOTAL COMMISSION
+    # ============================================================
+
+    total_commission = (
+        rep_total
+        + supervisor_total
+    ).quantize(
+        Decimal("0.01")
+    )
+
+    # ============================================================
     # NEW BUSINESS BONUS
-    # =====================================================
+    # ============================================================
+    #
+    # New business bonus is based on the rep commission
+    # attached to new-business CommissionEntry records.
+    # ============================================================
 
     bonus_total = (
         commission_entries
-        .filter(is_new_business=True)
+        .filter(
+            is_new_business=True
+        )
         .aggregate(
             t=Sum("rep_amount")
         )["t"]
         or Decimal("0.00")
     )
 
-    # =====================================================
+    bonus_total = bonus_total.quantize(
+        Decimal("0.01")
+    )
+
+    # ============================================================
     # REVENUE
-    # =====================================================
+    # ============================================================
 
     revenue_total = (
         commission_entries.aggregate(
-            t=Sum("invoice__order_total_inc")
+            t=Sum(
+                "invoice__order_total_inc"
+            )
         )["t"]
         or Decimal("0.00")
     )
 
-    # =====================================================
+    revenue_total = revenue_total.quantize(
+        Decimal("0.01")
+    )
+
+    # ============================================================
     # UNIQUE CLIENTS
-    # =====================================================
+    # ============================================================
 
     client_count = (
         commission_entries
         .values("client_id")
-        .exclude(client_id=None)
+        .exclude(
+            client_id=None
+        )
         .distinct()
         .count()
     )
 
-    # =====================================================
-    # CLIENT TARGET PROGRESS
-    # =====================================================
+    # ============================================================
+    # ORDERS / ENTRIES
+    # ============================================================
 
-    allocation = (
+    entry_count = commission_entries.count()
+
+    # Because CommissionEntry has a OneToOne relationship
+    # with Invoice, the number of commission entries also
+    # represents the number of commission-generating invoices.
+    order_count = entry_count
+
+    # ============================================================
+    # MONTHLY TARGET ALLOCATION
+    # ============================================================
+    #
+    # IMPORTANT:
+    #
+    # We use MonthlyTargetAllocation for THIS REP and THIS
+    # REPORTING PERIOD.
+    #
+    # The allocation stores:
+    #
+    #     monthly_target_value = revenue target
+    #     client_target        = client target
+    #
+    # A rep may have allocations across multiple territories,
+    # so we aggregate them rather than simply taking .first().
+    # ============================================================
+
+    allocation_qs = (
         MonthlyTargetAllocation.objects
-        .select_related("monthly_target")
+        .select_related(
+            "monthly_target",
+            "monthly_target__territory",
+            "sales_rep",
+        )
         .filter(
             sales_rep=rep_user,
-            monthly_target__year=selected_year,
+            monthly_target__year=target_year,
             monthly_target__month=month_code,
         )
     )
 
-    if selected_area:
-        allocation = allocation.filter(
-            monthly_target__area=selected_area
+    # ------------------------------------------------------------
+    # Territory filter
+    # ------------------------------------------------------------
+
+    if selected_territory:
+
+        allocation_qs = (
+            allocation_qs.filter(
+                monthly_target__territory_id=(
+                    selected_territory
+                )
+            )
         )
 
-    allocation = allocation.first()
+    # ------------------------------------------------------------
+    # Area compatibility
+    #
+    # MonthlyTarget in the current model is territory based.
+    # There is no area field in the model shown, so the area
+    # filter is intentionally NOT applied here.
+    #
+    # Actual commission entries are still filtered by area.
+    # ------------------------------------------------------------
 
-    client_target = (
-        allocation.client_target
-        if allocation
-        else 0
+    allocation_totals = (
+        allocation_qs.aggregate(
+            revenue_target=Coalesce(
+                Sum(
+                    "monthly_target_value"
+                ),
+                Decimal("0.00"),
+                output_field=DecimalField(
+                    max_digits=14,
+                    decimal_places=2,
+                ),
+            ),
+            client_target=Coalesce(
+                Sum(
+                    "client_target"
+                ),
+                0,
+            ),
+        )
     )
 
-    # =====================================================
-    # CLIENT TARGET %
-    # =====================================================
+    revenue_target = (
+        allocation_totals[
+            "revenue_target"
+        ]
+        or Decimal("0.00")
+    )
 
-    if client_target > 0:
-        client_target_pct = (
-            Decimal(client_count)
-            / Decimal(client_target)
-        ) * Decimal("100")
-    else:
-        client_target_pct = Decimal("0.00")
-
-    client_target_pct = client_target_pct.quantize(
+    revenue_target = revenue_target.quantize(
         Decimal("0.01")
     )
 
-    # =====================================================
-    # CLIENTS NEEDED FOR BONUS
-    # =====================================================
+    client_target = (
+        allocation_totals[
+            "client_target"
+        ]
+        or 0
+    )
+
+    # ============================================================
+    # REVENUE TARGET %
+    # ============================================================
+
+    if revenue_target > 0:
+
+        revenue_target_pct = (
+            revenue_total
+            / revenue_target
+            * Decimal("100")
+        )
+
+    else:
+
+        revenue_target_pct = Decimal(
+            "0.00"
+        )
+
+    revenue_target_pct = (
+        revenue_target_pct.quantize(
+            Decimal("0.01")
+        )
+    )
+
+    # ============================================================
+    # CLIENT TARGET %
+    # ============================================================
+
+    if client_target > 0:
+
+        client_target_pct = (
+            Decimal(client_count)
+            / Decimal(client_target)
+            * Decimal("100")
+        )
+
+    else:
+
+        client_target_pct = Decimal(
+            "0.00"
+        )
+
+    client_target_pct = (
+        client_target_pct.quantize(
+            Decimal("0.01")
+        )
+    )
+
+    # ============================================================
+    # REVENUE GAP
+    # ============================================================
+
+    revenue_gap = max(
+        revenue_target - revenue_total,
+        Decimal("0.00"),
+    )
+
+    revenue_gap = revenue_gap.quantize(
+        Decimal("0.01")
+    )
+
+    # ============================================================
+    # CLIENT GAP
+    # ============================================================
 
     clients_needed_for_bonus = max(
         client_target - client_count,
         0,
     )
 
-    # =====================================================
+    # ============================================================
     # BONUS ACTIVE
-    # =====================================================
+    # ============================================================
+    #
+    # The accelerator/bonus only activates when BOTH:
+    #
+    #     1. Revenue target reached
+    #     2. Client target reached
+    #
+    # This matches the Commission Centre logic.
+    # ============================================================
 
     bonus_active = (
-        client_count > client_target
-        if client_target
+        revenue_total >= revenue_target
+        and client_count >= client_target
+        if (
+            revenue_target > 0
+            and client_target > 0
+        )
         else False
     )
 
-    # =====================================================
+    # ============================================================
+    # PERIOD WORKING DAYS
+    # ============================================================
+
+    working_days = 0
+
+    current_day = period_start
+
+    while current_day < period_end:
+
+        if current_day.weekday() < 5:
+            working_days += 1
+
+        current_day += timedelta(
+            days=1
+        )
+
+    if working_days <= 0:
+        working_days = 1
+
+    # ============================================================
+    # DAYS PASSED
+    # ============================================================
+
+    effective_today = today
+
+    if effective_today < period_start:
+
+        days_passed = 0
+
+    elif effective_today >= period_end:
+
+        days_passed = working_days
+
+    else:
+
+        days_passed = 0
+
+        current_day = period_start
+
+        while current_day < effective_today:
+
+            if current_day.weekday() < 5:
+                days_passed += 1
+
+            current_day += timedelta(
+                days=1
+            )
+
+    days_remaining = max(
+        working_days - days_passed,
+        0,
+    )
+
+    # ============================================================
+    # REQUIRED PER WEEK
+    # ============================================================
+
+    weeks_remaining = (
+        Decimal(days_remaining)
+        / Decimal("5")
+    )
+
+    if (
+        weeks_remaining > 0
+        and revenue_gap > 0
+    ):
+
+        required_per_week = (
+            revenue_gap
+            / weeks_remaining
+        ).quantize(
+            Decimal("0.01")
+        )
+
+    else:
+
+        required_per_week = Decimal(
+            "0.00"
+        )
+
+    # ============================================================
+    # DAILY / WEEKLY AVERAGE
+    # ============================================================
+
+    if days_passed > 0:
+
+        weekly_average = (
+            revenue_total
+            / Decimal(days_passed)
+            * Decimal("5")
+        ).quantize(
+            Decimal("0.01")
+        )
+
+    else:
+
+        weekly_average = Decimal(
+            "0.00"
+        )
+
+    # ============================================================
     # COMMISSION TREND
-    # FULL SELECTED YEAR
-    # =====================================================
+    #
+    # Keep the full selected calendar year for the chart,
+    # but use paid_date for consistency with Commission Centre.
+    # ============================================================
 
     commission_trend_labels = []
     commission_trend_data = []
 
-    selected_trend_index = selected_month - 1
+    # Use the year in which the selected period ends.
+    trend_year = target_year
+
+    selected_trend_index = (
+        target_month - 1
+    )
 
     for month in range(1, 13):
 
         start = date(
-            selected_year,
+            trend_year,
             month,
             1,
         )
 
-        end = date(
-            selected_year,
-            month,
-            calendar.monthrange(
-                selected_year,
-                month,
-            )[1],
+        if month == 12:
+
+            end = date(
+                trend_year + 1,
+                1,
+                1,
+            )
+
+        else:
+
+            end = date(
+                trend_year,
+                month + 1,
+                1,
+            )
+
+        qs = (
+            CommissionEntry.objects
+            .filter(
+                rep=rep_user,
+                invoice__paid_date__gte=start,
+                invoice__paid_date__lt=end,
+            )
         )
 
-        qs = CommissionEntry.objects.filter(
-            rep=rep_user,
-            created_at__date__gte=start,
-            created_at__date__lte=end,
-        )
+        # Apply area filter to trend.
 
-        # Apply area to trend as well
         if selected_area:
+
             qs = qs.filter(
                 client__area=selected_area
+            )
+
+        # Apply territory filter to trend.
+
+        if selected_territory:
+
+            qs = qs.filter(
+                territory_id=selected_territory
             )
 
         totals = qs.aggregate(
@@ -7094,16 +9479,17 @@ def commission_rep_detail(request, user_id):
         )
 
         commission_trend_labels.append(
-            f"{calendar.month_abbr[month]} {selected_year}"
+            f"{calendar.month_abbr[month]} "
+            f"{trend_year}"
         )
 
         commission_trend_data.append(
             float(month_total)
         )
 
-    # =====================================================
+    # ============================================================
     # FILTER OPTIONS
-    # =====================================================
+    # ============================================================
 
     months = [
         {
@@ -7120,57 +9506,161 @@ def commission_rep_detail(request, user_id):
         )
     )
 
-    # =====================================================
+    # ============================================================
     # CONTEXT
-    # =====================================================
+    # ============================================================
 
     context = {
-        # Representative
-        "rep_user": rep_user,
 
-        # Entries
-        "commission_entries": commission_entries,
+        # --------------------------------------------------------
+        # REPRESENTATIVE
+        # --------------------------------------------------------
 
-        # Filters
-        "selected_month": selected_month,
-        "selected_year": selected_year,
-        "selected_area": selected_area,
-        "selected_month_name": calendar.month_name[
-            selected_month
-        ],
+        "rep_user":
+            rep_user,
 
-        "months": months,
-        "years": years,
+        # --------------------------------------------------------
+        # COMMISSION ENTRIES
+        # --------------------------------------------------------
 
-        # Totals
-        "rep_total": rep_total,
-        "bonus_total": bonus_total,
-        "revenue_total": revenue_total,
-        "client_count": client_count,
+        "commission_entries":
+            commission_entries,
 
-        # Target
-        "client_target": client_target,
-        "client_target_pct": client_target_pct,
-        "clients_needed_for_bonus": clients_needed_for_bonus,
-        "bonus_active": bonus_active,
+        "entry_count":
+            entry_count,
 
-        # Chart
-        "commission_trend_labels": commission_trend_labels,
-        "commission_trend_data": commission_trend_data,
-        "selected_trend_index": selected_trend_index,
+        "order_count":
+            order_count,
+
+        # --------------------------------------------------------
+        # REPORTING PERIOD
+        # --------------------------------------------------------
+
+        "period_start":
+            period_start,
+
+        "period_end":
+            period_end,
+
+        "selected_period":
+            selected_period,
+
+        "selected_month":
+            target_month,
+
+        "selected_year":
+            target_year,
+
+        "selected_month_name":
+            calendar.month_name[
+                target_month
+            ],
+
+        # --------------------------------------------------------
+        # FILTERS
+        # --------------------------------------------------------
+
+        "selected_area":
+            selected_area,
+
+        "selected_territory":
+            selected_territory,
+
+        "months":
+            months,
+
+        "years":
+            years,
+
+        # --------------------------------------------------------
+        # COMMISSION TOTALS
+        # --------------------------------------------------------
+
+        "rep_total":
+            rep_total,
+
+        "supervisor_total":
+            supervisor_total,
+
+        "total_commission":
+            total_commission,
+
+        "bonus_total":
+            bonus_total,
+
+        "revenue_total":
+            revenue_total,
+
+        "client_count":
+            client_count,
+
+        # --------------------------------------------------------
+        # TARGETS
+        # --------------------------------------------------------
+
+        "revenue_target":
+            revenue_target,
+
+        "revenue_target_pct":
+            revenue_target_pct,
+
+        "revenue_gap":
+            revenue_gap,
+
+        "client_target":
+            client_target,
+
+        "client_target_pct":
+            client_target_pct,
+
+        "clients_needed_for_bonus":
+            clients_needed_for_bonus,
+
+        "bonus_active":
+            bonus_active,
+
+        # --------------------------------------------------------
+        # PACING
+        # --------------------------------------------------------
+
+        "working_days":
+            working_days,
+
+        "days_passed":
+            days_passed,
+
+        "days_remaining":
+            days_remaining,
+
+        "required_per_week":
+            required_per_week,
+
+        "weekly_average":
+            weekly_average,
+
+        # --------------------------------------------------------
+        # TREND
+        # --------------------------------------------------------
+
+        "commission_trend_labels":
+            commission_trend_labels,
+
+        "commission_trend_data":
+            commission_trend_data,
+
+        "selected_trend_index":
+            selected_trend_index,
     }
 
-    # =====================================================
+    # ============================================================
     # RENDER
-    # =====================================================
+    # ============================================================
 
     return render(
         request,
         "commission/commission_rep_detail.html",
         context,
     )
-
-
 
 @login_required
 def create_ticket(request):

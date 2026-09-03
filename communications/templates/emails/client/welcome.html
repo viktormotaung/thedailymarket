@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Welcome to The Daily Market</title>
+
+    <style>
+
+        /* =========================================================
+           GENERAL
+           ========================================================= */
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f5f6f4;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #252525;
+        }
+
+        table {
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+
+        img {
+            border: 0;
+            display: block;
+        }
+
+
+        /* =========================================================
+           EMAIL VERSION
+           ========================================================= */
+
+        .email-version {
+            display: block;
+        }
+
+        .email-wrapper {
+            width: 100%;
+            background-color: #f5f6f4;
+            padding: 35px 15px;
+            box-sizing: border-box;
+        }
+
+        .email-container {
+            width: 100%;
+            max-width: 680px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border: 1px solid #e1e4e1;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+
+        /* =========================================================
+           EMAIL HEADER
+           ========================================================= */
+
+        .email-header {
+            background-color: #ffffff;
+            padding: 35px 40px 25px 40px;
+            text-align: center;
+        }
+
+        .email-brand {
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            color: #08683f;
+            margin: 0;
+        }
+
+        .email-brand-highlight {
+            background-color: #f5d77a;
+            color: #252525;
+            padding: 2px 6px;
+        }
+
+        .email-tagline {
+            margin: 10px 0 0 0;
+            color: #68716d;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+
+        /* =========================================================
+           EMAIL HERO
+           ========================================================= */
+
+        .email-hero {
+            background-color: #08683f;
+            padding: 32px 40px;
+            color: #ffffff;
+        }
+
+        .email-hero-title {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            line-height: 1.2;
+            font-weight: 700;
+        }
+
+        .email-hero-text {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #eef8f3;
+        }
+
+
+        /* =========================================================
+           EMAIL CONTENT
+           ========================================================= */
+
+        .email-content {
+            padding: 35px 40px 40px 40px;
+        }
+
+        .email-greeting {
+            font-size: 17px;
+            margin: 0 0 20px 0;
+        }
+
+        .email-paragraph {
+            font-size: 15px;
+            line-height: 1.7;
+            color: #444b48;
+            margin: 0 0 18px 0;
+        }
+
+
+        /* =========================================================
+           EMAIL CUSTOMER CODE
+           ========================================================= */
+
+        .email-highlight-box {
+            background-color: #f8f4e7;
+            border-left: 4px solid #f1cc5b;
+            padding: 18px 20px;
+            margin: 25px 0 30px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .email-highlight-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            color: #68716d;
+            margin: 0 0 6px 0;
+        }
+
+        .email-customer-code {
+            font-size: 22px;
+            font-weight: 700;
+            color: #08683f;
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+
+
+        /* =========================================================
+           EMAIL SECTIONS
+           ========================================================= */
+
+        .email-section {
+            margin-top: 34px;
+        }
+
+        .email-section-title {
+            font-size: 20px;
+            line-height: 1.3;
+            font-weight: 700;
+            color: #08683f;
+            margin: 0 0 12px 0;
+        }
+
+        .email-section-intro {
+            font-size: 15px;
+            line-height: 1.7;
+            color: #444b48;
+            margin: 0 0 18px 0;
+        }
+
+        .email-rule {
+            border-top: 1px solid #e5e8e5;
+            margin: 32px 0;
+        }
+
+
+        /* =========================================================
+           EMAIL INFO CARDS
+           ========================================================= */
+
+        .email-info-card {
+            background-color: #f7f8f7;
+            border: 1px solid #e3e7e4;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 14px 0;
+        }
+
+        .email-info-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #252525;
+            margin: 0 0 8px 0;
+        }
+
+        .email-info-card-text {
+            font-size: 14px;
+            line-height: 1.65;
+            color: #555e5a;
+            margin: 0;
+        }
+
+
+        /* =========================================================
+           EMAIL PARTNERSHIP
+           ========================================================= */
+
+        .email-partnership {
+            background-color: #08683f;
+            color: #ffffff;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 25px;
+        }
+
+        .email-partnership-title {
+            margin: 0 0 10px 0;
+            font-size: 19px;
+            font-weight: 700;
+        }
+
+        .email-partnership-text {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.7;
+            color: #eef8f3;
+        }
+
+
+        /* =========================================================
+           EMAIL CONTACT
+           ========================================================= */
+
+        .email-contact-box {
+            background-color: #f8f4e7;
+            border-radius: 10px;
+            padding: 22px;
+            margin-top: 28px;
+        }
+
+        .email-contact-title {
+            margin: 0 0 8px 0;
+            font-size: 17px;
+            font-weight: 700;
+            color: #252525;
+        }
+
+        .email-contact-text {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #555e5a;
+        }
+
+
+        /* =========================================================
+           EMAIL FOOTER
+           ========================================================= */
+
+        .email-footer {
+            background-color: #252525;
+            padding: 25px 35px;
+            text-align: center;
+        }
+
+        .email-footer-brand {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0 0 7px 0;
+        }
+
+        .email-footer-tagline {
+            color: #bfc6c2;
+            font-size: 12px;
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .email-footer-note {
+            color: #8f9893;
+            font-size: 11px;
+            line-height: 1.5;
+            margin: 15px 0 0 0;
+        }
+
+
+        /* =========================================================
+           PDF VERSION
+           ========================================================= */
+
+        .pdf-version {
+            display: none;
+        }
+
+
+        /* =========================================================
+           PDF DOCUMENT
+           ========================================================= */
+
+        .pdf-page {
+            width: 100%;
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #252525;
+            background: #ffffff;
+        }
+
+        .pdf-header {
+            width: 100%;
+            padding-bottom: 14px;
+            border-bottom: 2px solid #08683f;
+            margin-bottom: 22px;
+        }
+
+        .pdf-brand {
+            font-size: 24px;
+            font-weight: 800;
+            color: #08683f;
+            margin: 0;
+        }
+
+        .pdf-brand-highlight {
+            background-color: #f5d77a;
+            color: #252525;
+            padding: 1px 5px;
+        }
+
+        .pdf-tagline {
+            margin: 5px 0 0 0;
+            color: #68716d;
+            font-size: 10px;
+        }
+
+
+        /* =========================================================
+           PDF HERO
+           ========================================================= */
+
+        .pdf-hero {
+            background-color: #08683f;
+            color: #ffffff;
+            padding: 20px 22px;
+            margin-bottom: 25px;
+        }
+
+        .pdf-hero-title {
+            margin: 0 0 7px 0;
+            font-size: 21px;
+            font-weight: 700;
+        }
+
+        .pdf-hero-text {
+            margin: 0;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+
+        /* =========================================================
+           PDF CONTENT
+           ========================================================= */
+
+        .pdf-greeting {
+            font-size: 13px;
+            margin: 0 0 14px 0;
+        }
+
+        .pdf-paragraph {
+            font-size: 11px;
+            line-height: 1.6;
+            color: #444b48;
+            margin: 0 0 12px 0;
+        }
+
+
+        /* =========================================================
+           PDF CUSTOMER CODE
+           ========================================================= */
+
+        .pdf-highlight-box {
+            background-color: #f8f4e7;
+            border-left: 4px solid #f1cc5b;
+            padding: 12px 15px;
+            margin: 18px 0 22px 0;
+        }
+
+        .pdf-highlight-label {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            color: #68716d;
+            margin: 0 0 4px 0;
+        }
+
+        .pdf-customer-code {
+            font-size: 17px;
+            font-weight: 700;
+            color: #08683f;
+            margin: 0;
+        }
+
+
+        /* =========================================================
+           PDF SECTIONS
+           ========================================================= */
+
+        .pdf-section {
+            margin-top: 22px;
+        }
+
+        .pdf-section-title {
+            font-size: 15px;
+            color: #08683f;
+            font-weight: 700;
+            margin: 0 0 7px 0;
+        }
+
+        .pdf-section-intro {
+            font-size: 11px;
+            line-height: 1.6;
+            color: #444b48;
+            margin: 0 0 11px 0;
+        }
+
+        .pdf-rule {
+            border-top: 1px solid #e1e4e1;
+            margin: 20px 0;
+        }
+
+
+        /* =========================================================
+           PDF INFO CARDS
+           ========================================================= */
+
+        .pdf-info-card {
+            background-color: #f7f8f7;
+            border: 1px solid #dfe4e1;
+            padding: 11px 14px;
+            margin: 8px 0;
+        }
+
+        .pdf-info-card-title {
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #252525;
+            margin: 0 0 5px 0;
+        }
+
+        .pdf-info-card-text {
+            font-size: 9.5px;
+            line-height: 1.55;
+            color: #555e5a;
+            margin: 0;
+        }
+
+
+        /* =========================================================
+           PDF PARTNERSHIP
+           ========================================================= */
+
+        .pdf-partnership {
+            background-color: #08683f;
+            color: #ffffff;
+            padding: 16px;
+            margin-top: 18px;
+        }
+
+        .pdf-partnership-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin: 0 0 7px 0;
+        }
+
+        .pdf-partnership-text {
+            font-size: 10px;
+            line-height: 1.55;
+            color: #eef8f3;
+            margin: 0;
+        }
+
+
+        /* =========================================================
+           PDF CONTACT
+           ========================================================= */
+
+        .pdf-contact-box {
+            background-color: #f8f4e7;
+            padding: 14px;
+            margin-top: 18px;
+        }
+
+        .pdf-contact-title {
+            font-size: 12px;
+            font-weight: 700;
+            margin: 0 0 5px 0;
+        }
+
+        .pdf-contact-text {
+            font-size: 10px;
+            line-height: 1.55;
+            color: #555e5a;
+            margin: 0;
+        }
+
+
+        /* =========================================================
+           PDF CLOSING
+           ========================================================= */
+
+        .pdf-closing {
+            margin-top: 20px;
+            font-size: 11px;
+            line-height: 1.6;
+            color: #444b48;
+        }
+
+
+        /* =========================================================
+           PDF FOOTER
+           ========================================================= */
+
+        .pdf-footer {
+            margin-top: 25px;
+            padding-top: 12px;
+            border-top: 1px solid #dfe4e1;
+            text-align: center;
+        }
+
+        .pdf-footer-brand {
+            font-size: 10px;
+            font-weight: 700;
+            color: #252525;
+            margin: 0 0 3px 0;
+        }
+
+        .pdf-footer-text {
+            font-size: 8px;
+            color: #8f9893;
+            margin: 0;
+        }
+
+
+        /* =========================================================
+           MOBILE EMAIL
+           ========================================================= */
+
+        @media only screen and (max-width: 600px) {
+
+            .email-wrapper {
+                padding: 15px 8px;
+            }
+
+            .email-header {
+                padding: 28px 22px 20px 22px;
+            }
+
+            .email-brand {
+                font-size: 25px;
+            }
+
+            .email-hero {
+                padding: 28px 22px;
+            }
+
+            .email-hero-title {
+                font-size: 24px;
+            }
+
+            .email-content {
+                padding: 28px 22px 32px 22px;
+            }
+
+            .email-footer {
+                padding: 22px;
+            }
+        }
+
+
+        /* =========================================================
+           WEASYPRINT PDF
+           ========================================================= */
+
+        @page {
+            size: A4;
+            margin: 15mm 16mm 15mm 16mm;
+        }
+
+        @media print {
+
+            html,
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+            }
+
+            /*
+             * Hide the complete email version.
+             */
+            .email-version {
+                display: none !important;
+            }
+
+            /*
+             * Show only the dedicated PDF version.
+             */
+            .pdf-version {
+                display: block !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .pdf-page {
+                display: block !important;
+                width: 100% !important;
+                max-width: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .pdf-header,
+            .pdf-hero,
+            .pdf-section,
+            .pdf-info-card,
+            .pdf-highlight-box,
+            .pdf-partnership,
+            .pdf-contact-box,
+            .pdf-footer {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .pdf-section {
+                break-inside: auto;
+                page-break-inside: auto;
+            }
+        }
+
+    </style>
+</head>
+
+<body>
+
+
+<!-- =============================================================
+     EMAIL VERSION
+     ============================================================= -->
+
+<div class="email-version">
+
+    <table role="presentation" width="100%">
+        <tr>
+            <td class="email-wrapper">
+
+                <table
+                    role="presentation"
+                    class="email-container"
+                    align="center"
+                    width="100%"
+                    cellpadding="0"
+                    cellspacing="0"
+                >
+
+                    <!-- HEADER -->
+
+                    <tr>
+                        <td class="email-header">
+
+                            <p class="email-brand">
+                                The
+                                <span class="email-brand-highlight">Daily</span>
+                                <span class="email-brand-highlight">Market</span>
+                            </p>
+
+                            <p class="email-tagline">
+                                Your kitchen. Our supply. Growing together.
+                            </p>
+
+                        </td>
+                    </tr>
+
+
+                    <!-- HERO -->
+
+                    <tr>
+                        <td class="email-hero">
+
+                            <h1 class="email-hero-title">
+                                Welcome to The Daily Market.
+                            </h1>
+
+                            <p class="email-hero-text">
+                                Your kitchen is now active, and we're ready to
+                                partner with you for the journey ahead.
+                            </p>
+
+                        </td>
+                    </tr>
+
+
+                    <!-- CONTENT -->
+
+                    <tr>
+                        <td class="email-content">
+
+                            <p class="email-greeting">
+                                Hi {{ customer_name }},
+                            </p>
+
+                            <p class="email-paragraph">
+                                Welcome to <strong>The Daily Market</strong>.
+                                We're pleased to have you with us and look
+                                forward to partnering with you to help your
+                                kitchen
+                                <strong>
+                                    trade better, stay stocked and grow.
+                                </strong>
+                            </p>
+
+                            <p class="email-paragraph">
+                                Our aim is to make getting your everyday
+                                kitchen essentials as simple and reliable as
+                                possible — from placing your order, to
+                                preparing your goods, to getting them
+                                delivered to your kitchen.
+                            </p>
+
+
+                            <!-- CUSTOMER CODE -->
+
+                            <div class="email-highlight-box">
+
+                                <p class="email-highlight-label">
+                                    Your Customer Code
+                                </p>
+
+                                <p class="email-customer-code">
+                                    {{ client.client_number }}
+                                </p>
+
+                            </div>
+
+
+                            <!-- ACCOUNT MANAGER -->
+
+                            <div class="email-section">
+
+                                <h2 class="email-section-title">
+                                    Your Account Manager
+                                </h2>
+
+                                <p class="email-section-intro">
+                                    Your first point of contact for orders
+                                    and product enquiries is your
+                                    <strong>
+                                        Account Manager,
+                                        {{ account_manager_name }}
+                                    </strong>.
+                                </p>
+
+                                <p class="email-paragraph">
+                                    To place an order, discuss products,
+                                    check availability or enquire about
+                                    pricing, please communicate directly
+                                    with your Account Manager.
+                                </p>
+
+                                <p class="email-paragraph">
+                                    If your Account Manager is unavailable,
+                                    an alternative contact number will be
+                                    provided so that your order or enquiry
+                                    can still be assisted.
+                                </p>
+
+                            </div>
+
+
+                            <div class="email-rule"></div>
+
+
+                            <!-- ORDERING -->
+
+                            <div class="email-section">
+
+                                <h2 class="email-section-title">
+                                    How Ordering Works
+                                </h2>
+
+                                <div class="email-info-card">
+
+                                    <p class="email-info-card-title">
+                                        🕢 Orders must be placed and confirmed
+                                        by 7:30 AM
+                                    </p>
+
+                                    <p class="email-info-card-text">
+                                        To keep our delivery operation running
+                                        on schedule, orders must be
+                                        <strong>
+                                            placed and confirmed by 7:30 AM
+                                            each day.
+                                        </strong>
+                                    </p>
+
+                                    <p
+                                        class="email-info-card-text"
+                                        style="margin-top: 10px;"
+                                    >
+                                        To keep our delivery operation running
+                                        on schedule, orders must be placed and
+                                        confirmed by 7:30 AM each day.
+                                    </p>
+
+                                    <p
+                                        class="email-info-card-text"
+                                        style="margin-top: 10px;"
+                                    >
+                                        This gives our team enough time to
+                                        prepare your order and organise the
+                                        day's deliveries. Orders confirmed
+                                        after the daily cut-off may not be
+                                        accommodated for the same day's
+                                        delivery.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- PAYMENT -->
+
+                            <div class="email-section">
+
+                                <h2 class="email-section-title">
+                                    Payment
+                                </h2>
+
+                                <p class="email-section-intro">
+                                    The payment guidelines below apply
+                                    specifically to
+                                    <strong>cash clients</strong>.
+                                </p>
+
+
+                                <div class="email-info-card">
+
+                                    <p class="email-info-card-title">
+                                        Orders under R500
+                                    </p>
+
+                                    <p class="email-info-card-text">
+                                        For cash clients, orders under
+                                        <strong>R500</strong> may be paid by
+                                        <strong>cash on delivery</strong>,
+                                        or by another payment arrangement
+                                        agreed with The Daily Market.
+                                    </p>
+
+                                </div>
+
+
+                                <div class="email-info-card">
+
+                                    <p class="email-info-card-title">
+                                        Orders over R500
+                                    </p>
+
+                                    <p class="email-info-card-text">
+                                        For cash clients, orders over
+                                        <strong>R500</strong> must be paid
+                                        by <strong>EFT</strong>.
+                                    </p>
+
+                                    <p
+                                        class="email-info-card-text"
+                                        style="margin-top: 10px;"
+                                    >
+                                        Payment must be made immediately
+                                        after the order is confirmed, and
+                                        the funds must
+                                        <strong>
+                                            reflect in The Daily Market's
+                                            business account by 8:00 AM.
+                                        </strong>
+                                    </p>
+
+                                    <p
+                                        class="email-info-card-text"
+                                        style="margin-top: 10px;"
+                                    >
+                                        This requirement helps us keep the
+                                        delivery process efficient and also
+                                        contributes to the
+                                        <strong>
+                                            safety of our drivers
+                                        </strong>
+                                        by reducing the amount of cash that
+                                        needs to be handled during deliveries.
+                                    </p>
+
+                                </div>
+
+
+                                <div class="email-info-card">
+
+                                    <p class="email-info-card-title">
+                                        Account Clients
+                                    </p>
+
+                                    <p class="email-info-card-text">
+                                        Clients trading on an approved
+                                        <strong>
+                                            3-day or 7-day account
+                                        </strong>
+                                        are subject to a different set of
+                                        payment and account terms.
+                                        The cash-client payment rules above
+                                        do not apply to these clients.
+                                    </p>
+
+                                    <p
+                                        class="email-info-card-text"
+                                        style="margin-top: 10px;"
+                                    >
+                                        Your Account Manager will advise you
+                                        of the applicable terms for your
+                                        account.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- DELIVERY -->
+
+                            <div class="email-section">
+
+                                <h2 class="email-section-title">
+                                    Delivery
+                                </h2>
+
+                                <div class="email-info-card">
+
+                                    <p class="email-info-card-title">
+                                        Monday to Friday · 9:00 AM – 12:00 PM
+                                    </p>
+
+                                    <p class="email-info-card-text">
+                                        Deliveries take place
+                                        <strong>
+                                            Monday to Friday between
+                                            9:00 AM and 12:00 PM.
+                                        </strong>
+                                    </p>
+
+                                    <p
+                                        class="email-info-card-text"
+                                        style="margin-top: 10px;"
+                                    >
+                                        On the morning of your delivery, you
+                                        will receive an
+                                        <strong>
+                                            SMS when your kitchen essentials
+                                            leave our depot
+                                        </strong>,
+                                        normally between
+                                        <strong>
+                                            8:00 AM and 8:30 AM.
+                                        </strong>
+                                    </p>
+
+                                </div>
+
+
+                                <div class="email-info-card">
+
+                                    <p class="email-info-card-title">
+                                        Please make sure someone is available
+                                    </p>
+
+                                    <p class="email-info-card-text">
+                                        Please ensure that
+                                        <strong>
+                                            someone is present at your kitchen
+                                            to receive the delivery.
+                                        </strong>
+                                    </p>
+
+                                    <p
+                                        class="email-info-card-text"
+                                        style="margin-top: 10px;"
+                                    >
+                                        Our delivery schedule is planned
+                                        around multiple kitchens, and delays
+                                        at one delivery can negatively affect
+                                        the schedule for the kitchens that
+                                        follow.
+                                    </p>
+
+                                    <p
+                                        class="email-info-card-text"
+                                        style="margin-top: 10px;"
+                                    >
+                                        Having someone ready to receive and
+                                        check your goods helps us keep
+                                        deliveries
+                                        <strong>
+                                            on time and efficient for everyone.
+                                        </strong>
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- PARTNERSHIP -->
+
+                            <div class="email-partnership">
+
+                                <h2 class="email-partnership-title">
+                                    We're here to help your kitchen grow.
+                                </h2>
+
+                                <p class="email-partnership-text">
+                                    At The Daily Market, we don't just want to
+                                    deliver products to your kitchen.
+                                    We want to become a reliable trading
+                                    partner that understands your kitchen,
+                                    the products you use most and the way your
+                                    business operates.
+                                </p>
+
+                                <p
+                                    class="email-partnership-text"
+                                    style="margin-top: 12px;"
+                                >
+                                    As we trade together, our team can better
+                                    understand your needs and help you make
+                                    smarter purchasing decisions.
+                                </p>
+
+                            </div>
+
+
+                            <!-- CONTACT -->
+
+                            <div class="email-contact-box">
+
+                                <p class="email-contact-title">
+                                    Need assistance?
+                                </p>
+
+                                <p class="email-contact-text">
+                                    Your first point of contact is
+                                    <strong>
+                                        {{ account_manager_name }}
+                                    </strong>,
+                                    your Account Manager.
+                                </p>
+
+                                <p
+                                    class="email-contact-text"
+                                    style="margin-top: 8px;"
+                                >
+                                    For urgent queries, please contact
+                                    <strong>
+                                        087 265 5488
+                                    </strong>.
+                                </p>
+
+                            </div>
+
+
+                            <!-- CLOSING -->
+
+                            <p class="email-paragraph" style="margin-top: 30px;">
+                                <strong>
+                                    Welcome to The Daily Market.
+                                </strong>
+                                <br>
+                                Let's grow your kitchen together.
+                            </p>
+
+                            <p class="email-paragraph">
+                                — The Daily Market Team
+                            </p>
+
+                        </td>
+                    </tr>
+
+
+                    <!-- FOOTER -->
+
+                    <tr>
+                        <td class="email-footer">
+
+                            <p class="email-footer-brand">
+                                The Daily Market
+                            </p>
+
+                            <p class="email-footer-tagline">
+                                Your kitchen. Our supply. Growing together.
+                            </p>
+
+                            <p class="email-footer-note">
+                                Please keep this email for future reference.
+                                It contains important information about our
+                                ordering, payment and delivery procedures.
+                            </p>
+
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
+
+</div>
+
+
+
+<!-- =============================================================
+     PDF VERSION
+     ============================================================= -->
+
+<div class="pdf-version">
+
+    <div class="pdf-page">
+
+        <!-- PDF HEADER -->
+
+        <div class="pdf-header">
+
+            <p class="pdf-brand">
+                The
+                <span class="pdf-brand-highlight">Daily</span>
+                <span class="pdf-brand-highlight">Market</span>
+            </p>
+
+            <p class="pdf-tagline">
+                Your kitchen. Our supply. Growing together.
+            </p>
+
+        </div>
+
+
+        <!-- PDF HERO -->
+
+        <div class="pdf-hero">
+
+            <h1 class="pdf-hero-title">
+                Welcome to The Daily Market.
+            </h1>
+
+            <p class="pdf-hero-text">
+                Your kitchen is now active, and we're ready to partner
+                with you for the journey ahead.
+            </p>
+
+        </div>
+
+
+        <!-- PDF GREETING -->
+
+        <p class="pdf-greeting">
+            Hi {{ customer_name }},
+        </p>
+
+
+        <p class="pdf-paragraph">
+            Welcome to <strong>The Daily Market</strong>.
+            We're pleased to have you with us and look forward to
+            partnering with you to help your kitchen
+            <strong>
+                trade better, stay stocked and grow.
+            </strong>
+        </p>
+
+        <p class="pdf-paragraph">
+            Our aim is to make getting your everyday kitchen essentials
+            as simple and reliable as possible — from placing your order,
+            to preparing your goods, to getting them delivered to your
+            kitchen.
+        </p>
+
+
+        <!-- CUSTOMER CODE -->
+
+        <div class="pdf-highlight-box">
+
+            <p class="pdf-highlight-label">
+                Your Customer Code
+            </p>
+
+            <p class="pdf-customer-code">
+                {{ client.client_number }}
+            </p>
+
+        </div>
+
+
+        <!-- ACCOUNT MANAGER -->
+
+        <div class="pdf-section">
+
+            <h2 class="pdf-section-title">
+                Your Account Manager
+            </h2>
+
+            <p class="pdf-section-intro">
+                Your first point of contact for orders and product
+                enquiries is your
+                <strong>
+                    Account Manager, {{ account_manager_name }}
+                </strong>.
+            </p>
+
+            <p class="pdf-paragraph">
+                To place an order, discuss products, check availability
+                or enquire about pricing, please communicate directly
+                with your Account Manager.
+            </p>
+
+            <p class="pdf-paragraph">
+                If your Account Manager is unavailable, an alternative
+                contact number will be provided so that your order or
+                enquiry can still be assisted.
+            </p>
+
+        </div>
+
+
+        <div class="pdf-rule"></div>
+
+
+        <!-- ORDERING -->
+
+        <div class="pdf-section">
+
+            <h2 class="pdf-section-title">
+                How Ordering Works
+            </h2>
+
+            <div class="pdf-info-card">
+
+                <p class="pdf-info-card-title">
+                    🕢 Orders must be placed and confirmed by 7:30 AM
+                </p>
+
+                <p class="pdf-info-card-text">
+                    To keep our delivery operation running on schedule,
+                    orders must be
+                    <strong>
+                        placed and confirmed by 7:30 AM each day.
+                    </strong>
+                </p>
+
+                <p
+                    class="pdf-info-card-text"
+                    style="margin-top: 8px;"
+                >
+                    This gives our team enough time to prepare your order
+                    and organise the day's deliveries. Orders confirmed
+                    after the daily cut-off may not be accommodated for
+                    the same day's delivery.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- PAYMENT -->
+
+        <div class="pdf-section">
+
+            <h2 class="pdf-section-title">
+                Payment
+            </h2>
+
+            <p class="pdf-section-intro">
+                The payment guidelines below apply specifically to
+                <strong>cash clients</strong>.
+            </p>
+
+
+            <div class="pdf-info-card">
+
+                <p class="pdf-info-card-title">
+                    Orders under R500
+                </p>
+
+                <p class="pdf-info-card-text">
+                    For cash clients, orders under
+                    <strong>R500</strong> may be paid by
+                    <strong>cash on delivery</strong>, or by another
+                    payment arrangement agreed with The Daily Market.
+                </p>
+
+            </div>
+
+
+            <div class="pdf-info-card">
+
+                <p class="pdf-info-card-title">
+                    Orders over R500
+                </p>
+
+                <p class="pdf-info-card-text">
+                    For cash clients, orders over
+                    <strong>R500</strong> must be paid by
+                    <strong>EFT</strong>.
+                </p>
+
+                <p
+                    class="pdf-info-card-text"
+                    style="margin-top: 8px;"
+                >
+                    Payment must be made immediately after the order is
+                    confirmed, and the funds must
+                    <strong>
+                        reflect in The Daily Market's business account
+                        by 8:00 AM.
+                    </strong>
+                </p>
+
+                <p
+                    class="pdf-info-card-text"
+                    style="margin-top: 8px;"
+                >
+                    This requirement helps us keep the delivery process
+                    efficient and also contributes to the
+                    <strong>safety of our drivers</strong> by reducing
+                    the amount of cash that needs to be handled during
+                    deliveries.
+                </p>
+
+            </div>
+
+
+            <div class="pdf-info-card">
+
+                <p class="pdf-info-card-title">
+                    Account Clients
+                </p>
+
+                <p class="pdf-info-card-text">
+                    Clients trading on an approved
+                    <strong>
+                        3-day or 7-day account
+                    </strong>
+                    are subject to a different set of payment and
+                    account terms. The cash-client payment rules above
+                    do not apply to these clients.
+                </p>
+
+                <p
+                    class="pdf-info-card-text"
+                    style="margin-top: 8px;"
+                >
+                    Your Account Manager will advise you of the
+                    applicable terms for your account.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- DELIVERY -->
+
+        <div class="pdf-section">
+
+            <h2 class="pdf-section-title">
+                Delivery
+            </h2>
+
+
+            <div class="pdf-info-card">
+
+                <p class="pdf-info-card-title">
+                    Monday to Friday · 9:00 AM – 12:00 PM
+                </p>
+
+                <p class="pdf-info-card-text">
+                    Deliveries take place
+                    <strong>
+                        Monday to Friday between 9:00 AM and 12:00 PM.
+                    </strong>
+                </p>
+
+                <p
+                    class="pdf-info-card-text"
+                    style="margin-top: 8px;"
+                >
+                    On the morning of your delivery, you will receive an
+                    <strong>
+                        SMS when your kitchen essentials leave our depot
+                    </strong>,
+                    normally between
+                    <strong>
+                        8:00 AM and 8:30 AM.
+                    </strong>
+                </p>
+
+            </div>
+
+
+            <div class="pdf-info-card">
+
+                <p class="pdf-info-card-title">
+                    Please make sure someone is available
+                </p>
+
+                <p class="pdf-info-card-text">
+                    Please ensure that
+                    <strong>
+                        someone is present at your kitchen to receive
+                        the delivery.
+                    </strong>
+                </p>
+
+                <p
+                    class="pdf-info-card-text"
+                    style="margin-top: 8px;"
+                >
+                    Our delivery schedule is planned around multiple
+                    kitchens, and delays at one delivery can negatively
+                    affect the schedule for the kitchens that follow.
+                </p>
+
+                <p
+                    class="pdf-info-card-text"
+                    style="margin-top: 8px;"
+                >
+                    Having someone ready to receive and check your goods
+                    helps us keep deliveries
+                    <strong>
+                        on time and efficient for everyone.
+                    </strong>
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- PARTNERSHIP -->
+
+        <div class="pdf-partnership">
+
+            <h2 class="pdf-partnership-title">
+                We're here to help your kitchen grow.
+            </h2>
+
+            <p class="pdf-partnership-text">
+                At The Daily Market, we don't just want to deliver
+                products to your kitchen. We want to become a reliable
+                trading partner that understands your kitchen, the
+                products you use most and the way your business operates.
+            </p>
+
+            <p
+                class="pdf-partnership-text"
+                style="margin-top: 8px;"
+            >
+                As we trade together, our team can better understand
+                your needs and help you make smarter purchasing decisions.
+            </p>
+
+        </div>
+
+
+        <!-- CONTACT -->
+
+        <div class="pdf-contact-box">
+
+            <p class="pdf-contact-title">
+                Need assistance?
+            </p>
+
+            <p class="pdf-contact-text">
+                Your first point of contact is
+                <strong>{{ account_manager_name }}</strong>,
+                your Account Manager.
+            </p>
+
+            <p
+                class="pdf-contact-text"
+                style="margin-top: 6px;"
+            >
+                For urgent queries, please contact
+                <strong>087 265 5488</strong>.
+            </p>
+
+        </div>
+
+
+        <!-- CLOSING -->
+
+        <p class="pdf-closing">
+            <strong>Welcome to The Daily Market.</strong>
+            <br>
+            Let's grow your kitchen together.
+        </p>
+
+        <p class="pdf-closing">
+            — The Daily Market Team
+        </p>
+
+
+        <!-- PDF FOOTER -->
+
+        <div class="pdf-footer">
+
+            <p class="pdf-footer-brand">
+                The Daily Market
+            </p>
+
+            <p class="pdf-footer-text">
+                Your kitchen. Our supply. Growing together.
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>

@@ -228,6 +228,29 @@ class CommunicationLog(models.Model):
         )
     
 
+class CommunicationDocs(models.Model):
+    communication = models.ForeignKey(
+        "communications.CommunicationLog",
+        on_delete=models.CASCADE,
+        related_name="documents",
+    )
+
+    file = models.FileField(
+        upload_to="communication_docs/%Y/%m/",
+    )
+
+    filename = models.CharField(
+        max_length=255,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    def __str__(self):
+        return self.filename
+
+    
 class WhatsAppMessage(models.Model):
 
     MESSAGE_TYPES = (

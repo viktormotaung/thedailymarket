@@ -1,0 +1,904 @@
+{% load humanize %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Supplier Batch Info - {{ batch.name }}
+    </title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f3f4f6;
+            color: #111827;
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+            font-size: 14px;
+        }
+
+        .page {
+            max-width: 1100px;
+            margin: 30px auto;
+            background: #ffffff;
+            padding: 35px;
+            box-shadow:
+                0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+
+
+        /* =========================================================
+           HEADER
+        ========================================================= */
+
+        .document-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 30px;
+            border-bottom: 3px solid #111827;
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+        }
+
+        .brand {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .document-title {
+            margin-top: 5px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #4b5563;
+        }
+
+        .document-meta {
+            text-align: right;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .document-meta strong {
+            color: #111827;
+        }
+
+
+        /* =========================================================
+           BATCH INFORMATION
+        ========================================================= */
+
+        .batch-info {
+            display: grid;
+            grid-template-columns:
+                repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        .info-card {
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 13px 15px;
+            background: #f9fafb;
+        }
+
+        .info-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6b7280;
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+
+        .info-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+
+        /* =========================================================
+           ACTIONS
+        ========================================================= */
+
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 9px 16px;
+            border-radius: 5px;
+            border: 1px solid #111827;
+            background: #111827;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .btn.secondary {
+            background: #ffffff;
+            color: #111827;
+            border-color: #9ca3af;
+        }
+
+
+        /* =========================================================
+           SUPPLIER SECTION
+        ========================================================= */
+
+        .supplier-section {
+            margin-top: 35px;
+        }
+
+        .supplier-section + .supplier-section {
+            border-top: 2px solid #d1d5db;
+            padding-top: 35px;
+        }
+
+        .supplier-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            margin-bottom: 15px;
+            padding: 15px 18px;
+            background: #111827;
+            color: #ffffff;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .supplier-name {
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .supplier-subtitle {
+            margin-top: 3px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .supplier-summary {
+            text-align: right;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .supplier-summary strong {
+            font-size: 15px;
+        }
+
+
+        /* =========================================================
+           PRODUCT GROUP
+        ========================================================= */
+
+        .product-group {
+            margin-bottom: 25px;
+            page-break-inside: avoid;
+        }
+
+        .product-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            padding: 11px 14px;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-bottom: 0;
+            font-weight: 800;
+        }
+
+        .product-name {
+            font-size: 15px;
+        }
+
+        .product-total {
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+
+        /* =========================================================
+           TABLE
+        ========================================================= */
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        th,
+        td {
+            border: 1px solid #d1d5db;
+            padding: 9px 10px;
+            vertical-align: middle;
+        }
+
+        th {
+            background: #e5e7eb;
+            color: #111827;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.35px;
+            font-weight: 800;
+        }
+
+        td {
+            font-size: 13px;
+        }
+
+        .col-order {
+            width: 17%;
+        }
+
+        .col-client {
+            width: 28%;
+        }
+
+        .col-qty {
+            width: 17%;
+            text-align: center;
+        }
+
+        .col-price {
+            width: 23%;
+            text-align: right;
+        }
+
+        .col-status {
+            width: 15%;
+            text-align: center;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+
+        /* =========================================================
+           STATUS
+        ========================================================= */
+
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .status-picked {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+
+        /* =========================================================
+           EMPTY STATE
+        ========================================================= */
+
+        .empty-state {
+            padding: 35px;
+            text-align: center;
+            border: 1px dashed #9ca3af;
+            color: #6b7280;
+            margin-top: 20px;
+        }
+
+
+        /* =========================================================
+           FOOTER
+        ========================================================= */
+
+        .document-footer {
+            margin-top: 45px;
+            padding-top: 15px;
+            border-top: 1px solid #d1d5db;
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            color: #6b7280;
+            font-size: 11px;
+        }
+
+
+        /* =========================================================
+           PRINT
+        ========================================================= */
+
+        @media print {
+
+            @page {
+                size: A4;
+                margin: 12mm;
+            }
+
+            body {
+                background: #ffffff;
+                font-size: 11px;
+            }
+
+            .page {
+                max-width: none;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+
+            .actions {
+                display: none !important;
+            }
+
+            .document-header {
+                margin-bottom: 15px;
+            }
+
+            .batch-info {
+                margin-bottom: 15px;
+            }
+
+            .supplier-section {
+                page-break-before: auto;
+            }
+
+            .supplier-section + .supplier-section {
+                page-break-before: always;
+            }
+
+            .supplier-header {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .product-heading {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            th {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .status {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            thead {
+                display: table-header-group;
+            }
+
+            tr {
+                page-break-inside: avoid;
+            }
+
+            .product-group {
+                page-break-inside: avoid;
+            }
+
+            .document-footer {
+                margin-top: 25px;
+            }
+        }
+
+
+        /* =========================================================
+           MOBILE
+        ========================================================= */
+
+        @media (max-width: 768px) {
+
+            .page {
+                margin: 0;
+                padding: 20px;
+            }
+
+            .document-header {
+                flex-direction: column;
+            }
+
+            .document-meta {
+                text-align: left;
+            }
+
+            .batch-info {
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+
+            .supplier-header {
+                flex-direction: column;
+            }
+
+            .supplier-summary {
+                text-align: left;
+            }
+
+            table {
+                min-width: 700px;
+            }
+
+            .product-group {
+                overflow-x: auto;
+            }
+
+            .document-footer {
+                flex-direction: column;
+            }
+        }
+
+
+        @media (max-width: 480px) {
+
+            .batch-info {
+                grid-template-columns: 1fr;
+            }
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<div class="page">
+
+
+    <!-- =========================================================
+         DOCUMENT HEADER
+    ========================================================== -->
+
+    <div class="document-header">
+
+        <div>
+
+            <div class="brand">
+                The Daily Market
+            </div>
+
+            <div class="document-title">
+                Supplier Batch Information
+            </div>
+
+        </div>
+
+
+        <div class="document-meta">
+
+            <div>
+                <strong>Generated:</strong>
+                {% now "d M Y H:i" %}
+            </div>
+
+            <div>
+                <strong>Batch:</strong>
+                {{ batch.name }}
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+         ACTIONS
+    ========================================================== -->
+
+    <div class="actions">
+
+        <button
+            type="button"
+            class="btn secondary"
+            onclick="window.print()"
+        >
+            Print / Save PDF
+        </button>
+
+        <button
+            type="button"
+            class="btn"
+            onclick="window.close()"
+        >
+            Close
+        </button>
+
+    </div>
+
+
+    <!-- =========================================================
+         BATCH INFORMATION
+    ========================================================== -->
+
+    <div class="batch-info">
+
+
+        <div class="info-card">
+
+            <div class="info-label">
+                Batch
+            </div>
+
+            <div class="info-value">
+                {{ batch.name }}
+            </div>
+
+        </div>
+
+
+        <div class="info-card">
+
+            <div class="info-label">
+                Service Date
+            </div>
+
+            <div class="info-value">
+                {{ batch.service_date|date:"d M Y" }}
+            </div>
+
+        </div>
+
+
+        <div class="info-card">
+            <div class="info-label">EXPECTED TOTAL</div>
+            <div class="info-value">
+                R {{ expected_total|floatformat:"2"|intcomma }}
+            </div>
+        </div>
+
+
+        <div class="info-card">
+
+            <div class="info-label">
+                Status
+            </div>
+
+            <div class="info-value">
+                {{ batch.get_status_display }}
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+         SUPPLIERS
+    ========================================================== -->
+
+    {% for supplier in suppliers %}
+
+        <section class="supplier-section">
+
+
+            <!-- =================================================
+                 SUPPLIER HEADER
+            ================================================== -->
+
+            <div class="supplier-header">
+
+                <div>
+
+                    <div class="supplier-name">
+                        {{ supplier.name }}
+                    </div>
+
+                    <div class="supplier-subtitle">
+                        Supplier Pick List
+                    </div>
+
+                </div>
+
+
+                <div class="supplier-summary">
+
+                    {% regroup items by supplier as supplier_groups %}
+
+                    {% for supplier_group in supplier_groups %}
+
+                        {% if supplier_group.grouper.id == supplier.id %}
+
+                            <div>
+
+                                <strong>
+                                    {{ supplier_group.list|length }}
+                                </strong>
+
+                                order line{{ supplier_group.list|length|pluralize }}
+
+                            </div>
+
+                        {% endif %}
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 PRODUCT GROUPING
+            ================================================== -->
+
+            {% regroup items by product_name as product_groups %}
+
+
+            {% for product_group in product_groups %}
+
+                {% with product_items=product_group.list %}
+
+
+                    {% if product_items.0.supplier.id == supplier.id %}
+
+
+                        <div class="product-group">
+
+
+                            <!-- =================================
+                                 PRODUCT HEADER
+                            ================================== -->
+
+                            <div class="product-heading">
+
+                                <div class="product-name">
+                                    {{ product_group.grouper }}
+                                </div>
+
+                                <div class="product-total">
+
+                                    Total:
+
+                                    {% widthratio product_items|length 1 1 %}
+
+                                    line{{ product_items|length|pluralize }}
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- =================================
+                                 ORDER BREAKDOWN
+                            ================================== -->
+
+                            <table>
+
+                                <thead>
+
+                                    <tr>
+
+                                        <th class="col-order">
+                                            Order
+                                        </th>
+
+                                        <th class="col-client">
+                                            Client ID
+                                        </th>
+
+                                        <th class="col-qty">
+                                            Expected Qty
+                                        </th>
+
+                                        <th class="col-price">
+                                            Expected Total (Price)
+                                        </th>
+
+                                        <th class="col-status">
+                                            Status
+                                        </th>
+
+                                    </tr>
+
+                                </thead>
+
+
+                                <tbody>
+
+
+                                    {% for item in product_items %}
+
+
+                                        {% if item.supplier.id == supplier.id %}
+
+
+                                            <tr>
+
+
+                                                <!-- Order -->
+
+                                                <td>
+
+                                                    {% if item.order %}
+
+                                                        #{{ item.order.id }}
+
+                                                    {% else %}
+
+                                                        —
+
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                                <!-- Client ID -->
+
+                                                <td>
+
+                                                    {% if item.order %}
+
+                                                        {{ item.order.client_id }}
+
+                                                    {% else %}
+
+                                                        —
+
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                                <!-- Expected Quantity -->
+
+                                                <td class="text-center">
+
+                                                    {{ item.expected_qty|floatformat:"-2"|intcomma }}
+
+                                                </td>
+
+
+                                                <!-- Expected Total Price -->
+
+                                                <td class="text-right">
+
+                                                    {% if item.expected_total %}
+
+                                                        R {{ item.expected_total|floatformat:"2"|intcomma }}
+
+                                                    {% else %}
+
+                                                        R 0.00
+
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                                <!-- Status -->
+
+                                                <td class="text-center">
+
+                                                    {% if item.is_picked %}
+
+                                                        <span class="status status-picked">
+                                                            Picked
+                                                        </span>
+
+                                                    {% else %}
+
+                                                        <span class="status status-pending">
+                                                            Pending
+                                                        </span>
+
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                            </tr>
+
+
+                                        {% endif %}
+
+
+                                    {% endfor %}
+
+
+                                </tbody>
+
+                            </table>
+
+
+                        </div>
+
+
+                    {% endif %}
+
+
+                {% endwith %}
+
+
+            {% endfor %}
+
+
+        </section>
+
+
+    {% empty %}
+
+
+        <div class="empty-state">
+
+            <strong>
+                No supplier information available.
+            </strong>
+
+            <div>
+                There are no supplier picking items in this batch.
+            </div>
+
+        </div>
+
+
+    {% endfor %}
+
+
+    <!-- =========================================================
+         FOOTER
+    ========================================================== -->
+
+    <div class="document-footer">
+
+        <div>
+            The Daily Market
+        </div>
+
+        <div>
+            Supplier Batch Information
+        </div>
+
+        <div>
+            Batch: {{ batch.name }}
+        </div>
+
+    </div>
+
+
+</div>
+
+
+</body>
+</html>

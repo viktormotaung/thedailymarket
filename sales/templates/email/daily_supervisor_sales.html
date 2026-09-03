@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Daily Sales Summary</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f5;
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+            color: #263238;
+        }
+
+        table {
+            border-collapse: collapse;
+        }
+
+        .wrapper {
+            width: 100%;
+            background-color: #f4f6f5;
+            padding: 30px 0;
+        }
+
+        .container {
+            width: 680px;
+            max-width: 680px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow:
+                0 3px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        .header {
+            background-color: #0b5c39;
+            padding: 30px 35px;
+            text-align: center;
+        }
+
+        .header-title {
+            margin: 0;
+            color: #ffffff;
+            font-size: 27px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .header-subtitle {
+            margin: 8px 0 0 0;
+            color: #d9eee4;
+            font-size: 15px;
+        }
+
+        .content {
+            padding: 35px;
+        }
+
+        .greeting {
+            margin: 0 0 8px 0;
+            font-size: 20px;
+            font-weight: 700;
+            color: #263238;
+        }
+
+        .intro {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #68757d;
+        }
+
+        .report-date {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #7b878e;
+        }
+
+        .section-title {
+            margin: 30px 0 15px 0;
+            font-size: 15px;
+            font-weight: 700;
+            color: #0b5c39;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cards {
+            width: 100%;
+        }
+
+        .card-cell {
+            width: 20%;
+            padding: 5px;
+            vertical-align: top;
+        }
+
+        .card {
+            border: 1px solid #e2e8e5;
+            border-radius: 10px;
+            padding: 18px 10px;
+            text-align: center;
+            background-color: #fbfcfb;
+        }
+
+        .card-number {
+            margin: 0;
+            color: #0b5c39;
+            font-size: 27px;
+            line-height: 1.1;
+            font-weight: 700;
+        }
+
+        .card-label {
+            margin: 8px 0 0 0;
+            color: #69767d;
+            font-size: 11px;
+            line-height: 1.3;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .team-table {
+            width: 100%;
+            margin-top: 5px;
+            border: 1px solid #e1e7e4;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .team-table th {
+            background-color: #0b5c39;
+            color: #ffffff;
+            padding: 12px 10px;
+            font-size: 12px;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .team-table th:first-child {
+            text-align: left;
+        }
+
+        .team-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #e9eeec;
+            font-size: 13px;
+            color: #39464d;
+            text-align: center;
+        }
+
+        .team-table td:first-child {
+            text-align: left;
+            font-weight: 600;
+            color: #263238;
+        }
+
+        .team-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .total-row td {
+            background-color: #f0f5f2;
+            font-weight: 700;
+            color: #0b5c39;
+        }
+
+        .summary-box {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: #f4f8f5;
+            border-left: 4px solid #0b5c39;
+            border-radius: 7px;
+        }
+
+        .summary-box-title {
+            margin: 0 0 10px 0;
+            color: #0b5c39;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .summary-box p {
+            margin: 5px 0;
+            color: #536169;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .footer {
+            background-color: #f4f6f5;
+            padding: 22px 35px;
+            text-align: center;
+        }
+
+        .footer p {
+            margin: 4px 0;
+            color: #89949a;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .footer strong {
+            color: #0b5c39;
+        }
+
+        @media only screen and (max-width: 700px) {
+
+            .wrapper {
+                padding: 10px 0;
+            }
+
+            .container {
+                width: 100% !important;
+                max-width: 100% !important;
+                border-radius: 0;
+            }
+
+            .content {
+                padding: 25px 18px;
+            }
+
+            .header {
+                padding: 25px 18px;
+            }
+
+            .header-title {
+                font-size: 23px;
+            }
+
+            .card-cell {
+                width: 50%;
+            }
+
+            .cards tr {
+                display: block;
+            }
+
+            .team-table {
+                font-size: 11px;
+            }
+
+            .team-table th,
+            .team-table td {
+                padding: 9px 6px;
+            }
+
+            .footer {
+                padding: 20px 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="wrapper">
+
+    <table
+        class="container"
+        role="presentation"
+        cellpadding="0"
+        cellspacing="0"
+        width="680"
+    >
+
+        <!-- ===================================================== -->
+        <!-- HEADER -->
+        <!-- ===================================================== -->
+
+        <tr>
+            <td class="header">
+
+                <h1 class="header-title">
+                    The Daily Market
+                </h1>
+
+                <p class="header-subtitle">
+                    Daily Sales Summary
+                </p>
+
+            </td>
+        </tr>
+
+
+        <!-- ===================================================== -->
+        <!-- CONTENT -->
+        <!-- ===================================================== -->
+
+        <tr>
+            <td class="content">
+
+                <!-- GREETING -->
+
+                <p class="greeting">
+                    Good evening
+                    {{ supervisor.get_full_name|default:supervisor.username }},
+                </p>
+
+                <p class="intro">
+                    Here is your team's sales activity summary
+                    for the day.
+                </p>
+
+                <p class="report-date">
+                    {{ report_date|date:"l, d F Y" }}
+                    &nbsp;·&nbsp;
+                    Report generated at
+                    {{ report_datetime|date:"H:i" }}
+                </p>
+
+
+                <!-- ================================================= -->
+                <!-- TODAY'S PERFORMANCE -->
+                <!-- ================================================= -->
+
+                <div class="section-title">
+                    Today's Performance
+                </div>
+
+                <table
+                    class="cards"
+                    role="presentation"
+                    cellpadding="0"
+                    cellspacing="0"
+                    width="100%"
+                >
+
+                    <tr>
+
+                        <!-- SALES REPS -->
+
+                        <td class="card-cell">
+
+                            <div class="card">
+
+                                <p class="card-number">
+                                    {{ summary.rep_count }}
+                                </p>
+
+                                <p class="card-label">
+                                    Sales Reps
+                                </p>
+
+                            </div>
+
+                        </td>
+
+
+                        <!-- NEW LEADS -->
+
+                        <td class="card-cell">
+
+                            <div class="card">
+
+                                <p class="card-number">
+                                    {{ summary.lead_count }}
+                                </p>
+
+                                <p class="card-label">
+                                    New Leads
+                                </p>
+
+                            </div>
+
+                        </td>
+
+
+                        <!-- NEW PROSPECTS -->
+
+                        <td class="card-cell">
+
+                            <div class="card">
+
+                                <p class="card-number">
+                                    {{ summary.prospect_count }}
+                                </p>
+
+                                <p class="card-label">
+                                    New Prospects
+                                </p>
+
+                            </div>
+
+                        </td>
+
+
+                        <!-- NEW CLIENTS -->
+
+                        <td class="card-cell">
+
+                            <div class="card">
+
+                                <p class="card-number">
+                                    {{ summary.client_count }}
+                                </p>
+
+                                <p class="card-label">
+                                    New Clients
+                                </p>
+
+                            </div>
+
+                        </td>
+
+
+                        <!-- INVOICES -->
+
+                        <td class="card-cell">
+
+                            <div class="card">
+
+                                <p class="card-number">
+                                    {{ summary.invoice_count }}
+                                </p>
+
+                                <p class="card-label">
+                                    Invoices
+                                </p>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                </table>
+
+
+                <!-- ================================================= -->
+                <!-- TEAM PERFORMANCE -->
+                <!-- ================================================= -->
+
+                <div class="section-title">
+                    Team Performance
+                </div>
+
+                <table
+                    class="team-table"
+                    role="presentation"
+                    cellpadding="0"
+                    cellspacing="0"
+                    width="100%"
+                >
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Sales Rep
+                            </th>
+
+                            <th>
+                                Leads
+                            </th>
+
+                            <th>
+                                Prospects
+                            </th>
+
+                            <th>
+                                Clients
+                            </th>
+
+                            <th>
+                                Invoices
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for item in rep_summaries %}
+
+                        <tr>
+
+                            <td>
+                                {{ item.rep.get_full_name|default:item.rep.username }}
+                            </td>
+
+                            <td>
+                                {{ item.lead_count }}
+                            </td>
+
+                            <td>
+                                {{ item.prospect_count }}
+                            </td>
+
+                            <td>
+                                {{ item.client_count }}
+                            </td>
+
+                            <td>
+                                {{ item.invoice_count }}
+                            </td>
+
+                        </tr>
+
+                        {% empty %}
+
+                        <tr>
+
+                            <td
+                                colspan="5"
+                                style="
+                                    text-align:center;
+                                    color:#7b878e;
+                                    padding:20px;
+                                "
+                            >
+                                No sales representatives are
+                                currently assigned to this supervisor.
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+
+                        <!-- TEAM TOTAL -->
+
+                        {% if rep_summaries %}
+
+                        <tr class="total-row">
+
+                            <td>
+                                TOTAL
+                            </td>
+
+                            <td>
+                                {{ summary.lead_count }}
+                            </td>
+
+                            <td>
+                                {{ summary.prospect_count }}
+                            </td>
+
+                            <td>
+                                {{ summary.client_count }}
+                            </td>
+
+                            <td>
+                                {{ summary.invoice_count }}
+                            </td>
+
+                        </tr>
+
+                        {% endif %}
+
+                    </tbody>
+
+                </table>
+
+
+                <!-- ================================================= -->
+                <!-- DAILY SNAPSHOT -->
+                <!-- ================================================= -->
+
+                <div class="summary-box">
+
+                    <p class="summary-box-title">
+                        Daily Snapshot
+                    </p>
+
+                    <p>
+                        <strong>{{ summary.lead_count }}</strong>
+                        new lead{{ summary.lead_count|pluralize }}
+                        were added today.
+                    </p>
+
+                    <p>
+                        <strong>{{ summary.prospect_count }}</strong>
+                        new prospect{{ summary.prospect_count|pluralize }}
+                        were added today.
+                    </p>
+
+                    <p>
+                        <strong>{{ summary.client_count }}</strong>
+                        new client{{ summary.client_count|pluralize }}
+                        were added today.
+                    </p>
+
+                    <p>
+                        <strong>{{ summary.invoice_count }}</strong>
+                        invoice{{ summary.invoice_count|pluralize }}
+                        were issued today.
+                    </p>
+
+                </div>
+
+            </td>
+        </tr>
+
+
+        <!-- ===================================================== -->
+        <!-- FOOTER -->
+        <!-- ===================================================== -->
+
+        <tr>
+            <td class="footer">
+
+                <p>
+                    <strong>The Daily Market</strong>
+                </p>
+
+                <p>
+                    Daily Sales Report
+                </p>
+
+                <p>
+                    This is an automated report.
+                    Please do not reply to this email.
+                </p>
+
+            </td>
+        </tr>
+
+    </table>
+
+</div>
+
+</body>
+</html>

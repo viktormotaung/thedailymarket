@@ -134,305 +134,463 @@
 
     <main class="content container-fluid">
 
-        <!-- =========================================================
-            REP PERFORMANCE
-            ========================================================= -->
+        <!-- ========================================================= -->
+        <!-- PAGE HEADER -->
+        <!-- ========================================================= -->
 
-        <div class="card mb-4">
-            <div class="card-body">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
 
-                <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
 
-                    <div>
-                        <h2 class="mb-1">Rep Performance</h2>
+                <h2 class="mb-1">
+                    Commission Entries
+                </h2>
 
-                        <div class="text-muted">
-                            Targets, client count, commission, and bonus visibility.
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-
-                        <div>
-                            <h2 class="mb-1">Rep Performance</h2>
-
-                            <div class="text-muted">
-                                Targets, client count, commission, and bonus visibility.
-                            </div>
-                        </div>
-
-                        <a href="{% url 'sales:sales-target-list' %}"
-                        class="btn btn-outline-dark">
-                            Manage Targets
-                        </a>
-
-                    </div>
-
-                </div>
-
-                <div class="table-responsive">
-
-                    <table class="table align-middle mb-0">
-
-                        <thead>
-                            <tr>
-                                <th>Rank</th>
-                                <th>Rep</th>
-                                <th>Entries</th>
-                                <th>Supervisor</th>
-                                <th>Commission</th>
-                                <th>Bonus</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-
-                            {% for r in rep_commission_summary %}
-
-                            <tr
-                                class="clickable-row"
-                                data-href="{% url 'sales:sales-commission-rep-detail' r.rep_id %}?period={{ selected_period|urlencode }}&year={{ selected_year }}{% if selected_region %}&region={{ selected_region }}{% endif %}{% if selected_territory %}&territory={{ selected_territory }}{% endif %}"
-                                style="cursor:pointer;"
-                            >
-
-                                <!-- RANK -->
-                                <td>
-
-                                    {% if r.ranking == 1 %}
-
-                                        <span class="badge bg-warning text-dark px-3 py-2">
-                                            #1
-                                        </span>
-
-                                    {% elif r.ranking == 2 %}
-
-                                        <span class="badge bg-secondary px-3 py-2">
-                                            #2
-                                        </span>
-
-                                    {% elif r.ranking == 3 %}
-
-                                        <span class="badge bg-dark px-3 py-2">
-                                            #3
-                                        </span>
-
-                                    {% else %}
-
-                                        <span class="fw-semibold">
-                                            #{{ r.ranking }}
-                                        </span>
-
-                                    {% endif %}
-
-                                </td>
-
-                                <!-- REP -->
-                                <td>
-                                    <strong>
-                                        {{ r.rep_name }}
-                                    </strong>
-                                </td>
-
-                                <!-- ENTRIES -->
-                                <td>
-                                    {{ r.entries|default:0 }}
-                                </td>
-
-                                <!-- SUPERVISOR -->
-                                <td>
-                                    {{ r.supervisor|default:"—" }}
-                                </td>
-
-                                <!-- COMMISSION -->
-                                <td>
-                                    R{{ r.base_commission|floatformat:2 }}
-                                </td>
-
-                                <!-- BONUS -->
-                                <td>
-
-                                    <span class="text-success">
-                                        R{{ r.bonus_commission|floatformat:2 }}
-                                    </span>
-
-                                </td>
-
-                                <!-- TOTAL -->
-                                <td>
-                                    <strong>
-                                        R{{ r.total_commission|floatformat:2 }}
-                                    </strong>
-                                </td>
-
-                            </tr>
-
-                            {% empty %}
-
-                            <tr>
-                                <td colspan="7"
-                                    class="text-center text-muted py-4">
-                                    No rep commission entries found for this period.
-                                </td>
-                            </tr>
-
-                            {% endfor %}
-
-                        </tbody>
-
-                    </table>
-
+                <div class="text-muted">
+                    {{ rep_user.get_full_name|default:rep_user.username }}
+                    —
+                    {{ selected_period }}
                 </div>
 
             </div>
+
+
+            <a
+            href="{% url 'sales:sales-commission' %}"
+            class="btn btn-outline-secondary"
+            >
+            ← Back to Commission
+            </a>
+
         </div>
 
 
-        <!-- =========================================================
-            SUPERVISOR PERFORMANCE
-            ========================================================= -->
+        <!-- ========================================================= -->
+        <!-- SUMMARY -->
+        <!-- ========================================================= -->
 
-        <div class="card mb-4">
+        <div class="row g-3 mb-4">
 
-            <div class="card-body">
+            <!-- ===================== -->
+            <!-- REVENUE -->
+            <!-- ===================== -->
 
-                <div class="mb-3">
+            <div class="col-md-3">
 
-                    <h2 class="mb-1">
-                        Supervisor Performance
-                    </h2>
+            <div class="card h-100 p-3">
 
-                    <div class="text-muted">
-                        Supervisor performance based on commission entries
+                <small class="text-muted">
+                Revenue
+                </small>
+
+                <h4 class="mb-0">
+                R{{ revenue_total|default:0|floatformat:2|intcomma }}
+                </h4>
+
+            </div>
+
+            </div>
+
+
+            <!-- ===================== -->
+            <!-- CLIENTS -->
+            <!-- ===================== -->
+
+            <div class="col-md-3">
+
+            <div class="card h-100 p-3">
+
+                <small class="text-muted">
+                Clients
+                </small>
+
+                <h4 class="mb-0">
+                {{ client_count|default:0 }}
+                </h4>
+
+            </div>
+
+            </div>
+
+
+            <!-- ===================== -->
+            <!-- COMMISSION -->
+            <!-- ===================== -->
+
+            <div class="col-md-3">
+
+            <div class="card h-100 p-3">
+
+                <small class="text-muted">
+                Rep Commission
+                </small>
+
+                <h4 class="mb-0">
+                R{{ rep_total|default:0|floatformat:2|intcomma }}
+                </h4>
+
+            </div>
+
+            </div>
+
+
+            <!-- ===================== -->
+            <!-- NEW BUSINESS -->
+            <!-- ===================== -->
+
+            <div class="col-md-3">
+
+            <div class="card h-100 p-3">
+
+                <small class="text-muted">
+                New Business Bonus
+                </small>
+
+                <h4 class="mb-0 text-success">
+                R{{ bonus_total|default:0|floatformat:2|intcomma }}
+                </h4>
+
+            </div>
+
+            </div>
+
+        </div>
+
+
+        
+
+
+        <!-- ========================================================= -->
+        <!-- COMMISSION ENTRIES -->
+        <!-- ========================================================= -->
+
+        <div class="card p-4">
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+
+            <div>
+
+                <h5 class="mb-1">
+                Commission Entries
+                </h5>
+
+                <small class="text-muted">
+
+                All commission entries for
+                {{ rep_user.get_full_name|default:rep_user.username }}
+
+                for the selected period.
+
+                </small>
+
+            </div>
+
+
+            <span class="badge bg-light text-dark border">
+
+                {{ commission_entries|length }}
+                entr{{ commission_entries|length|pluralize:"y,ies" }}
+
+            </span>
+
+            </div>
+
+
+            <div class="table-responsive">
+
+            <table class="table table-hover align-middle mb-0">
+
+                <thead>
+
+                <tr>
+
+                    <th>
+                    Date
+                    </th>
+
+                    <th>
+                    Invoice
+                    </th>
+
+                    <th>
+                    Client
+                    </th>
+
+                    <th>
+                    Territory
+                    </th>
+
+                    <th>
+                    Area
+                    </th>
+
+                    <th class="text-end">
+                    Cost
+                    </th>
+
+                    <th class="text-end">
+                    Rep Rate
+                    </th>
+
+                    <th class="text-end">
+                    Rep Commission
+                    </th>
+
+                    <th>
+                    Business
+                    </th>
+
+                    
+
+                </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                {% for entry in commission_entries %}
+
+                    <tr>
+
+                    <!-- ===================== -->
+                    <!-- DATE -->
+                    <!-- ===================== -->
+
+                    <td>
+
+                        {% if entry.created_at %}
+
+                        {{ entry.created_at|date:"d M Y" }}
+
+                        <br>
+
+                        <small class="text-muted">
+                            {{ entry.created_at|date:"H:i" }}
+                        </small>
+
+                        {% else %}
+
+                        —
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <!-- ===================== -->
+                    <!-- INVOICE -->
+                    <!-- ===================== -->
+
+                    <td>
+
+                        {% if entry.invoice %}
+
+                        {% if entry.invoice.id %}
+
+                            #{{ entry.invoice.id }}
+
+                        {% else %}
+
+                            —
+
+                        {% endif %}
+
+                        {% else %}
+
+                        —
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <!-- ===================== -->
+                    <!-- CLIENT -->
+                    <!-- ===================== -->
+
+                    <td>
+
+                        {% if entry.client %}
+
+                        {{ entry.client }}
+
+                        {% else %}
+
+                        —
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <!-- ===================== -->
+                    <!-- TERRITORY -->
+                    <!-- ===================== -->
+
+                    <td>
+
+                        {% if entry.territory %}
+
+                        {{ entry.territory }}
+
+                        {% else %}
+
+                        —
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <!-- ===================== -->
+                    <!-- AREA -->
+                    <!-- ===================== -->
+
+                    <td>
+
+                        {% if entry.area %}
+
+                        {{ entry.area }}
+
+                        {% else %}
+
+                        —
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <!-- ===================== -->
+                    <!-- COST -->
+                    <!-- ===================== -->
+
+                    <td class="text-end">
+
+                        R{{ entry.cost_total|default:0|floatformat:2|intcomma }}
+
+                    </td>
+
+
+                    <!-- ===================== -->
+                    <!-- REP RATE -->
+                    <!-- ===================== -->
+
+                    <td class="text-end">
+
+                        {{ entry.rep_rate|default:0|floatformat:2 }}%
+
+                    </td>
+
+
+                    <!-- ===================== -->
+                    <!-- REP COMMISSION -->
+                    <!-- ===================== -->
+
+                    <td class="text-end fw-semibold">
+
+                        R{{ entry.rep_amount|default:0|floatformat:2|intcomma }}
+
+                    </td>
+
+
+                    <!-- ===================== -->
+                    <!-- NEW BUSINESS -->
+                    <!-- ===================== -->
+
+                    <td>
+
+                        {% if entry.is_new_business %}
+
+                        <span class="badge bg-success">
+                            New Business
+                        </span>
+
+                        {% else %}
+
+                        <span class="badge bg-light text-dark border">
+                            Repeat
+                        </span>
+
+                        {% endif %}
+
+                    </td>
+
+
+                    
+                    </tr>
+
+
+                {% empty %}
+
+                    <tr>
+
+                    <td
+                        colspan="11"
+                        class="text-center py-5"
+                    >
+
+                        <div class="text-muted">
+
+                        No commission entries found for this representative
                         for the selected period.
-                    </div>
 
-                </div>
+                        </div>
 
+                    </td>
 
-                <div class="table-responsive">
+                    </tr>
 
-                    <table class="table align-middle mb-0">
+                {% endfor %}
 
-                        <thead>
-                            <tr>
-                                <th>Rank</th>
-                                <th>Supervisor</th>
-                                <th>Entries</th>
-                                <th>Reps</th>
-                                <th>Clients</th>
-                                <th>Revenue</th>
-                                <th>Commission</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-
-                            {% for s in supervisor_performance_summary %}
-
-                            <tr>
-
-                                <!-- RANK -->
-                                <td>
-
-                                    {% if s.ranking == 1 %}
-
-                                        <span class="badge bg-warning text-dark px-3 py-2">
-                                            #1
-                                        </span>
-
-                                    {% elif s.ranking == 2 %}
-
-                                        <span class="badge bg-secondary px-3 py-2">
-                                            #2
-                                        </span>
-
-                                    {% elif s.ranking == 3 %}
-
-                                        <span class="badge bg-dark px-3 py-2">
-                                            #3
-                                        </span>
-
-                                    {% else %}
-
-                                        <span class="fw-semibold">
-                                            #{{ s.ranking }}
-                                        </span>
-
-                                    {% endif %}
-
-                                </td>
+                </tbody>
 
 
-                                <!-- SUPERVISOR -->
-                                <td>
+                <!-- ===================================================== -->
+                <!-- TOTAL -->
+                <!-- ===================================================== -->
 
-                                    <strong>
-                                        {{ s.supervisor_name }}
-                                    </strong>
+                {% if commission_entries %}
 
-                                </td>
+              
 
+                <tfoot>
 
-                                <!-- ENTRIES -->
-                                <td>
-                                    {{ s.entries|default:0 }}
-                                </td>
+                    <tr class="table-light fw-semibold">
 
+                    <td colspan="5">
+                        Total
+                    </td>
 
-                                <!-- REPS -->
-                                <td>
-                                    {{ s.reps|default:0 }}
-                                </td>
+                    <td class="text-end">
+                        R{{ cost_total|default:0|floatformat:2|intcomma }}
+                    </td>
 
+                    <td>
+                    </td>
 
-                                <!-- CLIENTS -->
-                                <td>
-                                    {{ s.clients|default:0 }}
-                                </td>
+                    <td class="text-end">
+                        R{{ rep_total|default:0|floatformat:2|intcomma }}
+                    </td>
 
+                    <td>
+                    </td>
 
-                                <!-- REVENUE -->
-                                <td>
-                                    R{{ s.revenue|floatformat:2 }}
-                                </td>
+                    <td>
+                    </td>
 
+                    
 
-                                <!-- COMMISSION -->
-                                <td>
-                                    R{{ s.commission|floatformat:2 }}
-                                </td>
+                    </tr>
 
+                </tfoot>
 
-                                <!-- TOTAL -->
-                                <td>
-                                    <strong>
-                                        R{{ s.total|floatformat:2 }}
-                                    </strong>
-                                </td>
+                {% endif %}
 
-                            </tr>
+               
 
-                            {% empty %}
-
-                            <tr>
-                                <td colspan="8"
-                                    class="text-center text-muted py-4">
-
-                                    No supervisor performance data found
-                                    for this period.
-
-                                </td>
-                            </tr>
-
-                            {% endfor %}
-
-                        </tbody>
-
-                    </table>
-
-                </div>
+            </table>
 
             </div>
 

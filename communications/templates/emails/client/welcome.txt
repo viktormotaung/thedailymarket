@@ -1,0 +1,144 @@
+WELCOME TO THE DAILY MARKET
+
+Your kitchen. Our supply. Growing together.
+
+
+Hi {{ customer_name }},
+
+Welcome to The Daily Market.
+
+We're pleased to have you with us and look forward to partnering with you
+to help your kitchen trade better, stay stocked and grow.
+
+Our aim is to make getting your everyday kitchen essentials as simple and
+reliable as possible — from placing your order, to preparing your goods,
+to getting them delivered to your kitchen.
+
+
+YOUR CUSTOMER CODE
+
+{{ client.client_number }}
+
+
+YOUR ACCOUNT MANAGER
+
+Your first point of contact for orders and product enquiries is your
+Account Manager, {{ account_manager_name }}.
+
+To place an order, discuss products, check availability or enquire about
+pricing, please communicate directly with your Account Manager.
+
+If your Account Manager is unavailable, an alternative contact number will
+be provided so that your order or enquiry can still be assisted.
+
+Good communication is the foundation of a good trading relationship.
+
+
+HOW ORDERING WORKS
+
+ORDERS MUST BE PLACED AND CONFIRMED BY 7:30 AM
+
+To keep our delivery operation running on schedule, orders must be placed
+and confirmed by 7:30 AM each day.
+
+This gives our team enough time to prepare your order and organise the
+day's deliveries.
+
+Orders confirmed after the daily cut-off may not be accommodated for the
+same day's delivery.
+
+
+PAYMENT
+
+The payment guidelines below apply specifically to CASH CLIENTS.
+
+
+ORDERS UNDER R500
+
+For cash clients, orders under R500 may be paid by cash on delivery,
+or by another payment arrangement agreed with The Daily Market.
+
+
+ORDERS OVER R500
+
+For cash clients, orders over R500 must be paid by EFT.
+
+Payment must be made immediately after the order is confirmed, and the
+funds must reflect in The Daily Market's business account by 8:00 AM.
+
+This requirement helps us keep the delivery process efficient and also
+contributes to the safety of our drivers by reducing the amount of cash
+that needs to be handled during deliveries.
+
+
+ACCOUNT CLIENTS
+
+Clients trading on an approved 3-day or 7-day account are subject to a
+different set of payment and account terms.
+
+The cash-client payment rules above do not apply to these clients.
+
+Your Account Manager will advise you of the applicable terms for your
+account.
+
+
+DELIVERY
+
+MONDAY TO FRIDAY | 9:00 AM – 12:00 PM
+
+Deliveries take place Monday to Friday between 9:00 AM and 12:00 PM.
+
+On the morning of your delivery, you will receive an SMS when your kitchen
+essentials leave our depot, normally between 8:00 AM and 8:30 AM.
+
+
+PLEASE MAKE SURE SOMEONE IS AVAILABLE
+
+Please ensure that someone is present at your kitchen to receive the
+delivery.
+
+Our delivery schedule is planned around multiple kitchens, and delays at
+one delivery can negatively affect the schedule for the kitchens that
+follow.
+
+Having someone ready to receive and check your goods helps us keep
+deliveries on time and efficient for everyone.
+
+
+WE'RE HERE TO HELP YOUR KITCHEN GROW
+
+At The Daily Market, we don't just want to deliver products to your
+kitchen.
+
+We want to become a reliable trading partner that understands your kitchen,
+the products you use most and the way your business operates.
+
+As we trade together, our team can better understand your needs and help
+you make smarter purchasing decisions.
+
+
+NEED ASSISTANCE?
+
+Your first point of contact is {{ account_manager_name }}, your Account
+Manager.
+
+For urgent queries, please contact:
+
+087 265 5488
+
+
+Welcome to The Daily Market.
+
+Let's grow your kitchen together.
+
+
+— The Daily Market Team
+
+
+------------------------------------------------------------
+
+The Daily Market
+Your kitchen. Our supply. Growing together.
+
+Please keep this email for future reference. It contains important
+information about our ordering, payment and delivery procedures.

@@ -1,7 +1,17 @@
+
 from django.contrib import admin
 
-from .models import CommunicationLog, WhatsAppMessage, EmailLog
+from .models import (
+    CommunicationLog,
+    CommunicationDocs,
+    WhatsAppMessage,
+    EmailLog,
+)
 
+
+# ============================================================
+# COMMUNICATION LOG
+# ============================================================
 
 @admin.register(CommunicationLog)
 class CommunicationLogAdmin(admin.ModelAdmin):
@@ -67,75 +77,103 @@ class CommunicationLogAdmin(admin.ModelAdmin):
         "-created_at",
     ]
 
-    date_hierarchy = "created_at"
+    # IMPORTANT:
+    # Do not use date_hierarchy until MySQL timezone tables
+    # are correctly configured.
+    # date_hierarchy = "created_at"
+
+    list_per_page = 50
+
+
+# ============================================================
+# COMMUNICATION DOCUMENTS
+# ============================================================
+
+@admin.register(CommunicationDocs)
+class CommunicationDocsAdmin(admin.ModelAdmin):
+
+    list_display = [
+        "id",
+        "filename",
+        "communication",
+        "communication_channel",
+        "recipient_name",
+        "recipient_contact",
+        "created_at",
+    ]
+
+    list_filter = [
+        "communication__channel",
+        "created_at",
+    ]
+
+    search_fields = [
+        "filename",
+        "communication__recipient_name",
+        "communication__recipient_contact",
+        "communication__subject",
+    ]
+
+    readonly_fields = [
+        "created_at",
+    ]
+
+    ordering = [
+        "-created_at",
+    ]
 
     list_per_page = 50
 
     fieldsets = (
         (
+            "Document",
+            {
+                "fields": (
+                    "filename",
+                    "file",
+                )
+            },
+        ),
+        (
             "Communication",
             {
                 "fields": (
-                    "channel",
-                    "status",
-                    "recipient_name",
-                    "recipient_contact",
-                    "subject",
-                    "message",
+                    "communication",
                 )
             },
         ),
         (
-            "Linked Object",
+            "Audit",
             {
                 "fields": (
-                    "related_model",
-                    "related_object_id",
-                )
-            },
-        ),
-        (
-            "Provider Information",
-            {
-                "fields": (
-                    "provider",
-                    "provider_message_id",
-                    "provider_response",
-                    "provider_status_payload",
-                    "error_message",
-                )
-            },
-        ),
-        (
-            "WhatsApp Tracking",
-            {
-                "fields": (
-                    "whatsapp_phone_number_id",
-                    "whatsapp_display_phone_number",
-                    "whatsapp_recipient_id",
-                    "whatsapp_conversation_id",
-                    "whatsapp_pricing_category",
-                    "whatsapp_pricing_type",
-                    "whatsapp_billable",
-                )
-            },
-        ),
-        (
-            "Audit / Timing",
-            {
-                "fields": (
-                    "sent_by",
                     "created_at",
-                    "updated_at",
-                    "sent_at",
-                    "delivered_at",
-                    "read_at",
-                    "failed_at",
                 )
             },
         ),
     )
 
+    @admin.display(
+        description="Channel"
+    )
+    def communication_channel(self, obj):
+        return obj.communication.channel
+
+    @admin.display(
+        description="Recipient"
+    )
+    def recipient_name(self, obj):
+        return obj.communication.recipient_name
+
+    @admin.display(
+        description="Contact"
+    )
+    def recipient_contact(self, obj):
+        return obj.communication.recipient_contact
+
+
+# ============================================================
+# WHATSAPP MESSAGE
+# ============================================================
 
 @admin.register(WhatsAppMessage)
 class WhatsAppMessageAdmin(admin.ModelAdmin):
@@ -225,6 +263,10 @@ class WhatsAppMessageAdmin(admin.ModelAdmin):
     )
 
 
+# ============================================================
+# EMAIL LOG
+# ============================================================
+
 @admin.register(EmailLog)
 class EmailLogAdmin(admin.ModelAdmin):
 
@@ -278,6 +320,5 @@ class EmailLogAdmin(admin.ModelAdmin):
             },
         ),
     )
-
 
 

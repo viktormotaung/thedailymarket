@@ -93,64 +93,158 @@ def warehouse_batch_detail(request, batch_id):
     - pick_item       → confirm supplier commitment (auto-assigned)
     - complete_batch  → handoff to deliveries
     - reopen_batch    → unlock batch (admin/ops only)
-    """
-    batch = get_object_or_404(PickingBatch, id=batch_id)
 
+    Also provides supplier information for the
+    'Download Supplier Batch Info' feature.
+    """
+
+    batch = get_object_or_404(
+        PickingBatch,
+        id=batch_id,
+    )
+
+    # -------------------------------------------------
+    # WRITE ACCESS
+    # -------------------------------------------------
+    # Staff users can perform warehouse actions.
+    # Completed batches remain viewable and downloadable,
+    # but picking actions are locked by batch status.
+    can_write = request.user.is_staff
+
+    # -------------------------------------------------
+    # POST ACTIONS
+    # -------------------------------------------------
     if request.method == "POST":
+
         action = request.POST.get("action")
 
         # ----------------------------
         # MARK ITEM PICKED
         # ----------------------------
         if action == "pick_item":
-            item_id = request.POST.get("item_id")
-            item = get_object_or_404(batch.items, id=item_id)
 
+            if not can_write:
+                return redirect(
+                    "warehouse-batch-detail",
+                    batch_id=batch.id,
+                )
+
+            item_id = request.POST.get("item_id")
+
+            item = get_object_or_404(
+                batch.items,
+                id=item_id,
+            )
+
+            # Do not allow picking on a completed batch
             if batch.status != "complete":
+
                 with transaction.atomic():
+
                     item.mark_picked()
 
                     # Move batch from draft → in_progress automatically
                     if batch.status == "draft":
+
                         batch.status = "in_progress"
-                        batch.save(update_fields=["status", "updated_at"])
+
+                        batch.save(
+                            update_fields=[
+                                "status",
+                                "updated_at",
+                            ]
+                        )
 
         # ----------------------------
         # COMPLETE BATCH
         # ----------------------------
         elif action == "complete_batch":
+
+            if not can_write:
+                return redirect(
+                    "warehouse-batch-detail",
+                    batch_id=batch.id,
+                )
+
             if batch.status != "complete":
-                batch.mark_complete(user=request.user)
+
+                batch.mark_complete(
+                    user=request.user
+                )
 
         # ----------------------------
         # REOPEN BATCH
         # ----------------------------
         elif action == "reopen_batch":
+
+            if not can_write:
+                return redirect(
+                    "warehouse-batch-detail",
+                    batch_id=batch.id,
+                )
+
             if batch.status == "complete":
+
                 batch.status = "in_progress"
                 batch.completed_at = None
-                batch.save(update_fields=[
-                    "status",
-                    "completed_at",
-                    "updated_at",
-                ])
+
+                batch.save(
+                    update_fields=[
+                        "status",
+                        "completed_at",
+                        "updated_at",
+                    ]
+                )
 
         return redirect(
             "warehouse-batch-detail",
             batch_id=batch.id,
         )
 
-    # ----------------------------
+    # -------------------------------------------------
     # GET: DISPLAY PAGE
-    # ----------------------------
-    items = batch.items.select_related(
-        "order",
-        "order_item",
-    ).order_by("order_id", "id")
+    # -------------------------------------------------
+
+    # Picking items
+    items = (
+        batch.items
+        .select_related(
+            "supplier",
+            "order",
+            "order_item",
+        )
+        .order_by(
+            "order_id",
+            "id",
+        )
+    )
+
+    # -------------------------------------------------
+    # SUPPLIERS IN THIS BATCH
+    # -------------------------------------------------
+    #
+    # Suppliers are assigned through PickingItem.
+    # Only suppliers actually associated with this
+    # PickingBatch are included.
+    #
+    suppliers = (
+        Supplier.objects
+        .filter(
+            picking_items__batch=batch,
+        )
+        .distinct()
+        .order_by("name")
+    )
+
+    # -------------------------------------------------
+    # CONTEXT
+    # -------------------------------------------------
 
     context = {
         "batch": batch,
         "items": items,
+        "suppliers": suppliers,
+        "can_write": can_write,
     }
 
     return render(
@@ -720,5 +814,268 @@ def run_log_view(request, run_id):
 @staff_required
 def staff_logistics_dashboard(request):
     return render(request, "deliveries/staff_logistics_dashboard.html")
+
+
+
+@login_required
+@staff_required
+def download_supplier_batch_info(request, batch_id):
+    """
+    Display supplier batch information for the selected suppliers.
+
+    Supplier pricing:
+        expected_supplier_price = actual supplier purchase price
+                                  INCLUDING VAT
+
+        expected total = supplier price INCL VAT × expected quantity
+
+    No VAT is added in this view because the supplier price
+    is already VAT-inclusive.
+    """
+
+    from decimal import Decimal
+
+    batch = get_object_or_404(
+        PickingBatch,
+        id=batch_id,
+    )
+
+    # ---------------------------------------------------------
+    # SELECTED SUPPLIERS
+    # ---------------------------------------------------------
+
+    supplier_ids = request.GET.getlist("supplier_ids")
+
+    if not supplier_ids:
+        messages.error(
+            request,
+            "Please select at least one supplier.",
+        )
+
+        return redirect(
+            "warehouse-batch-detail",
+            batch_id=batch.id,
+        )
+
+    # ---------------------------------------------------------
+    # VALID SUPPLIERS FOR THIS BATCH
+    # ---------------------------------------------------------
+
+    suppliers = (
+        Supplier.objects
+        .filter(
+            id__in=supplier_ids,
+            picking_items__batch=batch,
+        )
+        .distinct()
+        .order_by("name")
+    )
+
+    if not suppliers.exists():
+        messages.error(
+            request,
+            "No valid suppliers were selected for this batch.",
+        )
+
+        return redirect(
+            "warehouse-batch-detail",
+            batch_id=batch.id,
+        )
+
+    # ---------------------------------------------------------
+    # PICKING ITEMS
+    # ---------------------------------------------------------
+
+    items = list(
+        PickingItem.objects
+        .filter(
+            batch=batch,
+            supplier_id__in=supplier_ids,
+        )
+        .select_related(
+            "supplier",
+            "order",
+            "order_item",
+        )
+        .order_by(
+            "supplier__name",
+            "product_name",
+            "order_id",
+            "id",
+        )
+    )
+
+    if not items:
+        messages.error(
+            request,
+            "There are no picking items for the selected suppliers.",
+        )
+
+        return redirect(
+            "warehouse-batch-detail",
+            batch_id=batch.id,
+        )
+
+    # ---------------------------------------------------------
+    # CALCULATE EXPECTED TOTALS
+    # ---------------------------------------------------------
+    #
+    # expected_supplier_price is ALREADY the actual supplier
+    # purchase price INCLUDING VAT.
+    #
+    # We DO NOT add VAT again.
+    #
+    # Calculation:
+    #
+    # supplier price incl VAT × expected quantity
+    #
+    # Example:
+    #
+    # R529.00 × 1 = R529.00
+    # R48.00 × 2  = R96.00
+    #
+    # ---------------------------------------------------------
+
+    for item in items:
+
+        expected_qty = (
+            item.expected_qty
+            if item.expected_qty is not None
+            else Decimal("0.00")
+        )
+
+        supplier_price_incl = (
+            item.expected_supplier_price
+            if item.expected_supplier_price is not None
+            else Decimal("0.00")
+        )
+
+        expected_total = (
+            supplier_price_incl * expected_qty
+        )
+
+        # Make calculated values available to template
+        item.supplier_price_incl = supplier_price_incl
+        item.expected_total = expected_total
+
+    # ---------------------------------------------------------
+    # PRODUCT TOTALS
+    # ---------------------------------------------------------
+
+    product_totals = {}
+
+    for item in items:
+
+        supplier_id = item.supplier_id
+
+        product_name = (
+            item.product_name
+            or "Unknown Product"
+        )
+
+        key = (
+            supplier_id,
+            product_name,
+        )
+
+        if key not in product_totals:
+
+            product_totals[key] = {
+                "supplier_id": supplier_id,
+                "product_name": product_name,
+                "total_qty": Decimal("0.00"),
+                "total_price": Decimal("0.00"),
+                "line_count": 0,
+            }
+
+        expected_qty = (
+            item.expected_qty
+            if item.expected_qty is not None
+            else Decimal("0.00")
+        )
+
+        product_totals[key]["total_qty"] += (
+            expected_qty
+        )
+
+        product_totals[key]["total_price"] += (
+            item.expected_total
+        )
+
+        product_totals[key]["line_count"] += 1
+
+    product_totals = list(
+        product_totals.values()
+    )
+
+    # ---------------------------------------------------------
+    # SUPPLIER TOTALS
+    # ---------------------------------------------------------
+
+    supplier_totals = {}
+
+    for item in items:
+
+        supplier_id = item.supplier_id
+
+        if supplier_id not in supplier_totals:
+
+            supplier_totals[supplier_id] = {
+                "total_qty": Decimal("0.00"),
+                "total_price": Decimal("0.00"),
+                "line_count": 0,
+            }
+
+        expected_qty = (
+            item.expected_qty
+            if item.expected_qty is not None
+            else Decimal("0.00")
+        )
+
+        supplier_totals[supplier_id]["total_qty"] += (
+            expected_qty
+        )
+
+        supplier_totals[supplier_id]["total_price"] += (
+            item.expected_total
+        )
+
+        supplier_totals[supplier_id]["line_count"] += 1
+
+    # ---------------------------------------------------------
+    # SELECTED SUPPLIERS TOTAL
+    # ---------------------------------------------------------
+
+    expected_total = Decimal("0.00")
+
+    for item in items:
+        expected_total += item.expected_total
+
+    # ---------------------------------------------------------
+    # CONTEXT
+    # ---------------------------------------------------------
+
+    context = {
+        "batch": batch,
+        "suppliers": suppliers,
+        "items": items,
+        "product_totals": product_totals,
+        "supplier_totals": supplier_totals,
+
+        # Used by the EXPECTED TOTAL card
+        "expected_total": expected_total,
+
+        # Keep this available as well
+        "selected_suppliers_total": expected_total,
+    }
+
+    return render(
+        request,
+        "deliveries/supplier_batch_info.html",
+        context,
+    )
+
+
+
 
 

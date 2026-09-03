@@ -16,6 +16,7 @@ urlpatterns = [
     path("vehicle/<int:vehicle_id>/log/", views.vehicle_log, name="vehicle-log"),
     path("runs/<int:run_id>/log/", views.run_log_view, name="run-log",),  
 
+    path("warehouse/batches/<int:batch_id>/supplier-batch-info/", views.download_supplier_batch_info, name="download-supplier-batch-info",),
 
 
 

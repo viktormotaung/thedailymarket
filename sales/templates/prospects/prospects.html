@@ -2,73 +2,52 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Prospects - The Daily Market</title>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Dashboard - The Daily Market</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <style>
-    /* Desktop: fixed sidebar + content */
+    /* --- Desktop: fixed (non-movable) sidebar --- */
     @media (min-width: 992px) {
-      body { display: flex; min-height: 100vh; }
-      .sidebar-desktop { width: 220px; min-height: 100vh; flex-shrink: 0; }
-      .content { flex: 1; }
+      html, body { height: 100%; }
+      body { min-height: 100vh; overflow-x: hidden; }
+      .sidebar-desktop {
+        position: fixed; top: 0; left: 0; width: 220px; height: 100vh; overflow-y: auto;
+      }
+      main.content { margin-left: 220px; min-height: 100vh; }
     }
 
-    /* Shared */
+    /* Shared styles */
     .sidebar-skin { background-color: #0b5c39; color: #fff; padding: 1rem; }
-    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; text-decoration: none; }
+    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
     .sidebar-skin .nav-link.active,
     .sidebar-skin .nav-link:hover {
-      background: rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.15);
       border-radius: 4px;
       padding-left: 8px;
     }
     .logo-img { max-height: 80px; width: auto; }
-    .content { background: #f8f9fa; padding: 20px; min-height: 100vh; }
-    .table tbody tr[role="button"] { cursor: pointer; }
+    .content { background: #f8f9fa; padding: 20px; }
+    .sidebar-skin .nav-link.ps-4 { font-size: .95rem; opacity: .95; }
 
-    /* Mobile: hide desktop sidebar */
-    @media (max-width: 991.98px) {
-      .sidebar-desktop { display: none; }
-      .content { padding: 16px; }
-      .logo-img { max-height: 56px; }
-    }
-
-    /* Header block: center heading + button */
-    .page-header {
-      text-align: center;
-      margin-bottom: 1rem;
-    }
-    .page-header h2 {
-      margin: 0;
-      font-weight: 600;
-    }
-    .page-header .header-actions {
-      margin-top: 12px;
-    }
-
-    /* Chart container helper (if needed elsewhere) */
+    /* --- Compact chart height --- */
     .chart-wrap { position: relative; width: 100%; height: 220px; }
     @media (max-width: 991.98px) { .chart-wrap { height: 180px; } }
     @media (max-width: 575.98px) { .chart-wrap { height: 150px; } }
-    .chart-wrap canvas { width: 100% !important; height: 100% !important; display:block; }
+    .chart-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
   </style>
 </head>
 <body>
 
-  <!-- MOBILE TOP BAR -->
+  <!-- MOBILE/TABLET TOP BAR -->
   <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
     <div class="container-fluid">
-      <button class="btn btn-transparent p-0 me-2" type="button"
-              data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu"
-              aria-label="Toggle menu">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
-
-      <a class="navbar-brand d-flex align-items-center" href="#">
-        <img src="{% static 'images/logo.png' %}" alt="The" style="height:40px;">
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="height:40px;">
       </a>
     </div>
   </nav>
@@ -76,107 +55,164 @@
   <!-- MOBILE OFFCANVAS MENU -->
   <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
     <div class="offcanvas-header sidebar-skin">
-      <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Menu</h5>
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Staff Platform</h5>
       <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body sidebar-skin">
       <div class="text-center mb-3">
-        <img src="{% static 'images/logo.png' %}" alt="The" class="logo-img">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" class="logo-img">
       </div>
 
-      <!-- Nav links: data-route links will close the offcanvas via JS (see script) -->
-      <a href="{% url 'sales:sales-dashboard' %}" class="nav-link" data-close-offcanvas>Dashboard</a>
-      <a href="{% url 'sales:sales-prospects' %}" class="nav-link" data-close-offcanvas>Prospects</a>
-      <a href="{% url 'sales:sales-clients' %}" class="nav-link" data-close-offcanvas>Clients</a>
-      <a href="{% url 'sales:sales-orders' %}" class="nav-link" data-close-offcanvas>Orders</a>
-      <a href="{% url 'sales:sales-invoices' %}" class="nav-link" data-close-offcanvas>Invoices</a>
-      <a href="{% url 'sales:sales-commission' %}" class="nav-link" data-close-offcanvas>Commission</a>
-      <a href="{% url 'sales:sales-tickets' %}" class="nav-link" data-close-offcanvas>Tickets &amp; Tasks</a>
-
+      <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'sales:sales-leads' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-leads' %}active{% endif %}">Leads</a>
+      <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
+      <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
+      <a href="{% url 'sales:sales-quotations' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-quotations' %}active{% endif %}">Quotations</a>
+      <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
+      <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
+      <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
+      <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets</a>
       <hr class="border-light">
 
-      <form action="{% url 'logout' %}" method="post" class="m-0">
+    
+      <button type="button"
+        class="btn btn-outline-light w-100 text-center mb-2"
+        data-bs-toggle="modal"
+        data-bs-target="#switchPlatformModal">
+        Switch Platform
+      </button>
+
+      <form method="post" action="{% url 'logout' %}">
         {% csrf_token %}
-        <button type="submit" class="btn btn-light w-100">Sign out</button>
+        <button type="submit"
+                class="btn btn-outline-light w-100 text-center">
+          Sign Out
+        </button>
       </form>
 
       <hr class="border-light">
 
-      <a href="#"
-        class="nav-link"
-        data-bs-toggle="modal"
-        data-bs-target="#switchPlatformModal">
-        Switch Platform
-      </a>
+      <!-- LOGGED-IN USER -->
+      <div class="mb-3">
+        <div
+          class="bg-white bg-opacity-10 rounded px-2 py-2 text-center"
+          style="font-size: 0.85rem;"
+        >
+          <div class="text-white-50 small">
+            Logged in as
+          </div>
+
+          <div class="fw-semibold text-white">
+            {% if request.user.get_full_name %}
+              {{ request.user.get_full_name }}
+            {% else %}
+              {{ request.user.username }}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      
     </div>
   </div>
 
   <!-- DESKTOP SIDEBAR -->
   <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
     <div class="text-center mb-3">
-      <img src="{% static 'images/logo.png' %}" alt="The" class="logo-img">
+      <img src="{% static 'images/logo.png' %}" alt="The Daily Market" class="logo-img">
     </div>
 
-    <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
-    <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
-    <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
-    <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
-    <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
-    <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
-    <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
-
-    <div class="mt-3">
-      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
-        {% csrf_token %}
-        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
-      </form>
-    </div>
+    <h6 class="text-uppercase fw-semibold mb-2">
+      <a href="#"
+        class="text-decoration-none text-reset">
+        Sales Staff Platform
+      </a>
+    </h6>
 
     <hr class="border-light">
 
-    <a href="#"
-      class="nav-link"
-      data-bs-toggle="modal"
-      data-bs-target="#switchPlatformModal">
-      Switch Platform
-    </a>
+    <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'sales:sales-leads' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-leads' %}active{% endif %}">Leads</a>
+    <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
+    <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
+    <a href="{% url 'sales:sales-quotations' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-quotations' %}active{% endif %}">Quotations</a>
+    <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
+    <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
+    <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
+    <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets</a>
+    <hr class="border-light">
+
+    <button type="button"
+        class="btn btn-outline-light w-100 text-center mb-2"
+        data-bs-toggle="modal"
+        data-bs-target="#switchPlatformModal">
+        Switch Platform
+    </button>
+
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit"
+                class="btn btn-outline-light w-100 text-center">
+        Sign Out
+      </button>
+    </form>
+    
+
+    <!-- LOGGED-IN USER -->
+    <div class="mb-3">
+      <div
+        class="bg-white bg-opacity-10 rounded px-2 py-2 text-center"
+        style="font-size: 0.85rem;"
+      >
+        <div class="text-white-50 small">
+          Logged in as
+        </div>
+
+        <div class="fw-semibold text-white">
+          {% if request.user.get_full_name %}
+            {{ request.user.get_full_name }}
+          {% else %}
+            {{ request.user.username }}
+          {% endif %}
+        </div>
+      </div>
+    </div>
   </aside>
 
   <!-- MAIN CONTENT -->
   <main class="content">
-    <div class="container-fluid">
+    
 
-      <!-- Centered header + centered add button -->
-      <div class="page-header">
-        <h2 class="mb-0">Prospects</h2>
+      
 
-        <div class="header-actions">
-          <a href="{% if can_write %}{% url 'sales:sales-prospect-create' %}{% else %}#{% endif %}"
-            class="btn btn-success {% if not can_write %}disabled{% endif %}"
-            {% if not can_write %}aria-disabled="true" title="View-only access"{% endif %}>
-            Add Prospect
-          </a>
-        </div>
-      </div>
+    <h2 class="text-center mb-3">Prospects</h2>
 
-      {% if success_message %}
-        <div class="alert alert-success">{{ success_message }}</div>
-      {% endif %}
-      {% if error_message %}
-        <div class="alert alert-danger">{{ error_message }}</div>
-      {% endif %}
+    <div class="text-center mb-4">
+      <button type="button"
+              class="btn btn-secondary"
+              disabled
+              title="Add Prospect is currently unavailable">
+        <i class="bi bi-plus-lg"></i>
+        Add Prospect
+      </button>
+    </div>
 
-      <div class="card shadow-sm mb-3">
-        <div class="card-header bg-white py-3">
 
-          <form method="get">
+    <div class="card mb-3">
+      <div class="card-body">
 
+        <form method="get">
+
+            <!-- FILTER FIELDS -->
             <div class="row g-3 align-items-end">
 
               <!-- SEARCH -->
-              <div class="col-lg-5">
+              <div class="col-lg-4">
 
-                <label for="search" class="form-label mb-1 fw-semibold">
+                <label
+                  for="search"
+                  class="form-label mb-1 fw-semibold"
+                >
                   Search
                 </label>
 
@@ -191,43 +227,59 @@
 
               </div>
 
-              <!-- STAGE -->
-              <div class="col-lg-3">
 
-                <label for="stage" class="form-label mb-1 fw-semibold">
+              <!-- STAGE -->
+              <div class="col-lg-2">
+
+                <label
+                  for="stage"
+                  class="form-label mb-1 fw-semibold"
+                >
                   Stage
                 </label>
 
-                <select id="stage"
-                        name="stage"
-                        class="form-select">
+                <select
+                  id="stage"
+                  name="stage"
+                  class="form-select"
+                >
 
                   <option value="">
                     All stages
                   </option>
 
-                  <option value="NEW"
-                    {% if request.GET.stage == 'NEW' %}selected{% endif %}>
+                  <option
+                    value="NEW"
+                    {% if request.GET.stage == 'NEW' %}selected{% endif %}
+                  >
                     New
                   </option>
 
-                  <option value="CONTACTED"
-                    {% if request.GET.stage == 'CONTACTED' %}selected{% endif %}>
+                  <option
+                    value="CONTACTED"
+                    {% if request.GET.stage == 'CONTACTED' %}selected{% endif %}
+                  >
                     Contacted
                   </option>
 
-                  <option value="NEGOTIATION"
-                    {% if request.GET.stage == 'NEGOTIATION' %}selected{% endif %}>
+                  <option
+                    value="NEGOTIATION"
+                    {% if request.GET.stage == 'NEGOTIATION' %}selected{% endif %}
+                  >
                     Negotiation
                   </option>
 
-                  <option value="WON"
-                    {% if request.GET.stage == 'WON' %}selected{% endif %}>
+                  <option
+                    value="WON"
+                    {% if request.GET.stage == 'WON' %}selected{% endif %}
+                  >
                     Won
                   </option>
 
-                  <option value="LOST"
-                    {% if request.GET.stage == 'LOST' %}selected{% endif %}>
+                  <option
+                    value="LOST"
+                    {% if request.GET.stage == 'LOST' %}selected{% endif %}
+                  >
                     Lost
                   </option>
 
@@ -235,28 +287,38 @@
 
               </div>
 
+
               <!-- STATUS -->
               <div class="col-lg-2">
 
-                <label for="status" class="form-label mb-1 fw-semibold">
+                <label
+                  for="status"
+                  class="form-label mb-1 fw-semibold"
+                >
                   Status
                 </label>
 
-                <select id="status"
-                        name="status"
-                        class="form-select">
+                <select
+                  id="status"
+                  name="status"
+                  class="form-select"
+                >
 
                   <option value="">
                     All
                   </option>
 
-                  <option value="ACTIVE"
-                    {% if request.GET.status == 'ACTIVE' %}selected{% endif %}>
+                  <option
+                    value="ACTIVE"
+                    {% if request.GET.status == 'ACTIVE' %}selected{% endif %}
+                  >
                     Active
                   </option>
 
-                  <option value="ARCHIVED"
-                    {% if request.GET.status == 'ARCHIVED' %}selected{% endif %}>
+                  <option
+                    value="ARCHIVED"
+                    {% if request.GET.status == 'ARCHIVED' %}selected{% endif %}
+                  >
                     Archived
                   </option>
 
@@ -264,29 +326,78 @@
 
               </div>
 
-              <!-- ACTIONS -->
+
+              <!-- FROM DATE -->
               <div class="col-lg-2">
 
-                <div class="d-grid gap-2">
+                <label
+                  for="date_from"
+                  class="form-label mb-1 fw-semibold"
+                >
+                  From
+                </label>
 
-                  <button type="submit"
-                          class="btn btn-success">
-                    Apply Filters
-                  </button>
+                <input
+                  type="date"
+                  id="date_from"
+                  name="date_from"
+                  class="form-control"
+                  value="{{ selected_date_from|date:'Y-m-d' }}"
+                >
 
-                  <a href="{% url 'sales:sales-prospects' %}" class="btn btn-outline-secondary">
-                    Reset
-                  </a>
+              </div>
 
-                </div>
+
+              <!-- TO DATE -->
+              <div class="col-lg-2">
+
+                <label
+                  for="date_to"
+                  class="form-label mb-1 fw-semibold"
+                >
+                  To
+                </label>
+
+                <input
+                  type="date"
+                  id="date_to"
+                  name="date_to"
+                  class="form-control"
+                  value="{{ selected_date_to|date:'Y-m-d' }}"
+                >
 
               </div>
 
             </div>
 
-          </form>
 
-        </div>
+            <!-- ACTION BUTTONS -->
+            <!-- ACTION BUTTONS -->
+            <div class="row mt-3">
+
+              <div class="col-12 d-flex justify-content-center gap-2">
+
+                <a
+                  href="{% url 'sales:sales-prospects' %}"
+                  class="btn btn-outline-secondary px-4"
+                >
+                  Reset
+                </a>
+
+                <button
+                  type="submit"
+                  class="btn btn-success px-4"
+                >
+                  Apply Filters
+                </button>
+
+              </div>
+
+            </div>
+
+        </form>
+      </div>
+    </div>
 
         <div class="card">
           <div class="card-header bg-white d-flex justify-content-between align-items-center">

@@ -76,21 +76,41 @@
 
     
       <button type="button"
-              class="btn btn-outline-light w-100 text-center"
-              data-bs-toggle="modal"
-              data-bs-target="#switchPlatformModal">
+        class="btn btn-outline-light w-100 text-center mb-2"
+        data-bs-toggle="modal"
+        data-bs-target="#switchPlatformModal">
         Switch Platform
       </button>
 
-      <hr class="border-light">
-
-      <!-- Sign out -->
-      <form action="{% url 'logout' %}" method="post">
+      <form method="post" action="{% url 'logout' %}">
         {% csrf_token %}
-        <button type="submit" class="btn btn-outline-light w-100">
-          Sign out
+        <button type="submit"
+                class="btn btn-outline-light w-100 text-center">
+          Sign Out
         </button>
       </form>
+
+      <hr class="border-light">
+
+      <!-- LOGGED-IN USER -->
+      <div class="mb-3">
+        <div
+          class="bg-white bg-opacity-10 rounded px-2 py-2 text-center"
+          style="font-size: 0.85rem;"
+        >
+          <div class="text-white-50 small">
+            Logged in as
+          </div>
+
+          <div class="fw-semibold text-white">
+            {% if request.user.get_full_name %}
+              {{ request.user.get_full_name }}
+            {% else %}
+              {{ request.user.username }}
+            {% endif %}
+          </div>
+        </div>
+      </div>
 
       
     </div>
@@ -122,27 +142,40 @@
     <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets</a>
     <hr class="border-light">
 
-    <!-- Switch Platform -->
-    <div class="mb-2">
-      <button type="button"
-              class="btn btn-outline-light btn-sm w-100 text-center py-1"
-              data-bs-toggle="modal"
-              data-bs-target="#switchPlatformModal">
+    <button type="button"
+        class="btn btn-outline-light w-100 text-center mb-2"
+        data-bs-toggle="modal"
+        data-bs-target="#switchPlatformModal">
         Switch Platform
-      </button>
-    </div>
+    </button>
 
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit"
+                class="btn btn-outline-light w-100 text-center">
+        Sign Out
+      </button>
+    </form>
     
 
-    <!-- Sign out -->
-    <div class="mt-2 mb-2">
-      <form action="{% url 'logout' %}" method="post">
-        {% csrf_token %}
-        <button type="submit"
-                class="btn btn-outline-light btn-sm w-100 py-1">
-          Sign out
-        </button>
-      </form>
+    <!-- LOGGED-IN USER -->
+    <div class="mb-3">
+      <div
+        class="bg-white bg-opacity-10 rounded px-2 py-2 text-center"
+        style="font-size: 0.85rem;"
+      >
+        <div class="text-white-50 small">
+          Logged in as
+        </div>
+
+        <div class="fw-semibold text-white">
+          {% if request.user.get_full_name %}
+            {{ request.user.get_full_name }}
+          {% else %}
+            {{ request.user.username }}
+          {% endif %}
+        </div>
+      </div>
     </div>
   </aside>
 
