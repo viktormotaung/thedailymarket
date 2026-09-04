@@ -4,145 +4,624 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Commission - The Daily Market</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>Sales Dashboard - The Daily Market</title>
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
 
   <style>
-    /* --- Desktop: fixed (non-movable) sidebar --- */
-    /* Desktop layout (lg and up): sidebar + content side-by-side */
+    /* =========================================================
+       DESKTOP SIDEBAR
+       ========================================================= */
+
     @media (min-width: 992px) {
-      body { display: flex; min-height: 100vh; }
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
       .sidebar-desktop {
-        width: 220px;
-        height: 100vh;
         position: fixed;
         top: 0;
         left: 0;
-        overflow: hidden; /* prevents scrolling */
+        width: 220px;
+        height: 100vh;
+        overflow-y: auto;
       }
-      .content {
-        flex: 1;
-        margin-left: 220px; /* same as sidebar width */
+
+      main.content {
+        margin-left: 220px;
+        min-height: 100vh;
       }
-    }
-    .form-select-sm {
-      min-width: 180px;
     }
 
-    /* Shared styles */
-    .sidebar-skin { background-color: #0b5c39; color: #fff; padding: 1rem; }
-    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
+    /* =========================================================
+       SHARED SIDEBAR STYLES
+       ========================================================= */
+
+    .sidebar-skin {
+      background-color: #0b5c39;
+      color: #fff;
+      padding: 1rem;
+    }
+
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: .25rem 0;
+      display: block;
+      transition: background .15s ease, padding-left .15s ease;
+    }
+
     .sidebar-skin .nav-link.active,
     .sidebar-skin .nav-link:hover {
-      background: rgba(255,255,255,0.15);
+      background: rgba(255, 255, 255, 0.15);
       border-radius: 4px;
       padding-left: 8px;
     }
-    .logo-img { max-height: 80px; width: auto; }
-    .content { background: #f8f9fa; padding: 20px; }
-    .sidebar-skin .nav-link.ps-4 { font-size: .95rem; opacity: .95; }
-    .card-compact { padding: 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-    .filter-bar { gap: .5rem; align-items:center; }
-    .table-hover tbody tr { cursor: pointer; }
-    .clickable-row {
-      cursor: pointer;
+
+    .logo-img {
+      max-height: 80px;
+      width: auto;
     }
 
-    .clickable-row:hover {
+    .content {
       background: #f8f9fa;
+      padding: 20px;
+    }
+
+    .sidebar-skin .nav-link.ps-4 {
+      font-size: .95rem;
+      opacity: .95;
+    }
+
+    /* =========================================================
+       CHART
+       ========================================================= */
+
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 220px;
+    }
+
+    @media (max-width: 991.98px) {
+      .chart-wrap {
+        height: 180px;
+      }
+    }
+
+    @media (max-width: 575.98px) {
+      .chart-wrap {
+        height: 150px;
+      }
+    }
+
+    .chart-wrap canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
     }
   </style>
 </head>
+
 <body>
 
-  <!-- MOBILE/TABLET TOP BAR -->
-  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+  <!-- =========================================================
+       MOBILE / TABLET TOP BAR
+       ========================================================= -->
+
+  <nav
+    class="navbar navbar-dark d-lg-none"
+    style="background:#0b5c39;"
+  >
     <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-bs-toggle="offcanvas"
+        data-bs-target="#mobileMenu"
+        aria-controls="mobileMenu"
+        aria-label="Toggle navigation"
+      >
         <span class="navbar-toggler-icon"></span>
       </button>
-      <a class="navbar-brand ms-2" href="#">
-        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+
+      <a
+        class="navbar-brand ms-2"
+        href="#"
+      >
+        <img
+          src="{% static 'images/logo.png' %}"
+          alt="The Daily Market"
+          style="height:40px;"
+        >
       </a>
+
     </div>
   </nav>
 
-  <!-- MOBILE OFFCANVAS MENU -->
-  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+
+  <!-- =========================================================
+       MOBILE OFFCANVAS MENU
+       ========================================================= -->
+
+  <div
+    class="offcanvas offcanvas-start d-lg-none"
+    tabindex="-1"
+    id="mobileMenu"
+    aria-labelledby="mobileMenuLabel"
+  >
+
     <div class="offcanvas-header sidebar-skin">
-      <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Menu</h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+
+      <h5
+        class="offcanvas-title"
+        id="mobileMenuLabel"
+      >
+        Sales Staff Platform
+      </h5>
+
+      <button
+        type="button"
+        class="btn-close btn-close-white"
+        data-bs-dismiss="offcanvas"
+        aria-label="Close"
+      ></button>
+
     </div>
+
+
     <div class="offcanvas-body sidebar-skin">
+
+      <!-- LOGO -->
+
       <div class="text-center mb-3">
-        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+        <img
+          src="{% static 'images/logo.png' %}"
+          alt="The Daily Market"
+          class="logo-img"
+        >
       </div>
 
-      <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
-      <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
-      <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
-      <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
-      <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
-      <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
-      <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
-      <hr class="border-light">
-      <form action="{% url 'logout' %}" method="post" class="m-0">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-light w-100">Sign out</button>
-      </form>
+
+      <!-- =====================================================
+           MAIN NAVIGATION
+           ===================================================== -->
+
+      <!-- DASHBOARD -->
+
+      <a
+        href="{% url 'sales:sales-dashboard' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}"
+      >
+        Dashboard
+      </a>
+
+
+      <!-- =====================================================
+           LEADS
+           Includes list + create + view/detail + edit +
+           convert-to-prospect
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-leads' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-leads' or request.resolver_match.url_name == 'sales-lead-create' or request.resolver_match.url_name == 'sales-lead-view' or request.resolver_match.url_name == 'sales-lead-edit' or request.resolver_match.url_name == 'lead-convert-to-prospect' %}active{% endif %}"
+      >
+        Leads
+      </a>
+
+
+      <!-- =====================================================
+           PROSPECTS
+           Includes list + create + detail + updates +
+           stage actions + edit + reopen + all logs
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-prospects' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' or request.resolver_match.url_name == 'sales-prospect-create' or request.resolver_match.url_name == 'sales-prospect-detail' or request.resolver_match.url_name == 'sales-prospect-add-update' or request.resolver_match.url_name == 'sales-prospect-stage-action' or request.resolver_match.url_name == 'sales-prospect-edit' or request.resolver_match.url_name == 'sales-prospect-reopen' or request.resolver_match.url_name == 'sales-prospect-contact-log' or request.resolver_match.url_name == 'sales-prospect-site-visit-log' or request.resolver_match.url_name == 'sales-prospect-negotiation-log' %}active{% endif %}"
+      >
+        Prospects
+      </a>
+
+
+      <!-- =====================================================
+           CLIENTS
+           Includes list + edit + VIEW/DETAIL
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-clients' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-clients' or request.resolver_match.url_name == 'edit-client' or request.resolver_match.url_name == 'client-detail' %}active{% endif %}"
+      >
+        Clients
+      </a>
+
+
+      <!-- =====================================================
+           QUOTATIONS
+           Includes list + create + edit + VIEW/DETAIL +
+           WhatsApp + Email + SMS
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-quotations' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-quotations' or request.resolver_match.url_name == 'sales-create-quotation' or request.resolver_match.url_name == 'sales-edit-quotation' or request.resolver_match.url_name == 'sales-view-quotation' or request.resolver_match.url_name == 'sales-send-quotation-whatsapp' or request.resolver_match.url_name == 'sales-send-quotation-email' or request.resolver_match.url_name == 'sales-send-quotation-sms' %}active{% endif %}"
+      >
+        Quotations
+      </a>
+
+
+      <!-- =====================================================
+           ORDERS
+           Includes list + new + edit + VIEW/DETAIL + delete +
+           AJAX products
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-orders' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-orders' or request.resolver_match.url_name == 'create-order' or request.resolver_match.url_name == 'edit-order' or request.resolver_match.url_name == 'view-order' or request.resolver_match.url_name == 'delete-order' or request.resolver_match.url_name == 'ajax-products-by-category' %}active{% endif %}"
+      >
+        Orders
+      </a>
+
+
+      <!-- =====================================================
+           INVOICES
+           Includes list + VIEW/DETAIL + Email + WhatsApp + SMS
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-invoices' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' or request.resolver_match.url_name == 'view-invoice' or request.resolver_match.url_name == 'sales-send-invoice-email' or request.resolver_match.url_name == 'sales-send-invoice-whatsapp' or request.resolver_match.url_name == 'sales-send-invoice-sms' %}active{% endif %}"
+      >
+        Invoices
+      </a>
+
+
+      <!-- =====================================================
+           COMMISSION
+           Includes main commission + commission detail +
+           rep detail + statement + targets + supervisor +
+           rep detail
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-commission' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-commission' or request.resolver_match.url_name == 'sales-commission-view' or request.resolver_match.url_name == 'sales-commission-rep-detail' or request.resolver_match.url_name == 'email-commission-statement' or request.resolver_match.url_name == 'sales-target-list' or request.resolver_match.url_name == 'sales-add-target' or request.resolver_match.url_name == 'supervisor-detail' or request.resolver_match.url_name == 'rep-detail' %}active{% endif %}"
+      >
+        Commission
+      </a>
+
+
+      <!-- =====================================================
+           TICKETS
+           Includes list + create + VIEW/DETAIL
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-tickets' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' or request.resolver_match.url_name == 'sales-create-ticket' or request.resolver_match.url_name == 'view-ticket' %}active{% endif %}"
+      >
+        Tickets
+      </a>
+
+
       <hr class="border-light">
 
-      <a href="#"
-        class="nav-link"
+
+      <!-- =====================================================
+           SWITCH PLATFORM
+           ===================================================== -->
+
+      <button
+        type="button"
+        class="btn btn-outline-light w-100 text-center mb-2"
         data-bs-toggle="modal"
-        data-bs-target="#switchPlatformModal">
+        data-bs-target="#switchPlatformModal"
+      >
         Switch Platform
-      </a>
+      </button>
+
+
+      <!-- =====================================================
+           SIGN OUT
+           ===================================================== -->
+
+      <form
+        method="post"
+        action="{% url 'logout' %}"
+      >
+        {% csrf_token %}
+
+        <button
+          type="submit"
+          class="btn btn-outline-light w-100 text-center"
+        >
+          Sign Out
+        </button>
+      </form>
+
+
+      <hr class="border-light">
+
+
+      <!-- =====================================================
+           LOGGED-IN USER
+           ===================================================== -->
+
+      <div class="mb-3">
+
+        <div
+          class="bg-white bg-opacity-10 rounded px-2 py-2 text-center"
+          style="font-size: 0.85rem;"
+        >
+
+          <div class="text-white-50 small">
+            Logged in as
+          </div>
+
+          <div class="fw-semibold text-white">
+
+            {% if request.user.get_full_name %}
+              {{ request.user.get_full_name }}
+            {% else %}
+              {{ request.user.username }}
+            {% endif %}
+
+          </div>
+
+        </div>
+
+      </div>
+
     </div>
   </div>
 
-  <!-- DESKTOP SIDEBAR -->
-  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+
+  <!-- =========================================================
+       DESKTOP SIDEBAR
+       ========================================================= -->
+
+  <aside
+    class="sidebar-desktop d-none d-lg-block sidebar-skin"
+  >
+
+    <!-- LOGO -->
+
     <div class="text-center mb-3">
-      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+
+      <img
+        src="{% static 'images/logo.png' %}"
+        alt="The Daily Market"
+        class="logo-img"
+      >
+
     </div>
 
-    <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
-    <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
-    <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
-    <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
-    <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
-    <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
-    <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets &amp; Tasks</a>
-    <div class="mt-3">
-      <form action="{% url 'logout' %}" method="post" class="m-0 p-0">
-        {% csrf_token %}
-        <button type="submit" class="nav-link w-100 text-start btn btn-link p-0 text-white">Sign out</button>
-      </form>
-    </div>
+
+    <!-- PLATFORM TITLE -->
+
+    <h6 class="text-uppercase fw-semibold mb-2">
+
+      <a
+        href="#"
+        class="text-decoration-none text-reset"
+      >
+        Sales Staff Platform
+      </a>
+
+    </h6>
+
+
     <hr class="border-light">
 
-    <a href="#"
-      class="nav-link"
-      data-bs-toggle="modal"
-      data-bs-target="#switchPlatformModal">
-      Switch Platform
+
+    <!-- =====================================================
+         MAIN NAVIGATION
+         ===================================================== -->
+
+
+    <!-- DASHBOARD -->
+
+    <a
+      href="{% url 'sales:sales-dashboard' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}"
+    >
+      Dashboard
     </a>
+
+
+    <!-- =====================================================
+         LEADS
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-leads' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-leads' or request.resolver_match.url_name == 'sales-lead-create' or request.resolver_match.url_name == 'sales-lead-view' or request.resolver_match.url_name == 'sales-lead-edit' or request.resolver_match.url_name == 'lead-convert-to-prospect' %}active{% endif %}"
+    >
+      Leads
+    </a>
+
+
+    <!-- =====================================================
+         PROSPECTS
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-prospects' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' or request.resolver_match.url_name == 'sales-prospect-create' or request.resolver_match.url_name == 'sales-prospect-detail' or request.resolver_match.url_name == 'sales-prospect-add-update' or request.resolver_match.url_name == 'sales-prospect-stage-action' or request.resolver_match.url_name == 'sales-prospect-edit' or request.resolver_match.url_name == 'sales-prospect-reopen' or request.resolver_match.url_name == 'sales-prospect-contact-log' or request.resolver_match.url_name == 'sales-prospect-site-visit-log' or request.resolver_match.url_name == 'sales-prospect-negotiation-log' %}active{% endif %}"
+    >
+      Prospects
+    </a>
+
+
+    <!-- =====================================================
+         CLIENTS
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-clients' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-clients' or request.resolver_match.url_name == 'edit-client' or request.resolver_match.url_name == 'client-detail' %}active{% endif %}"
+    >
+      Clients
+    </a>
+
+
+    <!-- =====================================================
+         QUOTATIONS
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-quotations' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-quotations' or request.resolver_match.url_name == 'sales-create-quotation' or request.resolver_match.url_name == 'sales-edit-quotation' or request.resolver_match.url_name == 'sales-view-quotation' or request.resolver_match.url_name == 'sales-send-quotation-whatsapp' or request.resolver_match.url_name == 'sales-send-quotation-email' or request.resolver_match.url_name == 'sales-send-quotation-sms' %}active{% endif %}"
+    >
+      Quotations
+    </a>
+
+
+    <!-- =====================================================
+         ORDERS
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-orders' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-orders' or request.resolver_match.url_name == 'create-order' or request.resolver_match.url_name == 'edit-order' or request.resolver_match.url_name == 'view-order' or request.resolver_match.url_name == 'delete-order' or request.resolver_match.url_name == 'ajax-products-by-category' %}active{% endif %}"
+    >
+      Orders
+    </a>
+
+
+    <!-- =====================================================
+         INVOICES
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-invoices' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' or request.resolver_match.url_name == 'view-invoice' or request.resolver_match.url_name == 'sales-send-invoice-email' or request.resolver_match.url_name == 'sales-send-invoice-whatsapp' or request.resolver_match.url_name == 'sales-send-invoice-sms' %}active{% endif %}"
+    >
+      Invoices
+    </a>
+
+
+    <!-- =====================================================
+         COMMISSION
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-commission' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-commission' or request.resolver_match.url_name == 'sales-commission-view' or request.resolver_match.url_name == 'sales-commission-rep-detail' or request.resolver_match.url_name == 'email-commission-statement' or request.resolver_match.url_name == 'sales-target-list' or request.resolver_match.url_name == 'sales-add-target' or request.resolver_match.url_name == 'supervisor-detail' or request.resolver_match.url_name == 'rep-detail' %}active{% endif %}"
+    >
+      Commission
+    </a>
+
+
+    <!-- =====================================================
+         TICKETS
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-tickets' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' or request.resolver_match.url_name == 'sales-create-ticket' or request.resolver_match.url_name == 'view-ticket' %}active{% endif %}"
+    >
+      Tickets
+    </a>
+
+
+    <hr class="border-light">
+
+
+    <!-- =====================================================
+         SWITCH PLATFORM
+         ===================================================== -->
+
+    <button
+      type="button"
+      class="btn btn-outline-light w-100 text-center mb-2"
+      data-bs-toggle="modal"
+      data-bs-target="#switchPlatformModal"
+    >
+      Switch Platform
+    </button>
+
+
+    <!-- =====================================================
+         SIGN OUT
+         ===================================================== -->
+
+    <form
+      method="post"
+      action="{% url 'logout' %}"
+    >
+      {% csrf_token %}
+
+      <button
+        type="submit"
+        class="btn btn-outline-light w-100 text-center"
+      >
+        Sign Out
+      </button>
+    </form>
+
+
+    <!-- =====================================================
+         LOGGED-IN USER
+         ===================================================== -->
+
+    <div class="mb-3">
+
+      <div
+        class="bg-white bg-opacity-10 rounded px-2 py-2 text-center"
+        style="font-size: 0.85rem;"
+      >
+
+        <div class="text-white-50 small">
+          Logged in as
+        </div>
+
+        <div class="fw-semibold text-white">
+
+          {% if request.user.get_full_name %}
+            {{ request.user.get_full_name }}
+          {% else %}
+            {{ request.user.username }}
+          {% endif %}
+
+        </div>
+
+      </div>
+
+    </div>
+
   </aside>
 
   
 
-    <main class="content container-fluid">
+  <!-- =========================================================
+     MAIN CONTENT
+     ========================================================= -->
 
-        <!-- ========================================================= -->
-        <!-- PAGE HEADER -->
-        <!-- ========================================================= -->
+<main class="content">
 
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div class="container-fluid px-4 py-4">
+
+        <!-- =====================================================
+             PAGE HEADER
+             ===================================================== -->
+
+        <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3 mb-4">
 
             <div>
-
-                <h2 class="mb-1">
+                <h2 class="mb-1 fw-semibold">
                     Commission Entries
                 </h2>
 
@@ -151,453 +630,528 @@
                     —
                     {{ selected_period }}
                 </div>
-
             </div>
 
-
-            <a
-            href="{% url 'sales:sales-commission' %}"
-            class="btn btn-outline-secondary"
-            >
-            ← Back to Commission
-            </a>
+            <div>
+                <a
+                    href="{% url 'sales:sales-commission' %}"
+                    class="btn btn-outline-secondary"
+                >
+                    ← Back to Commission
+                </a>
+            </div>
 
         </div>
 
 
-        <!-- ========================================================= -->
-        <!-- SUMMARY -->
-        <!-- ========================================================= -->
+        <!-- =====================================================
+             SUMMARY CARDS
+             ===================================================== -->
 
         <div class="row g-3 mb-4">
 
-            <!-- ===================== -->
             <!-- REVENUE -->
-            <!-- ===================== -->
+            <div class="col-12 col-sm-6 col-xl-3">
 
-            <div class="col-md-3">
+                <div class="card h-100 border-0 shadow-sm">
 
-            <div class="card h-100 p-3">
+                    <div class="card-body p-3">
 
-                <small class="text-muted">
-                Revenue
-                </small>
-
-                <h4 class="mb-0">
-                R{{ revenue_total|default:0|floatformat:2|intcomma }}
-                </h4>
-
-            </div>
-
-            </div>
-
-
-            <!-- ===================== -->
-            <!-- CLIENTS -->
-            <!-- ===================== -->
-
-            <div class="col-md-3">
-
-            <div class="card h-100 p-3">
-
-                <small class="text-muted">
-                Clients
-                </small>
-
-                <h4 class="mb-0">
-                {{ client_count|default:0 }}
-                </h4>
-
-            </div>
-
-            </div>
-
-
-            <!-- ===================== -->
-            <!-- COMMISSION -->
-            <!-- ===================== -->
-
-            <div class="col-md-3">
-
-            <div class="card h-100 p-3">
-
-                <small class="text-muted">
-                Rep Commission
-                </small>
-
-                <h4 class="mb-0">
-                R{{ rep_total|default:0|floatformat:2|intcomma }}
-                </h4>
-
-            </div>
-
-            </div>
-
-
-            <!-- ===================== -->
-            <!-- NEW BUSINESS -->
-            <!-- ===================== -->
-
-            <div class="col-md-3">
-
-            <div class="card h-100 p-3">
-
-                <small class="text-muted">
-                New Business Bonus
-                </small>
-
-                <h4 class="mb-0 text-success">
-                R{{ bonus_total|default:0|floatformat:2|intcomma }}
-                </h4>
-
-            </div>
-
-            </div>
-
-        </div>
-
-
-        
-
-
-        <!-- ========================================================= -->
-        <!-- COMMISSION ENTRIES -->
-        <!-- ========================================================= -->
-
-        <div class="card p-4">
-
-            <div class="d-flex justify-content-between align-items-center mb-3">
-
-            <div>
-
-                <h5 class="mb-1">
-                Commission Entries
-                </h5>
-
-                <small class="text-muted">
-
-                All commission entries for
-                {{ rep_user.get_full_name|default:rep_user.username }}
-
-                for the selected period.
-
-                </small>
-
-            </div>
-
-
-            <span class="badge bg-light text-dark border">
-
-                {{ commission_entries|length }}
-                entr{{ commission_entries|length|pluralize:"y,ies" }}
-
-            </span>
-
-            </div>
-
-
-            <div class="table-responsive">
-
-            <table class="table table-hover align-middle mb-0">
-
-                <thead>
-
-                <tr>
-
-                    <th>
-                    Date
-                    </th>
-
-                    <th>
-                    Invoice
-                    </th>
-
-                    <th>
-                    Client
-                    </th>
-
-                    <th>
-                    Territory
-                    </th>
-
-                    <th>
-                    Area
-                    </th>
-
-                    <th class="text-end">
-                    Cost
-                    </th>
-
-                    <th class="text-end">
-                    Rep Rate
-                    </th>
-
-                    <th class="text-end">
-                    Rep Commission
-                    </th>
-
-                    <th>
-                    Business
-                    </th>
-
-                    
-
-                </tr>
-
-                </thead>
-
-
-                <tbody>
-
-                {% for entry in commission_entries %}
-
-                    <tr>
-
-                    <!-- ===================== -->
-                    <!-- DATE -->
-                    <!-- ===================== -->
-
-                    <td>
-
-                        {% if entry.created_at %}
-
-                        {{ entry.created_at|date:"d M Y" }}
-
-                        <br>
-
-                        <small class="text-muted">
-                            {{ entry.created_at|date:"H:i" }}
-                        </small>
-
-                        {% else %}
-
-                        —
-
-                        {% endif %}
-
-                    </td>
-
-
-                    <!-- ===================== -->
-                    <!-- INVOICE -->
-                    <!-- ===================== -->
-
-                    <td>
-
-                        {% if entry.invoice %}
-
-                        {% if entry.invoice.id %}
-
-                            #{{ entry.invoice.id }}
-
-                        {% else %}
-
-                            —
-
-                        {% endif %}
-
-                        {% else %}
-
-                        —
-
-                        {% endif %}
-
-                    </td>
-
-
-                    <!-- ===================== -->
-                    <!-- CLIENT -->
-                    <!-- ===================== -->
-
-                    <td>
-
-                        {% if entry.client %}
-
-                        {{ entry.client }}
-
-                        {% else %}
-
-                        —
-
-                        {% endif %}
-
-                    </td>
-
-
-                    <!-- ===================== -->
-                    <!-- TERRITORY -->
-                    <!-- ===================== -->
-
-                    <td>
-
-                        {% if entry.territory %}
-
-                        {{ entry.territory }}
-
-                        {% else %}
-
-                        —
-
-                        {% endif %}
-
-                    </td>
-
-
-                    <!-- ===================== -->
-                    <!-- AREA -->
-                    <!-- ===================== -->
-
-                    <td>
-
-                        {% if entry.area %}
-
-                        {{ entry.area }}
-
-                        {% else %}
-
-                        —
-
-                        {% endif %}
-
-                    </td>
-
-
-                    <!-- ===================== -->
-                    <!-- COST -->
-                    <!-- ===================== -->
-
-                    <td class="text-end">
-
-                        R{{ entry.cost_total|default:0|floatformat:2|intcomma }}
-
-                    </td>
-
-
-                    <!-- ===================== -->
-                    <!-- REP RATE -->
-                    <!-- ===================== -->
-
-                    <td class="text-end">
-
-                        {{ entry.rep_rate|default:0|floatformat:2 }}%
-
-                    </td>
-
-
-                    <!-- ===================== -->
-                    <!-- REP COMMISSION -->
-                    <!-- ===================== -->
-
-                    <td class="text-end fw-semibold">
-
-                        R{{ entry.rep_amount|default:0|floatformat:2|intcomma }}
-
-                    </td>
-
-
-                    <!-- ===================== -->
-                    <!-- NEW BUSINESS -->
-                    <!-- ===================== -->
-
-                    <td>
-
-                        {% if entry.is_new_business %}
-
-                        <span class="badge bg-success">
-                            New Business
-                        </span>
-
-                        {% else %}
-
-                        <span class="badge bg-light text-dark border">
-                            Repeat
-                        </span>
-
-                        {% endif %}
-
-                    </td>
-
-
-                    
-                    </tr>
-
-
-                {% empty %}
-
-                    <tr>
-
-                    <td
-                        colspan="11"
-                        class="text-center py-5"
-                    >
-
-                        <div class="text-muted">
-
-                        No commission entries found for this representative
-                        for the selected period.
-
+                        <div class="small text-muted mb-1">
+                            Revenue
                         </div>
 
-                    </td>
+                        <div class="fs-4 fw-semibold">
+                            R{{ revenue_total|default:0|floatformat:2|intcomma }}
+                        </div>
 
-                    </tr>
+                    </div>
 
-                {% endfor %}
+                </div>
 
-                </tbody>
+            </div>
 
 
-                <!-- ===================================================== -->
-                <!-- TOTAL -->
-                <!-- ===================================================== -->
+            <!-- CLIENTS -->
+            <div class="col-12 col-sm-6 col-xl-3">
 
-                {% if commission_entries %}
+                <div class="card h-100 border-0 shadow-sm">
 
-              
+                    <div class="card-body p-3">
 
-                <tfoot>
+                        <div class="small text-muted mb-1">
+                            Clients
+                        </div>
 
-                    <tr class="table-light fw-semibold">
+                        <div class="fs-4 fw-semibold">
+                            {{ client_count|default:0 }}
+                        </div>
 
-                    <td colspan="5">
-                        Total
-                    </td>
+                    </div>
 
-                    <td class="text-end">
-                        R{{ cost_total|default:0|floatformat:2|intcomma }}
-                    </td>
+                </div>
 
-                    <td>
-                    </td>
+            </div>
 
-                    <td class="text-end">
-                        R{{ rep_total|default:0|floatformat:2|intcomma }}
-                    </td>
 
-                    <td>
-                    </td>
+            <!-- REP COMMISSION -->
+            <div class="col-12 col-sm-6 col-xl-3">
 
-                    <td>
-                    </td>
+                <div class="card h-100 border-0 shadow-sm">
 
-                    
+                    <div class="card-body p-3">
 
-                    </tr>
+                        <div class="small text-muted mb-1">
+                            Rep Commission
+                        </div>
 
-                </tfoot>
+                        <div class="fs-4 fw-semibold">
+                            R{{ rep_total|default:0|floatformat:2|intcomma }}
+                        </div>
 
-                {% endif %}
+                    </div>
 
-               
+                </div>
 
-            </table>
+            </div>
+
+
+            <!-- NEW BUSINESS BONUS -->
+            <div class="col-12 col-sm-6 col-xl-3">
+
+                <div class="card h-100 border-0 shadow-sm">
+
+                    <div class="card-body p-3">
+
+                        <div class="small text-muted mb-1">
+                            New Business Bonus
+                        </div>
+
+                        <div class="fs-4 fw-semibold text-success">
+                            R{{ bonus_total|default:0|floatformat:2|intcomma }}
+                        </div>
+
+                    </div>
+
+                </div>
 
             </div>
 
         </div>
 
 
-    </main>
+        <!-- =====================================================
+             COMMISSION ENTRIES
+             ===================================================== -->
+
+        <div class="card border-0 shadow-sm">
+
+            <!-- =================================================
+                 CARD HEADER
+                 ================================================= -->
+
+            <div class="card-header bg-white border-bottom p-4">
+
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+
+                    <div>
+
+                        <h5 class="mb-1 fw-semibold">
+                            Commission Entries
+                        </h5>
+
+                        <div class="small text-muted">
+                            All commission entries for
+                            {{ rep_user.get_full_name|default:rep_user.username }}
+                            for the selected period.
+                        </div>
+
+                    </div>
+
+
+                    <!-- ENTRY COUNT -->
+
+                    <span class="badge bg-light text-dark border px-3 py-2">
+
+                        {{ commission_entries|length }}
+
+                        entr{{ commission_entries|length|pluralize:"y,ies" }}
+
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 TABLE
+                 ================================================= -->
+
+            <div class="card-body p-0">
+
+                <div
+                    class="table-responsive"
+                    style="overflow-x:auto;"
+                >
+
+                    <table
+                        class="table table-hover align-middle mb-0"
+                        style="min-width: 1050px;"
+                    >
+
+                        <!-- =================================================
+                             TABLE HEADER
+                             ================================================= -->
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th
+                                    class="ps-4 text-nowrap"
+                                    style="width:130px;"
+                                >
+                                    Date
+                                </th>
+
+                                <th
+                                    class="text-nowrap"
+                                    style="width:100px;"
+                                >
+                                    Invoice
+                                </th>
+
+                                <th
+                                    class="text-nowrap"
+                                    style="min-width:180px;"
+                                >
+                                    Client
+                                </th>
+
+                                <th
+                                    class="text-nowrap"
+                                    style="min-width:220px;"
+                                >
+                                    Territory
+                                </th>
+
+                                <th
+                                    class="text-nowrap"
+                                    style="width:130px;"
+                                >
+                                    Area
+                                </th>
+
+                                <th
+                                    class="text-end text-nowrap"
+                                    style="width:120px;"
+                                >
+                                    Cost
+                                </th>
+
+                                <th
+                                    class="text-end text-nowrap"
+                                    style="width:110px;"
+                                >
+                                    Rep Rate
+                                </th>
+
+                                <th
+                                    class="text-end text-nowrap"
+                                    style="width:150px;"
+                                >
+                                    Rep Commission
+                                </th>
+
+                                <th
+                                    class="text-center text-nowrap pe-4"
+                                    style="width:150px;"
+                                >
+                                    Business
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <!-- =================================================
+                             TABLE BODY
+                             ================================================= -->
+
+                        <tbody>
+
+                            {% for entry in commission_entries %}
+
+                                <tr>
+
+                                    <!-- =====================================
+                                         DATE
+                                         ===================================== -->
+
+                                    <td class="ps-4">
+
+                                        {% if entry.created_at %}
+
+                                            <div class="fw-medium text-nowrap">
+                                                {{ entry.created_at|date:"d M Y" }}
+                                            </div>
+
+                                            <small class="text-muted">
+                                                {{ entry.created_at|date:"H:i" }}
+                                            </small>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- =====================================
+                                         INVOICE
+                                         ===================================== -->
+
+                                    <td>
+
+                                        {% if entry.invoice %}
+
+                                            {% if entry.invoice.id %}
+
+                                                <span class="fw-medium">
+                                                    #{{ entry.invoice.id }}
+                                                </span>
+
+                                            {% else %}
+
+                                                <span class="text-muted">
+                                                    —
+                                                </span>
+
+                                            {% endif %}
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- =====================================
+                                         CLIENT
+                                         ===================================== -->
+
+                                    <td>
+
+                                        {% if entry.client %}
+
+                                            <span class="fw-medium">
+                                                {{ entry.client }}
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- =====================================
+                                         TERRITORY
+                                         ===================================== -->
+
+                                    <td>
+
+                                        {% if entry.territory %}
+
+                                            <span class="text-nowrap">
+                                                {{ entry.territory }}
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- =====================================
+                                         AREA
+                                         ===================================== -->
+
+                                    <td>
+
+                                        {% if entry.area %}
+
+                                            <span class="text-nowrap">
+                                                {{ entry.area }}
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- =====================================
+                                         COST
+                                         ===================================== -->
+
+                                    <td class="text-end text-nowrap">
+
+                                        R{{ entry.cost_total|default:0|floatformat:2|intcomma }}
+
+                                    </td>
+
+
+                                    <!-- =====================================
+                                         REP RATE
+                                         ===================================== -->
+
+                                    <td class="text-end text-nowrap">
+
+                                        {{ entry.rep_rate|default:0|floatformat:2 }}%
+
+                                    </td>
+
+
+                                    <!-- =====================================
+                                         REP COMMISSION
+                                         ===================================== -->
+
+                                    <td class="text-end fw-semibold text-nowrap">
+
+                                        R{{ entry.rep_amount|default:0|floatformat:2|intcomma }}
+
+                                    </td>
+
+
+                                    <!-- =====================================
+                                         BUSINESS TYPE
+                                         ===================================== -->
+
+                                    <td class="text-center pe-4">
+
+                                        {% if entry.is_new_business %}
+
+                                            <span class="badge bg-success">
+                                                New Business
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="badge bg-light text-dark border">
+                                                Repeat
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+                                </tr>
+
+                            {% empty %}
+
+                                <!-- =========================================
+                                     EMPTY STATE
+                                     ========================================= -->
+
+                                <tr>
+
+                                    <td
+                                        colspan="9"
+                                        class="text-center py-5"
+                                    >
+
+                                        <div class="text-muted mb-2">
+                                            No commission entries found.
+                                        </div>
+
+                                        <small class="text-muted">
+                                            There are no commission entries for
+                                            {{ rep_user.get_full_name|default:rep_user.username }}
+                                            for the selected period.
+                                        </small>
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+
+                        <!-- =================================================
+                             TOTAL
+                             ================================================= -->
+
+                        {% if commission_entries %}
+
+                            <tfoot>
+
+                                <tr class="table-light fw-semibold">
+
+                                    <td
+                                        colspan="5"
+                                        class="ps-4"
+                                    >
+                                        Total
+                                    </td>
+
+                                    <td class="text-end text-nowrap">
+                                        R{{ cost_total|default:0|floatformat:2|intcomma }}
+                                    </td>
+
+                                    <td>
+                                    </td>
+
+                                    <td class="text-end text-nowrap">
+                                        R{{ rep_total|default:0|floatformat:2|intcomma }}
+                                    </td>
+
+                                    <td>
+                                    </td>
+
+                                </tr>
+
+                            </tfoot>
+
+                        {% endif %}
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</main>
 
 
     <script>

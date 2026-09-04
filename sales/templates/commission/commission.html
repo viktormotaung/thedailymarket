@@ -5,178 +5,603 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sales Dashboard - The Daily Market</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
 
   <style>
-    /* --- Desktop: fixed (non-movable) sidebar --- */
+    /* =========================================================
+       DESKTOP SIDEBAR
+       ========================================================= */
+
     @media (min-width: 992px) {
-      html, body { height: 100%; }
-      body { min-height: 100vh; overflow-x: hidden; }
-      .sidebar-desktop {
-        position: fixed; top: 0; left: 0; width: 220px; height: 100vh; overflow-y: auto;
+      html,
+      body {
+        height: 100%;
       }
-      main.content { margin-left: 220px; min-height: 100vh; }
+
+      body {
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      .sidebar-desktop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 220px;
+        height: 100vh;
+        overflow-y: auto;
+      }
+
+      main.content {
+        margin-left: 220px;
+        min-height: 100vh;
+      }
     }
 
-    /* Shared styles */
-    .sidebar-skin { background-color: #0b5c39; color: #fff; padding: 1rem; }
-    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
+    /* =========================================================
+       SHARED SIDEBAR STYLES
+       ========================================================= */
+
+    .sidebar-skin {
+      background-color: #0b5c39;
+      color: #fff;
+      padding: 1rem;
+    }
+
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: .25rem 0;
+      display: block;
+      transition: background .15s ease, padding-left .15s ease;
+    }
+
     .sidebar-skin .nav-link.active,
     .sidebar-skin .nav-link:hover {
-      background: rgba(255,255,255,0.15);
+      background: rgba(255, 255, 255, 0.15);
       border-radius: 4px;
       padding-left: 8px;
     }
-    .logo-img { max-height: 80px; width: auto; }
-    .content { background: #f8f9fa; padding: 20px; }
-    .sidebar-skin .nav-link.ps-4 { font-size: .95rem; opacity: .95; }
 
-    /* --- Compact chart height --- */
-    .chart-wrap { position: relative; width: 100%; height: 220px; }
-    @media (max-width: 991.98px) { .chart-wrap { height: 180px; } }
-    @media (max-width: 575.98px) { .chart-wrap { height: 150px; } }
-    .chart-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
+    .logo-img {
+      max-height: 80px;
+      width: auto;
+    }
+
+    .content {
+      background: #f8f9fa;
+      padding: 20px;
+    }
+
+    .sidebar-skin .nav-link.ps-4 {
+      font-size: .95rem;
+      opacity: .95;
+    }
+
+    /* =========================================================
+       CHART
+       ========================================================= */
+
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 220px;
+    }
+
+    @media (max-width: 991.98px) {
+      .chart-wrap {
+        height: 180px;
+      }
+    }
+
+    @media (max-width: 575.98px) {
+      .chart-wrap {
+        height: 150px;
+      }
+    }
+
+    .chart-wrap canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
   </style>
 </head>
+
 <body>
 
-  <!-- MOBILE/TABLET TOP BAR -->
-  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+  <!-- =========================================================
+       MOBILE / TABLET TOP BAR
+       ========================================================= -->
+
+  <nav
+    class="navbar navbar-dark d-lg-none"
+    style="background:#0b5c39;"
+  >
     <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-bs-toggle="offcanvas"
+        data-bs-target="#mobileMenu"
+        aria-controls="mobileMenu"
+        aria-label="Toggle navigation"
+      >
         <span class="navbar-toggler-icon"></span>
       </button>
-      <a class="navbar-brand ms-2" href="#">
-        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="height:40px;">
+
+      <a
+        class="navbar-brand ms-2"
+        href="#"
+      >
+        <img
+          src="{% static 'images/logo.png' %}"
+          alt="The Daily Market"
+          style="height:40px;"
+        >
       </a>
+
     </div>
   </nav>
 
-  <!-- MOBILE OFFCANVAS MENU -->
-  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+
+  <!-- =========================================================
+       MOBILE OFFCANVAS MENU
+       ========================================================= -->
+
+  <div
+    class="offcanvas offcanvas-start d-lg-none"
+    tabindex="-1"
+    id="mobileMenu"
+    aria-labelledby="mobileMenuLabel"
+  >
+
     <div class="offcanvas-header sidebar-skin">
-      <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Staff Platform</h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+
+      <h5
+        class="offcanvas-title"
+        id="mobileMenuLabel"
+      >
+        Sales Staff Platform
+      </h5>
+
+      <button
+        type="button"
+        class="btn-close btn-close-white"
+        data-bs-dismiss="offcanvas"
+        aria-label="Close"
+      ></button>
+
     </div>
+
+
     <div class="offcanvas-body sidebar-skin">
+
+      <!-- LOGO -->
+
       <div class="text-center mb-3">
-        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" class="logo-img">
+        <img
+          src="{% static 'images/logo.png' %}"
+          alt="The Daily Market"
+          class="logo-img"
+        >
       </div>
 
-      <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
-      <a href="{% url 'sales:sales-leads' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-leads' %}active{% endif %}">Leads</a>
-      <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
-      <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
-      <a href="{% url 'sales:sales-quotations' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-quotations' %}active{% endif %}">Quotations</a>
-      <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
-      <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
-      <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
-      <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets</a>
+
+      <!-- =====================================================
+           MAIN NAVIGATION
+           ===================================================== -->
+
+      <!-- DASHBOARD -->
+
+      <a
+        href="{% url 'sales:sales-dashboard' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}"
+      >
+        Dashboard
+      </a>
+
+
+      <!-- =====================================================
+           LEADS
+           Includes list + create + view/detail + edit +
+           convert-to-prospect
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-leads' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-leads' or request.resolver_match.url_name == 'sales-lead-create' or request.resolver_match.url_name == 'sales-lead-view' or request.resolver_match.url_name == 'sales-lead-edit' or request.resolver_match.url_name == 'lead-convert-to-prospect' %}active{% endif %}"
+      >
+        Leads
+      </a>
+
+
+      <!-- =====================================================
+           PROSPECTS
+           Includes list + create + detail + updates +
+           stage actions + edit + reopen + all logs
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-prospects' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' or request.resolver_match.url_name == 'sales-prospect-create' or request.resolver_match.url_name == 'sales-prospect-detail' or request.resolver_match.url_name == 'sales-prospect-add-update' or request.resolver_match.url_name == 'sales-prospect-stage-action' or request.resolver_match.url_name == 'sales-prospect-edit' or request.resolver_match.url_name == 'sales-prospect-reopen' or request.resolver_match.url_name == 'sales-prospect-contact-log' or request.resolver_match.url_name == 'sales-prospect-site-visit-log' or request.resolver_match.url_name == 'sales-prospect-negotiation-log' %}active{% endif %}"
+      >
+        Prospects
+      </a>
+
+
+      <!-- =====================================================
+           CLIENTS
+           Includes list + edit + VIEW/DETAIL
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-clients' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-clients' or request.resolver_match.url_name == 'edit-client' or request.resolver_match.url_name == 'client-detail' %}active{% endif %}"
+      >
+        Clients
+      </a>
+
+
+      <!-- =====================================================
+           QUOTATIONS
+           Includes list + create + edit + VIEW/DETAIL +
+           WhatsApp + Email + SMS
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-quotations' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-quotations' or request.resolver_match.url_name == 'sales-create-quotation' or request.resolver_match.url_name == 'sales-edit-quotation' or request.resolver_match.url_name == 'sales-view-quotation' or request.resolver_match.url_name == 'sales-send-quotation-whatsapp' or request.resolver_match.url_name == 'sales-send-quotation-email' or request.resolver_match.url_name == 'sales-send-quotation-sms' %}active{% endif %}"
+      >
+        Quotations
+      </a>
+
+
+      <!-- =====================================================
+           ORDERS
+           Includes list + new + edit + VIEW/DETAIL + delete +
+           AJAX products
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-orders' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-orders' or request.resolver_match.url_name == 'create-order' or request.resolver_match.url_name == 'edit-order' or request.resolver_match.url_name == 'view-order' or request.resolver_match.url_name == 'delete-order' or request.resolver_match.url_name == 'ajax-products-by-category' %}active{% endif %}"
+      >
+        Orders
+      </a>
+
+
+      <!-- =====================================================
+           INVOICES
+           Includes list + VIEW/DETAIL + Email + WhatsApp + SMS
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-invoices' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' or request.resolver_match.url_name == 'view-invoice' or request.resolver_match.url_name == 'sales-send-invoice-email' or request.resolver_match.url_name == 'sales-send-invoice-whatsapp' or request.resolver_match.url_name == 'sales-send-invoice-sms' %}active{% endif %}"
+      >
+        Invoices
+      </a>
+
+
+      <!-- =====================================================
+           COMMISSION
+           Includes main commission + commission detail +
+           rep detail + statement + targets + supervisor +
+           rep detail
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-commission' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-commission' or request.resolver_match.url_name == 'sales-commission-view' or request.resolver_match.url_name == 'sales-commission-rep-detail' or request.resolver_match.url_name == 'email-commission-statement' or request.resolver_match.url_name == 'sales-target-list' or request.resolver_match.url_name == 'sales-add-target' or request.resolver_match.url_name == 'supervisor-detail' or request.resolver_match.url_name == 'rep-detail' %}active{% endif %}"
+      >
+        Commission
+      </a>
+
+
+      <!-- =====================================================
+           TICKETS
+           Includes list + create + VIEW/DETAIL
+           ===================================================== -->
+
+      <a
+        href="{% url 'sales:sales-tickets' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' or request.resolver_match.url_name == 'sales-create-ticket' or request.resolver_match.url_name == 'view-ticket' %}active{% endif %}"
+      >
+        Tickets
+      </a>
+
+
       <hr class="border-light">
 
-    
-      <button type="button"
+
+      <!-- =====================================================
+           SWITCH PLATFORM
+           ===================================================== -->
+
+      <button
+        type="button"
         class="btn btn-outline-light w-100 text-center mb-2"
         data-bs-toggle="modal"
-        data-bs-target="#switchPlatformModal">
+        data-bs-target="#switchPlatformModal"
+      >
         Switch Platform
       </button>
 
-      <form method="post" action="{% url 'logout' %}">
+
+      <!-- =====================================================
+           SIGN OUT
+           ===================================================== -->
+
+      <form
+        method="post"
+        action="{% url 'logout' %}"
+      >
         {% csrf_token %}
-        <button type="submit"
-                class="btn btn-outline-light w-100 text-center">
+
+        <button
+          type="submit"
+          class="btn btn-outline-light w-100 text-center"
+        >
           Sign Out
         </button>
       </form>
 
+
       <hr class="border-light">
 
-      <!-- LOGGED-IN USER -->
+
+      <!-- =====================================================
+           LOGGED-IN USER
+           ===================================================== -->
+
       <div class="mb-3">
+
         <div
           class="bg-white bg-opacity-10 rounded px-2 py-2 text-center"
           style="font-size: 0.85rem;"
         >
+
           <div class="text-white-50 small">
             Logged in as
           </div>
 
           <div class="fw-semibold text-white">
+
             {% if request.user.get_full_name %}
               {{ request.user.get_full_name }}
             {% else %}
               {{ request.user.username }}
             {% endif %}
+
           </div>
+
         </div>
+
       </div>
 
-      
     </div>
   </div>
 
-  <!-- DESKTOP SIDEBAR -->
-  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+
+  <!-- =========================================================
+       DESKTOP SIDEBAR
+       ========================================================= -->
+
+  <aside
+    class="sidebar-desktop d-none d-lg-block sidebar-skin"
+  >
+
+    <!-- LOGO -->
+
     <div class="text-center mb-3">
-      <img src="{% static 'images/logo.png' %}" alt="The Daily Market" class="logo-img">
+
+      <img
+        src="{% static 'images/logo.png' %}"
+        alt="The Daily Market"
+        class="logo-img"
+      >
+
     </div>
 
+
+    <!-- PLATFORM TITLE -->
+
     <h6 class="text-uppercase fw-semibold mb-2">
-      <a href="#"
-        class="text-decoration-none text-reset">
+
+      <a
+        href="#"
+        class="text-decoration-none text-reset"
+      >
         Sales Staff Platform
       </a>
+
     </h6>
 
+
     <hr class="border-light">
 
-    <a href="{% url 'sales:sales-dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}">Dashboard</a>
-    <a href="{% url 'sales:sales-leads' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-leads' %}active{% endif %}">Leads</a>
-    <a href="{% url 'sales:sales-prospects' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' %}active{% endif %}">Prospects</a>
-    <a href="{% url 'sales:sales-clients' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-clients' %}active{% endif %}">Clients</a>
-    <a href="{% url 'sales:sales-quotations' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-quotations' %}active{% endif %}">Quotations</a>
-    <a href="{% url 'sales:sales-orders' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-orders' %}active{% endif %}">Orders</a>
-    <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
-    <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
-    <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets</a>
+
+    <!-- =====================================================
+         MAIN NAVIGATION
+         ===================================================== -->
+
+
+    <!-- DASHBOARD -->
+
+    <a
+      href="{% url 'sales:sales-dashboard' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-dashboard' %}active{% endif %}"
+    >
+      Dashboard
+    </a>
+
+
+    <!-- =====================================================
+         LEADS
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-leads' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-leads' or request.resolver_match.url_name == 'sales-lead-create' or request.resolver_match.url_name == 'sales-lead-view' or request.resolver_match.url_name == 'sales-lead-edit' or request.resolver_match.url_name == 'lead-convert-to-prospect' %}active{% endif %}"
+    >
+      Leads
+    </a>
+
+
+    <!-- =====================================================
+         PROSPECTS
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-prospects' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-prospects' or request.resolver_match.url_name == 'sales-prospect-create' or request.resolver_match.url_name == 'sales-prospect-detail' or request.resolver_match.url_name == 'sales-prospect-add-update' or request.resolver_match.url_name == 'sales-prospect-stage-action' or request.resolver_match.url_name == 'sales-prospect-edit' or request.resolver_match.url_name == 'sales-prospect-reopen' or request.resolver_match.url_name == 'sales-prospect-contact-log' or request.resolver_match.url_name == 'sales-prospect-site-visit-log' or request.resolver_match.url_name == 'sales-prospect-negotiation-log' %}active{% endif %}"
+    >
+      Prospects
+    </a>
+
+
+    <!-- =====================================================
+         CLIENTS
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-clients' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-clients' or request.resolver_match.url_name == 'edit-client' or request.resolver_match.url_name == 'client-detail' %}active{% endif %}"
+    >
+      Clients
+    </a>
+
+
+    <!-- =====================================================
+         QUOTATIONS
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-quotations' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-quotations' or request.resolver_match.url_name == 'sales-create-quotation' or request.resolver_match.url_name == 'sales-edit-quotation' or request.resolver_match.url_name == 'sales-view-quotation' or request.resolver_match.url_name == 'sales-send-quotation-whatsapp' or request.resolver_match.url_name == 'sales-send-quotation-email' or request.resolver_match.url_name == 'sales-send-quotation-sms' %}active{% endif %}"
+    >
+      Quotations
+    </a>
+
+
+    <!-- =====================================================
+         ORDERS
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-orders' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-orders' or request.resolver_match.url_name == 'create-order' or request.resolver_match.url_name == 'edit-order' or request.resolver_match.url_name == 'view-order' or request.resolver_match.url_name == 'delete-order' or request.resolver_match.url_name == 'ajax-products-by-category' %}active{% endif %}"
+    >
+      Orders
+    </a>
+
+
+    <!-- =====================================================
+         INVOICES
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-invoices' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' or request.resolver_match.url_name == 'view-invoice' or request.resolver_match.url_name == 'sales-send-invoice-email' or request.resolver_match.url_name == 'sales-send-invoice-whatsapp' or request.resolver_match.url_name == 'sales-send-invoice-sms' %}active{% endif %}"
+    >
+      Invoices
+    </a>
+
+
+    <!-- =====================================================
+         COMMISSION
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-commission' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-commission' or request.resolver_match.url_name == 'sales-commission-view' or request.resolver_match.url_name == 'sales-commission-rep-detail' or request.resolver_match.url_name == 'email-commission-statement' or request.resolver_match.url_name == 'sales-target-list' or request.resolver_match.url_name == 'sales-add-target' or request.resolver_match.url_name == 'supervisor-detail' or request.resolver_match.url_name == 'rep-detail' %}active{% endif %}"
+    >
+      Commission
+    </a>
+
+
+    <!-- =====================================================
+         TICKETS
+         ===================================================== -->
+
+    <a
+      href="{% url 'sales:sales-tickets' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' or request.resolver_match.url_name == 'sales-create-ticket' or request.resolver_match.url_name == 'view-ticket' %}active{% endif %}"
+    >
+      Tickets
+    </a>
+
+
     <hr class="border-light">
 
-    <button type="button"
-        class="btn btn-outline-light w-100 text-center mb-2"
-        data-bs-toggle="modal"
-        data-bs-target="#switchPlatformModal">
-        Switch Platform
+
+    <!-- =====================================================
+         SWITCH PLATFORM
+         ===================================================== -->
+
+    <button
+      type="button"
+      class="btn btn-outline-light w-100 text-center mb-2"
+      data-bs-toggle="modal"
+      data-bs-target="#switchPlatformModal"
+    >
+      Switch Platform
     </button>
 
-    <form method="post" action="{% url 'logout' %}">
+
+    <!-- =====================================================
+         SIGN OUT
+         ===================================================== -->
+
+    <form
+      method="post"
+      action="{% url 'logout' %}"
+    >
       {% csrf_token %}
-      <button type="submit"
-                class="btn btn-outline-light w-100 text-center">
+
+      <button
+        type="submit"
+        class="btn btn-outline-light w-100 text-center"
+      >
         Sign Out
       </button>
     </form>
-    
 
-    <!-- LOGGED-IN USER -->
+
+    <!-- =====================================================
+         LOGGED-IN USER
+         ===================================================== -->
+
     <div class="mb-3">
+
       <div
         class="bg-white bg-opacity-10 rounded px-2 py-2 text-center"
         style="font-size: 0.85rem;"
       >
+
         <div class="text-white-50 small">
           Logged in as
         </div>
 
         <div class="fw-semibold text-white">
+
           {% if request.user.get_full_name %}
             {{ request.user.get_full_name }}
           {% else %}
             {{ request.user.username }}
           {% endif %}
+
         </div>
+
       </div>
+
     </div>
+
   </aside>
 
   

@@ -724,10 +724,9 @@ function initMap() {
   const map = L.map("map");
 
   L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_2w0z_1_58b3c9a5e0477cf38e732073",
     {
       attribution: "&copy; OpenStreetMap & CARTO",
-      subdomains: "abcd",
       maxZoom: 19
     }
   ).addTo(map);

@@ -354,8 +354,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const map = L.map("monitor-map").setView([-26.2, 28.0], 6);
 
   L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    { maxZoom: 18 }
+    "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=YOUR_CARTO_API_KEY",
+    {
+      attribution: "&copy; OpenStreetMap & CARTO",
+      maxZoom: 19
+    }
   ).addTo(map);
 
   const bounds = [];
