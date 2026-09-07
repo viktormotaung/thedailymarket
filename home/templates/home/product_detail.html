@@ -388,30 +388,7 @@
             </div>
           </div>
 
-          <!-- ===== Add to Cart (BASE PRODUCT) ===== -->
-          <form method="post"
-                action="{% url 'cart' %}"
-                data-add-to-cart
-                class="d-flex align-items-center gap-2">
-            {% csrf_token %}
-            <input type="hidden" name="product_id" value="{{ product.id }}">
-
-            <div class="input-group" style="max-width:260px;">
-              <span class="input-group-text">
-                Qty ({{ product.get_uom_display }})
-              </span>
-              <input type="number"
-                    name="qty"
-                    value="1"
-                    min="1"
-                    class="form-control">
-            </div>
-
-            <button class="btn btn-brand" type="submit">
-              <i class="bi bi-bag-plus me-1"></i>
-              Add to cart
-            </button>
-          </form>
+          
         </div>
       </div>
     </div>

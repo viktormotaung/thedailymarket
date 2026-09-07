@@ -315,6 +315,11 @@
         Tickets
       </a>
 
+      <a href="{% url 'sales:sales-knowledge-list' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-knowledge-list' or request.resolver_match.url_name == 'sales-knowledge-detail' %}active{% endif %}">
+          Products
+      </a>
+
 
       <hr class="border-light">
 
@@ -534,6 +539,11 @@
       class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' or request.resolver_match.url_name == 'sales-create-ticket' or request.resolver_match.url_name == 'view-ticket' %}active{% endif %}"
     >
       Tickets
+    </a>
+
+    <a href="{% url 'sales:sales-knowledge-list' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-knowledge-list' or request.resolver_match.url_name == 'sales-knowledge-detail' %}active{% endif %}">
+          Products
     </a>
 
 

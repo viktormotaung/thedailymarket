@@ -614,294 +614,749 @@
 
   </aside>
 
-  <!-- MAIN CONTENT -->
   <main class="content">
-    <h2 class="text-center mb-3">Invoices</h2>
+    <div class="container-fluid">
 
-    <div class="card mb-3">
-      <div class="card-body">
-        <form method="get" class="row g-2 align-items-end">
+        <!-- =========================================================
+            PAGE HEADER
+        ========================================================== -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
 
-          <!-- SEARCH -->
-          <div class="col-md-3">
-            <label class="form-label mb-1 small">Search</label>
-            <input
-              type="text"
-              name="q"
-              class="form-control"
-              placeholder="Client / Company / CL number"
-              value="{{ search|default:'' }}"
-            >
-          </div>
-
-          <!-- STATUS -->
-          <div class="col-md-2">
-            <label class="form-label mb-1 small">Status</label>
-
-            <select
-              name="status"
-              class="form-select"
-            >
-              <option value="">All</option>
-
-              {% if status_choices %}
-                {% for val,label in status_choices %}
-                  <option
-                    value="{{ val }}"
-                    {% if filter_status == val %}selected{% endif %}
-                  >
-                    {{ label }}
-                  </option>
-                {% endfor %}
-              {% endif %}
-            </select>
-          </div>
-
-          <!-- DATE FROM -->
-          <div class="col-md-2">
-            <label class="form-label mb-1 small">From</label>
-
-            <input
-              type="date"
-              name="date_from"
-              class="form-control"
-              value="{{ date_from|date:'Y-m-d' }}"
-            >
-          </div>
-
-          <!-- DATE TO -->
-          <div class="col-md-2">
-            <label class="form-label mb-1 small">To</label>
-
-            <input
-              type="date"
-              name="date_to"
-              class="form-control"
-              value="{{ date_to|date:'Y-m-d' }}"
-            >
-          </div>
-
-          <!-- ACTIONS -->
-          <div class="col-md-3 d-flex gap-2">
-
-            <button
-              type="submit"
-              class="btn btn-primary"
-            >
-              Filter
-            </button>
-
-            <a
-              href="{% url 'staff-invoices' %}"
-              class="btn btn-outline-secondary"
-            >
-              Clear
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+            <a href="{% url 'sales:sales-knowledge-list' %}"
+                class="text-decoration-none text-muted">
+                <i class="bi bi-arrow-left"></i>
+                Products
             </a>
 
-          </div>
+            <span class="text-muted">/</span>
 
-        </form>
-      </div>
-    </div>
+            <span class="text-muted">
+                Product Details
+            </span>
+            </div>
 
-      <div class="card">
+            <h1 class="h3 fw-bold mb-1">
+            {{ product.name }}
+            </h1>
 
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <div class="text-muted small">
+            {{ product.product_no }}
+            {% if product.sku %}
+                · SKU: {{ product.sku }}
+            {% endif %}
+            </div>
+        </div>
 
-          <strong>Invoice List</strong>
+        <div class="d-flex flex-wrap gap-2">
 
-          <span class="text-muted small">
-            {{ invoices|length }} record(s)
-          </span>
+            <a href="{% url 'sales:sales-knowledge-list' %}"
+            class="btn btn-outline-secondary">
+            <i class="bi bi-grid me-1"></i>
+            All Products
+            </a>
+
+            
 
         </div>
 
-        <div class="card-body p-0">
+        </div>
 
-          <div class="table-responsive">
 
-            <table class="table table-striped table-bordered mb-0 align-middle">
+        <!-- =========================================================
+            PRODUCT SUMMARY
+        ========================================================== -->
+        <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
 
-              <thead>
-                <tr>
+            <div class="row g-4 align-items-center">
 
-                  <th style="width:6%; font-size:13px;">
-                    #
-                  </th>
+            <!-- PRODUCT IMAGE -->
+            <div class="col-lg-3 col-md-4">
 
-                  <th style="width:20%; font-size:13px;">
-                    Client
-                  </th>
+                <div class="product-image-wrapper rounded-4 bg-light d-flex align-items-center justify-content-center"
+                    style="height: 240px; overflow: hidden;">
 
-                  <th style="width:14%; font-size:13px;">
-                    Invoice Date
-                  </th>
+                {% if product.image %}
+                    <img src="{{ product.image.url }}"
+                        alt="{{ product.name }}"
+                        class="img-fluid"
+                        style="max-height: 220px; max-width: 100%; object-fit: contain;">
+                {% else %}
+                    <div class="text-center text-muted">
+                    <i class="bi bi-box-seam"
+                        style="font-size: 4rem;"></i>
 
-                  <th style="width:14%; font-size:13px;">
-                    Due Date
-                  </th>
+                    <div class="small mt-2">
+                        No product image
+                    </div>
+                    </div>
+                {% endif %}
 
-                  <th style="width:12%; font-size:13px;">
-                    Order Total
-                  </th>
+                </div>
 
-                  <th style="width:12%; font-size:13px;">
-                    Amount Due
-                  </th>
+            </div>
 
-                  <th style="width:10%; font-size:13px;">
-                    Paid
-                  </th>
 
-                  <th style="width:12%; font-size:13px;">
-                    Status
-                  </th>
+            <!-- PRODUCT INFORMATION -->
+            <div class="col-lg-5 col-md-8">
 
-                </tr>
-              </thead>
+                <div class="mb-3">
 
-              <tbody>
+                <span class="badge bg-success-subtle text-success">
+                    <i class="bi bi-check-circle me-1"></i>
+                    Available
+                </span>
 
-                {% for inv in invoices %}
+                </div>
 
-                  <tr class="clickable-row"
-                      data-href="{% url 'sales:view-invoice' inv.id %}"
-                      style="cursor:pointer;">
+                <h2 class="h4 fw-bold mb-3">
+                {{ product.name }}
+                </h2>
 
-                    <!-- # -->
-                    <td style="font-size:13px;">
-                      {{ forloop.counter }}
-                    </td>
+                <div class="row g-3">
 
-                    <!-- CLIENT -->
-                    <td style="font-size:13px;">
+                <div class="col-sm-6">
+                    <div class="text-muted small">
+                    Product No.
+                    </div>
 
-                      <div class="fw-semibold">
-                        {{ inv.client.name }}
-                      </div>
+                    <div class="fw-semibold">
+                    {{ product.product_no|default:"—" }}
+                    </div>
+                </div>
 
-                      
+                <div class="col-sm-6">
+                    <div class="text-muted small">
+                    SKU
+                    </div>
 
-                      
+                    <div class="fw-semibold">
+                    {{ product.sku|default:"—" }}
+                    </div>
+                </div>
 
-                    </td>
+                <div class="col-sm-6">
+                    <div class="text-muted small">
+                    Category
+                    </div>
 
-                    <!-- INVOICE DATE -->
-                    <td style="font-size:13px;">
-                      {{ inv.invoice_date|date:"Y-m-d" }}
-                    </td>
+                    <div class="fw-semibold">
+                    {% if product.category.parent %}
+                        {{ product.category.parent.name }}
+                    {% else %}
+                        {{ product.category.name|default:"—" }}
+                    {% endif %}
+                    </div>
+                </div>
 
-                    <!-- DUE DATE -->
-                    <td style="font-size:13px;">
-                      {{ inv.due_date|date:"Y-m-d"|default:"—" }}
-                    </td>
+                <div class="col-sm-6">
+                    <div class="text-muted small">
+                    Sub-category
+                    </div>
 
-                    <!-- ORDER TOTAL -->
-                    <td style="font-size:13px;">
-                      R{{ inv.order_total_inc|floatformat:2|intcomma }}
-                    </td>
+                    <div class="fw-semibold">
+                    {% if product.category.parent %}
+                        {{ product.category.name }}
+                    {% else %}
+                        —
+                    {% endif %}
+                    </div>
+                </div>
 
-                    <!-- AMOUNT DUE -->
-                    <td style="font-size:13px;">
+                <div class="col-sm-6">
+                    <div class="text-muted small">
+                    Unit of Measure
+                    </div>
 
-                      <strong>
-                        R{{ inv.amount_due|floatformat:2|intcomma }}
-                      </strong>
+                    <div class="fw-semibold">
+                    {{ product.uom|default:"—" }}
+                    </div>
+                </div>
 
-                    </td>
+                </div>
 
-                    <!-- PAID -->
-                    <td style="font-size:13px;">
-                      R{{ inv.deposit_paid|floatformat:2|intcomma }}
-                    </td>
+            </div>
 
-                    <!-- STATUS -->
-                    <td style="font-size:13px;">
 
-                      {% if inv.status == "paid" %}
+            <!-- CURRENT PRICE -->
+            <div class="col-lg-4">
 
-                        <span class="badge bg-success">
-                          Paid
-                        </span>
+                <div class="bg-light rounded-4 p-4 h-100">
 
-                      {% elif inv.status == "partial" %}
+                <div class="text-muted small text-uppercase fw-semibold mb-2">
+                    Current Wholesale Price
+                </div>
 
-                        <span class="badge bg-primary">
-                          Partial
-                        </span>
+                <div class="display-6 fw-bold mb-2">
+                    {% if product.wholesale_price %}
+                    R {{ product.wholesale_price|floatformat:2 }}
+                    {% else %}
+                    —
+                    {% endif %}
+                </div>
 
-                      {% elif inv.status == "overdue" %}
+                <div class="text-muted small">
+                    Current listed sales price
+                </div>
 
-                        <span class="badge bg-danger">
-                          Overdue
-                        </span>
+                {% if product.special_wholesale_price_inc %}
+                    <hr>
 
-                      {% elif inv.status == "unpaid" %}
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">
+                    Special Price
+                    </div>
 
-                        <span class="badge bg-warning text-dark">
-                          Unpaid
-                        </span>
+                    <div class="h4 fw-bold mb-0">
+                    R {{ product.special_wholesale_price_inc|floatformat:2 }}
+                    </div>
+                {% endif %}
 
-                      {% else %}
+                </div>
 
-                        <span class="badge bg-secondary">
-                          {{ inv.get_status_display }}
-                        </span>
+            </div>
 
-                      {% endif %}
+            </div>
 
-                    </td>
+        </div>
+        </div>
 
-                  </tr>
 
-                {% empty %}
+        <!-- =========================================================
+            QUICK PRODUCT INFORMATION
+        ========================================================== -->
+        <div class="row g-4 mb-4">
 
-                  <tr>
+        <!-- DESCRIPTION -->
+        <div class="col-lg-8">
 
-                    <td colspan="8"
-                        class="text-center text-muted py-4">
+            <div class="card border-0 shadow-sm h-100">
 
-                      No invoices found.
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h5 class="fw-bold mb-0">
+                <i class="bi bi-info-circle me-2 text-primary"></i>
+                Product Information
+                </h5>
+            </div>
 
-                    </td>
+            <div class="card-body px-4 pb-4">
 
-                  </tr>
+                {% if knowledge.product_description %}
+                <p class="mb-0">
+                    {{ knowledge.product_description|linebreaksbr }}
+                </p>
+                {% else %}
+                <p class="text-muted mb-0">
+                    No product description has been added yet.
+                </p>
+                {% endif %}
+
+            </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- QUICK FACTS -->
+        <div class="col-lg-4">
+
+            <div class="card border-0 shadow-sm h-100">
+
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h5 class="fw-bold mb-0">
+                <i class="bi bi-lightning-charge me-2 text-warning"></i>
+                Quick Facts
+                </h5>
+            </div>
+
+            <div class="card-body px-4 pb-4">
+
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                <span class="text-muted">Category</span>
+
+                <span class="fw-semibold text-end">
+                    {% if product.category.parent %}
+                    {{ product.category.parent.name }}
+                    {% else %}
+                    {{ product.category.name|default:"—" }}
+                    {% endif %}
+                </span>
+                </div>
+
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                <span class="text-muted">Sub-category</span>
+
+                <span class="fw-semibold text-end">
+                    {% if product.category.parent %}
+                    {{ product.category.name }}
+                    {% else %}
+                    —
+                    {% endif %}
+                </span>
+                </div>
+
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                <span class="text-muted">UOM</span>
+
+                <span class="fw-semibold">
+                    {{ product.uom|default:"—" }}
+                </span>
+                </div>
+
+                <div class="d-flex justify-content-between py-2">
+                <span class="text-muted">Status</span>
+
+                <span class="badge bg-success-subtle text-success">
+                    Available
+                </span>
+                </div>
+
+            </div>
+
+            </div>
+
+        </div>
+
+        </div>
+
+
+        <!-- =========================================================
+            SALES INFORMATION
+        ========================================================== -->
+        <div class="row g-4 mb-4">
+
+        <!-- APPLICATION -->
+        <div class="col-lg-6">
+
+            <div class="card border-0 shadow-sm h-100">
+
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h5 class="fw-bold mb-0">
+                <i class="bi bi-shop me-2 text-primary"></i>
+                Usage & Application
+                </h5>
+            </div>
+
+            <div class="card-body px-4 pb-4">
+
+                {% if knowledge.usage_application %}
+                <div class="text-muted">
+                    {{ knowledge.usage_application|linebreaksbr }}
+                </div>
+                {% else %}
+                <div class="text-muted">
+                    No usage information has been added yet.
+                </div>
+                {% endif %}
+
+            </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- YIELD -->
+        <div class="col-lg-6">
+
+            <div class="card border-0 shadow-sm h-100">
+
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h5 class="fw-bold mb-0">
+                <i class="bi bi-calculator me-2 text-primary"></i>
+                Yield & Portion Information
+                </h5>
+            </div>
+
+            <div class="card-body px-4 pb-4">
+
+                {% if knowledge.yield_portion_information %}
+                <div class="text-muted">
+                    {{ knowledge.yield_portion_information|linebreaksbr }}
+                </div>
+                {% else %}
+                <div class="text-muted">
+                    No yield or portion information has been added yet.
+                </div>
+                {% endif %}
+
+            </div>
+
+            </div>
+
+        </div>
+
+        </div>
+
+
+        <!-- =========================================================
+            WHY CHOOSE TDM
+        ========================================================== -->
+        <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header bg-white border-0 pt-4 px-4">
+            <h5 class="fw-bold mb-0">
+            <i class="bi bi-star me-2 text-warning"></i>
+            Why Choose This Product
+            </h5>
+        </div>
+
+        <div class="card-body px-4 pb-4">
+
+            {% if knowledge.why_choose_tdm %}
+            <div>
+                {{ knowledge.why_choose_tdm|linebreaksbr }}
+            </div>
+            {% else %}
+            <div class="text-muted">
+                No product advantages have been added yet.
+            </div>
+            {% endif %}
+
+        </div>
+
+        </div>
+
+
+        <!-- =========================================================
+            BENEFITS
+        ========================================================== -->
+        {% if knowledge.product_benefits.all %}
+
+        <div class="card border-0 shadow-sm mb-4">
+
+            <div class="card-header bg-white border-0 pt-4 px-4">
+            <h5 class="fw-bold mb-0">
+                <i class="bi bi-check2-circle me-2 text-success"></i>
+                Product Benefits
+            </h5>
+            </div>
+
+            <div class="card-body px-4 pb-4">
+
+            <div class="row g-3">
+
+                {% for benefit in knowledge.product_benefits.all %}
+
+                <div class="col-md-6">
+
+                    <div class="d-flex gap-3 p-3 rounded-3 bg-light">
+
+                    <div class="text-success">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+
+                    <div>
+                        {{ benefit }}
+                    </div>
+
+                    </div>
+
+                </div>
 
                 {% endfor %}
 
-              </tbody>
+            </div>
 
-            </table>
-
-          </div>
+            </div>
 
         </div>
 
-      </div>
+        {% endif %}
 
-      <script>
-      document.addEventListener("DOMContentLoaded", function () {
 
-        document.querySelectorAll(".clickable-row").forEach(row => {
+        <!-- =========================================================
+            VARIANTS
+        ========================================================== -->
+        {% if knowledge.knowledge_variants.all %}
 
-          row.addEventListener("click", function (e) {
+        <div class="card border-0 shadow-sm mb-4">
 
-            if (e.target.closest("a, button")) return;
+            <div class="card-header bg-white border-0 pt-4 px-4">
+            <h5 class="fw-bold mb-0">
+                <i class="bi bi-boxes me-2 text-primary"></i>
+                Variants
+            </h5>
+            </div>
 
-            const href = this.dataset.href;
+            <div class="card-body px-4 pb-4">
 
-            if (href) {
-              window.location.href = href;
+            <div class="table-responsive">
+
+                <table class="table align-middle mb-0">
+
+                <thead>
+                    <tr>
+                    <th>Variant</th>
+                    <th>Description</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for variant in knowledge.knowledge_variants.all %}
+
+                    <tr>
+                        <td class="fw-semibold">
+                        {{ variant }}
+                        </td>
+
+                        <td class="text-muted">
+                        {{ variant.description|default:"—" }}
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+                </table>
+
+            </div>
+
+            </div>
+
+        </div>
+
+        {% endif %}
+
+
+        <!-- =========================================================
+            KEY TAKEAWAYS
+        ========================================================== -->
+        <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header bg-white border-0 pt-4 px-4">
+            <h5 class="fw-bold mb-0">
+            <i class="bi bi-bullseye me-2 text-danger"></i>
+            Key Takeaways
+            </h5>
+        </div>
+
+        <div class="card-body px-4 pb-4">
+
+            {% if knowledge.key_takeaways %}
+
+            <div class="p-3 rounded-3 bg-light">
+                {{ knowledge.key_takeaways|linebreaksbr }}
+            </div>
+
+            {% else %}
+
+            <div class="text-muted">
+                No key takeaways have been added yet.
+            </div>
+
+            {% endif %}
+
+        </div>
+
+        </div>
+
+
+        
+
+
+        <!-- =========================================================
+            BACK TO PRODUCTS
+        ========================================================== -->
+        <div class="d-flex justify-content-between align-items-center mb-5">
+
+        <a href="{% url 'sales:sales-knowledge-list' %}"
+            class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            Back to Products
+        </a>
+
+        </div>
+
+    </div>
+    </main>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const storageKey = "tdmCompareProducts";
+
+        const compareButtons = [
+            document.getElementById("compareProductBtn"),
+            document.getElementById("compareProductBtnBottom")
+        ].filter(Boolean);
+
+
+        function getCompareProducts() {
+
+            try {
+                return JSON.parse(
+                    localStorage.getItem(storageKey) || "[]"
+                );
+            } catch (error) {
+                return [];
             }
 
-          });
+        }
+
+
+        function saveCompareProducts(products) {
+
+            localStorage.setItem(
+                storageKey,
+                JSON.stringify(products)
+            );
+
+        }
+
+
+        function addProductToCompare(button) {
+
+            const product = {
+                id: button.dataset.productId,
+                name: button.dataset.productName,
+                product_no: button.dataset.productNo,
+                price: button.dataset.productPrice
+            };
+
+            let products = getCompareProducts();
+
+
+            const exists = products.some(
+                item =>
+                    String(item.id) === String(product.id)
+            );
+
+
+            if (!exists) {
+
+                if (products.length >= 4) {
+
+                    alert(
+                        "You can compare a maximum of 4 products."
+                    );
+
+                    return;
+
+                }
+
+                products.push(product);
+
+                saveCompareProducts(products);
+
+            }
+
+
+            /*
+            * Go directly to comparison.
+            */
+            const ids = products
+                .map(item => item.id)
+                .join(",");
+
+
+            window.location.href =
+                "{% url 'sales:sales-knowledge-compare' %}"
+                + "?products="
+                + encodeURIComponent(ids);
+
+        }
+
+
+        compareButtons.forEach(button => {
+
+            button.addEventListener("click", function () {
+
+                addProductToCompare(this);
+
+            });
 
         });
 
-      });
-      </script>
-    </div>
-  </main>
+    });
+    </script>
+
+
+    <!-- =============================================================
+        COMPARE BUTTON BEHAVIOUR
+    ============================================================== -->
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const compareButtons = [
+            document.getElementById("compareProductBtn"),
+            document.getElementById("compareProductBtnBottom")
+        ].filter(Boolean);
+
+        function getCompareProducts() {
+            try {
+                return JSON.parse(
+                    localStorage.getItem("tdmCompareProducts") || "[]"
+                );
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function saveCompareProducts(products) {
+            localStorage.setItem(
+                "tdmCompareProducts",
+                JSON.stringify(products)
+            );
+        }
+
+        function addProductToCompare(button) {
+
+            const product = {
+                id: button.dataset.productId,
+                name: button.dataset.productName,
+                product_no: button.dataset.productNo,
+                price: button.dataset.productPrice
+            };
+
+            let products = getCompareProducts();
+
+            const alreadyAdded = products.some(
+                item => String(item.id) === String(product.id)
+            );
+
+            if (!alreadyAdded) {
+                products.push(product);
+            }
+
+            /*
+            * Keep comparison practical.
+            * The comparison page can handle the selected products.
+            */
+            if (products.length > 4) {
+                products = products.slice(-4);
+            }
+
+            saveCompareProducts(products);
+
+            compareButtons.forEach(btn => {
+
+                btn.innerHTML = `
+                    <i class="bi bi-check-circle me-1"></i>
+                    Added to Compare
+                `;
+
+                btn.classList.remove("btn-primary");
+                btn.classList.add("btn-success");
+
+            });
+
+        }
+
+        compareButtons.forEach(button => {
+
+            button.addEventListener("click", function () {
+                addProductToCompare(this);
+            });
+
+        });
+
+    });
+    </script>
 
   <!-- SWITCH PLATFORM MODAL -->
   <div class="modal fade"

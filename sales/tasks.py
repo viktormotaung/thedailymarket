@@ -1,6 +1,6 @@
 from datetime import datetime, time, timedelta
 
-from celery import shared_task
+
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -10,8 +10,11 @@ from profiles.models import SalesRepProfile
 from clients.models import Lead, Prospect, Client
 from invoices.models import Invoice
 
+from django.db import IntegrityError
+from .models import DailyTaskSchedule
 
-@shared_task
+
+
 def send_daily_supervisor_sales_reports():
     """
     Send a daily sales activity summary to each supervisor.
@@ -438,7 +441,7 @@ def send_daily_supervisor_sales_reports():
     }
 
 
-@shared_task
+
 def send_daily_rep_sales_reports():
     """
     Send each active sales representative their own daily sales summary.
@@ -673,3 +676,84 @@ def send_daily_rep_sales_reports():
         "emails_sent": emails_sent,
         "reps_skipped": reps_skipped,
     }
+
+
+def ensure_daily_sales_reports_queued():
+    """
+    Ensure today's daily sales reports exist in the Django database queue.
+
+    This function does NOT execute the reports and does NOT use Celery.
+    It only creates the database queue records if they do not already exist.
+    """
+
+    from datetime import datetime, time
+
+    from django.db import IntegrityError
+    from django.utils import timezone
+
+    from .models import DailyTaskSchedule
+
+    now = timezone.localtime(timezone.now())
+    today = now.date()
+
+    # Today's scheduled execution time: 18:00 Johannesburg time.
+    run_at = timezone.make_aware(
+        datetime.combine(
+            today,
+            time(18, 0),
+        ),
+        timezone.get_current_timezone(),
+    )
+
+    tasks = [
+        (
+            "send_daily_supervisor_sales_reports",
+            send_daily_supervisor_sales_reports,
+        ),
+        (
+            "send_daily_rep_sales_reports",
+            send_daily_rep_sales_reports,
+        ),
+    ]
+
+    queued = []
+
+    for task_name, task_function in tasks:
+
+        # The explicit task name is used as the unique identifier
+        # for the daily queue entry.
+
+        try:
+            schedule, created = DailyTaskSchedule.objects.get_or_create(
+                date=today,
+                task_name=task_name,
+                defaults={
+                    "run_at": run_at,
+                    "status": DailyTaskSchedule.STATUS_PENDING,
+                },
+            )
+
+        except IntegrityError:
+            # Another login may have created the same queue entry
+            # at exactly the same time.
+            schedule = DailyTaskSchedule.objects.get(
+                date=today,
+                task_name=task_name,
+            )
+            created = False
+
+        if created:
+            queued.append({
+                "task": task_name,
+                "run_at": run_at.isoformat(),
+                "status": schedule.status,
+            })
+
+    return {
+        "queued": bool(queued),
+        "date": str(today),
+        "run_at": run_at.isoformat(),
+        "tasks": queued,
+    }
+
+

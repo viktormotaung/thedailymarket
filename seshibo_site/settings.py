@@ -188,21 +188,44 @@ USE_TZ = True
 # ---------------------------
 CELERY_TIMEZONE = "Africa/Johannesburg"
 CELERY_ENABLE_UTC = False
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")  # e.g., redis://:password@host:6379/0
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
 
 CELERY_BEAT_SCHEDULE = {
+    # =========================================================
+    # INVOICE TASKS
+    # =========================================================
+
     "flag-overdue-invoices-04h45": {
         "task": "invoices.tasks.flag_overdue_invoices",
         "schedule": crontab(minute=45, hour=4),
         "options": {"queue": "default"},
     },
+
     "email-overdue-summary-05h00": {
         "task": "invoices.tasks.email_overdue_summary",
         "schedule": crontab(minute=0, hour=5),
         "options": {"queue": "default"},
     },
+
+    # =========================================================
+    # DAILY SALES REPORTS
+    # =========================================================
+
+    "daily-supervisor-sales-reports-18h00": {
+        "task": "tasks.tasks.send_daily_supervisor_sales_reports",
+        "schedule": crontab(minute=0, hour=18),
+        "options": {"queue": "default"},
+    },
+
+    "daily-rep-sales-reports-18h00": {
+        "task": "tasks.tasks.send_daily_rep_sales_reports",
+        "schedule": crontab(minute=0, hour=18),
+        "options": {"queue": "default"},
+    },
 }
+
+
 
 # EMAIL — Postmark API
 EMAIL_BACKEND = "postmarker.django.EmailBackend"

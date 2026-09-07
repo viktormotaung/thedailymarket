@@ -33,7 +33,7 @@ from communications.tasks import notify_department_new_ticket
 from clients.models import Client
 from products.models import Product
 from orders.models import Order
-
+from sales.tasks import ensure_daily_sales_reports_queued
 from django.db import transaction
 from tasks.models import Task
 from orders.models import Order, OrderItem
@@ -575,13 +575,13 @@ def logout_view(request):
 def staff_login(request):
     """
     Unified sign-in for:
-      - Staff portal
-      - Lender portal
-      - Sales portal
-      - Logistics portal
+    - Staff portal
+    - Lender portal
+    - Sales portal
+    - Logistics portal
 
     After successful login, always show a modal:
-      "Your profile has access to the following portal/s, please choose one"
+    "Your profile has access to the following portal/s, please choose one"
     Buttons are enabled/disabled based on access.
     """
 
@@ -605,25 +605,45 @@ def staff_login(request):
     # 1) User existence (case-insensitive)
     # -------------------------------------------------
     user = User.objects.filter(username__iexact=username).first()
+
     if not user:
         ctx.update({
             "show_modal": True,
             "modal_title": "We couldn't find an account",
-            "modal_message": "No user exists with that username. Please check and try again.",
+            "modal_message": (
+                "No user exists with that username. "
+                "Please check and try again."
+            ),
         })
-        return render(request, "home/staff_login.html", ctx)
+        return render(
+            request,
+            "home/staff_login.html",
+            ctx
+        )
 
     # -------------------------------------------------
     # 2) Credentials
     # -------------------------------------------------
-    authed = authenticate(request, username=user.username, password=password)
+    authed = authenticate(
+        request,
+        username=user.username,
+        password=password,
+    )
+
     if not authed:
         ctx.update({
             "show_modal": True,
             "modal_title": "Invalid username or password",
-            "modal_message": "Please try again. If you’ve forgotten your password, use the Reset link below.",
+            "modal_message": (
+                "Please try again. If you’ve forgotten your password, "
+                "use the Reset link below."
+            ),
         })
-        return render(request, "home/staff_login.html", ctx)
+        return render(
+            request,
+            "home/staff_login.html",
+            ctx
+        )
 
     # -------------------------------------------------
     # 3) Detect roles / profiles
@@ -632,7 +652,7 @@ def staff_login(request):
     # --- Lender ---
     has_active_funder_membership = FunderMember.objects.filter(
         user=authed,
-        is_active=True
+        is_active=True,
     ).exists()
 
     # --- Staff ---
@@ -641,13 +661,13 @@ def staff_login(request):
     # --- Sales ---
     has_active_sales_rep = SalesRepProfile.objects.filter(
         user=authed,
-        status="active"
+        status="active",
     ).exists()
 
-    # --- Logistics (NEW) ---
+    # --- Logistics ---
     has_active_driver = DriverProfile.objects.filter(
         user=authed,
-        status="active"
+        status="active",
     ).exists()
 
     # -------------------------------------------------
@@ -663,11 +683,16 @@ def staff_login(request):
             "show_modal": True,
             "modal_title": "Not authorized",
             "modal_message": (
-                "Your account isn’t enabled for staff, lender, sales, or logistics access. "
-                "Please contact support@thedailymarket.co.za."
+                "Your account isn’t enabled for staff, lender, sales, "
+                "or logistics access. Please contact "
+                "support@thedailymarket.co.za."
             ),
         })
-        return render(request, "home/staff_login.html", ctx)
+        return render(
+            request,
+            "home/staff_login.html",
+            ctx
+        )
 
     # -------------------------------------------------
     # 5) StaffProfile gating (ONLY for staff portal)
@@ -676,7 +701,13 @@ def staff_login(request):
     staff_status = None
 
     if is_staff_user:
-        staff_profile = getattr(authed, "staff_profile", None)
+
+        staff_profile = getattr(
+            authed,
+            "staff_profile",
+            None,
+        )
+
         if staff_profile is None:
             ctx.update({
                 "show_modal": True,
@@ -686,23 +717,47 @@ def staff_login(request):
                     "Please contact support@thedailymarket.co.za."
                 ),
             })
-            return render(request, "home/staff_login.html", ctx)
+            return render(
+                request,
+                "home/staff_login.html",
+                ctx
+            )
 
-        staff_status = (getattr(staff_profile, "status", "") or "").upper()
+        staff_status = (
+            getattr(
+                staff_profile,
+                "status",
+                "",
+            )
+            or ""
+        ).upper()
+
         if staff_status != "ACTIVE":
+
             if staff_status == "PENDING":
                 ctx.update({
                     "show_modal": True,
                     "modal_title": "Profile pending verification",
-                    "modal_message": "Your profile is being verified. A confirmation email will be sent shortly.",
+                    "modal_message": (
+                        "Your profile is being verified. "
+                        "A confirmation email will be sent shortly."
+                    ),
                 })
             else:
                 ctx.update({
                     "show_modal": True,
                     "modal_title": "Profile inactive",
-                    "modal_message": "Your profile is not active. Please contact support@thedailymarket.co.za.",
+                    "modal_message": (
+                        "Your profile is not active. "
+                        "Please contact support@thedailymarket.co.za."
+                    ),
                 })
-            return render(request, "home/staff_login.html", ctx)
+
+            return render(
+                request,
+                "home/staff_login.html",
+                ctx
+            )
 
     # -------------------------------------------------
     # 6) All good → log the user in
@@ -710,24 +765,58 @@ def staff_login(request):
     login(request, authed)
 
     # -------------------------------------------------
+    # 6A) Ensure today's database queue exists
+    # -------------------------------------------------
+    #
+    # IMPORTANT:
+    #
+    # This no longer uses Celery or Redis.
+    #
+    # It only creates today's DailyTaskSchedule records
+    # if they do not already exist.
+    #
+    ensure_daily_sales_reports_queued()
+
+    # -------------------------------------------------
     # 7) Lender session bookkeeping
     # -------------------------------------------------
     if has_active_funder_membership:
+
         memberships = list(
             FunderMember.objects
             .select_related("funder")
-            .filter(user=authed, is_active=True)
+            .filter(
+                user=authed,
+                is_active=True,
+            )
             .order_by("funder__name")
         )
-        request.session["lender_funders"] = [m.funder_id for m in memberships]
+
+        request.session["lender_funders"] = [
+            m.funder_id
+            for m in memberships
+        ]
 
         if len(memberships) == 1:
-            request.session["current_funder_id"] = memberships[0].funder_id
+            request.session["current_funder_id"] = (
+                memberships[0].funder_id
+            )
         else:
-            request.session.pop("current_funder_id", None)
+            request.session.pop(
+                "current_funder_id",
+                None,
+            )
+
     else:
-        request.session.pop("lender_funders", None)
-        request.session.pop("current_funder_id", None)
+        request.session.pop(
+            "lender_funders",
+            None,
+        )
+
+        request.session.pop(
+            "current_funder_id",
+            None,
+        )
 
     # -------------------------------------------------
     # 8) Portal access flags (centralised)
@@ -747,7 +836,11 @@ def staff_login(request):
     # Inject all access flags
     ctx.update(access)
 
-    return render(request, "home/staff_login.html", ctx)
+    return render(
+        request,
+        "home/staff_login.html",
+        ctx
+    )
 
 
 User = get_user_model()

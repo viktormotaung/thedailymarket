@@ -72,6 +72,10 @@
       <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
       <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
       <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets</a>
+      <a href="{% url 'sales:sales-knowledge-list' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-knowledge-list' or request.resolver_match.url_name == 'sales-knowledge-detail' %}active{% endif %}">
+          Products
+      </a>
       <hr class="border-light">
 
     
@@ -140,6 +144,10 @@
     <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
     <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
     <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets</a>
+    <a href="{% url 'sales:sales-knowledge-list' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-knowledge-list' or request.resolver_match.url_name == 'sales-knowledge-detail' %}active{% endif %}">
+          Products
+      </a>
     <hr class="border-light">
 
     <button type="button"

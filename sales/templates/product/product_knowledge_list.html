@@ -614,294 +614,558 @@
 
   </aside>
 
-  <!-- MAIN CONTENT -->
   <main class="content">
-    <h2 class="text-center mb-3">Invoices</h2>
+    <div class="container-fluid py-4">
 
-    <div class="card mb-3">
-      <div class="card-body">
-        <form method="get" class="row g-2 align-items-end">
+        <!-- ================================================================
+            PAGE HEADER
+            ================================================================ -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
 
-          <!-- SEARCH -->
-          <div class="col-md-3">
-            <label class="form-label mb-1 small">Search</label>
-            <input
-              type="text"
-              name="q"
-              class="form-control"
-              placeholder="Client / Company / CL number"
-              value="{{ search|default:'' }}"
-            >
-          </div>
+        <div>
+            <h1 class="mb-1">
+            Products
+            </h1>
 
-          <!-- STATUS -->
-          <div class="col-md-2">
-            <label class="form-label mb-1 small">Status</label>
+            <p class="text-muted mb-0">
+            Search and browse the product catalogue.
+            </p>
+        </div>
 
-            <select
-              name="status"
-              class="form-select"
-            >
-              <option value="">All</option>
-
-              {% if status_choices %}
-                {% for val,label in status_choices %}
-                  <option
-                    value="{{ val }}"
-                    {% if filter_status == val %}selected{% endif %}
-                  >
-                    {{ label }}
-                  </option>
-                {% endfor %}
-              {% endif %}
-            </select>
-          </div>
-
-          <!-- DATE FROM -->
-          <div class="col-md-2">
-            <label class="form-label mb-1 small">From</label>
-
-            <input
-              type="date"
-              name="date_from"
-              class="form-control"
-              value="{{ date_from|date:'Y-m-d' }}"
-            >
-          </div>
-
-          <!-- DATE TO -->
-          <div class="col-md-2">
-            <label class="form-label mb-1 small">To</label>
-
-            <input
-              type="date"
-              name="date_to"
-              class="form-control"
-              value="{{ date_to|date:'Y-m-d' }}"
-            >
-          </div>
-
-          <!-- ACTIONS -->
-          <div class="col-md-3 d-flex gap-2">
-
-            <button
-              type="submit"
-              class="btn btn-primary"
-            >
-              Filter
-            </button>
-
-            <a
-              href="{% url 'staff-invoices' %}"
-              class="btn btn-outline-secondary"
-            >
-              Clear
-            </a>
-
-          </div>
-
-        </form>
-      </div>
-    </div>
-
-      <div class="card">
-
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-
-          <strong>Invoice List</strong>
-
-          <span class="text-muted small">
-            {{ invoices|length }} record(s)
-          </span>
+        <div>
+            <span class="badge bg-light text-dark border px-3 py-2">
+            {{ products|length }}
+            product{{ products|length|pluralize }}
+            </span>
+        </div>
 
         </div>
 
-        <div class="card-body p-0">
 
-          <div class="table-responsive">
+        <!-- ================================================================
+            SEARCH & FILTERS
+            ================================================================ -->
+        <div class="card border-0 shadow-sm mb-4">
 
-            <table class="table table-striped table-bordered mb-0 align-middle">
+        <div class="card-body p-4">
 
-              <thead>
+            <form method="get">
+
+            <div class="row g-3">
+
+                <!-- Search -->
+                <div class="col-lg-5">
+
+                <label
+                    for="q"
+                    class="form-label fw-semibold"
+                >
+                    Search
+                </label>
+
+                <input
+                    type="text"
+                    id="q"
+                    name="q"
+                    value="{{ search_query|default:'' }}"
+                    class="form-control"
+                    placeholder="Product name, category, sub-category or SKU..."
+                >
+
+                </div>
+
+
+                <!-- Category -->
+                <div class="col-lg-3">
+
+                <label
+                    for="category"
+                    class="form-label fw-semibold"
+                >
+                    Category
+                </label>
+
+                <select
+                    id="category"
+                    name="category"
+                    class="form-select"
+                >
+
+                    <option value="">
+                    All Categories
+                    </option>
+
+                    {% for category in categories %}
+
+                    {% if not category.parent %}
+
+                        <option
+                        value="{{ category.id }}"
+                        {% if selected_category == category.id|stringformat:"s" %}
+                            selected
+                        {% endif %}
+                        >
+                        {{ category.name }}
+                        </option>
+
+                    {% endif %}
+
+                    {% endfor %}
+
+                </select>
+
+                </div>
+
+
+                <!-- Sub-category -->
+                <div class="col-lg-4">
+
+                <label
+                    for="subcategory"
+                    class="form-label fw-semibold"
+                >
+                    Sub-category
+                </label>
+
+                <select
+                    id="subcategory"
+                    name="subcategory"
+                    class="form-select"
+                >
+
+                    <option value="">
+                    All Sub-categories
+                    </option>
+
+                    {% for category in categories %}
+
+                    {% if category.parent %}
+
+                        <option
+                        value="{{ category.id }}"
+                        data-parent="{{ category.parent_id }}"
+                        {% if selected_subcategory == category.id|stringformat:"s" %}
+                            selected
+                        {% endif %}
+                        >
+                        {{ category.name }}
+                        </option>
+
+                    {% endif %}
+
+                    {% endfor %}
+
+                </select>
+
+                </div>
+
+
+                <!-- Minimum Price -->
+                <div class="col-lg-3">
+
+                <label
+                    for="min_price"
+                    class="form-label fw-semibold"
+                >
+                    Minimum Price
+                </label>
+
+                <div class="input-group">
+
+                    <span class="input-group-text">
+                    R
+                    </span>
+
+                    <input
+                    type="number"
+                    id="min_price"
+                    name="min_price"
+                    value="{{ min_price|default:'' }}"
+                    class="form-control"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    >
+
+                </div>
+
+                </div>
+
+
+                <!-- Maximum Price -->
+                <div class="col-lg-3">
+
+                <label
+                    for="max_price"
+                    class="form-label fw-semibold"
+                >
+                    Maximum Price
+                </label>
+
+                <div class="input-group">
+
+                    <span class="input-group-text">
+                    R
+                    </span>
+
+                    <input
+                    type="number"
+                    id="max_price"
+                    name="max_price"
+                    value="{{ max_price|default:'' }}"
+                    class="form-control"
+                    min="0"
+                    step="0.01"
+                    placeholder="No maximum"
+                    >
+
+                </div>
+
+                </div>
+
+
+                <!-- Search / Clear -->
+                <div class="col-lg-6 d-flex align-items-end gap-2">
+
+                <button
+                    type="submit"
+                    class="btn btn-primary px-4"
+                >
+                    <i class="bi bi-search me-1"></i>
+                    Search
+                </button>
+
+                <a
+                    href="{% url 'sales:sales-knowledge-list' %}"
+                    class="btn btn-outline-secondary px-4"
+                >
+                    Clear
+                </a>
+
+                </div>
+
+            </div>
+
+            </form>
+
+        </div>
+
+        </div>
+
+
+        <!-- ================================================================
+            PRODUCT RESULTS
+            ================================================================ -->
+        <div class="card border-0 shadow-sm">
+
+        <div class="card-header bg-white py-3">
+
+            <div class="d-flex justify-content-between align-items-center">
+
+            <div>
+
+                <h5 class="mb-0">
+                Product Catalogue
+                </h5>
+
+                <small class="text-muted">
+                Available products
+                </small>
+
+            </div>
+
+            <span class="text-muted">
+                {{ products|length }}
+                result{{ products|length|pluralize }}
+            </span>
+
+            </div>
+
+        </div>
+
+
+        {% if products %}
+
+            <div class="table-responsive">
+
+            <table class="table table-hover align-middle mb-0">
+
+                <thead class="table-light">
+
                 <tr>
 
-                  <th style="width:6%; font-size:13px;">
-                    #
-                  </th>
+                    <th>
+                    Product No.
+                    </th>
 
-                  <th style="width:20%; font-size:13px;">
-                    Client
-                  </th>
+                    <th>
+                    Product
+                    </th>
 
-                  <th style="width:14%; font-size:13px;">
-                    Invoice Date
-                  </th>
+                    <th>
+                    Category
+                    </th>
 
-                  <th style="width:14%; font-size:13px;">
-                    Due Date
-                  </th>
+                    <th>
+                    Sub-category
+                    </th>
 
-                  <th style="width:12%; font-size:13px;">
-                    Order Total
-                  </th>
+                    
 
-                  <th style="width:12%; font-size:13px;">
-                    Amount Due
-                  </th>
+                    <th class="text-end">
+                    Wholesale Price
+                    </th>
 
-                  <th style="width:10%; font-size:13px;">
-                    Paid
-                  </th>
-
-                  <th style="width:12%; font-size:13px;">
-                    Status
-                  </th>
+                    <th class="text-end">
+                    Action
+                    </th>
 
                 </tr>
-              </thead>
 
-              <tbody>
+                </thead>
 
-                {% for inv in invoices %}
 
-                  <tr class="clickable-row"
-                      data-href="{% url 'sales:view-invoice' inv.id %}"
-                      style="cursor:pointer;">
+                <tbody>
 
-                    <!-- # -->
-                    <td style="font-size:13px;">
-                      {{ forloop.counter }}
-                    </td>
+                {% for product in products %}
 
-                    <!-- CLIENT -->
-                    <td style="font-size:13px;">
+                    <tr>
 
-                      <div class="fw-semibold">
-                        {{ inv.client.name }}
-                      </div>
+                    <!-- Product Number -->
+                    <td>
 
-                      
-
-                      
-
-                    </td>
-
-                    <!-- INVOICE DATE -->
-                    <td style="font-size:13px;">
-                      {{ inv.invoice_date|date:"Y-m-d" }}
-                    </td>
-
-                    <!-- DUE DATE -->
-                    <td style="font-size:13px;">
-                      {{ inv.due_date|date:"Y-m-d"|default:"—" }}
-                    </td>
-
-                    <!-- ORDER TOTAL -->
-                    <td style="font-size:13px;">
-                      R{{ inv.order_total_inc|floatformat:2|intcomma }}
-                    </td>
-
-                    <!-- AMOUNT DUE -->
-                    <td style="font-size:13px;">
-
-                      <strong>
-                        R{{ inv.amount_due|floatformat:2|intcomma }}
-                      </strong>
-
-                    </td>
-
-                    <!-- PAID -->
-                    <td style="font-size:13px;">
-                      R{{ inv.deposit_paid|floatformat:2|intcomma }}
-                    </td>
-
-                    <!-- STATUS -->
-                    <td style="font-size:13px;">
-
-                      {% if inv.status == "paid" %}
-
-                        <span class="badge bg-success">
-                          Paid
+                        <span class="fw-semibold">
+                        {{ product.product_no }}
                         </span>
 
-                      {% elif inv.status == "partial" %}
+                    </td>
 
-                        <span class="badge bg-primary">
-                          Partial
-                        </span>
 
-                      {% elif inv.status == "overdue" %}
+                    <!-- Product -->
+                    <td>
 
-                        <span class="badge bg-danger">
-                          Overdue
-                        </span>
+                        <div class="d-flex align-items-center">
 
-                      {% elif inv.status == "unpaid" %}
+                        {% if product.image %}
 
-                        <span class="badge bg-warning text-dark">
-                          Unpaid
-                        </span>
+                            <img
+                            src="{{ product.image.url }}"
+                            alt="{{ product.name }}"
+                            class="rounded me-3"
+                            style="
+                                width: 48px;
+                                height: 48px;
+                                object-fit: cover;
+                            "
+                            >
 
-                      {% else %}
+                        {% endif %}
 
-                        <span class="badge bg-secondary">
-                          {{ inv.get_status_display }}
-                        </span>
+                        <div>
 
-                      {% endif %}
+                            <div class="fw-semibold">
+                            {{ product.name }}
+                            </div>
+
+                            {% if product.sku %}
+
+                            <small class="text-muted">
+                                SKU: {{ product.sku }}
+                            </small>
+
+                            {% endif %}
+
+                        </div>
+
+                        </div>
 
                     </td>
 
-                  </tr>
 
-                {% empty %}
+                    <!-- Category -->
+                    <td>
 
-                  <tr>
+                        {% if product.category.parent %}
 
-                    <td colspan="8"
-                        class="text-center text-muted py-4">
+                        {{ product.category.parent.name }}
 
-                      No invoices found.
+                        {% else %}
+
+                        {{ product.category.name }}
+
+                        {% endif %}
 
                     </td>
 
-                  </tr>
+
+                    <!-- Sub-category -->
+                    <td>
+
+                        {% if product.category.parent %}
+
+                        {{ product.category.name }}
+
+                        {% else %}
+
+                        <span class="text-muted">
+                            —
+                        </span>
+
+                        {% endif %}
+
+                    </td>
+
+
+                    
+
+
+                    <!-- Price -->
+                    <td class="text-end">
+
+                        {% if product.wholesale_price %}
+
+                        <span class="fw-semibold">
+                            R {{ product.wholesale_price|floatformat:2 }}
+                        </span>
+
+                        {% else %}
+
+                        <span class="text-muted">
+                            —
+                        </span>
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <!-- Action -->
+                    <td class="text-end">
+
+                        <a
+                        href="{% url 'sales:sales-knowledge-detail' product.pk %}"
+                        class="btn btn-sm btn-outline-primary"
+                        >
+                        View
+                        </a>
+
+                    </td>
+
+                    </tr>
 
                 {% endfor %}
 
-              </tbody>
+                </tbody>
 
             </table>
 
-          </div>
+            </div>
+
+        {% else %}
+
+            <!-- ============================================================
+                NO RESULTS
+                ============================================================ -->
+            <div class="text-center py-5">
+
+            <div class="mb-3">
+
+                <i
+                class="bi bi-search"
+                style="
+                    font-size: 3rem;
+                    opacity: .35;
+                "
+                ></i>
+
+            </div>
+
+            <h5>
+                No products found
+            </h5>
+
+            <p class="text-muted mb-3">
+                Try changing your search or filter criteria.
+            </p>
+
+            <a
+                href="{% url 'sales:sales-knowledge-list' %}"
+                class="btn btn-outline-primary"
+            >
+                Clear Filters
+            </a>
+
+            </div>
+
+        {% endif %}
 
         </div>
 
-      </div>
-
-      <script>
-      document.addEventListener("DOMContentLoaded", function () {
-
-        document.querySelectorAll(".clickable-row").forEach(row => {
-
-          row.addEventListener("click", function (e) {
-
-            if (e.target.closest("a, button")) return;
-
-            const href = this.dataset.href;
-
-            if (href) {
-              window.location.href = href;
-            }
-
-          });
-
-        });
-
-      });
-      </script>
     </div>
-  </main>
+    </main>
+
+
+    <!-- ================================================================
+        CATEGORY → SUB-CATEGORY FILTERING
+        ================================================================ -->
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const categorySelect =
+            document.getElementById("category");
+
+        const subcategorySelect =
+            document.getElementById("subcategory");
+
+        if (!categorySelect || !subcategorySelect) {
+            return;
+        }
+
+        const subcategoryOptions = Array.from(
+            subcategorySelect.querySelectorAll(
+                "option[data-parent]"
+            )
+        );
+
+        function filterSubcategories() {
+
+            const selectedCategory =
+                categorySelect.value;
+
+            subcategoryOptions.forEach(function (option) {
+
+                const parentId =
+                    option.dataset.parent;
+
+                if (
+                    !selectedCategory ||
+                    parentId === selectedCategory
+                ) {
+
+                    option.style.display = "";
+
+                } else {
+
+                    option.style.display = "none";
+
+                    if (option.selected) {
+                        option.selected = false;
+                    }
+
+                }
+
+            });
+        }
+
+        categorySelect.addEventListener(
+            "change",
+            filterSubcategories
+        );
+
+        filterSubcategories();
+
+    });
+    </script>
 
   <!-- SWITCH PLATFORM MODAL -->
   <div class="modal fade"

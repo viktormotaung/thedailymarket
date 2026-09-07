@@ -1,0 +1,91 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if subtitle %}{{ subtitle }} | {% endif %}
+    The Daily Market Administration
+{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}">
+        The Daily Market
+    </a>
+</h1>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+
+<style>
+    :root {
+        --tdm-navy: #284b70;
+        --tdm-blue: #437f9f;
+        --tdm-gold: #f4c542;
+    }
+
+    /* Header */
+    #header {
+        background: var(--tdm-navy);
+    }
+
+    /* TDM name */
+    #branding h1 {
+        font-weight: 600;
+    }
+
+    #branding h1 a {
+        color: var(--tdm-gold);
+        text-decoration: none;
+    }
+
+    #branding h1 a:hover {
+        color: #ffffff;
+    }
+
+    /* User links */
+    #user-tools a {
+        color: #ffffff;
+    }
+
+    #user-tools a:hover {
+        color: var(--tdm-gold);
+    }
+
+    /* Section headings */
+    .module h2,
+    .module caption {
+        background: var(--tdm-navy);
+    }
+
+    /* Buttons */
+    input[type="submit"],
+    .button,
+    a.button {
+        background: var(--tdm-navy);
+    }
+
+    input[type="submit"]:hover,
+    .button:hover,
+    a.button:hover {
+        background: var(--tdm-blue);
+    }
+
+    /* Links */
+    a:link,
+    a:visited {
+        color: var(--tdm-navy);
+    }
+
+    a:hover {
+        color: var(--tdm-blue);
+    }
+
+    /* Breadcrumbs */
+    div.breadcrumbs {
+        background: #f5f6f8;
+    }
+</style>
+{% endblock %}

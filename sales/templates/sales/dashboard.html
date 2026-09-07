@@ -72,6 +72,10 @@
       <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
       <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
       <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets</a>
+      <a href="{% url 'sales:sales-knowledge-list' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'sales-knowledge-list' or request.resolver_match.url_name == 'sales-knowledge-detail' %}active{% endif %}">
+          Products
+      </a>
       <hr class="border-light">
 
     
@@ -140,6 +144,10 @@
     <a href="{% url 'sales:sales-invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-invoices' %}active{% endif %}">Invoices</a>
     <a href="{% url 'sales:sales-commission' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-commission' %}active{% endif %}">Commission</a>
     <a href="{% url 'sales:sales-tickets' %}" class="nav-link {% if request.resolver_match.url_name == 'sales-tickets' %}active{% endif %}">Tickets</a>
+    <a href="{% url 'sales:sales-knowledge-list' %}"
+      class="nav-link {% if request.resolver_match.url_name == 'sales-knowledge-list' or request.resolver_match.url_name == 'sales-knowledge-detail' %}active{% endif %}">
+        Products
+    </a>
     <hr class="border-light">
 
     <button type="button"
@@ -181,325 +189,1026 @@
 
   <!-- MAIN CONTENT -->
   <main class="content">
-    <div class="container-fluid">
+    
 
-      <div class="d-flex flex-column align-items-center text-center gap-2 mb-4">
-        <h2 class="m-0">Sales Dashboard</h2>
+    <div class="container-fluid py-4">
 
-        <div class="text-muted small">
-          Showing {{ period_label }} compared with {{ comparison_label }}
-        </div>
+        <!-- =========================================================
+            HEADER
+            ========================================================= -->
 
-        <div class="btn-group">
-          <a class="btn {% if range == 'today' %}btn-success{% else %}btn-outline-success{% endif %}"
-            href="?range=today">
-            Today
-          </a>
+        <div class="d-flex flex-column align-items-center text-center mb-4">
 
-          <a class="btn {% if range == '7d' %}btn-success{% else %}btn-outline-success{% endif %}"
-            href="?range=7d">
-            Last 7 days
-          </a>
+          <div>
+              <h1 class="h3 mb-1 fw-semibold">
+                  Sales Dashboard
+              </h1>
 
-          <a class="btn {% if range == 'month' %}btn-success{% else %}btn-outline-success{% endif %}"
-            href="?range=month">
-            This month
-          </a>
+              <p class="text-muted mb-0">
+                  {% if rep_only %}
+                      Your sales performance and activity
+                  {% else %}
+                      Sales performance and activity
+                  {% endif %}
+              </p>
+          </div>
 
-          <a class="btn {% if range == 'last_month' %}btn-success{% else %}btn-outline-success{% endif %}"
-            href="?range=last_month">
-            Last month
-          </a>
-        </div>
-      </div>
 
-      <div class="row g-3 mb-4">
+          <!-- DATE RANGE -->
 
-        <div class="col-md-3">
-          <div class="card border-0 shadow-sm h-100">
-            <div class="card-body text-center">
-              <div class="text-muted small">New Prospects</div>
-              <div class="fs-4 fw-bold mt-1">{{ prospects_trend.current }}</div>
+          <div class="btn-group mt-3" role="group">
 
-              <div class="small mt-1">
-                {% if prospects_trend.direction == "up" %}
-                  <span class="text-success fw-semibold">↑ {{ prospects_trend.label }}</span>
-                {% elif prospects_trend.direction == "down" %}
-                  <span class="text-danger fw-semibold">↓ {{ prospects_trend.label }}</span>
+              <a href="?range=today"
+                class="btn btn-sm
+                {% if range == 'today' %}
+                    btn-primary
                 {% else %}
-                  <span class="text-muted fw-semibold">No change</span>
-                {% endif %}
-              </div>
+                    btn-outline-primary
+                {% endif %}">
+                  Today
+              </a>
 
-              <div class="text-muted small">Previous: {{ prospects_trend.previous }}</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <div class="card border-0 shadow-sm h-100">
-            <div class="card-body text-center">
-              <div class="text-muted small">New Clients</div>
-              <div class="fs-4 fw-bold mt-1">{{ new_clients_trend.current }}</div>
-
-              <div class="small mt-1">
-                {% if new_clients_trend.direction == "up" %}
-                  <span class="text-success fw-semibold">↑ {{ new_clients_trend.label }}</span>
-                {% elif new_clients_trend.direction == "down" %}
-                  <span class="text-danger fw-semibold">↓ {{ new_clients_trend.label }}</span>
+              <a href="?range=7d"
+                class="btn btn-sm
+                {% if range == '7d' %}
+                    btn-primary
                 {% else %}
-                  <span class="text-muted fw-semibold">No change</span>
-                {% endif %}
-              </div>
+                    btn-outline-primary
+                {% endif %}">
+                  7 Days
+              </a>
 
-              <div class="text-muted small">Previous: {{ new_clients_trend.previous }}</div>
-            </div>
-          </div>
-        </div>
+              <a href="?range=month"
+                class="btn btn-sm
+                {% if range == 'month' %}
+                    btn-primary
+                {% else %}
+                    btn-outline-primary
+                {% endif %}">
+                  This Month
+              </a>
 
-        <div class="col-md-3">
-          <div class="card border-0 shadow-sm h-100">
-            <div class="card-body text-center">
-              <div class="text-muted small">Prospect → Client Conversion</div>
-              <div class="fs-4 fw-bold mt-1">{{ conversion_rate }}%</div>
-              <div class="small text-muted mt-1">
-                {{ prospects_converted_current }} converted this period
-              </div>
-            </div>
-          </div>
-        </div>
+              <a href="?range=last_month"
+                class="btn btn-sm
+                {% if range == 'last_month' %}
+                    btn-primary
+                {% else %}
+                    btn-outline-primary
+                {% endif %}">
+                  Last Month
+              </a>
 
-        <div class="col-md-3">
-          <div class="card border-0 shadow-sm h-100">
-            <div class="card-body text-center">
-              <div class="text-muted small">Active Clients Overall</div>
-              <div class="fs-4 fw-bold mt-1">{{ active_clients_overall }}</div>
-              <div class="small text-muted mt-1">
-                Active pipeline: {{ active_pipeline_total }}
-              </div>
-            </div>
           </div>
-        </div>
 
       </div>
 
-      <div class="row g-3 mb-4">
 
-        <div class="col-md-6">
-          <div class="card border-0 shadow-sm h-100">
-            <div class="card-body text-center">
-              <div class="text-muted small">Orders Closed</div>
-              <div class="fs-4 fw-bold mt-1">{{ orders_closed_count }}</div>
-              <div class="small text-muted">For {{ period_label }}</div>
-            </div>
-          </div>
-        </div>
+        <!-- =========================================================
+            KPI CARDS
+            ========================================================= -->
 
-        <div class="col-md-6">
-          <div class="card border-0 shadow-sm h-100">
-            <div class="card-body text-center">
-              <div class="text-muted small">Active Pipeline</div>
-              <div class="fs-4 fw-bold mt-1">{{ active_pipeline_total }}</div>
-              <div class="small text-muted">Open prospects not yet won/lost</div>
-            </div>
-          </div>
-        </div>
+        <div class="row g-3 mb-4">
 
-      </div>
 
-      <div class="card mb-4">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-          <strong>Sales Trend · Orders per Day</strong>
-          <span class="text-muted small">{{ period_label }}</span>
-        </div>
+            <!-- PROSPECTS -->
 
-        <div class="card-body">
-          <div class="chart-wrap">
-            <canvas id="salesChart"></canvas>
-          </div>
-        </div>
-      </div>
+            <div class="col-12 col-sm-6 col-xl-3">
 
-      <div class="row g-3 mb-4">
+                <div class="card border-0 shadow-sm h-100">
 
-        <div class="col-lg-6">
-          <div class="card h-100">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-              <strong>Top 5 Clients · Invoice Quantity</strong>
-              <span class="text-muted small">{{ period_label }}</span>
-            </div>
+                    <div class="card-body">
 
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-striped table-bordered mb-0 align-middle">
-                  <thead>
-                    <tr>
-                      <th style="font-size:13px;">#</th>
-                      <th style="font-size:13px;">Client</th>
-                      <th style="font-size:13px;">Invoices</th>
-                      <th style="font-size:13px;">Trend</th>
-                    </tr>
-                  </thead>
+                        <div class="d-flex justify-content-between align-items-start">
 
-                  <tbody>
-                    {% for c in top_clients_by_invoice_quantity %}
-                      <tr>
-                        <td style="font-size:13px;">{{ forloop.counter }}</td>
+                            <div>
 
-                        <td style="font-size:13px;">
-                          <strong>{{ c.client_name }}</strong>
-                          {% if c.client_organization %}
-                            <div class="small text-muted">{{ c.client_organization }}</div>
-                          {% endif %}
-                        </td>
+                                <div class="text-muted small mb-1">
+                                    {% if rep_only %}
+                                        My Prospects
+                                    {% else %}
+                                        Prospects
+                                    {% endif %}
+                                </div>
 
-                        <td style="font-size:13px;">{{ c.invoice_count }}</td>
+                                <div class="fs-3 fw-semibold">
+                                    {{ prospects_trend.current|default:0 }}
+                                </div>
 
-                        <td style="font-size:13px;">
-                          {% if c.quantity_trend.direction == "up" %}
-                            <span class="text-success fw-semibold">↑ {{ c.quantity_trend.label }}</span>
-                          {% elif c.quantity_trend.direction == "down" %}
-                            <span class="text-danger fw-semibold">↓ {{ c.quantity_trend.label }}</span>
-                          {% else %}
-                            <span class="text-muted fw-semibold">No change</span>
-                          {% endif %}
-                        </td>
-                      </tr>
-                    {% empty %}
-                      <tr>
-                        <td colspan="4" class="text-center text-muted py-4">
-                          No invoice activity found.
-                        </td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
+                            </div>
+
+                            <div class="rounded-circle bg-light p-2">
+                                <i class="bi bi-person-lines-fill fs-5"></i>
+                            </div>
+
+                        </div>
+
+
+                        <div class="mt-3 small">
+
+                            {% if prospects_trend.direction == "up" %}
+
+                                <span class="text-success fw-semibold">
+                                    <i class="bi bi-arrow-up"></i>
+                                    {{ prospects_trend.label }}
+                                </span>
+
+                            {% elif prospects_trend.direction == "down" %}
+
+                                <span class="text-danger fw-semibold">
+                                    <i class="bi bi-arrow-down"></i>
+                                    {{ prospects_trend.label }}
+                                </span>
+
+                            {% else %}
+
+                                <span class="text-muted">
+                                    {{ prospects_trend.label }}
+                                </span>
+
+                            {% endif %}
+
+                            <span class="text-muted">
+                                vs {{ comparison_label|lower }}
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
             </div>
 
-          </div>
-        </div>
 
-        <div class="col-lg-6">
-          <div class="card h-100">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-              <strong>Top 5 Clients · Invoice Value</strong>
-              <span class="text-muted small">{{ period_label }}</span>
+            <!-- NEW CLIENTS -->
+
+            <div class="col-12 col-sm-6 col-xl-3">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-body">
+
+                        <div class="d-flex justify-content-between align-items-start">
+
+                            <div>
+
+                                <div class="text-muted small mb-1">
+                                    {% if rep_only %}
+                                        My New Clients
+                                    {% else %}
+                                        New Clients
+                                    {% endif %}
+                                </div>
+
+                                <div class="fs-3 fw-semibold">
+                                    {{ new_clients_trend.current|default:0 }}
+                                </div>
+
+                            </div>
+
+                            <div class="rounded-circle bg-light p-2">
+                                <i class="bi bi-person-plus fs-5"></i>
+                            </div>
+
+                        </div>
+
+
+                        <div class="mt-3 small">
+
+                            {% if new_clients_trend.direction == "up" %}
+
+                                <span class="text-success fw-semibold">
+                                    <i class="bi bi-arrow-up"></i>
+                                    {{ new_clients_trend.label }}
+                                </span>
+
+                            {% elif new_clients_trend.direction == "down" %}
+
+                                <span class="text-danger fw-semibold">
+                                    <i class="bi bi-arrow-down"></i>
+                                    {{ new_clients_trend.label }}
+                                </span>
+
+                            {% else %}
+
+                                <span class="text-muted">
+                                    {{ new_clients_trend.label }}
+                                </span>
+
+                            {% endif %}
+
+                            <span class="text-muted">
+                                vs {{ comparison_label|lower }}
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
             </div>
 
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-striped table-bordered mb-0 align-middle">
-                  <thead>
-                    <tr>
-                      <th style="font-size:13px;">#</th>
-                      <th style="font-size:13px;">Client</th>
-                      <th style="font-size:13px;">Value</th>
-                      <th style="font-size:13px;">Trend</th>
-                    </tr>
-                  </thead>
 
-                  <tbody>
-                    {% for c in top_clients_by_invoice_value %}
-                      <tr>
-                        <td style="font-size:13px;">{{ forloop.counter }}</td>
+            <!-- ACTIVE CLIENTS -->
 
-                        <td style="font-size:13px;">
-                          <strong>{{ c.client_name }}</strong>
-                          {% if c.client_organization %}
-                            <div class="small text-muted">{{ c.client_organization }}</div>
-                          {% endif %}
-                        </td>
+            <div class="col-12 col-sm-6 col-xl-3">
 
-                        <td style="font-size:13px;">
-                          <strong>R{{ c.invoice_value|floatformat:2|intcomma }}</strong>
-                        </td>
+                <div class="card border-0 shadow-sm h-100">
 
-                        <td style="font-size:13px;">
-                          {% if c.value_trend.direction == "up" %}
-                            <span class="text-success fw-semibold">↑ {{ c.value_trend.label }}</span>
-                          {% elif c.value_trend.direction == "down" %}
-                            <span class="text-danger fw-semibold">↓ {{ c.value_trend.label }}</span>
-                          {% else %}
-                            <span class="text-muted fw-semibold">No change</span>
-                          {% endif %}
-                        </td>
-                      </tr>
-                    {% empty %}
-                      <tr>
-                        <td colspan="4" class="text-center text-muted py-4">
-                          No invoice value found.
-                        </td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
+                    <div class="card-body">
+
+                        <div class="d-flex justify-content-between align-items-start">
+
+                            <div>
+
+                                <div class="text-muted small mb-1">
+                                    {% if rep_only %}
+                                        My Active Clients
+                                    {% else %}
+                                        Active Clients
+                                    {% endif %}
+                                </div>
+
+                                <div class="fs-3 fw-semibold">
+                                    {{ active_clients_overall|default:0 }}
+                                </div>
+
+                            </div>
+
+                            <div class="rounded-circle bg-light p-2">
+                                <i class="bi bi-people fs-5"></i>
+                            </div>
+
+                        </div>
+
+
+                        <div class="mt-3 small text-muted">
+                            Current active client base
+                        </div>
+
+                    </div>
+
+                </div>
+
             </div>
 
-          </div>
+
+            <!-- ORDERS -->
+
+            <div class="col-12 col-sm-6 col-xl-3">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-body">
+
+                        <div class="d-flex justify-content-between align-items-start">
+
+                            <div>
+
+                                <div class="text-muted small mb-1">
+                                    {% if rep_only %}
+                                        My Orders
+                                    {% else %}
+                                        Orders
+                                    {% endif %}
+                                </div>
+
+                                <div class="fs-3 fw-semibold">
+                                    {{ orders_closed_count|default:0 }}
+                                </div>
+
+                            </div>
+
+                            <div class="rounded-circle bg-light p-2">
+                                <i class="bi bi-cart-check fs-5"></i>
+                            </div>
+
+                        </div>
+
+
+                        <div class="mt-3 small text-muted">
+                            {{ period_label }}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
         </div>
 
-      </div>
 
-      <div class="card mb-4">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-          <strong>Top 5 Selling Products</strong>
-          <span class="text-muted small">{{ period_label }}</span>
+        <!-- =========================================================
+            SECONDARY KPI ROW
+            ========================================================= -->
+
+        <div class="row g-3 mb-4">
+
+
+            <!-- CONVERSION -->
+
+            <div class="col-12 col-md-4">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-body">
+
+                        <div class="text-muted small mb-1">
+                            {% if rep_only %}
+                                My Conversion Rate
+                            {% else %}
+                                Conversion Rate
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex align-items-end gap-2">
+
+                            <div class="fs-2 fw-semibold">
+                                {{ conversion_rate|default:0 }}%
+                            </div>
+
+                        </div>
+
+                        <div class="progress mt-3"
+                            style="height: 7px;">
+
+                            <div class="progress-bar"
+                                role="progressbar"
+                                style="width: {{ conversion_rate|default:0 }}%;"
+                                aria-valuenow="{{ conversion_rate|default:0 }}"
+                                aria-valuemin="0"
+                                aria-valuemax="100">
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- PIPELINE -->
+
+            <div class="col-12 col-md-4">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-body">
+
+                        <div class="text-muted small mb-1">
+                            {% if rep_only %}
+                                My Active Pipeline
+                            {% else %}
+                                Active Pipeline
+                            {% endif %}
+                        </div>
+
+                        <div class="fs-2 fw-semibold">
+                            {{ active_pipeline_total|default:0 }}
+                        </div>
+
+                        <div class="small text-muted mt-2">
+                            Active prospects not yet won or lost
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- PERIOD -->
+
+            <div class="col-12 col-md-4">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-body">
+
+                        <div class="text-muted small mb-1">
+                            Reporting Period
+                        </div>
+
+                        <div class="fs-5 fw-semibold">
+                            {{ period_label }}
+                        </div>
+
+                        <div class="small text-muted mt-2">
+                            Compared with {{ comparison_label|lower }}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
         </div>
 
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-striped table-bordered mb-0 align-middle">
-              <thead>
-                <tr>
-                  <th style="font-size:13px;">#</th>
-                  <th style="font-size:13px;">Product</th>
-                  <th style="font-size:13px;">Quantity Sold</th>
-                  <th style="font-size:13px;">Trend</th>
-                </tr>
-              </thead>
 
-              <tbody>
-                {% for p in top_products %}
-                  <tr>
-                    <td style="font-size:13px;">{{ forloop.counter }}</td>
+        <!-- =========================================================
+            SALES ACTIVITY CHART
+            ========================================================= -->
 
-                    <td style="font-size:13px;">
-                      <strong>{{ p.product_name }}</strong>
-                    </td>
+        <div class="row g-3 mb-4">
 
-                    <td style="font-size:13px;">
-                      {{ p.quantity_sold|floatformat:2 }}
-                    </td>
+            <div class="col-12 col-xl-8">
 
-                    <td style="font-size:13px;">
-                      {% if p.quantity_trend.direction == "up" %}
-                        <span class="text-success fw-semibold">↑ {{ p.quantity_trend.label }}</span>
-                      {% elif p.quantity_trend.direction == "down" %}
-                        <span class="text-danger fw-semibold">↓ {{ p.quantity_trend.label }}</span>
-                      {% else %}
-                        <span class="text-muted fw-semibold">No change</span>
-                      {% endif %}
-                    </td>
-                  </tr>
-                {% empty %}
-                  <tr>
-                    <td colspan="4" class="text-center text-muted py-4">
-                      No product sales found.
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+                <div class="card border-0 shadow-sm">
+
+                    <div class="card-body">
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+
+                            <div>
+
+                                <h5 class="mb-1 fw-semibold">
+                                    {% if rep_only %}
+                                        My Order Activity
+                                    {% else %}
+                                        Order Activity
+                                    {% endif %}
+                                </h5>
+
+                                <div class="small text-muted">
+                                    Orders during {{ period_label|lower }}
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div style="height: 300px;">
+
+                            <canvas id="salesActivityChart"></canvas>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- CONVERSION SUMMARY -->
+
+            <div class="col-12 col-xl-4">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-body">
+
+                        <h5 class="fw-semibold mb-4">
+                            {% if rep_only %}
+                                My Sales Funnel
+                            {% else %}
+                                Sales Funnel
+                            {% endif %}
+                        </h5>
+
+
+                        <div class="mb-4">
+
+                            <div class="d-flex justify-content-between mb-1">
+
+                                <span class="small">
+                                    Prospects
+                                </span>
+
+                                <strong>
+                                    {{ prospects_trend.current|default:0 }}
+                                </strong>
+
+                            </div>
+
+                            <div class="progress"
+                                style="height: 7px;">
+
+                                <div class="progress-bar"
+                                    style="width: 100%;">
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="mb-4">
+
+                            <div class="d-flex justify-content-between mb-1">
+
+                                <span class="small">
+                                    Active Pipeline
+                                </span>
+
+                                <strong>
+                                    {{ active_pipeline_total|default:0 }}
+                                </strong>
+
+                            </div>
+
+                            <div class="progress"
+                                style="height: 7px;">
+
+                                {% if prospects_trend.current %}
+
+                                    <div class="progress-bar"
+                                        style="width: {% widthratio active_pipeline_total prospects_trend.current 100 %}%;">
+                                    </div>
+
+                                {% else %}
+
+                                    <div class="progress-bar"
+                                        style="width: 0%;">
+                                    </div>
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+
+                        <div>
+
+                            <div class="d-flex justify-content-between mb-1">
+
+                                <span class="small">
+                                    Converted
+                                </span>
+
+                                <strong>
+                                    {{ prospects_converted_current|default:0 }}
+                                </strong>
+
+                            </div>
+
+                            <div class="progress"
+                                style="height: 7px;">
+
+                                <div class="progress-bar"
+                                    style="width: {{ conversion_rate|default:0 }}%;">
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
         </div>
 
-      </div>
+
+        <!-- =========================================================
+            TOP CLIENTS
+            ========================================================= -->
+
+        <div class="row g-3 mb-4">
+
+
+            <!-- TOP CLIENTS BY ORDERS -->
+
+            <div class="col-12 col-xl-6">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-body">
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+
+                            <div>
+
+                                <h5 class="mb-1 fw-semibold">
+                                    {% if rep_only %}
+                                        My Top Clients
+                                    {% else %}
+                                        Top Clients
+                                    {% endif %}
+                                </h5>
+
+                                <div class="small text-muted">
+                                    By invoice activity
+                                </div>
+
+                            </div>
+
+                            <i class="bi bi-people fs-5 text-muted"></i>
+
+                        </div>
+
+
+                        {% if top_clients_by_invoice_quantity %}
+
+                            <div class="table-responsive">
+
+                                <table class="table table-sm align-middle mb-0">
+
+                                    <thead>
+
+                                        <tr>
+
+                                            <th>
+                                                Client
+                                            </th>
+
+                                            <th class="text-end">
+                                                Invoices
+                                            </th>
+
+                                            <th class="text-end">
+                                                Value
+                                            </th>
+
+                                        </tr>
+
+                                    </thead>
+
+
+                                    <tbody>
+
+                                        {% for client in top_clients_by_invoice_quantity %}
+
+                                            <tr>
+
+                                                <td>
+
+                                                    <div class="fw-semibold">
+                                                        {{ client.client_name }}
+                                                    </div>
+
+                                                    {% if client.client_organization %}
+
+                                                        <div class="small text-muted">
+                                                            {{ client.client_organization }}
+                                                        </div>
+
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                                <td class="text-end">
+
+                                                    {{ client.invoice_count }}
+
+                                                </td>
+
+
+                                                <td class="text-end">
+
+                                                    R {{ client.invoice_value|floatformat:2 }}
+
+                                                </td>
+
+                                            </tr>
+
+                                        {% endfor %}
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        {% else %}
+
+                            <div class="text-center py-5 text-muted">
+
+                                <i class="bi bi-people fs-1 d-block mb-2"></i>
+
+                                No client activity for this period.
+
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- TOP CLIENTS BY VALUE -->
+
+            <div class="col-12 col-xl-6">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-body">
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+
+                            <div>
+
+                                <h5 class="mb-1 fw-semibold">
+                                    {% if rep_only %}
+                                        My Highest Value Clients
+                                    {% else %}
+                                        Highest Value Clients
+                                    {% endif %}
+                                </h5>
+
+                                <div class="small text-muted">
+                                    By invoice value
+                                </div>
+
+                            </div>
+
+                            <i class="bi bi-currency-rand fs-5 text-muted"></i>
+
+                        </div>
+
+
+                        {% if top_clients_by_invoice_value %}
+
+                            <div class="table-responsive">
+
+                                <table class="table table-sm align-middle mb-0">
+
+                                    <thead>
+
+                                        <tr>
+
+                                            <th>
+                                                Client
+                                            </th>
+
+                                            <th class="text-end">
+                                                Value
+                                            </th>
+
+                                        </tr>
+
+                                    </thead>
+
+
+                                    <tbody>
+
+                                        {% for client in top_clients_by_invoice_value %}
+
+                                            <tr>
+
+                                                <td>
+
+                                                    <div class="fw-semibold">
+                                                        {{ client.client_name }}
+                                                    </div>
+
+                                                    {% if client.client_organization %}
+
+                                                        <div class="small text-muted">
+                                                            {{ client.client_organization }}
+                                                        </div>
+
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                                <td class="text-end fw-semibold">
+
+                                                    R {{ client.invoice_value|floatformat:2 }}
+
+                                                </td>
+
+                                            </tr>
+
+                                        {% endfor %}
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        {% else %}
+
+                            <div class="text-center py-5 text-muted">
+
+                                <i class="bi bi-bar-chart fs-1 d-block mb-2"></i>
+
+                                No invoice activity for this period.
+
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =========================================================
+            TOP PRODUCTS
+            ========================================================= -->
+
+        <div class="row g-3 mb-4">
+
+            <div class="col-12">
+
+                <div class="card border-0 shadow-sm">
+
+                    <div class="card-body">
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+
+                            <div>
+
+                                <h5 class="mb-1 fw-semibold">
+                                    {% if rep_only %}
+                                        My Top Products
+                                    {% else %}
+                                        Top Products
+                                    {% endif %}
+                                </h5>
+
+                                <div class="small text-muted">
+                                    Products sold during {{ period_label|lower }}
+                                </div>
+
+                            </div>
+
+                            <i class="bi bi-box-seam fs-5 text-muted"></i>
+
+                        </div>
+
+
+                        {% if top_products %}
+
+                            <div class="table-responsive">
+
+                                <table class="table align-middle mb-0">
+
+                                    <thead>
+
+                                        <tr>
+
+                                            <th style="width: 50px;">
+                                                #
+                                            </th>
+
+                                            <th>
+                                                Product
+                                            </th>
+
+                                            <th class="text-end">
+                                                Quantity Sold
+                                            </th>
+
+                                            <th class="text-end">
+                                                Trend
+                                            </th>
+
+                                        </tr>
+
+                                    </thead>
+
+
+                                    <tbody>
+
+                                        {% for product in top_products %}
+
+                                            <tr>
+
+                                                <td>
+
+                                                    <span class="badge text-bg-light">
+                                                        {{ forloop.counter }}
+                                                    </span>
+
+                                                </td>
+
+
+                                                <td>
+
+                                                    <div class="fw-semibold">
+                                                        {{ product.product_name }}
+                                                    </div>
+
+                                                </td>
+
+
+                                                <td class="text-end">
+
+                                                    {{ product.quantity_sold|floatformat:2 }}
+
+                                                </td>
+
+
+                                                <td class="text-end">
+
+                                                    {% if product.quantity_trend.direction == "up" %}
+
+                                                        <span class="text-success">
+
+                                                            <i class="bi bi-arrow-up"></i>
+
+                                                            {{ product.quantity_trend.label }}
+
+                                                        </span>
+
+                                                    {% elif product.quantity_trend.direction == "down" %}
+
+                                                        <span class="text-danger">
+
+                                                            <i class="bi bi-arrow-down"></i>
+
+                                                            {{ product.quantity_trend.label }}
+
+                                                        </span>
+
+                                                    {% else %}
+
+                                                        <span class="text-muted">
+
+                                                            {{ product.quantity_trend.label }}
+
+                                                        </span>
+
+                                                    {% endif %}
+
+                                                </td>
+
+                                            </tr>
+
+                                        {% endfor %}
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        {% else %}
+
+                            <div class="text-center py-5 text-muted">
+
+                                <i class="bi bi-box-seam fs-1 d-block mb-2"></i>
+
+                                No product activity for this period.
+
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =========================================================
+            SALES REP NOTICE
+            ========================================================= -->
+
+        {% if rep_only %}
+
+            <div class="alert alert-light border d-flex align-items-center gap-3 mb-4">
+
+                <i class="bi bi-info-circle fs-5"></i>
+
+                <div>
+
+                    <strong>Your dashboard</strong>
+
+                    <div class="small text-muted">
+
+                        The information shown here is limited to your
+                        clients, prospects, orders and sales activity.
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        {% endif %}
+
 
     </div>
-  </main>
 
+  </main>
+  
+  
   <!-- SWITCH PLATFORM MODAL -->
   <div class="modal fade"
       id="switchPlatformModal"
@@ -608,6 +1317,111 @@
       }
     });
   </script>
+
+
+    <!-- =============================================================
+        CHART.JS
+        ============================================================= -->
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+    <script>
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const canvas =
+            document.getElementById("salesActivityChart");
+
+        if (!canvas) {
+            return;
+        }
+
+
+        const labels =
+            {{ sales_labels|safe }};
+
+        const data =
+            {{ sales_data|safe }};
+
+
+        new Chart(canvas, {
+
+            type: "line",
+
+            data: {
+
+                labels: labels,
+
+                datasets: [{
+
+                    label:
+                        "{% if rep_only %}My Orders{% else %}Orders{% endif %}",
+
+                    data: data,
+
+                    tension: 0.35,
+
+                    fill: true,
+
+                    borderWidth: 2,
+
+                    pointRadius: 3,
+
+                    pointHoverRadius: 5
+
+                }]
+
+            },
+
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                plugins: {
+
+                    legend: {
+                        display: false
+                    }
+
+                },
+
+                scales: {
+
+                    y: {
+
+                        beginAtZero: true,
+
+                        ticks: {
+
+                            precision: 0
+
+                        }
+
+                    },
+
+                    x: {
+
+                        grid: {
+                            display: false
+                        }
+
+                    }
+
+                }
+
+            }
+
+        });
+
+    });
+
+    </script>
+
+   
 </body>
 </html>
 

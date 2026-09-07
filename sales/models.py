@@ -331,3 +331,89 @@ class JobApplication(models.Model):
     
 
 
+class DailyTaskSchedule(models.Model):
+    """
+    Database-backed queue for scheduled Daily Market tasks.
+
+    ```
+    A task can only be queued once for a particular date.
+    Windows Task Scheduler or Django Admin can process
+    pending tasks when they become due.
+    """
+
+    STATUS_PENDING = "PENDING"
+    STATUS_RUNNING = "RUNNING"
+    STATUS_COMPLETED = "COMPLETED"
+    STATUS_FAILED = "FAILED"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_RUNNING, "Running"),
+        (STATUS_COMPLETED, "Completed"),
+        (STATUS_FAILED, "Failed"),
+    ]
+
+    date = models.DateField()
+
+    task_name = models.CharField(
+        max_length=200
+    )
+
+    run_at = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+    )
+
+    attempts = models.PositiveIntegerField(
+        default=0
+    )
+
+    queued_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    started_at = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+
+    executed_at = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+
+    failed_at = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+
+    error_message = models.TextField(
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["date", "task_name"],
+                name="unique_daily_task_schedule",
+            )
+        ]
+
+        ordering = [
+            "-date",
+            "run_at",
+            "task_name",
+        ]
+
+    def __str__(self):
+        return f"{self.date} — {self.task_name} — {self.status}"
+
+
+

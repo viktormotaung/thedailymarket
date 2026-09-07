@@ -130,5 +130,27 @@ urlpatterns = [
     path("commission/rep/<int:user_id>/", views.commission_rep_detail, name="sales-commission-rep-detail",),
     path("tickets/create/", views.create_ticket, name="sales-create-ticket",),
 
+    # =============================================================================
+    # SALES PRODUCT KNOWLEDGE
+    # =============================================================================
 
-]
+    path(
+        "sales-knowledge/",
+        views.sales_knowledge_list,
+        name="sales-knowledge-list",
+    ),
+
+    path(
+        "sales-knowledge/<int:pk>/",
+        views.sales_product_knowledge_detail,
+        name="sales-knowledge-detail",
+    ),
+
+    path(
+        "sales-knowledge/compare/",
+        views.sales_knowledge_compare,
+        name="sales-knowledge-compare",
+    ),
+
+    
+    ]

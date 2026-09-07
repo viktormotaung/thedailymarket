@@ -12,7 +12,7 @@ from clients.models import Prospect, ProspectUpdate, Client, Lead
 from clients.forms import ProspectForm, ProspectUpdateForm
 from django.utils.timezone import localdate
 from invoices.models import CommissionEntry, Invoice, MonthlyTarget, MonthlyTargetAllocation, MonthlyCommission
-from products.models import Category, Product
+from products.models import Category, Product, ProductKnowledge
 from orders.models import Order, OrderItem, Quotation, QuotationItem
 from django import forms
 from django.forms import ModelForm, inlineformset_factory, widgets
@@ -99,6 +99,42 @@ def sales_dashboard(request):
     now_dt = timezone.now()
     today = timezone.localdate()
 
+    # =====================================================
+    # ROLE / VISIBILITY
+    #
+    # ONLY a user whose sole role is Representative is
+    # restricted to their own data.
+    #
+    # Supervisor + Representative = unrestricted
+    # Supervisor only              = unrestricted
+    # Management                   = unrestricted
+    # =====================================================
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=user)
+        )
+
+        current_role_names = {
+            role.name
+            for role in current_profile.roles.all()
+        }
+
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    # =====================================================
+    # DATE RANGE
+    # =====================================================
+
     range_param = request.GET.get("range", "today")
 
     def month_start(d):
@@ -106,18 +142,32 @@ def sales_dashboard(request):
 
     def previous_month_start(d):
         if d.month == 1:
-            return d.replace(year=d.year - 1, month=12, day=1)
-        return d.replace(month=d.month - 1, day=1)
+            return d.replace(
+                year=d.year - 1,
+                month=12,
+                day=1
+            )
+
+        return d.replace(
+            month=d.month - 1,
+            day=1
+        )
 
     def next_month_start(d):
         if d.month == 12:
-            return d.replace(year=d.year + 1, month=1, day=1)
-        return d.replace(month=d.month + 1, day=1)
+            return d.replace(
+                year=d.year + 1,
+                month=1,
+                day=1
+            )
 
-    # =====================================================
-    # DATE RANGE
-    # =====================================================
+        return d.replace(
+            month=d.month + 1,
+            day=1
+        )
+
     if range_param == "7d":
+
         start_dt = now_dt - timedelta(days=7)
         end_dt = now_dt
 
@@ -128,35 +178,86 @@ def sales_dashboard(request):
         comparison_label = "Previous 7 days"
 
     elif range_param == "month":
+
         start_date = today.replace(day=1)
-        start_dt = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
+
+        start_dt = timezone.make_aware(
+            datetime.combine(
+                start_date,
+                datetime.min.time()
+            )
+        )
+
         end_dt = now_dt
 
-        prev_start_date = previous_month_start(start_date)
-        prev_start_dt = timezone.make_aware(datetime.combine(prev_start_date, datetime.min.time()))
-        prev_end_dt = prev_start_dt + (end_dt - start_dt)
+        prev_start_date = previous_month_start(
+            start_date
+        )
+
+        prev_start_dt = timezone.make_aware(
+            datetime.combine(
+                prev_start_date,
+                datetime.min.time()
+            )
+        )
+
+        prev_end_dt = (
+            prev_start_dt
+            + (end_dt - start_dt)
+        )
 
         period_label = "This month"
         comparison_label = "Previous month"
 
     elif range_param == "last_month":
+
         this_month_start = today.replace(day=1)
-        last_month_start = previous_month_start(this_month_start)
-        month_before_start = previous_month_start(last_month_start)
 
-        start_dt = timezone.make_aware(datetime.combine(last_month_start, datetime.min.time()))
-        end_dt = timezone.make_aware(datetime.combine(this_month_start, datetime.min.time()))
+        last_month_start = previous_month_start(
+            this_month_start
+        )
 
-        prev_start_dt = timezone.make_aware(datetime.combine(month_before_start, datetime.min.time()))
+        month_before_start = previous_month_start(
+            last_month_start
+        )
+
+        start_dt = timezone.make_aware(
+            datetime.combine(
+                last_month_start,
+                datetime.min.time()
+            )
+        )
+
+        end_dt = timezone.make_aware(
+            datetime.combine(
+                this_month_start,
+                datetime.min.time()
+            )
+        )
+
+        prev_start_dt = timezone.make_aware(
+            datetime.combine(
+                month_before_start,
+                datetime.min.time()
+            )
+        )
+
         prev_end_dt = start_dt
 
         period_label = "Last month"
         comparison_label = "Month before"
 
     else:
+
         range_param = "today"
 
-        start_dt = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_dt = now_dt.replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0
+        )
+
         end_dt = now_dt
 
         prev_start_dt = start_dt - timedelta(days=1)
@@ -168,26 +269,39 @@ def sales_dashboard(request):
     # =====================================================
     # TREND HELPER
     # =====================================================
+
     def build_trend(current_value, previous_value):
+
         current_value = current_value or 0
         previous_value = previous_value or 0
 
         diff = current_value - previous_value
 
         if previous_value > 0:
-            percent = round((diff / previous_value) * 100, 1)
+
+            percent = round(
+                (diff / previous_value) * 100,
+                1
+            )
+
             label = f"{abs(percent)}%"
+
         elif current_value > 0:
+
             percent = 100
             label = "New"
+
         else:
+
             percent = 0
             label = "No change"
 
         if diff > 0:
             direction = "up"
+
         elif diff < 0:
             direction = "down"
+
         else:
             direction = "same"
 
@@ -202,68 +316,178 @@ def sales_dashboard(request):
 
     # =====================================================
     # PROSPECTS
+    #
+    # REP ONLY:
+    #     Own prospects
+    #
+    # SUPERVISOR / MANAGEMENT:
+    #     All prospects
     # =====================================================
-    prospects_current = Prospect.objects.filter(
-        owner=user,
+
+    prospects_current_qs = Prospect.objects.filter(
         created_at__gte=start_dt,
         created_at__lt=end_dt,
-    ).count()
+    )
 
-    prospects_previous = Prospect.objects.filter(
-        owner=user,
+    prospects_previous_qs = Prospect.objects.filter(
         created_at__gte=prev_start_dt,
         created_at__lt=prev_end_dt,
-    ).count()
+    )
 
-    prospects_trend = build_trend(prospects_current, prospects_previous)
+    if rep_only:
+
+        prospects_current_qs = (
+            prospects_current_qs.filter(
+                owner=user
+            )
+        )
+
+        prospects_previous_qs = (
+            prospects_previous_qs.filter(
+                owner=user
+            )
+        )
+
+    prospects_current = prospects_current_qs.count()
+    prospects_previous = prospects_previous_qs.count()
+
+    prospects_trend = build_trend(
+        prospects_current,
+        prospects_previous
+    )
+
+    active_pipeline_qs = (
+        Prospect.objects
+        .filter(status="ACTIVE")
+        .exclude(
+            stage__in=["WON", "LOST"]
+        )
+    )
+
+    if rep_only:
+        active_pipeline_qs = active_pipeline_qs.filter(
+            owner=user
+        )
 
     active_pipeline_total = (
-        Prospect.objects
-        .filter(owner=user, status="ACTIVE")
-        .exclude(stage__in=["WON", "LOST"])
-        .count()
+        active_pipeline_qs.count()
     )
 
     # =====================================================
     # NEW CLIENTS
+    #
+    # REP ONLY:
+    #     Clients assigned to rep
+    #
+    # SUPERVISOR / MANAGEMENT:
+    #     All clients
     # =====================================================
-    new_clients_current = Client.objects.filter(
-        account_manager=user,
+
+    new_clients_current_qs = Client.objects.filter(
         created_at__gte=start_dt,
         created_at__lt=end_dt,
-    ).count()
+    )
 
-    new_clients_previous = Client.objects.filter(
-        account_manager=user,
+    new_clients_previous_qs = Client.objects.filter(
         created_at__gte=prev_start_dt,
         created_at__lt=prev_end_dt,
-    ).count()
+    )
 
-    new_clients_trend = build_trend(new_clients_current, new_clients_previous)
+    active_clients_qs = Client.objects.filter(
+        status="ACTIVE"
+    )
 
-    active_clients_overall = Client.objects.filter(
-        account_manager=user,
-        status="ACTIVE",
-    ).count()
+    if rep_only:
+
+        new_clients_current_qs = (
+            new_clients_current_qs.filter(
+                account_manager=user
+            )
+        )
+
+        new_clients_previous_qs = (
+            new_clients_previous_qs.filter(
+                account_manager=user
+            )
+        )
+
+        active_clients_qs = (
+            active_clients_qs.filter(
+                account_manager=user
+            )
+        )
+
+    new_clients_current = (
+        new_clients_current_qs.count()
+    )
+
+    new_clients_previous = (
+        new_clients_previous_qs.count()
+    )
+
+    new_clients_trend = build_trend(
+        new_clients_current,
+        new_clients_previous
+    )
+
+    active_clients_overall = (
+        active_clients_qs.count()
+    )
 
     # =====================================================
     # CONVERSION RATE
+    #
+    # REP ONLY:
+    #     Own prospects
+    #
+    # SUPERVISOR / MANAGEMENT:
+    #     All prospects
     # =====================================================
-    prospects_converted_current = Prospect.objects.filter(
-        owner=user,
-        client__isnull=False,
-        updated_at__gte=start_dt,
-        updated_at__lt=end_dt,
-    ).count()
+
+    prospects_converted_current_qs = (
+        Prospect.objects
+        .filter(
+            client__isnull=False,
+            updated_at__gte=start_dt,
+            updated_at__lt=end_dt,
+        )
+    )
+
+    if rep_only:
+        prospects_converted_current_qs = (
+            prospects_converted_current_qs.filter(
+                owner=user
+            )
+        )
+
+    prospects_converted_current = (
+        prospects_converted_current_qs.count()
+    )
 
     if prospects_current > 0:
-        conversion_rate = round((prospects_converted_current / prospects_current) * 100, 1)
+
+        conversion_rate = round(
+            (
+                prospects_converted_current
+                / prospects_current
+            ) * 100,
+            1
+        )
+
     else:
+
         conversion_rate = 0
 
     # =====================================================
     # ORDERS
+    #
+    # REP ONLY:
+    #     Orders created by the rep
+    #
+    # SUPERVISOR / MANAGEMENT:
+    #     ALL orders
     # =====================================================
+
     orders_qs = (
         Order.objects
         .annotate(
@@ -276,7 +500,6 @@ def sales_dashboard(request):
             )
         )
         .filter(
-            created_by=user,
             ts__gte=start_dt,
             ts__lt=end_dt,
         )
@@ -294,59 +517,122 @@ def sales_dashboard(request):
             )
         )
         .filter(
-            created_by=user,
             ts__gte=prev_start_dt,
             ts__lt=prev_end_dt,
         )
     )
+
+    if rep_only:
+
+        orders_qs = orders_qs.filter(
+            created_by=user
+        )
+
+        previous_orders_qs = (
+            previous_orders_qs.filter(
+                created_by=user
+            )
+        )
 
     orders_closed_count = orders_qs.count()
 
     # =====================================================
     # ORDER TREND GRAPH
     # =====================================================
+
     day_counts = OrderedDict()
 
     day_cursor = start_dt.date()
-    end_day = (end_dt - timedelta(seconds=1)).date()
+
+    end_day = (
+        end_dt - timedelta(seconds=1)
+    ).date()
 
     while day_cursor <= end_day:
+
         day_counts[day_cursor] = 0
+
         day_cursor += timedelta(days=1)
 
-    for ts in orders_qs.values_list("ts", flat=True):
+    for ts in orders_qs.values_list(
+        "ts",
+        flat=True
+    ):
+
         if ts:
+
             order_day = ts.date()
+
             if order_day in day_counts:
+
                 day_counts[order_day] += 1
 
-    sales_labels = [d.strftime("%d %b") for d in day_counts.keys()]
-    sales_data = list(day_counts.values())
+    sales_labels = [
+        d.strftime("%d %b")
+        for d in day_counts.keys()
+    ]
+
+    sales_data = list(
+        day_counts.values()
+    )
 
     # =====================================================
     # INVOICES
+    #
+    # REP ONLY:
+    #     Invoices belonging to their clients
+    #
+    # SUPERVISOR / MANAGEMENT:
+    #     ALL invoices
     # =====================================================
+
     invoices_qs = Invoice.objects.filter(
         invoice_date__gte=start_dt.date(),
-        invoice_date__lt=end_dt.date() + timedelta(days=1),
-        client__account_manager=user,
+        invoice_date__lt=(
+            end_dt.date() + timedelta(days=1)
+        ),
     )
 
     previous_invoices_qs = Invoice.objects.filter(
         invoice_date__gte=prev_start_dt.date(),
-        invoice_date__lt=prev_end_dt.date() + timedelta(days=1),
-        client__account_manager=user,
+        invoice_date__lt=(
+            prev_end_dt.date() + timedelta(days=1)
+        ),
     )
+
+    if rep_only:
+
+        invoices_qs = invoices_qs.filter(
+            client__account_manager=user
+        )
+
+        previous_invoices_qs = (
+            previous_invoices_qs.filter(
+                client__account_manager=user
+            )
+        )
+
+    # =====================================================
+    # CLIENT INVOICE DATA
+    # =====================================================
 
     current_clients_invoice_data = (
         invoices_qs
-        .values("client_id", "client__name", "client__organization")
+        .values(
+            "client_id",
+            "client__name",
+            "client__organization"
+        )
         .annotate(
             invoice_count=Count("id"),
+
             invoice_value=Coalesce(
                 Sum("order_total_inc"),
                 Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2),
+                output_field=DecimalField(
+                    max_digits=14,
+                    decimal_places=2
+                ),
             ),
         )
     )
@@ -356,10 +642,14 @@ def sales_dashboard(request):
         .values("client_id")
         .annotate(
             invoice_count=Count("id"),
+
             invoice_value=Coalesce(
                 Sum("order_total_inc"),
                 Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2),
+                output_field=DecimalField(
+                    max_digits=14,
+                    decimal_places=2
+                ),
             ),
         )
     )
@@ -372,111 +662,278 @@ def sales_dashboard(request):
     client_rows = []
 
     for row in current_clients_invoice_data:
-        previous = previous_client_map.get(row["client_id"], {})
 
-        invoice_count = row["invoice_count"] or 0
-        previous_invoice_count = previous.get("invoice_count", 0) or 0
+        previous = previous_client_map.get(
+            row["client_id"],
+            {}
+        )
 
-        invoice_value = row["invoice_value"] or Decimal("0.00")
-        previous_invoice_value = previous.get("invoice_value", Decimal("0.00")) or Decimal("0.00")
+        invoice_count = (
+            row["invoice_count"] or 0
+        )
+
+        previous_invoice_count = (
+            previous.get(
+                "invoice_count",
+                0
+            ) or 0
+        )
+
+        invoice_value = (
+            row["invoice_value"]
+            or Decimal("0.00")
+        )
+
+        previous_invoice_value = (
+            previous.get(
+                "invoice_value",
+                Decimal("0.00")
+            )
+            or Decimal("0.00")
+        )
 
         client_rows.append({
-            "client_id": row["client_id"],
-            "client_name": row["client__name"],
-            "client_organization": row["client__organization"],
-            "invoice_count": invoice_count,
-            "invoice_value": invoice_value,
-            "quantity_trend": build_trend(invoice_count, previous_invoice_count),
-            "value_trend": build_trend(float(invoice_value), float(previous_invoice_value)),
+
+            "client_id":
+                row["client_id"],
+
+            "client_name":
+                row["client__name"],
+
+            "client_organization":
+                row["client__organization"],
+
+            "invoice_count":
+                invoice_count,
+
+            "invoice_value":
+                invoice_value,
+
+            "quantity_trend":
+                build_trend(
+                    invoice_count,
+                    previous_invoice_count
+                ),
+
+            "value_trend":
+                build_trend(
+                    float(invoice_value),
+                    float(previous_invoice_value)
+                ),
         })
+
+    # =====================================================
+    # TOP CLIENTS
+    # =====================================================
 
     top_clients_by_invoice_quantity = sorted(
         client_rows,
-        key=lambda x: (x["invoice_count"], x["invoice_value"]),
-        reverse=True,
+        key=lambda x: (
+            x["invoice_count"],
+            x["invoice_value"]
+        ),
+        reverse=True
     )[:5]
 
     top_clients_by_invoice_value = sorted(
         client_rows,
-        key=lambda x: (x["invoice_value"], x["invoice_count"]),
-        reverse=True,
+        key=lambda x: (
+            x["invoice_value"],
+            x["invoice_count"]
+        ),
+        reverse=True
     )[:5]
 
     # =====================================================
     # TOP PRODUCTS
+    #
+    # REP ONLY:
+    #     Products from own orders
+    #
+    # SUPERVISOR / MANAGEMENT:
+    #     Products from ALL orders
     # =====================================================
+
     current_products_data = (
         OrderItem.objects
-        .filter(order_id__in=orders_qs.values("id"))
-        .values("product_id", "product_name")
+        .filter(
+            order_id__in=orders_qs.values("id")
+        )
+        .values(
+            "product_id",
+            "product_name"
+        )
         .annotate(
             quantity_sold=Coalesce(
                 Sum("quantity"),
                 Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2),
+                output_field=DecimalField(
+                    max_digits=14,
+                    decimal_places=2
+                ),
             ),
         )
     )
 
     previous_products_data = (
         OrderItem.objects
-        .filter(order_id__in=previous_orders_qs.values("id"))
+        .filter(
+            order_id__in=previous_orders_qs.values("id")
+        )
         .values("product_id")
         .annotate(
             quantity_sold=Coalesce(
                 Sum("quantity"),
                 Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2),
+                output_field=DecimalField(
+                    max_digits=14,
+                    decimal_places=2
+                ),
             ),
         )
     )
 
     previous_product_map = {
-        row["product_id"]: row["quantity_sold"] or Decimal("0.00")
+        row["product_id"]:
+            row["quantity_sold"]
+            or Decimal("0.00")
         for row in previous_products_data
     }
 
     product_rows = []
 
     for row in current_products_data:
-        current_qty = row["quantity_sold"] or Decimal("0.00")
-        previous_qty = previous_product_map.get(row["product_id"], Decimal("0.00"))
+
+        current_qty = (
+            row["quantity_sold"]
+            or Decimal("0.00")
+        )
+
+        previous_qty = (
+            previous_product_map.get(
+                row["product_id"],
+                Decimal("0.00")
+            )
+        )
 
         product_rows.append({
-            "product_id": row["product_id"],
-            "product_name": row["product_name"],
-            "quantity_sold": current_qty,
-            "quantity_trend": build_trend(float(current_qty), float(previous_qty)),
+
+            "product_id":
+                row["product_id"],
+
+            "product_name":
+                row["product_name"],
+
+            "quantity_sold":
+                current_qty,
+
+            "quantity_trend":
+                build_trend(
+                    float(current_qty),
+                    float(previous_qty)
+                ),
         })
 
     top_products = sorted(
         product_rows,
         key=lambda x: x["quantity_sold"],
-        reverse=True,
+        reverse=True
     )[:5]
 
+    # =====================================================
+    # CONTEXT
+    # =====================================================
+
     context = {
-        "range": range_param,
-        "period_label": period_label,
-        "comparison_label": comparison_label,
 
-        "prospects_trend": prospects_trend,
-        "new_clients_trend": new_clients_trend,
-        "conversion_rate": conversion_rate,
-        "prospects_converted_current": prospects_converted_current,
-        "active_clients_overall": active_clients_overall,
-        "active_pipeline_total": active_pipeline_total,
-        "orders_closed_count": orders_closed_count,
+        # -------------------------------------------------
+        # Date range
+        # -------------------------------------------------
 
-        "sales_labels": sales_labels,
-        "sales_data": sales_data,
+        "range":
+            range_param,
 
-        "top_clients_by_invoice_quantity": top_clients_by_invoice_quantity,
-        "top_clients_by_invoice_value": top_clients_by_invoice_value,
-        "top_products": top_products,
+        "period_label":
+            period_label,
+
+        "comparison_label":
+            comparison_label,
+
+        # -------------------------------------------------
+        # Visibility
+        # -------------------------------------------------
+
+        "rep_only":
+            rep_only,
+
+        # -------------------------------------------------
+        # Prospects
+        # -------------------------------------------------
+
+        "prospects_trend":
+            prospects_trend,
+
+        "prospects_converted_current":
+            prospects_converted_current,
+
+        "active_pipeline_total":
+            active_pipeline_total,
+
+        # -------------------------------------------------
+        # Clients
+        # -------------------------------------------------
+
+        "new_clients_trend":
+            new_clients_trend,
+
+        "active_clients_overall":
+            active_clients_overall,
+
+        # -------------------------------------------------
+        # Conversion
+        # -------------------------------------------------
+
+        "conversion_rate":
+            conversion_rate,
+
+        # -------------------------------------------------
+        # Orders
+        # -------------------------------------------------
+
+        "orders_closed_count":
+            orders_closed_count,
+
+        "sales_labels":
+            sales_labels,
+
+        "sales_data":
+            sales_data,
+
+        # -------------------------------------------------
+        # Top clients
+        # -------------------------------------------------
+
+        "top_clients_by_invoice_quantity":
+            top_clients_by_invoice_quantity,
+
+        "top_clients_by_invoice_value":
+            top_clients_by_invoice_value,
+
+        # -------------------------------------------------
+        # Top products
+        # -------------------------------------------------
+
+        "top_products":
+            top_products,
     }
 
-    return render(request, "sales/dashboard.html", context)
+    return render(
+        request,
+        "sales/dashboard.html",
+        context
+    )
+
+
 
 
 
@@ -9740,3 +10197,302 @@ def create_ticket(request):
         "tickets/create_ticket.html",
         context,
     )
+
+
+
+@login_required
+def sales_knowledge_list(request):
+    """
+    Sales Product Knowledge landing page.
+
+    Lists products available to the sales team and provides
+    search and filtering by:
+
+    - Product name
+    - SKU
+    - Product number
+    - Category
+    - Sub-category
+    - Minimum wholesale price
+    - Maximum wholesale price
+    """
+
+    # -------------------------------------------------------------------------
+    # BASE PRODUCT QUERYSET
+    # -------------------------------------------------------------------------
+    products = (
+        Product.objects
+        .select_related(
+            "category",
+            "category__parent",
+            "knowledge",
+        )
+        .filter(
+            visible="YES"
+        )
+        .order_by("name")
+    )
+
+    # -------------------------------------------------------------------------
+    # SEARCH
+    #
+    # Searches:
+    # - Product name
+    # - SKU
+    # - Product number
+    # - Category name
+    # - Parent category name
+    # -------------------------------------------------------------------------
+    q = (request.GET.get("q") or "").strip()
+
+    if q:
+        products = products.filter(
+            Q(name__icontains=q)
+            | Q(sku__icontains=q)
+            | Q(product_no__icontains=q)
+            | Q(category__name__icontains=q)
+            | Q(category__parent__name__icontains=q)
+        )
+
+    # -------------------------------------------------------------------------
+    # CATEGORY FILTER
+    #
+    # Selecting a parent category also includes products assigned directly
+    # to that category as well as products belonging to its sub-categories.
+    # -------------------------------------------------------------------------
+    category_id = (request.GET.get("category") or "").strip()
+
+    if category_id:
+        products = products.filter(
+            Q(category_id=category_id)
+            | Q(category__parent_id=category_id)
+        )
+
+    # -------------------------------------------------------------------------
+    # SUB-CATEGORY FILTER
+    # -------------------------------------------------------------------------
+    subcategory_id = (
+        request.GET.get("subcategory") or ""
+    ).strip()
+
+    if subcategory_id:
+        products = products.filter(
+            category_id=subcategory_id
+        )
+
+    # -------------------------------------------------------------------------
+    # MINIMUM PRICE FILTER
+    # -------------------------------------------------------------------------
+    min_price = (
+        request.GET.get("min_price") or ""
+    ).strip()
+
+    if min_price:
+        try:
+            products = products.filter(
+                wholesale_price__gte=float(min_price)
+            )
+        except (TypeError, ValueError):
+            min_price = ""
+
+    # -------------------------------------------------------------------------
+    # MAXIMUM PRICE FILTER
+    # -------------------------------------------------------------------------
+    max_price = (
+        request.GET.get("max_price") or ""
+    ).strip()
+
+    if max_price:
+        try:
+            products = products.filter(
+                wholesale_price__lte=float(max_price)
+            )
+        except (TypeError, ValueError):
+            max_price = ""
+
+    # -------------------------------------------------------------------------
+    # CATEGORY LIST
+    #
+    # Include both parent categories and sub-categories so the template
+    # can populate the category and sub-category filters.
+    # -------------------------------------------------------------------------
+    categories = (
+        Category.objects
+        .filter(
+            is_active=True
+        )
+        .select_related(
+            "parent"
+        )
+        .order_by(
+            "parent__name",
+            "sort_order",
+            "name",
+        )
+    )
+
+    # -------------------------------------------------------------------------
+    # RENDER
+    # -------------------------------------------------------------------------
+    return render(
+        request,
+        "product/product_knowledge_list.html",
+        {
+            "products": products,
+            "categories": categories,
+
+            # Search
+            "search_query": q,
+
+            # Category filters
+            "selected_category": category_id,
+            "selected_subcategory": subcategory_id,
+
+            # Price filters
+            "min_price": min_price,
+            "max_price": max_price,
+        },
+    )
+
+@login_required
+def sales_product_knowledge_detail(request, pk):
+    """
+    Sales Product Knowledge detail page.
+
+    Displays the current product information and Product Knowledge
+    profile for the sales team.
+    """
+
+    product = get_object_or_404(
+        Product.objects
+        .select_related(
+            "category",
+            "category__parent",
+            "knowledge",
+        )
+        .prefetch_related(
+            "knowledge__customer_business_types",
+            "knowledge__product_benefits",
+            "knowledge__knowledge_variants",
+            "knowledge__customer_alternatives",
+            "knowledge__product_competitors",
+            "knowledge__customer_questions",
+            "knowledge__product_objections",
+        ),
+        pk=pk,
+        visible="YES",
+    )
+
+    knowledge = product.knowledge
+
+    return render(
+        request,
+        "product/product_knowledge_detail.html",
+        {
+            "product": product,
+            "knowledge": knowledge,
+        },
+    )
+
+
+@login_required
+def sales_knowledge_compare(request):
+    """
+    Sales Product Comparison page.
+
+    The selected product IDs are supplied by the browser through
+    localStorage and then passed to this page through the query string.
+
+    Example:
+        /sales/sales-knowledge/compare/?products=1,4,7
+    """
+
+    product_ids = request.GET.get("products", "").strip()
+
+    if not product_ids:
+        return render(
+            request,
+            "product/product_knowledge_compare.html",
+            {
+                "products": [],
+                "comparison_count": 0,
+            },
+        )
+
+    # ---------------------------------------------------------
+    # CLEAN PRODUCT IDS
+    # ---------------------------------------------------------
+    ids = []
+
+    for value in product_ids.split(","):
+        value = value.strip()
+
+        if value.isdigit():
+            ids.append(int(value))
+
+    # Remove duplicates while preserving order
+    ids = list(dict.fromkeys(ids))
+
+    # Comparison is limited to 4 products
+    ids = ids[:4]
+
+    if not ids:
+        return render(
+            request,
+            "product/product_knowledge_compare.html",
+            {
+                "products": [],
+                "comparison_count": 0,
+            },
+        )
+
+    # ---------------------------------------------------------
+    # GET PRODUCTS
+    # ---------------------------------------------------------
+    products_qs = (
+        Product.objects
+        .select_related(
+            "category",
+            "category__parent",
+            "knowledge",
+        )
+        .prefetch_related(
+            "knowledge__customer_business_types",
+            "knowledge__product_benefits",
+            "knowledge__knowledge_variants",
+            "knowledge__customer_alternatives",
+            "knowledge__product_competitors",
+            "knowledge__customer_questions",
+            "knowledge__product_objections",
+        )
+        .filter(
+            id__in=ids,
+            visible="YES",
+        )
+    )
+
+    # ---------------------------------------------------------
+    # PRESERVE THE USER'S SELECTION ORDER
+    # ---------------------------------------------------------
+    products_by_id = {
+        product.id: product
+        for product in products_qs
+    }
+
+    products = [
+        products_by_id[product_id]
+        for product_id in ids
+        if product_id in products_by_id
+    ]
+
+    return render(
+        request,
+        "product/product_knowledge_compare.html",
+        {
+            "products": products,
+            "comparison_count": len(products),
+        },
+    )
+
+
+    
