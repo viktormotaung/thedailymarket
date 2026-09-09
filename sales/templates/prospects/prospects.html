@@ -91,6 +91,135 @@
       height: 220px;
     }
 
+    /* ==========================================================
+      PROSPECT MAP
+    ========================================================== */
+
+    #prospects-map {
+        width: 100%;
+        height: 550px;
+        min-height: 450px;
+        border-radius: 0 0 6px 6px;
+        overflow: hidden;
+    }
+
+
+    /* ==========================================================
+      LEAFLET MAP
+    ========================================================== */
+
+    #prospects-map .leaflet-container {
+        width: 100%;
+        height: 100%;
+    }
+
+
+    /* ==========================================================
+      PROSPECT MAP MARKERS
+    ========================================================== */
+
+    .prospect-map-marker {
+        background: transparent;
+        border: none;
+    }
+
+
+    /* ==========================================================
+      MAP LEGEND
+    ========================================================== */
+
+    .prospect-map-legend {
+        background: rgba(255, 255, 255, 0.97);
+        padding: 10px 13px;
+        border-radius: 7px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.20);
+        font-size: 13px;
+        line-height: 20px;
+        color: #212529;
+        min-width: 145px;
+    }
+
+
+    /* Legend title */
+
+    .prospect-map-legend .legend-title {
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+
+
+    /* Legend row */
+
+    .prospect-map-legend .legend-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
+
+    /* Legend marker */
+
+    .prospect-map-legend .legend-dot {
+        width: 12px;
+        height: 12px;
+        min-width: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+    }
+
+
+    /* Green = Client */
+
+    .prospect-map-legend .client-dot {
+        background: #198754;
+    }
+
+
+    /* Blue = Still Prospect */
+
+    .prospect-map-legend .prospect-dot {
+        background: #0d6efd;
+    }
+
+
+    /* ==========================================================
+      MAP POPUP
+    ========================================================== */
+
+    #prospects-map .leaflet-popup-content {
+        margin: 12px 14px;
+        font-size: 13px;
+        line-height: 20px;
+    }
+
+
+    #prospects-map .leaflet-popup-content strong {
+        font-size: 14px;
+    }
+
+
+    /* ==========================================================
+      MOBILE
+    ========================================================== */
+
+    @media (max-width: 768px) {
+
+        #prospects-map {
+            height: 450px;
+            min-height: 400px;
+        }
+
+        .prospect-map-legend {
+            font-size: 12px;
+            min-width: 135px;
+            padding: 8px 10px;
+        }
+
+    }
+
     @media (max-width: 991.98px) {
       .chart-wrap {
         height: 180px;
@@ -616,32 +745,92 @@
 
   <!-- MAIN CONTENT -->
   <main class="content">
-    
 
-      
+    <!-- ==========================================================
+        PAGE TITLE
+    =========================================================== -->
 
-    <h2 class="text-center mb-3">Prospects</h2>
+    <h2 class="text-center mb-3">
+      Prospects
+    </h2>
+
+
+    <!-- ==========================================================
+        LIST / MAP VIEW SWITCH
+    =========================================================== -->
 
     <div class="text-center mb-4">
-      <button type="button"
-              class="btn btn-secondary"
-              disabled
-              title="Add Prospect is currently unavailable">
-        <i class="bi bi-plus-lg"></i>
-        Add Prospect
-      </button>
+
+      <div
+        class="btn-group"
+        role="group"
+        aria-label="Prospect view"
+      >
+
+        <!-- LIST -->
+
+        <a
+          href="{% url 'sales:sales-prospects' %}"
+          class="btn {% if view_mode == 'list' %}btn-success{% else %}btn-outline-success{% endif %}"
+        >
+
+          <i class="bi bi-list-ul me-1"></i>
+
+          List
+
+        </a>
+
+
+        <!-- MAP -->
+
+        <a
+          href="{% url 'sales:sales-prospects' %}?view=map"
+          class="btn {% if view_mode == 'map' %}btn-success{% else %}btn-outline-success{% endif %}"
+        >
+
+          <i class="bi bi-map me-1"></i>
+
+          Map
+
+        </a>
+
+      </div>
+
     </div>
 
 
-    <div class="card mb-3">
-      <div class="card-body">
 
-        <form method="get">
+    <!-- ==========================================================
+        LIST VIEW
+        
+        FILTERS + PROSPECT TABLE
+        
+        These are NOT displayed in Map view.
+    =========================================================== -->
 
-            <!-- FILTER FIELDS -->
+    {% if view_mode != "map" %}
+
+
+      <!-- ========================================================
+          FILTERS
+      ========================================================= -->
+
+      <div class="card mb-3">
+
+        <div class="card-body">
+
+          <form method="get">
+
+
+            <!-- --------------------------------------------------
+                FILTER FIELDS
+            --------------------------------------------------- -->
+
             <div class="row g-3 align-items-end">
 
+
               <!-- SEARCH -->
+
               <div class="col-lg-4">
 
                 <label
@@ -663,7 +852,9 @@
               </div>
 
 
+
               <!-- STAGE -->
+
               <div class="col-lg-2">
 
                 <label
@@ -683,37 +874,52 @@
                     All stages
                   </option>
 
+
                   <option
                     value="NEW"
-                    {% if request.GET.stage == 'NEW' %}selected{% endif %}
+                    {% if request.GET.stage == 'NEW' %}
+                      selected
+                    {% endif %}
                   >
                     New
                   </option>
 
+
                   <option
                     value="CONTACTED"
-                    {% if request.GET.stage == 'CONTACTED' %}selected{% endif %}
+                    {% if request.GET.stage == 'CONTACTED' %}
+                      selected
+                    {% endif %}
                   >
                     Contacted
                   </option>
 
+
                   <option
                     value="NEGOTIATION"
-                    {% if request.GET.stage == 'NEGOTIATION' %}selected{% endif %}
+                    {% if request.GET.stage == 'NEGOTIATION' %}
+                      selected
+                    {% endif %}
                   >
                     Negotiation
                   </option>
 
+
                   <option
                     value="WON"
-                    {% if request.GET.stage == 'WON' %}selected{% endif %}
+                    {% if request.GET.stage == 'WON' %}
+                      selected
+                    {% endif %}
                   >
                     Won
                   </option>
 
+
                   <option
                     value="LOST"
-                    {% if request.GET.stage == 'LOST' %}selected{% endif %}
+                    {% if request.GET.stage == 'LOST' %}
+                      selected
+                    {% endif %}
                   >
                     Lost
                   </option>
@@ -723,7 +929,9 @@
               </div>
 
 
+
               <!-- STATUS -->
+
               <div class="col-lg-2">
 
                 <label
@@ -743,16 +951,22 @@
                     All
                   </option>
 
+
                   <option
                     value="ACTIVE"
-                    {% if request.GET.status == 'ACTIVE' %}selected{% endif %}
+                    {% if request.GET.status == 'ACTIVE' %}
+                      selected
+                    {% endif %}
                   >
                     Active
                   </option>
 
+
                   <option
                     value="ARCHIVED"
-                    {% if request.GET.status == 'ARCHIVED' %}selected{% endif %}
+                    {% if request.GET.status == 'ARCHIVED' %}
+                      selected
+                    {% endif %}
                   >
                     Archived
                   </option>
@@ -762,7 +976,9 @@
               </div>
 
 
+
               <!-- FROM DATE -->
+
               <div class="col-lg-2">
 
                 <label
@@ -783,7 +999,9 @@
               </div>
 
 
+
               <!-- TO DATE -->
+
               <div class="col-lg-2">
 
                 <label
@@ -806,11 +1024,18 @@
             </div>
 
 
-            <!-- ACTION BUTTONS -->
-            <!-- ACTION BUTTONS -->
+
+            <!-- --------------------------------------------------
+                ACTION BUTTONS
+            --------------------------------------------------- -->
+
             <div class="row mt-3">
 
-              <div class="col-12 d-flex justify-content-center gap-2">
+              <div
+                class="col-12 d-flex justify-content-center gap-2"
+              >
+
+                <!-- RESET -->
 
                 <a
                   href="{% url 'sales:sales-prospects' %}"
@@ -818,6 +1043,9 @@
                 >
                   Reset
                 </a>
+
+
+                <!-- APPLY -->
 
                 <button
                   type="submit"
@@ -830,235 +1058,851 @@
 
             </div>
 
-        </form>
+
+          </form>
+
+        </div>
+
       </div>
-    </div>
 
-        <div class="card">
-          <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <strong>Prospect List</strong>
 
-            <span class="text-muted small">
-              {{ prospects|length }} record(s)
-            </span>
+
+      <!-- ========================================================
+          PROSPECT LIST
+      ========================================================= -->
+
+      <div class="card">
+
+        <div
+          class="card-header bg-white d-flex justify-content-between align-items-center"
+        >
+
+          <strong>
+            Prospect List
+          </strong>
+
+
+          <span class="text-muted small">
+
+            {{ prospects|length }} record(s)
+
+          </span>
+
+        </div>
+
+
+
+        <!-- ======================================================
+            PROSPECT TABLE
+        ======================================================= -->
+
+        <div class="card shadow-sm">
+
+          <div class="card-body p-0">
+
+            <div class="table-responsive">
+
+              <table
+                class="table table-hover align-middle mb-0"
+              >
+
+
+                <!-- =================================================
+                    TABLE HEADER
+                ================================================== -->
+
+                <thead class="table-light">
+
+                  <tr>
+
+                    <th style="font-size:13px;">
+                      #
+                    </th>
+
+
+                    <th style="font-size:13px;">
+                      Business / Name
+                    </th>
+
+
+                    <th style="font-size:13px;">
+                      Contact
+                    </th>
+
+
+                    <th style="font-size:13px;">
+                      Phone
+                    </th>
+
+
+                    <th style="font-size:13px;">
+                      Territory
+                    </th>
+
+
+                    <th style="font-size:13px;">
+                      Area
+                    </th>
+
+
+                    <th style="font-size:13px;">
+                      Status
+                    </th>
+
+
+                    <th style="font-size:13px;">
+                      Assigned To
+                    </th>
+
+
+                    <th style="font-size:13px;">
+                      Created
+                    </th>
+
+                  </tr>
+
+                </thead>
+
+
+
+                <!-- =================================================
+                    TABLE BODY
+                ================================================== -->
+
+                <tbody>
+
+                  {% for prospect in prospects %}
+
+                    <tr
+                      style="cursor:pointer;"
+                      onclick="window.location.href='{% url 'sales:sales-prospect-detail' prospect.pk %}'"
+                    >
+
+
+                      <!-- NUMBER -->
+
+                      <td style="font-size:13px;">
+
+                        {{ forloop.counter }}
+
+                      </td>
+
+
+
+                      <!-- BUSINESS / NAME -->
+
+                      <td style="font-size:13px;">
+
+                        <strong>
+
+                          {{ prospect.name|default:"—" }}
+
+                        </strong>
+
+                      </td>
+
+
+
+                      <!-- CONTACT -->
+
+                      <td style="font-size:13px;">
+
+                        {{ prospect.contact_name|default:"—" }}
+
+                      </td>
+
+
+
+                      <!-- PHONE -->
+
+                      <td style="font-size:13px;">
+
+                        {{ prospect.phone|default:"—" }}
+
+                      </td>
+
+
+
+                      <!-- TERRITORY -->
+
+                      <td style="font-size:13px;">
+
+                        {% if prospect.territory %}
+
+                          {{ prospect.territory }}
+
+                        {% else %}
+
+                          —
+
+                        {% endif %}
+
+                      </td>
+
+
+
+                      <!-- AREA -->
+
+                      <td style="font-size:13px;">
+
+                        {% if prospect.area %}
+
+                          {{ prospect.area }}
+
+                        {% else %}
+
+                          —
+
+                        {% endif %}
+
+                      </td>
+
+
+
+                      <!-- STATUS -->
+
+                      <td style="font-size:13px;">
+
+                        {{ prospect.get_status_display|default:prospect.status }}
+
+                      </td>
+
+
+
+                      <!-- ASSIGNED TO -->
+
+                      <td style="font-size:13px;">
+
+                        {% if prospect.owner %}
+
+                          {{ prospect.owner.get_full_name|default:prospect.owner.username }}
+
+                        {% else %}
+
+                          —
+
+                        {% endif %}
+
+                      </td>
+
+
+
+                      <!-- CREATED -->
+
+                      <td style="font-size:13px;">
+
+                        {{ prospect.created_at|date:"d M Y" }}
+
+                      </td>
+
+                    </tr>
+
+
+                  {% empty %}
+
+                    <tr>
+
+                      <td
+                        colspan="9"
+                        class="text-center py-4 text-muted"
+                      >
+
+                        No prospects found.
+
+                      </td>
+
+                    </tr>
+
+                  {% endfor %}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
           </div>
 
-          <!-- =====================================================
-              LEADS TABLE
-          ====================================================== -->
+        </div>
 
-          <div class="card shadow-sm">
-
-              <div class="card-body p-0">
-
-                  <div class="table-responsive">
-
-                      <table class="table table-hover align-middle mb-0">
-
-                          <thead class="table-light">
-
-                              <tr>
-
-                                  <th style="font-size:13px;">#</th>
-
-                                  
-
-                                  <th style="font-size:13px;">
-                                      Business / Name
-                                  </th>
-
-                                  <th style="font-size:13px;">
-                                      Contact
-                                  </th>
-
-                                  <th style="font-size:13px;">
-                                      Phone
-                                  </th>
-
-                                  <th style="font-size:13px;">
-                                      Territory
-                                  </th>
-
-                                  <th style="font-size:13px;">
-                                      Area
-                                  </th>
-
-                                  <th style="font-size:13px;">
-                                      Status
-                                  </th>
-
-                                  <th style="font-size:13px;">
-                                      Assigned To
-                                  </th>
-
-                                  <th style="font-size:13px;">
-                                      Created
-                                  </th>
-
-                              </tr>
-
-                          </thead>
+      </div>
 
 
-                          <tbody>
 
-                              {% for prospect in prospects %}
+    {% endif %}
 
-                              <tr
-                                  style="cursor:pointer;"
-                                  onclick="window.location.href='{% url 'sales:sales-prospect-detail' prospect.pk %}'"
-                              >
 
-                                  <td style="font-size:13px;">
-                                      {{ forloop.counter }}
-                                  </td>
 
-                                  
+    <!-- ==========================================================
+        MAP VIEW
+        
+        IMPORTANT:
+        No filters are displayed here.
+    =========================================================== -->
 
-                                  <!-- BUSINESS / NAME -->
-                                  <td style="font-size:13px;">
-                                      <strong>
-                                          {{ prospect.name|default:"—" }}
-                                      </strong>
-                                  </td>
+    {% if view_mode == "map" %}
 
-                                  <!-- CONTACT -->
-                                  <td style="font-size:13px;">
-                                      {{ prospect.contact_name|default:"—" }}
-                                  </td>
 
-                                  <!-- PHONE -->
-                                  <td style="font-size:13px;">
-                                      {{ prospect.phone|default:"—" }}
-                                  </td>
+      <div class="card shadow-sm">
 
-                                  <!-- TERRITORY -->
-                                  <td style="font-size:13px;">
-                                      {% if prospect.territory %}
-                                          {{ prospect.territory }}
-                                      {% else %}
-                                          —
-                                      {% endif %}
-                                  </td>
 
-                                  <!-- AREA -->
-                                  <td style="font-size:13px;">
-                                      {% if prospect.area %}
-                                          {{ prospect.area }}
-                                      {% else %}
-                                          —
-                                      {% endif %}
-                                  </td>
+        <!-- ------------------------------------------------------
+            MAP HEADER
+        ------------------------------------------------------- -->
 
-                                  <!-- STATUS -->
-                                  <td style="font-size:13px;">
-                                      {{ prospect.get_status_display|default:prospect.status }}
-                                  </td>
+        <div
+          class="card-header bg-white d-flex justify-content-between align-items-center"
+        >
 
-                                  <!-- ASSIGNED TO -->
-                                  <td style="font-size:13px;">
-                                      {% if prospect.owner %}
-                                          {{ prospect.owner.get_full_name|default:prospect.owner.username }}
-                                      {% else %}
-                                          —
-                                      {% endif %}
-                                  </td>
+          <strong>
+            Prospect Map
+          </strong>
 
-                                  <!-- CREATED -->
-                                  <td style="font-size:13px;">
-                                      {{ prospect.created_at|date:"d M Y" }}
-                                  </td>
 
-                              </tr>
+          <span class="text-muted small">
 
-                              {% empty %}
+            {{ map_points|length }} located
 
-                              <tr>
-                                  <td colspan="10" class="text-center py-4 text-muted">
-                                      No prospects found.
-                                  </td>
-                              </tr>
+          </span>
 
-                              {% endfor %}
+        </div>
 
-                          </tbody>
 
-                      </table>
+
+        <!-- ------------------------------------------------------
+            MAP BODY
+            
+            CSS will define the height separately.
+        ------------------------------------------------------- -->
+
+        <div class="card-body p-0">
+
+          <div id="prospects-map"></div>
+
+        </div>
+
+      </div>
+
+
+
+      <!-- ========================================================
+          LEAFLET
+      ========================================================= -->
+
+      <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      >
+
+
+      <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      ></script>
+
+
+
+      <!-- ========================================================
+          PROSPECT MAP JAVASCRIPT
+      ========================================================= -->
+
+      <script>
+
+        document.addEventListener(
+          "DOMContentLoaded",
+          function () {
+
+
+            /* ----------------------------------------------------
+              CREATE MAP
+            ----------------------------------------------------- */
+
+            var map = L.map(
+              "prospects-map"
+            ).setView(
+              [-26.2041, 28.0473],
+              10
+            );
+
+
+
+            /* ----------------------------------------------------
+              OPENSTREETMAP TILES
+            ----------------------------------------------------- */
+
+            L.tileLayer(
+              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+              {
+                maxZoom: 19,
+
+                attribution:
+                  "&copy; OpenStreetMap contributors"
+              }
+            ).addTo(map);
+
+
+
+            /* ----------------------------------------------------
+              FIX MAP SIZE
+            ----------------------------------------------------- */
+
+            setTimeout(
+              function () {
+
+                map.invalidateSize();
+
+              },
+              100
+            );
+
+
+
+            /* ----------------------------------------------------
+              MARKERS
+              
+              GREEN:
+                  Now a Client
+
+              BLUE:
+                  Still a Prospect
+            ----------------------------------------------------- */
+
+            var prospectMarkers = [];
+
+
+            {% for point in map_points %}
+
+
+              var marker = L.circleMarker(
+
+                [
+                  {{ point.lat }},
+                  {{ point.lng }}
+                ],
+
+                {
+                  radius: 7,
+
+                  color:
+                    "{{ point.color }}",
+
+                  fillColor:
+                    "{{ point.color }}",
+
+                  fillOpacity: 0.85,
+
+                  weight: 2
+                }
+
+              );
+
+
+
+              /* ------------------------------------------------
+                POPUP
+              ------------------------------------------------- */
+
+              marker.bindPopup(
+
+                "<strong>{{ point.name|escapejs }}</strong>" +
+                "<br>" +
+                "{{ point.status|escapejs }}"
+
+              );
+
+
+
+              marker.addTo(
+                map
+              );
+
+
+              prospectMarkers.push(
+                marker
+              );
+
+
+            {% endfor %}
+
+
+
+            /* ----------------------------------------------------
+              AUTOMATICALLY FIT MAP TO MARKERS
+            ----------------------------------------------------- */
+
+            if (
+              prospectMarkers.length > 0
+            ) {
+
+              var markerGroup =
+                L.featureGroup(
+                  prospectMarkers
+                );
+
+
+              map.fitBounds(
+                markerGroup
+                  .getBounds()
+                  .pad(0.15)
+              );
+
+            }
+
+
+
+            /* ----------------------------------------------------
+              MAP LEGEND
+              
+              ONLY TWO CATEGORIES:
+              
+              GREEN = NOW A CLIENT
+              BLUE  = STILL A PROSPECT
+            ----------------------------------------------------- */
+
+            var legend =
+              L.control(
+                {
+                  position: "topright"
+                }
+              );
+
+
+            legend.onAdd =
+              function () {
+
+                var div =
+                  L.DomUtil.create(
+                    "div",
+                    "prospect-map-legend"
+                  );
+
+
+                div.innerHTML = `
+
+                  <div class="fw-semibold mb-1">
+                    Prospect Status
+                  </div>
+
+                  <div class="legend-row">
+
+                    <span
+                      class="legend-dot client-dot"
+                    ></span>
+
+                    <span>
+                      Now a Client
+                    </span>
 
                   </div>
 
-              </div>
+                  <div class="legend-row">
+
+                    <span
+                      class="legend-dot prospect-dot"
+                    ></span>
+
+                    <span>
+                      Still a Prospect
+                    </span>
+
+                  </div>
+
+                `;
+
+
+                return div;
+
+              };
+
+
+            legend.addTo(
+              map
+            );
+
+
+          }
+
+        );
+
+      </script>
+
+
+    {% endif %}
+
+
+
+    <!-- ==========================================================
+        PAGINATION
+    =========================================================== -->
+
+    {% if page_obj %}
+
+      <nav
+        class="d-flex justify-content-end"
+        aria-label="Pagination"
+      >
+
+        <ul class="pagination">
+
+
+          <!-- PREVIOUS -->
+
+          {% if page_obj.has_previous %}
+
+            <li class="page-item">
+
+              <a
+                class="page-link"
+                href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.previous_page_number }}"
+              >
+                Previous
+              </a>
+
+            </li>
+
+          {% else %}
+
+            <li class="page-item disabled">
+
+              <span class="page-link">
+                Previous
+              </span>
+
+            </li>
+
+          {% endif %}
+
+
+
+          <!-- CURRENT PAGE -->
+
+          <li class="page-item disabled">
+
+            <span class="page-link">
+
+              Page
+              {{ page_obj.number }}
+              of
+              {{ page_obj.paginator.num_pages }}
+
+            </span>
+
+          </li>
+
+
+
+          <!-- NEXT -->
+
+          {% if page_obj.has_next %}
+
+            <li class="page-item">
+
+              <a
+                class="page-link"
+                href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.next_page_number }}"
+              >
+                Next
+              </a>
+
+            </li>
+
+          {% else %}
+
+            <li class="page-item disabled">
+
+              <span class="page-link">
+                Next
+              </span>
+
+            </li>
+
+          {% endif %}
+
+        </ul>
+
+      </nav>
+
+    {% endif %}
+
+
+
+  </main>
+
+  <!-- SWITCH PLATFORM MODAL -->
+  <div class="modal fade"
+      id="switchPlatformModal"
+      tabindex="-1"
+      aria-labelledby="switchPlatformModalLabel"
+      aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+
+        <div class="modal-header justify-content-center position-relative">
+          <h5 class="modal-title w-100 text-center" id="switchPlatformModalLabel">
+            Switch Platform
+          </h5>
+          <button type="button"
+                  class="btn-close position-absolute"
+                  style="right:1rem; top:1rem;"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body text-center">
+          <p class="mb-3 text-muted">Choose a platform to continue:</p>
+
+          <div class="d-grid gap-2">
+
+            <!-- Main Staff Portal -->
+            <a
+              href="{% url 'staff-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_staff_portal %} disabled{% endif %}"
+              {% if not can_staff_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Main Staff Portal
+            </a>
+
+            <!-- Funder Portal -->
+            <a
+              href="{% url 'funder-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_lender_portal %} disabled{% endif %}"
+              {% if not can_lender_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Funder Portal
+            </a>
+
+            <!-- Sales Portal -->
+            <a
+              href="{% url 'sales:sales-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_sales_portal %} disabled{% endif %}"
+              {% if not can_sales_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Sales Portal
+            </a>
+
+            <!-- Logistics Portal -->
+            <a
+              href="{% url 'logistics:logistics-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_logistics_portal %} disabled{% endif %}"
+              {% if not can_logistics_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Logistics Portal
+            </a>
 
           </div>
         </div>
 
-        <script>
-        document.addEventListener("DOMContentLoaded", function () {
+        <div class="modal-footer justify-content-center border-0">
+          <small class="text-muted">
+            Platforms you don’t have access to are disabled.
+          </small>
+        </div>
 
-          document.querySelectorAll(".clickable-row").forEach(row => {
-
-            row.addEventListener("click", function (e) {
-
-              if (e.target.closest("a, button")) return;
-
-              const href = this.dataset.href;
-
-              if (href) {
-                window.location.href = href;
-              }
-
-            });
-
-          });
-
-        });
-        </script>
       </div>
-
-      {# pagination or summary could go here if you use paginator #}
-      {% if page_obj %}
-        <nav class="d-flex justify-content-end" aria-label="Pagination">
-          <ul class="pagination">
-            {% if page_obj.has_previous %}
-              <li class="page-item">
-                <a class="page-link" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
-              </li>
-            {% else %}
-              <li class="page-item disabled"><span class="page-link">Previous</span></li>
-            {% endif %}
-            <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
-            {% if page_obj.has_next %}
-              <li class="page-item">
-                <a class="page-link" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
-              </li>
-            {% else %}
-              <li class="page-item disabled"><span class="page-link">Next</span></li>
-            {% endif %}
-          </ul>
-        </nav>
-      {% endif %}
-
-    </div> <!-- /.container-fluid -->
-  </main>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    // Chart data from Django
+    const labels = {{ sales_labels|safe }};
+    const dataPoints = {{ sales_data|safe }};
+
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Orders',
+          data: dataPoints,
+          tension: 0.3,
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true },
+          tooltip: { mode: 'index', intersect: false }
+        },
+        scales: {
+          x: { title: { display: false } },
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  </script>
+
+
+
+
+  <!-- ============================================================
+      BOOTSTRAP
+  ============================================================= -->
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+  ></script>
+
+
+
+  <!-- ============================================================
+      MOBILE OFFCANVAS
+  ============================================================= -->
 
   <script>
-    // Close offcanvas before navigation on small screens so it feels snappy.
+
+    // Close offcanvas before navigation on small screens
+    // so it feels snappy.
+
     (function () {
-      var offcanvasEl = document.getElementById('mobileMenu');
+
+      var offcanvasEl =
+        document.getElementById(
+          'mobileMenu'
+        );
+
+
       if (!offcanvasEl) return;
 
-      var bsOffcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
 
-      // All nav links inside offcanvas that should close it when clicked:
-      offcanvasEl.querySelectorAll('[data-close-offcanvas]').forEach(function (el) {
-        el.addEventListener('click', function (e) {
-          // small delay to allow browser to navigate; hide the offcanvas first
-          bsOffcanvas.hide();
-        });
-      });
+      var bsOffcanvas =
+        bootstrap.Offcanvas
+          .getOrCreateInstance(
+            offcanvasEl
+          );
+
+
+      // All nav links inside offcanvas
+      // that should close it when clicked.
+
+      offcanvasEl
+        .querySelectorAll(
+          '[data-close-offcanvas]'
+        )
+        .forEach(
+          function (el) {
+
+            el.addEventListener(
+              'click',
+              function (e) {
+
+                // Small delay to allow browser
+                // to navigate; hide the offcanvas first.
+
+                bsOffcanvas.hide();
+
+              }
+            );
+
+          }
+        );
+
     })();
+
   </script>
 </body>
 </html>

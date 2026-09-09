@@ -82,6 +82,409 @@
     }
 
     /* =========================================================
+      COMMISSION REP DETAIL
+      ========================================================= */
+
+    .commission-detail-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .commission-detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .commission-detail-eyebrow {
+        font-size: .72rem;
+        font-weight: 700;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: #0b5c39;
+        margin-bottom: .35rem;
+    }
+
+    .commission-detail-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -.02em;
+        margin-bottom: .25rem;
+        color: #18221d;
+    }
+
+    .commission-detail-subtitle {
+        color: #6c757d;
+        font-size: .92rem;
+    }
+
+    .commission-detail-actions {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        flex-wrap: wrap;
+    }
+
+    .commission-detail-actions .btn {
+        border-radius: 9px;
+        font-weight: 600;
+    }
+
+    /* KPI CARDS */
+
+    .commission-detail-kpi {
+        border: 0;
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 .125rem .5rem rgba(0,0,0,.06);
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .commission-detail-kpi .card-body {
+        padding: 1.15rem 1.2rem;
+    }
+
+    .commission-detail-kpi-label {
+        color: #6c757d;
+        font-size: .76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        margin-bottom: .4rem;
+    }
+
+    .commission-detail-kpi-value {
+        color: #18221d;
+        font-size: 1.55rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .commission-detail-kpi.highlight {
+        background: linear-gradient(135deg, #0b5c39, #087a4b);
+        color: #fff;
+    }
+
+    .commission-detail-kpi.highlight .commission-detail-kpi-label,
+    .commission-detail-kpi.highlight .commission-detail-kpi-value {
+        color: #fff;
+    }
+
+    .commission-detail-kpi.bonus {
+        border-left: 4px solid #198754;
+    }
+
+    /* SECTIONS */
+
+    .commission-detail-section {
+        background: #fff;
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 .125rem .5rem rgba(0,0,0,.06);
+        overflow: hidden;
+    }
+
+    .commission-detail-section-header {
+        padding: 1.15rem 1.25rem;
+        border-bottom: 1px solid #edf0ee;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .commission-detail-section-heading {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+    }
+
+    .commission-detail-section-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(11,92,57,.09);
+        color: #0b5c39;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .commission-detail-section-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #18221d;
+    }
+
+    .commission-detail-section-subtitle {
+        margin-top: .15rem;
+        color: #6c757d;
+        font-size: .8rem;
+    }
+
+    .commission-detail-section-body {
+        padding: 1.25rem;
+    }
+
+    /* REP SNAPSHOT */
+
+    .rep-snapshot {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .rep-avatar {
+        width: 54px;
+        height: 54px;
+        border-radius: 14px;
+        background: #0b5c39;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1.15rem;
+        flex-shrink: 0;
+    }
+
+    .rep-snapshot-name {
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: #18221d;
+    }
+
+    .rep-snapshot-period {
+        color: #6c757d;
+        font-size: .84rem;
+    }
+
+    /* INFO LIST */
+
+    .detail-info-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .65rem 0;
+        border-bottom: 1px solid #f0f2f1;
+    }
+
+    .detail-info-row:last-child {
+        border-bottom: 0;
+    }
+
+    .detail-info-label {
+        color: #6c757d;
+        font-size: .82rem;
+    }
+
+    .detail-info-value {
+        color: #18221d;
+        font-size: .84rem;
+        font-weight: 600;
+        text-align: right;
+    }
+
+    /* CHART */
+
+    .commission-detail-chart {
+        position: relative;
+        height: 245px;
+        width: 100%;
+    }
+
+    .commission-detail-chart canvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    /* TABLE */
+
+    .commission-detail-table-wrap {
+        overflow-x: auto;
+    }
+
+    .commission-detail-table {
+        min-width: 1100px;
+        margin: 0;
+    }
+
+    .commission-detail-table thead th {
+        background: #f7f9f8;
+        color: #68736d;
+        font-size: .72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .045em;
+        white-space: nowrap;
+        border-bottom: 1px solid #e8ece9;
+        padding: .85rem .75rem;
+    }
+
+    .commission-detail-table tbody td {
+        padding: .9rem .75rem;
+        border-bottom: 1px solid #eef1ef;
+        vertical-align: middle;
+        font-size: .84rem;
+    }
+
+    .commission-detail-table tbody tr:hover {
+        background: #fbfcfb;
+    }
+
+    .commission-detail-table tfoot td {
+        padding: 1rem .75rem;
+        background: #f7f9f8;
+        border-top: 2px solid #e2e7e4;
+    }
+
+    .commission-entry-date {
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .commission-entry-time {
+        color: #8a938e;
+        font-size: .72rem;
+    }
+
+    .commission-client {
+        font-weight: 600;
+        color: #18221d;
+    }
+
+    .commission-invoice {
+        font-weight: 600;
+        color: #0b5c39;
+    }
+
+    .commission-money {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .commission-money-strong {
+        font-weight: 700;
+        color: #0b5c39;
+    }
+
+    /* BUSINESS BADGES */
+
+    .business-badge-new {
+        display: inline-flex;
+        align-items: center;
+        padding: .35rem .6rem;
+        border-radius: 999px;
+        background: rgba(25,135,84,.1);
+        color: #198754;
+        font-size: .7rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .business-badge-repeat {
+        display: inline-flex;
+        align-items: center;
+        padding: .35rem .6rem;
+        border-radius: 999px;
+        background: #f1f3f2;
+        color: #68736d;
+        border: 1px solid #e1e5e3;
+        font-size: .7rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    /* EMPTY */
+
+    .commission-detail-empty {
+        padding: 3rem 1rem;
+        text-align: center;
+        color: #6c757d;
+    }
+
+    .commission-detail-empty-icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto .75rem;
+        border-radius: 12px;
+        background: #f1f3f2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #8a938e;
+    }
+
+    /* EMAIL BUTTON */
+
+    .commission-email-btn {
+        border-radius: 9px;
+        font-weight: 600;
+    }
+
+    /* MOBILE */
+
+    @media (max-width: 991.98px) {
+        .commission-detail-header {
+            flex-direction: column;
+        }
+
+        .commission-detail-actions {
+            width: 100%;
+        }
+
+        .commission-detail-actions .btn {
+            flex: 1 1 auto;
+        }
+
+        .commission-detail-chart {
+            height: 210px;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .commission-detail-page {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .commission-detail-title {
+            font-size: 1.4rem;
+        }
+
+        .commission-detail-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            width: 100%;
+        }
+
+        .commission-detail-actions .btn {
+            width: 100%;
+        }
+
+        .commission-detail-section-header {
+            padding: 1rem;
+        }
+
+        .commission-detail-section-body {
+            padding: 1rem;
+        }
+
+        .commission-detail-kpi-value {
+            font-size: 1.35rem;
+        }
+
+        .rep-snapshot {
+            align-items: flex-start;
+        }
+    }
+
+    /* =========================================================
        CHART
        ========================================================= */
 
@@ -620,549 +1023,691 @@
      MAIN CONTENT
      ========================================================= -->
 
-<main class="content">
+<!-- =========================================================
+     MAIN CONTENT
+     ========================================================= -->
 
-    <div class="container-fluid px-4 py-4">
+  <main class="content">
 
-        <!-- =====================================================
-             PAGE HEADER
-             ===================================================== -->
+      <div class="container-fluid px-4 py-4 commission-detail-page">
 
-        <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3 mb-4">
+          <!-- =====================================================
+              PAGE HEADER
+              ===================================================== -->
 
-            <div>
-                <h2 class="mb-1 fw-semibold">
-                    Commission Entries
-                </h2>
+          <div class="commission-detail-header">
 
-                <div class="text-muted">
-                    {{ rep_user.get_full_name|default:rep_user.username }}
-                    —
-                    {{ selected_period }}
-                </div>
-            </div>
+              <div>
 
-            <div>
-                <a
-                    href="{% url 'sales:sales-commission' %}"
-                    class="btn btn-outline-secondary"
-                >
-                    ← Back to Commission
-                </a>
-            </div>
+                  <div class="commission-detail-eyebrow">
+                      Commission · Rep Detail
+                  </div>
 
-        </div>
+                  <h1 class="commission-detail-title">
+                      Commission Entries
+                  </h1>
 
+                  <div class="commission-detail-subtitle">
+                      {{ rep_user.get_full_name|default:rep_user.username }}
+                      <span class="mx-1">•</span>
+                      {{ selected_period }}
+                  </div>
 
-        <!-- =====================================================
-             SUMMARY CARDS
-             ===================================================== -->
+              </div>
 
-        <div class="row g-3 mb-4">
+              <div class="commission-detail-actions">
 
-            <!-- REVENUE -->
-            <div class="col-12 col-sm-6 col-xl-3">
+                  <button
+                      type="button"
+                      class="btn btn-outline-primary commission-email-btn"
+                      data-bs-toggle="modal"
+                      data-bs-target="#emailStatementModal"
+                  >
+                      <i class="bi bi-envelope me-1"></i>
+                      Email Statement
+                  </button>
 
-                <div class="card h-100 border-0 shadow-sm">
+                  <a
+                      href="{% url 'sales:sales-commission' %}"
+                      class="btn btn-outline-secondary"
+                  >
+                      <i class="bi bi-arrow-left me-1"></i>
+                      Back to Commission
+                  </a>
 
-                    <div class="card-body p-3">
+              </div>
 
-                        <div class="small text-muted mb-1">
-                            Revenue
-                        </div>
+          </div>
 
-                        <div class="fs-4 fw-semibold">
-                            R{{ revenue_total|default:0|floatformat:2|intcomma }}
-                        </div>
 
-                    </div>
+          <!-- =====================================================
+              REP SNAPSHOT
+              ===================================================== -->
 
-                </div>
+          <div class="commission-detail-section mb-4">
 
-            </div>
+              <div class="commission-detail-section-body">
 
+                  <div class="row g-4 align-items-center">
 
-            <!-- CLIENTS -->
-            <div class="col-12 col-sm-6 col-xl-3">
+                      <div class="col-12 col-lg-7">
 
-                <div class="card h-100 border-0 shadow-sm">
+                          <div class="rep-snapshot">
 
-                    <div class="card-body p-3">
+                              <div class="rep-avatar">
+                                  {{ rep_user.get_full_name|default:rep_user.username|slice:":1"|upper }}
+                              </div>
 
-                        <div class="small text-muted mb-1">
-                            Clients
-                        </div>
+                              <div>
 
-                        <div class="fs-4 fw-semibold">
-                            {{ client_count|default:0 }}
-                        </div>
+                                  <div class="rep-snapshot-name">
+                                      {{ rep_user.get_full_name|default:rep_user.username }}
+                                  </div>
 
-                    </div>
+                                  <div class="rep-snapshot-period">
+                                      Commission performance for {{ selected_period }}
+                                  </div>
 
-                </div>
+                              </div>
 
-            </div>
+                          </div>
 
+                      </div>
 
-            <!-- REP COMMISSION -->
-            <div class="col-12 col-sm-6 col-xl-3">
+                      <div class="col-12 col-lg-5">
 
-                <div class="card h-100 border-0 shadow-sm">
+                          <div class="detail-info-row">
+                              <span class="detail-info-label">
+                                  Reporting Period
+                              </span>
+                              <span class="detail-info-value">
+                                  {{ selected_period }}
+                              </span>
+                          </div>
 
-                    <div class="card-body p-3">
+                          <div class="detail-info-row">
+                              <span class="detail-info-label">
+                                  Commission Entries
+                              </span>
+                              <span class="detail-info-value">
+                                  {{ commission_entries|length }}
+                              </span>
+                          </div>
 
-                        <div class="small text-muted mb-1">
-                            Rep Commission
-                        </div>
+                      </div>
 
-                        <div class="fs-4 fw-semibold">
-                            R{{ rep_total|default:0|floatformat:2|intcomma }}
-                        </div>
+                  </div>
 
-                    </div>
+              </div>
 
-                </div>
+          </div>
 
-            </div>
 
+          <!-- =====================================================
+              KPI SUMMARY
+              ===================================================== -->
 
-            <!-- NEW BUSINESS BONUS -->
-            <div class="col-12 col-sm-6 col-xl-3">
+          <div class="row g-3 mb-4">
 
-                <div class="card h-100 border-0 shadow-sm">
+              <!-- REVENUE -->
 
-                    <div class="card-body p-3">
+              <div class="col-12 col-sm-6 col-xl-3">
 
-                        <div class="small text-muted mb-1">
-                            New Business Bonus
-                        </div>
+                  <div class="card commission-detail-kpi">
 
-                        <div class="fs-4 fw-semibold text-success">
-                            R{{ bonus_total|default:0|floatformat:2|intcomma }}
-                        </div>
+                      <div class="card-body">
 
-                    </div>
+                          <div class="commission-detail-kpi-label">
+                              Revenue
+                          </div>
 
-                </div>
+                          <div class="commission-detail-kpi-value">
+                              R{{ revenue_total|default:0|floatformat:2|intcomma }}
+                          </div>
 
-            </div>
+                      </div>
 
-        </div>
+                  </div>
 
+              </div>
 
-        <!-- =====================================================
-             COMMISSION ENTRIES
-             ===================================================== -->
 
-        <div class="card border-0 shadow-sm">
+              <!-- CLIENTS -->
 
-            <!-- =================================================
-                 CARD HEADER
-                 ================================================= -->
+              <div class="col-12 col-sm-6 col-xl-3">
 
-            <div class="card-header bg-white border-bottom p-4">
+                  <div class="card commission-detail-kpi">
 
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                      <div class="card-body">
 
-                    <div>
+                          <div class="commission-detail-kpi-label">
+                              Clients
+                          </div>
 
-                        <h5 class="mb-1 fw-semibold">
-                            Commission Entries
-                        </h5>
+                          <div class="commission-detail-kpi-value">
+                              {{ client_count|default:0 }}
+                          </div>
 
-                        <div class="small text-muted">
-                            All commission entries for
-                            {{ rep_user.get_full_name|default:rep_user.username }}
-                            for the selected period.
-                        </div>
+                      </div>
 
-                    </div>
+                  </div>
 
+              </div>
 
-                    <!-- ENTRY COUNT -->
 
-                    <span class="badge bg-light text-dark border px-3 py-2">
+              <!-- REP COMMISSION -->
 
-                        {{ commission_entries|length }}
+              <div class="col-12 col-sm-6 col-xl-3">
 
-                        entr{{ commission_entries|length|pluralize:"y,ies" }}
+                  <div class="card commission-detail-kpi highlight">
 
-                    </span>
+                      <div class="card-body">
 
-                </div>
+                          <div class="commission-detail-kpi-label">
+                              Rep Commission
+                          </div>
 
-            </div>
+                          <div class="commission-detail-kpi-value">
+                              R{{ rep_total|default:0|floatformat:2|intcomma }}
+                          </div>
 
+                      </div>
 
-            <!-- =================================================
-                 TABLE
-                 ================================================= -->
+                  </div>
 
-            <div class="card-body p-0">
+              </div>
 
-                <div
-                    class="table-responsive"
-                    style="overflow-x:auto;"
-                >
 
-                    <table
-                        class="table table-hover align-middle mb-0"
-                        style="min-width: 1050px;"
-                    >
+              <!-- BONUS -->
 
-                        <!-- =================================================
-                             TABLE HEADER
-                             ================================================= -->
+              <div class="col-12 col-sm-6 col-xl-3">
 
-                        <thead class="table-light">
+                  <div class="card commission-detail-kpi bonus">
 
-                            <tr>
+                      <div class="card-body">
 
-                                <th
-                                    class="ps-4 text-nowrap"
-                                    style="width:130px;"
-                                >
-                                    Date
-                                </th>
+                          <div class="commission-detail-kpi-label">
+                              New Business Bonus
+                          </div>
 
-                                <th
-                                    class="text-nowrap"
-                                    style="width:100px;"
-                                >
-                                    Invoice
-                                </th>
+                          <div class="commission-detail-kpi-value text-success">
+                              R{{ bonus_total|default:0|floatformat:2|intcomma }}
+                          </div>
 
-                                <th
-                                    class="text-nowrap"
-                                    style="min-width:180px;"
-                                >
-                                    Client
-                                </th>
+                      </div>
 
-                                <th
-                                    class="text-nowrap"
-                                    style="min-width:220px;"
-                                >
-                                    Territory
-                                </th>
+                  </div>
 
-                                <th
-                                    class="text-nowrap"
-                                    style="width:130px;"
-                                >
-                                    Area
-                                </th>
+              </div>
 
-                                <th
-                                    class="text-end text-nowrap"
-                                    style="width:120px;"
-                                >
-                                    Cost
-                                </th>
+          </div>
 
-                                <th
-                                    class="text-end text-nowrap"
-                                    style="width:110px;"
-                                >
-                                    Rep Rate
-                                </th>
 
-                                <th
-                                    class="text-end text-nowrap"
-                                    style="width:150px;"
-                                >
-                                    Rep Commission
-                                </th>
+          <!-- =====================================================
+              PERFORMANCE + TREND
+              ===================================================== -->
 
-                                <th
-                                    class="text-center text-nowrap pe-4"
-                                    style="width:150px;"
-                                >
-                                    Business
-                                </th>
+          <div class="row g-4 mb-4">
 
-                            </tr>
+              <!-- COMMISSION TREND -->
 
-                        </thead>
+              <div class="col-12 col-xl-8">
 
+                  <div class="commission-detail-section h-100">
 
-                        <!-- =================================================
-                             TABLE BODY
-                             ================================================= -->
+                      <div class="commission-detail-section-header">
 
-                        <tbody>
+                          <div class="commission-detail-section-heading">
 
-                            {% for entry in commission_entries %}
+                              <div class="commission-detail-section-icon">
+                                  <i class="bi bi-graph-up"></i>
+                              </div>
 
-                                <tr>
+                              <div>
 
-                                    <!-- =====================================
-                                         DATE
-                                         ===================================== -->
+                                  <h2 class="commission-detail-section-title">
+                                      Commission Trend
+                                  </h2>
 
-                                    <td class="ps-4">
+                                  <div class="commission-detail-section-subtitle">
+                                      Commission performance across the selected period
+                                  </div>
 
-                                        {% if entry.created_at %}
+                              </div>
 
-                                            <div class="fw-medium text-nowrap">
-                                                {{ entry.created_at|date:"d M Y" }}
-                                            </div>
+                          </div>
 
-                                            <small class="text-muted">
-                                                {{ entry.created_at|date:"H:i" }}
-                                            </small>
+                      </div>
 
-                                        {% else %}
+                      <div class="commission-detail-section-body">
 
-                                            <span class="text-muted">
-                                                —
-                                            </span>
+                          <div class="commission-detail-chart">
+                              <canvas id="commissionTrendChart"></canvas>
+                          </div>
 
-                                        {% endif %}
+                      </div>
 
-                                    </td>
+                  </div>
 
+              </div>
 
-                                    <!-- =====================================
-                                         INVOICE
-                                         ===================================== -->
 
-                                    <td>
+              <!-- PERIOD SUMMARY -->
 
-                                        {% if entry.invoice %}
+              <div class="col-12 col-xl-4">
 
-                                            {% if entry.invoice.id %}
+                  <div class="commission-detail-section h-100">
 
-                                                <span class="fw-medium">
-                                                    #{{ entry.invoice.id }}
-                                                </span>
+                      <div class="commission-detail-section-header">
 
-                                            {% else %}
+                          <div class="commission-detail-section-heading">
 
-                                                <span class="text-muted">
-                                                    —
-                                                </span>
+                              <div class="commission-detail-section-icon">
+                                  <i class="bi bi-bar-chart-line"></i>
+                              </div>
 
-                                            {% endif %}
+                              <div>
 
-                                        {% else %}
+                                  <h2 class="commission-detail-section-title">
+                                      Period Summary
+                                  </h2>
 
-                                            <span class="text-muted">
-                                                —
-                                            </span>
+                                  <div class="commission-detail-section-subtitle">
+                                      Rep performance overview
+                                  </div>
 
-                                        {% endif %}
+                              </div>
 
-                                    </td>
+                          </div>
 
+                      </div>
 
-                                    <!-- =====================================
-                                         CLIENT
-                                         ===================================== -->
+                      <div class="commission-detail-section-body">
 
-                                    <td>
+                          <div class="detail-info-row">
+                              <span class="detail-info-label">
+                                  Revenue
+                              </span>
+                              <span class="detail-info-value">
+                                  R{{ revenue_total|default:0|floatformat:2|intcomma }}
+                              </span>
+                          </div>
 
-                                        {% if entry.client %}
+                          <div class="detail-info-row">
+                              <span class="detail-info-label">
+                                  Unique Clients
+                              </span>
+                              <span class="detail-info-value">
+                                  {{ client_count|default:0 }}
+                              </span>
+                          </div>
 
-                                            <span class="fw-medium">
-                                                {{ entry.client }}
-                                            </span>
+                          <div class="detail-info-row">
+                              <span class="detail-info-label">
+                                  Commission
+                              </span>
+                              <span class="detail-info-value text-success">
+                                  R{{ rep_total|default:0|floatformat:2|intcomma }}
+                              </span>
+                          </div>
 
-                                        {% else %}
+                          <div class="detail-info-row">
+                              <span class="detail-info-label">
+                                  New Business Bonus
+                              </span>
+                              <span class="detail-info-value text-success">
+                                  R{{ bonus_total|default:0|floatformat:2|intcomma }}
+                              </span>
+                          </div>
 
-                                            <span class="text-muted">
-                                                —
-                                            </span>
+                          <div class="detail-info-row">
+                              <span class="detail-info-label">
+                                  Total Entries
+                              </span>
+                              <span class="detail-info-value">
+                                  {{ commission_entries|length }}
+                              </span>
+                          </div>
 
-                                        {% endif %}
+                      </div>
 
-                                    </td>
+                  </div>
 
+              </div>
 
-                                    <!-- =====================================
-                                         TERRITORY
-                                         ===================================== -->
+          </div>
 
-                                    <td>
 
-                                        {% if entry.territory %}
+          <!-- =====================================================
+              COMMISSION ENTRIES
+              ===================================================== -->
 
-                                            <span class="text-nowrap">
-                                                {{ entry.territory }}
-                                            </span>
+          <div class="commission-detail-section">
 
-                                        {% else %}
+              <div class="commission-detail-section-header">
 
-                                            <span class="text-muted">
-                                                —
-                                            </span>
+                  <div class="commission-detail-section-heading">
 
-                                        {% endif %}
+                      <div class="commission-detail-section-icon">
+                          <i class="bi bi-receipt"></i>
+                      </div>
 
-                                    </td>
+                      <div>
 
+                          <h2 class="commission-detail-section-title">
+                              Commission Entries
+                          </h2>
 
-                                    <!-- =====================================
-                                         AREA
-                                         ===================================== -->
+                          <div class="commission-detail-section-subtitle">
+                              Detailed commission activity for
+                              {{ rep_user.get_full_name|default:rep_user.username }}
+                          </div>
 
-                                    <td>
+                      </div>
 
-                                        {% if entry.area %}
+                  </div>
 
-                                            <span class="text-nowrap">
-                                                {{ entry.area }}
-                                            </span>
+                  <span class="badge bg-light text-dark border px-3 py-2">
+                      {{ commission_entries|length }}
+                      entr{{ commission_entries|length|pluralize:"y,ies" }}
+                  </span>
 
-                                        {% else %}
+              </div>
 
-                                            <span class="text-muted">
-                                                —
-                                            </span>
 
-                                        {% endif %}
+              <div class="commission-detail-table-wrap">
 
-                                    </td>
+                  <table class="table table-hover align-middle mb-0 commission-detail-table">
 
+                      <thead>
 
-                                    <!-- =====================================
-                                         COST
-                                         ===================================== -->
+                          <tr>
 
-                                    <td class="text-end text-nowrap">
+                              <th class="ps-4">
+                                  Date
+                              </th>
 
-                                        R{{ entry.cost_total|default:0|floatformat:2|intcomma }}
+                              <th>
+                                  Invoice
+                              </th>
 
-                                    </td>
+                              <th>
+                                  Client
+                              </th>
 
+                              <th>
+                                  Territory
+                              </th>
 
-                                    <!-- =====================================
-                                         REP RATE
-                                         ===================================== -->
+                              <th>
+                                  Area
+                              </th>
 
-                                    <td class="text-end text-nowrap">
+                              <th class="text-end">
+                                  Cost
+                              </th>
 
-                                        {{ entry.rep_rate|default:0|floatformat:2 }}%
+                              <th class="text-end">
+                                  Rep Rate
+                              </th>
 
-                                    </td>
+                              <th class="text-end">
+                                  Rep Commission
+                              </th>
 
+                              <th class="text-center pe-4">
+                                  Business
+                              </th>
 
-                                    <!-- =====================================
-                                         REP COMMISSION
-                                         ===================================== -->
+                          </tr>
 
-                                    <td class="text-end fw-semibold text-nowrap">
+                      </thead>
 
-                                        R{{ entry.rep_amount|default:0|floatformat:2|intcomma }}
 
-                                    </td>
+                      <tbody>
 
+                          {% for entry in commission_entries %}
 
-                                    <!-- =====================================
-                                         BUSINESS TYPE
-                                         ===================================== -->
+                          <tr>
 
-                                    <td class="text-center pe-4">
+                              <!-- DATE -->
 
-                                        {% if entry.is_new_business %}
+                              <td class="ps-4">
 
-                                            <span class="badge bg-success">
-                                                New Business
-                                            </span>
+                                  {% if entry.created_at %}
 
-                                        {% else %}
+                                      <div class="commission-entry-date">
+                                          {{ entry.created_at|date:"d M Y" }}
+                                      </div>
 
-                                            <span class="badge bg-light text-dark border">
-                                                Repeat
-                                            </span>
+                                      <div class="commission-entry-time">
+                                          {{ entry.created_at|date:"H:i" }}
+                                      </div>
 
-                                        {% endif %}
+                                  {% else %}
 
-                                    </td>
+                                      <span class="text-muted">
+                                          —
+                                      </span>
 
-                                </tr>
+                                  {% endif %}
 
-                            {% empty %}
+                              </td>
 
-                                <!-- =========================================
-                                     EMPTY STATE
-                                     ========================================= -->
 
-                                <tr>
+                              <!-- INVOICE -->
 
-                                    <td
-                                        colspan="9"
-                                        class="text-center py-5"
-                                    >
+                              <td>
 
-                                        <div class="text-muted mb-2">
-                                            No commission entries found.
-                                        </div>
+                                  {% if entry.invoice %}
 
-                                        <small class="text-muted">
-                                            There are no commission entries for
-                                            {{ rep_user.get_full_name|default:rep_user.username }}
-                                            for the selected period.
-                                        </small>
+                                      {% if entry.invoice.id %}
 
-                                    </td>
+                                          <span class="commission-invoice">
+                                              #{{ entry.invoice.id }}
+                                          </span>
 
-                                </tr>
+                                      {% else %}
 
-                            {% endfor %}
+                                          <span class="text-muted">
+                                              —
+                                          </span>
 
-                        </tbody>
+                                      {% endif %}
 
+                                  {% else %}
 
-                        <!-- =================================================
-                             TOTAL
-                             ================================================= -->
+                                      <span class="text-muted">
+                                          —
+                                      </span>
 
-                        {% if commission_entries %}
+                                  {% endif %}
 
-                            <tfoot>
+                              </td>
 
-                                <tr class="table-light fw-semibold">
 
-                                    <td
-                                        colspan="5"
-                                        class="ps-4"
-                                    >
-                                        Total
-                                    </td>
+                              <!-- CLIENT -->
 
-                                    <td class="text-end text-nowrap">
-                                        R{{ cost_total|default:0|floatformat:2|intcomma }}
-                                    </td>
+                              <td>
 
-                                    <td>
-                                    </td>
+                                  {% if entry.client %}
 
-                                    <td class="text-end text-nowrap">
-                                        R{{ rep_total|default:0|floatformat:2|intcomma }}
-                                    </td>
+                                      <div class="commission-client">
+                                          {{ entry.client }}
+                                      </div>
 
-                                    <td>
-                                    </td>
+                                  {% else %}
 
-                                </tr>
+                                      <span class="text-muted">
+                                          —
+                                      </span>
 
-                            </tfoot>
+                                  {% endif %}
 
-                        {% endif %}
+                              </td>
 
-                    </table>
 
-                </div>
+                              <!-- TERRITORY -->
 
-            </div>
+                              <td>
 
-        </div>
+                                  {% if entry.territory %}
 
-    </div>
+                                      <span class="text-nowrap">
+                                          {{ entry.territory }}
+                                      </span>
 
-</main>
+                                  {% else %}
 
+                                      <span class="text-muted">
+                                          —
+                                      </span>
+
+                                  {% endif %}
+
+                              </td>
+
+
+                              <!-- AREA -->
+
+                              <td>
+
+                                  {% if entry.area %}
+
+                                      <span class="text-nowrap">
+                                          {{ entry.area }}
+                                      </span>
+
+                                  {% else %}
+
+                                      <span class="text-muted">
+                                          —
+                                      </span>
+
+                                  {% endif %}
+
+                              </td>
+
+
+                              <!-- COST -->
+
+                              <td class="text-end commission-money">
+
+                                  R{{ entry.cost_total|default:0|floatformat:2|intcomma }}
+
+                              </td>
+
+
+                              <!-- REP RATE -->
+
+                              <td class="text-end commission-money">
+
+                                  {{ entry.rep_rate|default:0|floatformat:2 }}%
+
+                              </td>
+
+
+                              <!-- REP COMMISSION -->
+
+                              <td class="text-end commission-money commission-money-strong">
+
+                                  R{{ entry.rep_amount|default:0|floatformat:2|intcomma }}
+
+                              </td>
+
+
+                              <!-- BUSINESS TYPE -->
+
+                              <td class="text-center pe-4">
+
+                                  {% if entry.is_new_business %}
+
+                                      <span class="business-badge-new">
+                                          New Business
+                                      </span>
+
+                                  {% else %}
+
+                                      <span class="business-badge-repeat">
+                                          Repeat
+                                      </span>
+
+                                  {% endif %}
+
+                              </td>
+
+                          </tr>
+
+                          {% empty %}
+
+                          <tr>
+
+                              <td colspan="9">
+
+                                  <div class="commission-detail-empty">
+
+                                      <div class="commission-detail-empty-icon">
+                                          <i class="bi bi-receipt"></i>
+                                      </div>
+
+                                      <div class="fw-semibold mb-1">
+                                          No commission entries found
+                                      </div>
+
+                                      <div class="small">
+                                          There are no commission entries for
+                                          {{ rep_user.get_full_name|default:rep_user.username }}
+                                          for the selected period.
+                                      </div>
+
+                                  </div>
+
+                              </td>
+
+                          </tr>
+
+                          {% endfor %}
+
+                      </tbody>
+
+
+                      {% if commission_entries %}
+
+                      <tfoot>
+
+                          <tr>
+
+                              <td colspan="5" class="ps-4 fw-semibold">
+                                  Total
+                              </td>
+
+                              <td class="text-end commission-money fw-semibold">
+                                  R{{ cost_total|default:0|floatformat:2|intcomma }}
+                              </td>
+
+                              <td></td>
+
+                              <td class="text-end commission-money commission-money-strong">
+                                  R{{ rep_total|default:0|floatformat:2|intcomma }}
+                              </td>
+
+                              <td></td>
+
+                          </tr>
+
+                      </tfoot>
+
+                      {% endif %}
+
+                  </table>
+
+              </div>
+
+          </div>
+
+      </div>
+
+  </main>
 
     <script>
     document.addEventListener("DOMContentLoaded", function () {

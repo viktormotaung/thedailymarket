@@ -91,6 +91,445 @@
       height: 220px;
     }
 
+    /* =========================================================
+      VIEW INVOICE PAGE
+      ========================================================= */
+
+    .invoice-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .invoice-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .invoice-eyebrow {
+        font-size: .72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: #0b5c39;
+        margin-bottom: .35rem;
+    }
+
+    .invoice-number {
+        font-size: 1.7rem;
+        font-weight: 700;
+        color: #212529;
+        margin: 0;
+    }
+
+    .invoice-meta {
+        color: #6c757d;
+        font-size: .88rem;
+        margin-top: .4rem;
+    }
+
+    .invoice-status {
+        display: inline-flex;
+        align-items: center;
+        margin-left: .45rem;
+        vertical-align: middle;
+    }
+
+    .invoice-action-group {
+        display: flex;
+        gap: .5rem;
+        flex-wrap: wrap;
+    }
+
+    /* Sections */
+
+    .invoice-section {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .025);
+    }
+
+    .invoice-section-header {
+        padding: 1rem 1.15rem;
+        border-bottom: 1px solid #eef0f2;
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+    }
+
+    .invoice-section-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(11, 92, 57, .09);
+        color: #0b5c39;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+    }
+
+    .invoice-section-title {
+        font-weight: 700;
+        color: #212529;
+        margin: 0;
+        font-size: 1rem;
+    }
+
+    .invoice-section-subtitle {
+        color: #6c757d;
+        font-size: .78rem;
+        margin-top: .15rem;
+    }
+
+    .invoice-section-body {
+        padding: 1.15rem;
+    }
+
+    /* Customer */
+
+    .invoice-customer-name {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #212529;
+    }
+
+    .invoice-customer-number {
+        color: #6c757d;
+        font-size: .78rem;
+    }
+
+    .invoice-customer-type {
+        display: inline-block;
+        margin-top: .35rem;
+        padding: .25rem .55rem;
+        border-radius: 999px;
+        background: #f1f3f5;
+        color: #495057;
+        font-size: .72rem;
+        font-weight: 600;
+    }
+
+    .invoice-contact-list {
+        margin-top: .9rem;
+    }
+
+    .invoice-contact-list > div {
+        margin-bottom: .35rem;
+        font-size: .85rem;
+    }
+
+    .invoice-contact-list i {
+        width: 18px;
+        color: #0b5c39;
+    }
+
+    /* Information rows */
+
+    .invoice-info-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .65rem 0;
+        border-bottom: 1px solid #f0f1f2;
+    }
+
+    .invoice-info-row:last-child {
+        border-bottom: 0;
+    }
+
+    .invoice-info-label {
+        color: #6c757d;
+        font-size: .8rem;
+    }
+
+    .invoice-info-value {
+        color: #212529;
+        font-size: .82rem;
+        font-weight: 600;
+        text-align: right;
+    }
+
+    /* Payment panel */
+
+    .invoice-payment-panel {
+        background: #0b5c39;
+        color: #fff;
+        border-radius: 14px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 6px 18px rgba(11, 92, 57, .15);
+    }
+
+    .invoice-payment-eyebrow {
+        font-size: .7rem;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        font-weight: 700;
+        color: rgba(255,255,255,.7);
+    }
+
+    .invoice-payment-amount {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-top: .2rem;
+    }
+
+    .invoice-payment-label {
+        font-size: .78rem;
+        color: rgba(255,255,255,.75);
+    }
+
+    .invoice-payment-status {
+        margin-top: .9rem;
+        padding: .7rem .8rem;
+        border-radius: 9px;
+        background: rgba(255,255,255,.10);
+        font-size: .82rem;
+    }
+
+    .invoice-payment-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .5rem;
+        margin-top: 1rem;
+    }
+
+    /* Summary */
+
+    .invoice-summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding: .7rem 0;
+        border-bottom: 1px solid #f0f1f2;
+    }
+
+    .invoice-summary-row:last-child {
+        border-bottom: 0;
+    }
+
+    .invoice-summary-label {
+        color: #6c757d;
+        font-size: .82rem;
+    }
+
+    .invoice-summary-value {
+        font-weight: 600;
+        color: #212529;
+    }
+
+    .invoice-summary-grand {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #0b5c39;
+    }
+
+    /* Items */
+
+    .invoice-items-wrap {
+        overflow-x: auto;
+    }
+
+    .invoice-items-table {
+        min-width: 1000px;
+        margin-bottom: 0;
+    }
+
+    .invoice-items-table thead th {
+        background: #f8f9fa;
+        color: #495057;
+        font-size: .72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .025em;
+        white-space: nowrap;
+        padding: .75rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .invoice-items-table tbody td {
+        vertical-align: middle;
+        padding: .75rem;
+        font-size: .84rem;
+    }
+
+    .invoice-product-name {
+        font-weight: 600;
+        color: #212529;
+    }
+
+    .invoice-product-sku {
+        color: #6c757d;
+        font-size: .72rem;
+        margin-top: .15rem;
+    }
+
+    .invoice-grand-total-row {
+        background: #f8f9fa;
+    }
+
+    .invoice-grand-total-row th {
+        font-size: .86rem;
+        padding: .9rem .75rem;
+    }
+
+    /* Notes */
+
+    .invoice-note {
+        background: #f8f9fa;
+        border: 1px solid #eef0f2;
+        border-radius: 10px;
+        padding: .9rem 1rem;
+    }
+
+    .invoice-note-label {
+        font-size: .7rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        font-weight: 700;
+        color: #6c757d;
+        margin-bottom: .3rem;
+    }
+
+    .invoice-note-text {
+        font-size: .85rem;
+        color: #343a40;
+        white-space: pre-line;
+    }
+
+    /* Sticky right column */
+
+    .invoice-sticky {
+        position: sticky;
+        top: 1rem;
+    }
+
+    /* Quick actions */
+
+    .invoice-quick-action {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        width: 100%;
+        padding: .75rem .8rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 9px;
+        background: #fff;
+        color: #212529;
+        text-decoration: none;
+        margin-bottom: .5rem;
+        transition: background .15s ease, border-color .15s ease;
+    }
+
+    .invoice-quick-action:hover {
+        background: #f8f9fa;
+        border-color: #ced4da;
+        color: #0b5c39;
+    }
+
+    .invoice-quick-action i {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        background: rgba(11, 92, 57, .08);
+        color: #0b5c39;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .invoice-quick-action strong {
+        display: block;
+        font-size: .8rem;
+    }
+
+    .invoice-quick-action span {
+        display: block;
+        font-size: .72rem;
+        color: #6c757d;
+    }
+
+    /* Overdue */
+
+    .badge-overdue {
+        background: #dc3545;
+        color: #fff;
+    }
+
+    /* Mobile */
+
+    .invoice-mobile-actions {
+        display: none;
+    }
+
+    @media (max-width: 991.98px) {
+
+        .invoice-sticky {
+            position: static;
+        }
+
+        .invoice-mobile-actions {
+            display: flex;
+            position: sticky;
+            bottom: 0;
+            z-index: 1020;
+            background: rgba(255,255,255,.96);
+            backdrop-filter: blur(8px);
+            border-top: 1px solid #dee2e6;
+            padding: .75rem;
+            gap: .5rem;
+            margin: 1rem -20px -20px;
+        }
+
+        .invoice-mobile-actions .btn {
+            flex: 1;
+        }
+
+    }
+
+    @media (max-width: 767.98px) {
+
+        .invoice-action-group {
+            width: 100%;
+        }
+
+        .invoice-action-group .btn {
+            flex: 1;
+        }
+
+        .invoice-payment-actions {
+            grid-template-columns: 1fr;
+        }
+
+    }
+
+    @media (max-width: 575.98px) {
+
+        .content {
+            padding: 14px;
+        }
+
+        .invoice-number {
+            font-size: 1.35rem;
+        }
+
+        .invoice-section-body {
+            padding: .9rem;
+        }
+
+        .invoice-section-header {
+            padding: .85rem .9rem;
+        }
+
+        .invoice-items-table {
+            min-width: 1000px;
+        }
+
+    }
+
     @media (max-width: 991.98px) {
       .chart-wrap {
         height: 180px;
@@ -614,251 +1053,1091 @@
 
   </aside>
 
-  <!-- MAIN CONTENT -->
-  <main class="content">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-      <div>
-        <h2 class="m-0">
-          Invoice #{{ invoice.id }}
-          {% if is_overdue %}
-            <span class="badge badge-overdue align-middle">Overdue</span>
-          {% else %}
-            {% if invoice.status == "paid" %}
-              <span class="badge bg-success align-middle">Paid</span>
-            {% elif invoice.status == "partial" %}
-              <span class="badge bg-warning text-dark align-middle">Partially Paid</span>
-            {% else %}
-              <span class="badge bg-secondary align-middle">Unpaid</span>
-            {% endif %}
-          {% endif %}
-        </h2>
-        <div class="meta mt-1">
-          Client: <strong>{{ client }}</strong> ·
-          Invoice date: {{ invoice.invoice_date }} ·
-          Due date: {{ invoice.due_date|default:"—" }} ·
-          Created: {{ invoice.created_at|date:"Y-m-d H:i" }}
-        </div>
-      </div>
-      <div class="d-flex gap-2">
+  <!-- =========================================================
+     MAIN CONTENT
+     ========================================================= -->
 
-        <a href="{% url 'sales:sales-invoices' %}"
-          class="btn btn-outline-secondary">
-          Back to Invoices
-        </a>
+    <main class="content">
 
-        <button class="btn btn-outline-primary"
-                data-bs-toggle="modal"
-                data-bs-target="#sendInvoiceModal">
-            <i class="bi bi-envelope"></i>
-            Send via Email
-        </button>
+      <div class="invoice-page">
 
-        <button
-            type="button"
-            class="btn btn-secondary"
-            disabled
-            title="WhatsApp sending is currently unavailable"
-        >
-            <i class="bi bi-whatsapp me-1"></i>
-            Send WhatsApp
-        </button>
 
-        <button class="btn btn-outline-success"
-                data-bs-toggle="modal"
-                data-bs-target="#sendInvoiceSmsModal">
-            Send via SMS
-        </button>
+        <!-- =====================================================
+            INVOICE HEADER
+            ===================================================== -->
 
-        
+        <div class="invoice-header">
 
-        {% if order and order.id %}
-          <a href="{% url 'sales:view-order' order.id %}"
-            class="btn btn-outline-primary">
-            View Order
-          </a>
-        {% endif %}
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
 
-      </div>
-    </div>
+            <div>
 
-    {% if success_message %}<div class="alert alert-success mt-3">{{ success_message }}</div>{% endif %}
-    {% if error_message %}<div class="alert alert-danger mt-3">{{ error_message }}</div>{% endif %}
+              <div class="invoice-eyebrow">
+                Sales · Invoices
+              </div>
 
-    <!-- SUMMARY STRIP -->
-    <div class="row g-3 mt-3">
-      <!-- Client box -->
-      <div class="col-md-4">
-        <div class="card h-100">
-          <div class="card-header bg-white"><strong>Client</strong></div>
-          <div class="card-body">
-            <div><strong>{{ client }}</strong> ({{ client.client_number }})</div>
-            {% if client.organization %}<div>{{ client.organization }}</div>{% endif %}
-            <div class="mt-2">
-              {% if client.email %}<div>Email: <a href="mailto:{{ client.email }}">{{ client.email }}</a></div>{% endif %}
-              {% if client.phone %}<div>Phone: <a href="tel:{{ client.phone }}">{{ client.phone }}</a></div>{% endif %}
-              {% if client.whatsapp %}<div>WhatsApp: <a href="https://wa.me/{{ client.whatsapp|urlencode }}" target="_blank" rel="noopener">{{ client.whatsapp }}</a></div>{% endif %}
-            </div>
-            <div class="mt-2">
-              Account: {{ client.get_account_type_display }}<br/>
-              Credit status: {{ client.get_credit_status_display }}
-            </div>
-          </div>
-        </div>
-      </div>
+              <h1 class="invoice-number">
 
-      <!-- Invoice totals -->
-      <div class="col-md-4">
-        <div class="card h-100">
-          <div class="card-header bg-white">
-            <strong>Payment Summary</strong>
-          </div>
+                Invoice #{{ invoice.id }}
 
-          <div class="card-body">
-            <div class="d-flex justify-content-between">
-              <span>Order Total (Inc):</span>
-              <strong>R{{ invoice.order_total_inc|floatformat:2 }}</strong>
-            </div>
+                <span class="invoice-status">
 
-            <div class="d-flex justify-content-between">
-              <span>Deposit Required:</span>
-              <strong>R{{ invoice.deposit_required|floatformat:2 }}</strong>
-            </div>
+                  {% if is_overdue %}
 
-            <div class="d-flex justify-content-between">
-              <span>Deposit Paid:</span>
-              <strong>R{{ invoice.deposit_paid|floatformat:2 }}</strong>
-            </div>
+                    <span class="badge badge-overdue">
+                      Overdue
+                    </span>
 
-            <div class="d-flex justify-content-between">
-              <span>Deposit Outstanding:</span>
-              <strong>R{{ deposit_outstanding|floatformat:2 }}</strong>
-            </div>
+                  {% elif invoice.status == "paid" %}
 
-            <hr/>
+                    <span class="badge bg-success">
+                      Paid
+                    </span>
 
-            <div class="d-flex justify-content-between">
-              <span>Credit Used (if any):</span>
-              <strong>R{{ invoice.credit_used|floatformat:2 }}</strong>
-            </div>
+                  {% elif invoice.status == "partial" %}
 
-            <div class="mt-2">
-              {% if is_overdue %}
-                <span class="badge badge-overdue">Overdue</span>
-              {% else %}
-                <span class="badge badge-soft">
-                  Due {{ invoice.due_date|default:"—" }}
+                    <span class="badge bg-warning text-dark">
+                      Partially Paid
+                    </span>
+
+                  {% else %}
+
+                    <span class="badge bg-secondary">
+                      Unpaid
+                    </span>
+
+                  {% endif %}
+
                 </span>
+
+              </h1>
+
+              <div class="invoice-meta">
+
+                Client:
+                <strong>{{ client }}</strong>
+
+                · Invoice date:
+                {{ invoice.invoice_date }}
+
+                · Due:
+                {{ invoice.due_date|default:"—" }}
+
+                · Created:
+                {{ invoice.created_at|date:"Y-m-d H:i" }}
+
+              </div>
+
+            </div>
+
+
+            <!-- HEADER ACTIONS -->
+
+            <div class="invoice-action-group">
+
+              <a
+                href="{% url 'sales:sales-invoices' %}"
+                class="btn btn-outline-secondary"
+              >
+                <i class="bi bi-arrow-left me-1"></i>
+                Invoices
+              </a>
+
+
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#sendInvoiceModal"
+              >
+                <i class="bi bi-envelope me-1"></i>
+                Email
+              </button>
+
+
+              <button
+                type="button"
+                class="btn btn-secondary"
+                disabled
+                title="WhatsApp sending is currently unavailable"
+              >
+                <i class="bi bi-whatsapp me-1"></i>
+                WhatsApp
+              </button>
+
+
+              <button
+                type="button"
+                class="btn btn-outline-success"
+                data-bs-toggle="modal"
+                data-bs-target="#sendInvoiceSmsModal"
+              >
+                <i class="bi bi-chat-dots me-1"></i>
+                SMS
+              </button>
+
+
+              {% if order and order.id %}
+
+                <a
+                  href="{% url 'sales:view-order' order.id %}"
+                  class="btn btn-outline-primary"
+                >
+                  <i class="bi bi-receipt me-1"></i>
+                  View Order
+                </a>
+
               {% endif %}
-            </div>
-
-            <!-- ACTION BUTTONS -->
-            <div class="d-flex flex-wrap gap-2 mt-3">
-
-              <button
-                type="button"
-                class="btn btn-primary {% if invoice.status == 'paid' %}disabled{% endif %}"
-                {% if invoice.status == 'paid' %}
-                  disabled
-                  title="Invoice already paid"
-                {% endif %}
-              >
-                <i class="bi bi-cash-coin me-1"></i>
-                Pay Deposit
-              </button>
-
-              <button
-                type="button"
-                class="btn btn-outline-primary {% if invoice.status == 'paid' %}disabled{% endif %}"
-                {% if invoice.status == 'paid' %}
-                  disabled
-                  title="Invoice already paid"
-                {% endif %}
-              >
-                <i class="bi bi-credit-card me-1"></i>
-                Pay Credit
-              </button>
 
             </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Order info -->
-      <div class="col-md-4">
-        <div class="card h-100">
-          <div class="card-header bg-white"><strong>Order</strong></div>
-          <div class="card-body">
-            <div>Order #: {{ order.id }}</div>
-            <div>Status: <span class="badge bg-info text-dark">{{ order.status|title }}</span></div>
-            <div>Channel: {{ order.get_channel_display }}</div>
-            <div>Submitted: {{ order.submitted_at|date:"Y-m-d H:i" }}</div>
-            {% if order.customer_notes %}
-              <div class="mt-2"><em>Customer notes:</em><br/>{{ order.customer_notes }}</div>
-            {% endif %}
-            {% if order.notes %}
-              <div class="mt-2"><em>Internal notes:</em><br/>{{ order.notes }}</div>
-            {% endif %}
           </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- ITEMS -->
-    <div class="card mt-3">
-      <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <strong>Items</strong>
-        <span class="text-muted small">Total lines: {{ items|length }}</span>
-      </div>
-      <div class="card-body p-0">
-        {% if items %}
-          <div class="table-responsive">
-            <table class="table table-striped table-bordered mb-0">
-              <thead>
-                <tr>
-                  <th style="width: 12%">Category</th>
-                  <th style="width: 10%">SKU</th>
-                  <th>Product</th>
-                  <th style="width: 10%" class="text-end">Qty</th>
-                  <th style="width: 12%" class="text-end">Unit Excl</th>
-                  <th style="width: 10%" class="text-end">Disc Excl</th>
-                  <th style="width: 8%" class="text-end">VAT %</th>
-                  <th style="width: 12%" class="text-end">Line Excl</th>
-                  <th style="width: 12%" class="text-end">Line VAT</th>
-                  <th style="width: 12%" class="text-end">Line Inc</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for it in items %}
-                  <tr>
-                    <td>{{ it.category.name }}</td>
-                    <td>{{ it.sku }}</td>
-                    <td>{{ it.product_name }}</td>
-                    <td class="text-end">{{ it.quantity|floatformat:2 }}</td>
-                    <td class="text-end">R{{ it.unit_price_excl|floatformat:2 }}</td>
-                    <td class="text-end">R{{ it.discount_excl|floatformat:2 }}</td>
-                    <td class="text-end">{{ it.vat_percent|floatformat:2 }}%</td>
-                    <td class="text-end">R{{ it.line_total_excl|floatformat:2 }}</td>
-                    <td class="text-end">R{{ it.line_vat_amount|floatformat:2 }}</td>
-                    <td class="text-end"><strong>R{{ it.line_total_inc|floatformat:2 }}</strong></td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <th colspan="7" class="text-end">Order Subtotal (Excl):</th>
-                  <th class="text-end">R{{ order.subtotal_excl|floatformat:2 }}</th>
-                  <th class="text-end">VAT: R{{ order.vat_total|floatformat:2 }}</th>
-                  <th class="text-end">Grand Total (Inc): R{{ order.grand_total_inc|floatformat:2 }}</th>
-                </tr>
-              </tfoot>
-            </table>
+        </div>
+
+
+        <!-- =====================================================
+            MESSAGES
+            ===================================================== -->
+
+        {% if success_message %}
+
+          <div class="alert alert-success mb-3">
+            <i class="bi bi-check-circle me-1"></i>
+            {{ success_message }}
           </div>
-        {% else %}
-          <div class="p-3"><span class="text-muted">No items on this order.</span></div>
+
         {% endif %}
+
+
+        {% if error_message %}
+
+          <div class="alert alert-danger mb-3">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            {{ error_message }}
+          </div>
+
+        {% endif %}
+
+
+        <!-- =====================================================
+            MAIN GRID
+            ===================================================== -->
+
+        <div class="row g-4">
+
+
+          <!-- ===================================================
+              LEFT COLUMN
+              =================================================== -->
+
+          <div class="col-lg-8">
+
+
+            <!-- ===============================================
+                CLIENT
+                =============================================== -->
+
+            <div class="invoice-section">
+
+              <div class="invoice-section-header">
+
+                <div class="invoice-section-icon">
+                  <i class="bi bi-person"></i>
+                </div>
+
+                <div>
+
+                  <h2 class="invoice-section-title">
+                    Customer
+                  </h2>
+
+                  <div class="invoice-section-subtitle">
+                    Invoice account and contact information
+                  </div>
+
+                </div>
+
+              </div>
+
+
+              <div class="invoice-section-body">
+
+                <div class="invoice-customer-name">
+                  {{ client }}
+                </div>
+
+                <div class="invoice-customer-number">
+                  Client #{{ client.client_number }}
+                </div>
+
+
+                {% if client.organization %}
+
+                  <div class="invoice-customer-type">
+                    {{ client.organization }}
+                  </div>
+
+                {% endif %}
+
+
+                <div class="invoice-contact-list">
+
+                  {% if client.email %}
+
+                    <div>
+                      <i class="bi bi-envelope"></i>
+                      <a href="mailto:{{ client.email }}">
+                        {{ client.email }}
+                      </a>
+                    </div>
+
+                  {% endif %}
+
+
+                  {% if client.phone %}
+
+                    <div>
+                      <i class="bi bi-telephone"></i>
+                      <a href="tel:{{ client.phone }}">
+                        {{ client.phone }}
+                      </a>
+                    </div>
+
+                  {% endif %}
+
+
+                  {% if client.whatsapp %}
+
+                    <div>
+                      <i class="bi bi-whatsapp"></i>
+                      <a
+                        href="https://wa.me/{{ client.whatsapp|urlencode }}"
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        {{ client.whatsapp }}
+                      </a>
+                    </div>
+
+                  {% endif %}
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <!-- ===============================================
+                ORDER / INVOICE INFORMATION
+                =============================================== -->
+
+            <div class="invoice-section">
+
+              <div class="invoice-section-header">
+
+                <div class="invoice-section-icon">
+                  <i class="bi bi-file-earmark-text"></i>
+                </div>
+
+                <div>
+
+                  <h2 class="invoice-section-title">
+                    Invoice Information
+                  </h2>
+
+                  <div class="invoice-section-subtitle">
+                    Billing and originating order details
+                  </div>
+
+                </div>
+
+              </div>
+
+
+              <div class="invoice-section-body">
+
+                <div class="row g-4">
+
+                  <div class="col-md-6">
+
+                    <div class="invoice-info-row">
+
+                      <span class="invoice-info-label">
+                        Invoice Number
+                      </span>
+
+                      <span class="invoice-info-value">
+                        INV-{{ invoice.id }}
+                      </span>
+
+                    </div>
+
+
+                    <div class="invoice-info-row">
+
+                      <span class="invoice-info-label">
+                        Invoice Date
+                      </span>
+
+                      <span class="invoice-info-value">
+                        {{ invoice.invoice_date }}
+                      </span>
+
+                    </div>
+
+
+                    <div class="invoice-info-row">
+
+                      <span class="invoice-info-label">
+                        Due Date
+                      </span>
+
+                      <span class="invoice-info-value">
+                        {{ invoice.due_date|default:"—" }}
+                      </span>
+
+                    </div>
+
+                  </div>
+
+
+                  <div class="col-md-6">
+
+                    <div class="invoice-info-row">
+
+                      <span class="invoice-info-label">
+                        Order
+                      </span>
+
+                      <span class="invoice-info-value">
+                        #{{ order.id }}
+                      </span>
+
+                    </div>
+
+
+                    <div class="invoice-info-row">
+
+                      <span class="invoice-info-label">
+                        Order Status
+                      </span>
+
+                      <span class="invoice-info-value">
+                        <span class="badge bg-info text-dark">
+                          {{ order.status|title }}
+                        </span>
+                      </span>
+
+                    </div>
+
+
+                    <div class="invoice-info-row">
+
+                      <span class="invoice-info-label">
+                        Channel
+                      </span>
+
+                      <span class="invoice-info-value">
+                        {{ order.get_channel_display }}
+                      </span>
+
+                    </div>
+
+
+                    <div class="invoice-info-row">
+
+                      <span class="invoice-info-label">
+                        Submitted
+                      </span>
+
+                      <span class="invoice-info-value">
+                        {{ order.submitted_at|date:"Y-m-d H:i" }}
+                      </span>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <!-- ===============================================
+                ITEMS
+                =============================================== -->
+
+            <div class="invoice-section">
+
+              <div class="invoice-section-header">
+
+                <div class="invoice-section-icon">
+                  <i class="bi bi-box-seam"></i>
+                </div>
+
+                <div class="flex-grow-1">
+
+                  <h2 class="invoice-section-title">
+                    Invoice Items
+                  </h2>
+
+                  <div class="invoice-section-subtitle">
+                    {{ items|length }} line{{ items|length|pluralize }} on this invoice
+                  </div>
+
+                </div>
+
+              </div>
+
+
+              <div class="invoice-section-body p-0">
+
+                {% if items %}
+
+                  <div class="invoice-items-wrap">
+
+                    <table class="table table-hover invoice-items-table">
+
+                      <thead>
+
+                        <tr>
+
+                          <th style="width:12%;">
+                            Category
+                          </th>
+
+                          <th style="width:10%;">
+                            SKU
+                          </th>
+
+                          <th>
+                            Product
+                          </th>
+
+                          <th
+                            style="width:9%;"
+                            class="text-end"
+                          >
+                            Qty
+                          </th>
+
+                          <th
+                            style="width:12%;"
+                            class="text-end"
+                          >
+                            Unit Excl
+                          </th>
+
+                          <th
+                            style="width:10%;"
+                            class="text-end"
+                          >
+                            Discount
+                          </th>
+
+                          <th
+                            style="width:8%;"
+                            class="text-end"
+                          >
+                            VAT
+                          </th>
+
+                          <th
+                            style="width:12%;"
+                            class="text-end"
+                          >
+                            Line Excl
+                          </th>
+
+                          <th
+                            style="width:12%;"
+                            class="text-end"
+                          >
+                            VAT
+                          </th>
+
+                          <th
+                            style="width:12%;"
+                            class="text-end"
+                          >
+                            Line Inc
+                          </th>
+
+                        </tr>
+
+                      </thead>
+
+
+                      <tbody>
+
+                        {% for it in items %}
+
+                          <tr>
+
+                            <td>
+                              {{ it.category.name }}
+                            </td>
+
+                            <td>
+                              {{ it.sku }}
+                            </td>
+
+                            <td>
+
+                              <div class="invoice-product-name">
+                                {{ it.product_name }}
+                              </div>
+
+                            </td>
+
+                            <td class="text-end">
+                              {{ it.quantity|floatformat:2 }}
+                            </td>
+
+                            <td class="text-end">
+                              R{{ it.unit_price_excl|floatformat:2 }}
+                            </td>
+
+                            <td class="text-end">
+                              R{{ it.discount_excl|floatformat:2 }}
+                            </td>
+
+                            <td class="text-end">
+                              {{ it.vat_percent|floatformat:2 }}%
+                            </td>
+
+                            <td class="text-end">
+                              R{{ it.line_total_excl|floatformat:2 }}
+                            </td>
+
+                            <td class="text-end">
+                              R{{ it.line_vat_amount|floatformat:2 }}
+                            </td>
+
+                            <td class="text-end">
+
+                              <strong>
+                                R{{ it.line_total_inc|floatformat:2 }}
+                              </strong>
+
+                            </td>
+
+                          </tr>
+
+                        {% endfor %}
+
+                      </tbody>
+
+
+                      <tfoot>
+
+                        <tr>
+
+                          <th
+                            colspan="7"
+                            class="text-end"
+                          >
+                            Order Subtotal (Excl)
+                          </th>
+
+                          <th class="text-end">
+                            R{{ order.subtotal_excl|floatformat:2 }}
+                          </th>
+
+                          <th class="text-end">
+                            R{{ order.vat_total|floatformat:2 }}
+                          </th>
+
+                          <th class="text-end">
+                            R{{ order.grand_total_inc|floatformat:2 }}
+                          </th>
+
+                        </tr>
+
+                      </tfoot>
+
+                    </table>
+
+                  </div>
+
+                {% else %}
+
+                  <div class="invoice-section-body">
+
+                    <div class="text-muted">
+                      No items on this order.
+                    </div>
+
+                  </div>
+
+                {% endif %}
+
+              </div>
+
+            </div>
+
+
+            <!-- ===============================================
+                ORDER NOTES
+                =============================================== -->
+
+            {% if order.customer_notes or order.notes %}
+
+              <div class="invoice-section">
+
+                <div class="invoice-section-header">
+
+                  <div class="invoice-section-icon">
+                    <i class="bi bi-sticky"></i>
+                  </div>
+
+                  <div>
+
+                    <h2 class="invoice-section-title">
+                      Notes
+                    </h2>
+
+                    <div class="invoice-section-subtitle">
+                      Notes associated with the originating order
+                    </div>
+
+                  </div>
+
+                </div>
+
+
+                <div class="invoice-section-body">
+
+                  <div class="row g-3">
+
+                    {% if order.customer_notes %}
+
+                      <div class="col-md-6">
+
+                        <div class="invoice-note">
+
+                          <div class="invoice-note-label">
+                            Customer Notes
+                          </div>
+
+                          <div class="invoice-note-text">
+                            {{ order.customer_notes }}
+                          </div>
+
+                        </div>
+
+                      </div>
+
+                    {% endif %}
+
+
+                    {% if order.notes %}
+
+                      <div class="col-md-6">
+
+                        <div class="invoice-note">
+
+                          <div class="invoice-note-label">
+                            Internal Notes
+                          </div>
+
+                          <div class="invoice-note-text">
+                            {{ order.notes }}
+                          </div>
+
+                        </div>
+
+                      </div>
+
+                    {% endif %}
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            {% endif %}
+
+
+          </div>
+
+
+          <!-- ===================================================
+              RIGHT COLUMN
+              =================================================== -->
+
+          <div class="col-lg-4">
+
+            <div class="invoice-sticky">
+
+
+              <!-- =============================================
+                  PAYMENT POSITION
+                  ============================================= -->
+
+              <div class="invoice-payment-panel">
+
+                <div class="invoice-payment-eyebrow">
+                  Invoice Total
+                </div>
+
+                <div class="invoice-payment-amount">
+                  R{{ invoice.order_total_inc|floatformat:2 }}
+                </div>
+
+                <div class="invoice-payment-label">
+                  Total including VAT
+                </div>
+
+
+                <div class="invoice-payment-status">
+
+                  {% if is_overdue %}
+
+                    <strong>
+                      <i class="bi bi-exclamation-circle me-1"></i>
+                      Payment overdue
+                    </strong>
+
+                  {% elif invoice.status == "paid" %}
+
+                    <strong>
+                      <i class="bi bi-check-circle me-1"></i>
+                      Invoice fully paid
+                    </strong>
+
+                  {% elif invoice.status == "partial" %}
+
+                    <strong>
+                      <i class="bi bi-clock-history me-1"></i>
+                      Partially paid
+                    </strong>
+
+                  {% else %}
+
+                    <strong>
+                      <i class="bi bi-hourglass-split me-1"></i>
+                      Payment outstanding
+                    </strong>
+
+                  {% endif %}
+
+                </div>
+
+
+                <div class="invoice-payment-actions">
+
+                  <button
+                    type="button"
+                    class="btn btn-light {% if invoice.status == 'paid' %}disabled{% endif %}"
+                    {% if invoice.status == 'paid' %}
+                      disabled
+                      title="Invoice already paid"
+                    {% endif %}
+                  >
+                    <i class="bi bi-cash-coin me-1"></i>
+                    Pay Deposit
+                  </button>
+
+
+                  <button
+                    type="button"
+                    class="btn btn-outline-light {% if invoice.status == 'paid' %}disabled{% endif %}"
+                    {% if invoice.status == 'paid' %}
+                      disabled
+                      title="Invoice already paid"
+                    {% endif %}
+                  >
+                    <i class="bi bi-credit-card me-1"></i>
+                    Pay Credit
+                  </button>
+
+                </div>
+
+              </div>
+
+
+              <!-- =============================================
+                  PAYMENT SUMMARY
+                  ============================================= -->
+
+              <div class="invoice-section">
+
+                <div class="invoice-section-header">
+
+                  <div class="invoice-section-icon">
+                    <i class="bi bi-wallet2"></i>
+                  </div>
+
+                  <div>
+
+                    <h2 class="invoice-section-title">
+                      Payment Summary
+                    </h2>
+
+                    <div class="invoice-section-subtitle">
+                      Current payment position
+                    </div>
+
+                  </div>
+
+                </div>
+
+
+                <div class="invoice-section-body">
+
+                  <div class="invoice-summary-row">
+
+                    <span class="invoice-summary-label">
+                      Order Total
+                    </span>
+
+                    <span class="invoice-summary-value">
+                      R{{ invoice.order_total_inc|floatformat:2 }}
+                    </span>
+
+                  </div>
+
+
+                  <div class="invoice-summary-row">
+
+                    <span class="invoice-summary-label">
+                      Deposit Required
+                    </span>
+
+                    <span class="invoice-summary-value">
+                      R{{ invoice.deposit_required|floatformat:2 }}
+                    </span>
+
+                  </div>
+
+
+                  <div class="invoice-summary-row">
+
+                    <span class="invoice-summary-label">
+                      Deposit Paid
+                    </span>
+
+                    <span class="invoice-summary-value">
+                      R{{ invoice.deposit_paid|floatformat:2 }}
+                    </span>
+
+                  </div>
+
+
+                  <div class="invoice-summary-row">
+
+                    <span class="invoice-summary-label">
+                      Deposit Outstanding
+                    </span>
+
+                    <span class="invoice-summary-value">
+                      R{{ deposit_outstanding|floatformat:2 }}
+                    </span>
+
+                  </div>
+
+
+                  <div class="invoice-summary-row">
+
+                    <span class="invoice-summary-label">
+                      Credit Used
+                    </span>
+
+                    <span class="invoice-summary-value">
+                      R{{ invoice.credit_used|floatformat:2 }}
+                    </span>
+
+                  </div>
+
+
+                  <div class="mt-3">
+
+                    {% if is_overdue %}
+
+                      <span class="badge badge-overdue">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        Overdue
+                      </span>
+
+                    {% else %}
+
+                      <span class="badge bg-light text-dark border">
+                        Due {{ invoice.due_date|default:"—" }}
+                      </span>
+
+                    {% endif %}
+
+                  </div>
+
+                </div>
+
+              </div>
+
+
+              <!-- =============================================
+                  QUICK ACTIONS
+                  ============================================= -->
+
+              <div class="invoice-section">
+
+                <div class="invoice-section-header">
+
+                  <div class="invoice-section-icon">
+                    <i class="bi bi-lightning"></i>
+                  </div>
+
+                  <div>
+
+                    <h2 class="invoice-section-title">
+                      Quick Actions
+                    </h2>
+
+                    <div class="invoice-section-subtitle">
+                      Send or navigate to related records
+                    </div>
+
+                  </div>
+
+                </div>
+
+
+                <div class="invoice-section-body">
+
+
+                  <button
+                    type="button"
+                    class="invoice-quick-action"
+                    data-bs-toggle="modal"
+                    data-bs-target="#sendInvoiceModal"
+                  >
+
+                    <i class="bi bi-envelope"></i>
+
+                    <span>
+                      <strong>Send by Email</strong>
+                      <span>Send the invoice directly to the customer.</span>
+                    </span>
+
+                  </button>
+
+
+                  <button
+                    type="button"
+                    class="invoice-quick-action"
+                    data-bs-toggle="modal"
+                    data-bs-target="#sendInvoiceSmsModal"
+                  >
+
+                    <i class="bi bi-chat-dots"></i>
+
+                    <span>
+                      <strong>Send by SMS</strong>
+                      <span>Send an invoice notification by SMS.</span>
+                    </span>
+
+                  </button>
+
+
+                  <button
+                    type="button"
+                    class="invoice-quick-action"
+                    disabled
+                    title="WhatsApp sending is currently unavailable"
+                  >
+
+                    <i class="bi bi-whatsapp"></i>
+
+                    <span>
+                      <strong>Send by WhatsApp</strong>
+                      <span>Currently unavailable.</span>
+                    </span>
+
+                  </button>
+
+
+                  {% if order and order.id %}
+
+                    <a
+                      href="{% url 'sales:view-order' order.id %}"
+                      class="invoice-quick-action"
+                    >
+
+                      <i class="bi bi-receipt"></i>
+
+                      <span>
+                        <strong>View Order #{{ order.id }}</strong>
+                        <span>Open the originating order.</span>
+                      </span>
+
+                    </a>
+
+                  {% endif %}
+
+
+                </div>
+
+              </div>
+
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- =====================================================
+            MOBILE ACTION BAR
+            ===================================================== -->
+
+        <div class="invoice-mobile-actions">
+
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            data-bs-toggle="modal"
+            data-bs-target="#sendInvoiceModal"
+          >
+            <i class="bi bi-envelope me-1"></i>
+            Email
+          </button>
+
+
+          <button
+            type="button"
+            class="btn btn-outline-success"
+            data-bs-toggle="modal"
+            data-bs-target="#sendInvoiceSmsModal"
+          >
+            <i class="bi bi-chat-dots me-1"></i>
+            SMS
+          </button>
+
+
+          {% if order and order.id %}
+
+            <a
+              href="{% url 'sales:view-order' order.id %}"
+              class="btn btn-outline-secondary"
+            >
+              <i class="bi bi-receipt me-1"></i>
+              Order
+            </a>
+
+          {% endif %}
+
+        </div>
+
+
       </div>
-    </div>
-  </main>
+
+    </main>
 
   <div class="modal fade"
      id="sendInvoiceModal"

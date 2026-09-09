@@ -82,6 +82,369 @@
     }
 
     /* =========================================================
+      PRODUCT KNOWLEDGE / PRODUCT CATALOGUE
+      ========================================================= */
+
+    .product-page {
+        max-width: 1550px;
+        margin: 0 auto;
+    }
+
+    .product-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .product-eyebrow {
+        font-size: .72rem;
+        font-weight: 700;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: #0b5c39;
+        margin-bottom: .35rem;
+    }
+
+    .product-page-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -.02em;
+        color: #18221d;
+        margin-bottom: .25rem;
+    }
+
+    .product-page-subtitle {
+        color: #6c757d;
+        font-size: .92rem;
+    }
+
+    .product-count-badge {
+        background: #fff;
+        color: #18221d;
+        border: 1px solid #e2e7e4;
+        border-radius: 999px;
+        padding: .55rem .85rem;
+        font-size: .78rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    /* FILTER CARD */
+
+    .product-filter-card {
+        background: #fff;
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 .125rem .5rem rgba(0,0,0,.06);
+        margin-bottom: 1.5rem;
+    }
+
+    .product-filter-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #edf0ee;
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+    }
+
+    .product-filter-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(11,92,57,.09);
+        color: #0b5c39;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .product-filter-title {
+        font-size: .98rem;
+        font-weight: 700;
+        color: #18221d;
+        margin: 0;
+    }
+
+    .product-filter-subtitle {
+        font-size: .78rem;
+        color: #6c757d;
+        margin-top: .1rem;
+    }
+
+    .product-filter-body {
+        padding: 1.25rem;
+    }
+
+    .product-filter-label {
+        font-size: .76rem;
+        font-weight: 700;
+        color: #4e5a54;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        margin-bottom: .4rem;
+    }
+
+    .product-filter-body .form-control,
+    .product-filter-body .form-select,
+    .product-filter-body .input-group-text {
+        min-height: 42px;
+        border-radius: 8px;
+    }
+
+    .product-filter-body .input-group .input-group-text {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    .product-filter-body .input-group .form-control {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+
+    .product-search-wrap {
+        position: relative;
+    }
+
+    .product-search-wrap .form-control {
+        padding-left: 2.55rem;
+    }
+
+    .product-search-icon {
+        position: absolute;
+        left: .9rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #8a938e;
+        z-index: 3;
+    }
+
+    /* RESULTS */
+
+    .product-results-card {
+        background: #fff;
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 .125rem .5rem rgba(0,0,0,.06);
+        overflow: hidden;
+    }
+
+    .product-results-header {
+        padding: 1.15rem 1.25rem;
+        border-bottom: 1px solid #edf0ee;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .product-results-heading {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+    }
+
+    .product-results-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(11,92,57,.09);
+        color: #0b5c39;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .product-results-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #18221d;
+        margin: 0;
+    }
+
+    .product-results-subtitle {
+        font-size: .78rem;
+        color: #6c757d;
+        margin-top: .1rem;
+    }
+
+    .product-results-count {
+        font-size: .78rem;
+        color: #6c757d;
+        white-space: nowrap;
+    }
+
+    /* TABLE */
+
+    .product-table-wrap {
+        overflow-x: auto;
+    }
+
+    .product-table {
+        min-width: 950px;
+        margin: 0;
+    }
+
+    .product-table thead th {
+        background: #f7f9f8;
+        color: #68736d;
+        font-size: .71rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .045em;
+        white-space: nowrap;
+        border-bottom: 1px solid #e8ece9;
+        padding: .9rem .85rem;
+    }
+
+    .product-table tbody td {
+        padding: .85rem;
+        border-bottom: 1px solid #eef1ef;
+        vertical-align: middle;
+        font-size: .84rem;
+    }
+
+    .product-table tbody tr {
+        transition: background .12s ease;
+    }
+
+    .product-table tbody tr:hover {
+        background: #fbfcfb;
+    }
+
+    .product-number {
+        font-size: .78rem;
+        font-weight: 700;
+        color: #0b5c39;
+        white-space: nowrap;
+    }
+
+    .product-cell {
+        min-width: 250px;
+    }
+
+    .product-image {
+        width: 52px;
+        height: 52px;
+        border-radius: 10px;
+        object-fit: cover;
+        background: #f1f3f2;
+        flex-shrink: 0;
+        border: 1px solid #e7ebe9;
+    }
+
+    .product-image-placeholder {
+        width: 52px;
+        height: 52px;
+        border-radius: 10px;
+        background: #f1f3f2;
+        color: #8a938e;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .product-name {
+        font-weight: 700;
+        color: #18221d;
+        line-height: 1.25;
+    }
+
+    .product-sku {
+        font-size: .72rem;
+        color: #8a938e;
+        margin-top: .2rem;
+    }
+
+    .product-category {
+        font-weight: 600;
+        color: #36423b;
+    }
+
+    .product-subcategory {
+        color: #68736d;
+    }
+
+    .product-price {
+        font-size: .9rem;
+        font-weight: 700;
+        color: #18221d;
+        white-space: nowrap;
+    }
+
+    .product-action .btn {
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: .76rem;
+        padding: .42rem .7rem;
+    }
+
+    /* EMPTY STATE */
+
+    .product-empty {
+        padding: 4rem 1rem;
+        text-align: center;
+    }
+
+    .product-empty-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 14px;
+        background: #f1f3f2;
+        color: #8a938e;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 1.35rem;
+    }
+
+    .product-empty-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #18221d;
+        margin-bottom: .35rem;
+    }
+
+    .product-empty-text {
+        color: #6c757d;
+        font-size: .84rem;
+        margin-bottom: 1rem;
+    }
+
+    /* MOBILE */
+
+    @media (max-width: 991.98px) {
+        .product-page-header {
+            flex-direction: column;
+        }
+
+        .product-count-badge {
+            align-self: flex-start;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .product-page-title {
+            font-size: 1.4rem;
+        }
+
+        .product-filter-body {
+            padding: 1rem;
+        }
+
+        .product-results-header {
+            padding: 1rem;
+        }
+
+        .product-results-count {
+            display: none;
+        }
+    }
+
+    /* =========================================================
        CHART
        ========================================================= */
 
@@ -615,494 +978,546 @@
   </aside>
 
   <main class="content">
-    <div class="container-fluid py-4">
 
-        <!-- ================================================================
-            PAGE HEADER
-            ================================================================ -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="container-fluid py-4 product-page">
 
-        <div>
-            <h1 class="mb-1">
-            Products
-            </h1>
+        <!-- =====================================================
+             PAGE HEADER
+             ===================================================== -->
 
-            <p class="text-muted mb-0">
-            Search and browse the product catalogue.
-            </p>
-        </div>
-
-        <div>
-            <span class="badge bg-light text-dark border px-3 py-2">
-            {{ products|length }}
-            product{{ products|length|pluralize }}
-            </span>
-        </div>
-
-        </div>
-
-
-        <!-- ================================================================
-            SEARCH & FILTERS
-            ================================================================ -->
-        <div class="card border-0 shadow-sm mb-4">
-
-        <div class="card-body p-4">
-
-            <form method="get">
-
-            <div class="row g-3">
-
-                <!-- Search -->
-                <div class="col-lg-5">
-
-                <label
-                    for="q"
-                    class="form-label fw-semibold"
-                >
-                    Search
-                </label>
-
-                <input
-                    type="text"
-                    id="q"
-                    name="q"
-                    value="{{ search_query|default:'' }}"
-                    class="form-control"
-                    placeholder="Product name, category, sub-category or SKU..."
-                >
-
-                </div>
-
-
-                <!-- Category -->
-                <div class="col-lg-3">
-
-                <label
-                    for="category"
-                    class="form-label fw-semibold"
-                >
-                    Category
-                </label>
-
-                <select
-                    id="category"
-                    name="category"
-                    class="form-select"
-                >
-
-                    <option value="">
-                    All Categories
-                    </option>
-
-                    {% for category in categories %}
-
-                    {% if not category.parent %}
-
-                        <option
-                        value="{{ category.id }}"
-                        {% if selected_category == category.id|stringformat:"s" %}
-                            selected
-                        {% endif %}
-                        >
-                        {{ category.name }}
-                        </option>
-
-                    {% endif %}
-
-                    {% endfor %}
-
-                </select>
-
-                </div>
-
-
-                <!-- Sub-category -->
-                <div class="col-lg-4">
-
-                <label
-                    for="subcategory"
-                    class="form-label fw-semibold"
-                >
-                    Sub-category
-                </label>
-
-                <select
-                    id="subcategory"
-                    name="subcategory"
-                    class="form-select"
-                >
-
-                    <option value="">
-                    All Sub-categories
-                    </option>
-
-                    {% for category in categories %}
-
-                    {% if category.parent %}
-
-                        <option
-                        value="{{ category.id }}"
-                        data-parent="{{ category.parent_id }}"
-                        {% if selected_subcategory == category.id|stringformat:"s" %}
-                            selected
-                        {% endif %}
-                        >
-                        {{ category.name }}
-                        </option>
-
-                    {% endif %}
-
-                    {% endfor %}
-
-                </select>
-
-                </div>
-
-
-                <!-- Minimum Price -->
-                <div class="col-lg-3">
-
-                <label
-                    for="min_price"
-                    class="form-label fw-semibold"
-                >
-                    Minimum Price
-                </label>
-
-                <div class="input-group">
-
-                    <span class="input-group-text">
-                    R
-                    </span>
-
-                    <input
-                    type="number"
-                    id="min_price"
-                    name="min_price"
-                    value="{{ min_price|default:'' }}"
-                    class="form-control"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    >
-
-                </div>
-
-                </div>
-
-
-                <!-- Maximum Price -->
-                <div class="col-lg-3">
-
-                <label
-                    for="max_price"
-                    class="form-label fw-semibold"
-                >
-                    Maximum Price
-                </label>
-
-                <div class="input-group">
-
-                    <span class="input-group-text">
-                    R
-                    </span>
-
-                    <input
-                    type="number"
-                    id="max_price"
-                    name="max_price"
-                    value="{{ max_price|default:'' }}"
-                    class="form-control"
-                    min="0"
-                    step="0.01"
-                    placeholder="No maximum"
-                    >
-
-                </div>
-
-                </div>
-
-
-                <!-- Search / Clear -->
-                <div class="col-lg-6 d-flex align-items-end gap-2">
-
-                <button
-                    type="submit"
-                    class="btn btn-primary px-4"
-                >
-                    <i class="bi bi-search me-1"></i>
-                    Search
-                </button>
-
-                <a
-                    href="{% url 'sales:sales-knowledge-list' %}"
-                    class="btn btn-outline-secondary px-4"
-                >
-                    Clear
-                </a>
-
-                </div>
-
-            </div>
-
-            </form>
-
-        </div>
-
-        </div>
-
-
-        <!-- ================================================================
-            PRODUCT RESULTS
-            ================================================================ -->
-        <div class="card border-0 shadow-sm">
-
-        <div class="card-header bg-white py-3">
-
-            <div class="d-flex justify-content-between align-items-center">
+        <div class="product-page-header">
 
             <div>
 
-                <h5 class="mb-0">
-                Product Catalogue
-                </h5>
+                <div class="product-eyebrow">
+                    Sales · Product Knowledge
+                </div>
 
-                <small class="text-muted">
-                Available products
-                </small>
+                <h1 class="product-page-title">
+                    Product Catalogue
+                </h1>
+
+                <p class="product-page-subtitle mb-0">
+                    Search and browse the product catalogue.
+                </p>
 
             </div>
 
-            <span class="text-muted">
+            <div class="product-count-badge">
                 {{ products|length }}
-                result{{ products|length|pluralize }}
-            </span>
+                product{{ products|length|pluralize }}
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             SEARCH & FILTERS
+             ===================================================== -->
+
+        <div class="product-filter-card">
+
+            <div class="product-filter-header">
+
+                <div class="product-filter-icon">
+                    <i class="bi bi-funnel"></i>
+                </div>
+
+                <div>
+
+                    <h2 class="product-filter-title">
+                        Search & Filters
+                    </h2>
+
+                    <div class="product-filter-subtitle">
+                        Narrow the catalogue by product, category or price.
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="product-filter-body">
+
+                <form method="get">
+
+                    <div class="row g-3">
+
+                        <!-- SEARCH -->
+
+                        <div class="col-12 col-lg-5">
+
+                            <label
+                                for="q"
+                                class="product-filter-label"
+                            >
+                                Search Products
+                            </label>
+
+                            <div class="product-search-wrap">
+
+                                <i class="bi bi-search product-search-icon"></i>
+
+                                <input
+                                    type="text"
+                                    id="q"
+                                    name="q"
+                                    value="{{ search_query|default:'' }}"
+                                    class="form-control"
+                                    placeholder="Product name, category, sub-category or SKU..."
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- CATEGORY -->
+
+                        <div class="col-12 col-md-6 col-lg-3">
+
+                            <label
+                                for="category"
+                                class="product-filter-label"
+                            >
+                                Category
+                            </label>
+
+                            <select
+                                id="category"
+                                name="category"
+                                class="form-select"
+                            >
+
+                                <option value="">
+                                    All Categories
+                                </option>
+
+                                {% for category in categories %}
+
+                                    {% if not category.parent %}
+
+                                        <option
+                                            value="{{ category.id }}"
+                                            {% if selected_category == category.id|stringformat:"s" %}
+                                                selected
+                                            {% endif %}
+                                        >
+                                            {{ category.name }}
+                                        </option>
+
+                                    {% endif %}
+
+                                {% endfor %}
+
+                            </select>
+
+                        </div>
+
+
+                        <!-- SUB-CATEGORY -->
+
+                        <div class="col-12 col-md-6 col-lg-4">
+
+                            <label
+                                for="subcategory"
+                                class="product-filter-label"
+                            >
+                                Sub-category
+                            </label>
+
+                            <select
+                                id="subcategory"
+                                name="subcategory"
+                                class="form-select"
+                            >
+
+                                <option value="">
+                                    All Sub-categories
+                                </option>
+
+                                {% for category in categories %}
+
+                                    {% if category.parent %}
+
+                                        <option
+                                            value="{{ category.id }}"
+                                            data-parent="{{ category.parent_id }}"
+                                            {% if selected_subcategory == category.id|stringformat:"s" %}
+                                                selected
+                                            {% endif %}
+                                        >
+                                            {{ category.name }}
+                                        </option>
+
+                                    {% endif %}
+
+                                {% endfor %}
+
+                            </select>
+
+                        </div>
+
+
+                        <!-- MIN PRICE -->
+
+                        <div class="col-12 col-sm-6 col-lg-3">
+
+                            <label
+                                for="min_price"
+                                class="product-filter-label"
+                            >
+                                Minimum Price
+                            </label>
+
+                            <div class="input-group">
+
+                                <span class="input-group-text">
+                                    R
+                                </span>
+
+                                <input
+                                    type="number"
+                                    id="min_price"
+                                    name="min_price"
+                                    value="{{ min_price|default:'' }}"
+                                    class="form-control"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- MAX PRICE -->
+
+                        <div class="col-12 col-sm-6 col-lg-3">
+
+                            <label
+                                for="max_price"
+                                class="product-filter-label"
+                            >
+                                Maximum Price
+                            </label>
+
+                            <div class="input-group">
+
+                                <span class="input-group-text">
+                                    R
+                                </span>
+
+                                <input
+                                    type="number"
+                                    id="max_price"
+                                    name="max_price"
+                                    value="{{ max_price|default:'' }}"
+                                    class="form-control"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="No maximum"
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- ACTIONS -->
+
+                        <div class="col-12 col-lg-6 d-flex align-items-end gap-2">
+
+                            <button
+                                type="submit"
+                                class="btn btn-primary px-4"
+                            >
+                                <i class="bi bi-search me-1"></i>
+                                Search
+                            </button>
+
+                            <a
+                                href="{% url 'sales:sales-knowledge-list' %}"
+                                class="btn btn-outline-secondary px-4"
+                            >
+                                Clear
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                </form>
 
             </div>
 
         </div>
 
 
-        {% if products %}
+        <!-- =====================================================
+             PRODUCT RESULTS
+             ===================================================== -->
 
-            <div class="table-responsive">
+        <div class="product-results-card">
 
-            <table class="table table-hover align-middle mb-0">
+            <div class="product-results-header">
 
-                <thead class="table-light">
+                <div class="product-results-heading">
 
-                <tr>
+                    <div class="product-results-icon">
+                        <i class="bi bi-box-seam"></i>
+                    </div>
 
-                    <th>
-                    Product No.
-                    </th>
+                    <div>
 
-                    <th>
-                    Product
-                    </th>
+                        <h2 class="product-results-title">
+                            Products
+                        </h2>
 
-                    <th>
-                    Category
-                    </th>
-
-                    <th>
-                    Sub-category
-                    </th>
-
-                    
-
-                    <th class="text-end">
-                    Wholesale Price
-                    </th>
-
-                    <th class="text-end">
-                    Action
-                    </th>
-
-                </tr>
-
-                </thead>
-
-
-                <tbody>
-
-                {% for product in products %}
-
-                    <tr>
-
-                    <!-- Product Number -->
-                    <td>
-
-                        <span class="fw-semibold">
-                        {{ product.product_no }}
-                        </span>
-
-                    </td>
-
-
-                    <!-- Product -->
-                    <td>
-
-                        <div class="d-flex align-items-center">
-
-                        {% if product.image %}
-
-                            <img
-                            src="{{ product.image.url }}"
-                            alt="{{ product.name }}"
-                            class="rounded me-3"
-                            style="
-                                width: 48px;
-                                height: 48px;
-                                object-fit: cover;
-                            "
-                            >
-
-                        {% endif %}
-
-                        <div>
-
-                            <div class="fw-semibold">
-                            {{ product.name }}
-                            </div>
-
-                            {% if product.sku %}
-
-                            <small class="text-muted">
-                                SKU: {{ product.sku }}
-                            </small>
-
-                            {% endif %}
-
+                        <div class="product-results-subtitle">
+                            Available products and wholesale pricing
                         </div>
 
-                        </div>
+                    </div>
 
-                    </td>
+                </div>
 
+                <div class="product-results-count">
 
-                    <!-- Category -->
-                    <td>
+                    {{ products|length }}
+                    result{{ products|length|pluralize }}
 
-                        {% if product.category.parent %}
-
-                        {{ product.category.parent.name }}
-
-                        {% else %}
-
-                        {{ product.category.name }}
-
-                        {% endif %}
-
-                    </td>
-
-
-                    <!-- Sub-category -->
-                    <td>
-
-                        {% if product.category.parent %}
-
-                        {{ product.category.name }}
-
-                        {% else %}
-
-                        <span class="text-muted">
-                            —
-                        </span>
-
-                        {% endif %}
-
-                    </td>
-
-
-                    
-
-
-                    <!-- Price -->
-                    <td class="text-end">
-
-                        {% if product.wholesale_price %}
-
-                        <span class="fw-semibold">
-                            R {{ product.wholesale_price|floatformat:2 }}
-                        </span>
-
-                        {% else %}
-
-                        <span class="text-muted">
-                            —
-                        </span>
-
-                        {% endif %}
-
-                    </td>
-
-
-                    <!-- Action -->
-                    <td class="text-end">
-
-                        <a
-                        href="{% url 'sales:sales-knowledge-detail' product.pk %}"
-                        class="btn btn-sm btn-outline-primary"
-                        >
-                        View
-                        </a>
-
-                    </td>
-
-                    </tr>
-
-                {% endfor %}
-
-                </tbody>
-
-            </table>
+                </div>
 
             </div>
 
-        {% else %}
 
-            <!-- ============================================================
-                NO RESULTS
-                ============================================================ -->
-            <div class="text-center py-5">
+            {% if products %}
 
-            <div class="mb-3">
+                <div class="product-table-wrap">
 
-                <i
-                class="bi bi-search"
-                style="
-                    font-size: 3rem;
-                    opacity: .35;
-                "
-                ></i>
+                    <table class="table table-hover align-middle mb-0 product-table">
 
-            </div>
+                        <thead>
 
-            <h5>
-                No products found
-            </h5>
+                            <tr>
 
-            <p class="text-muted mb-3">
-                Try changing your search or filter criteria.
-            </p>
+                                <th class="ps-4">
+                                    Product No.
+                                </th>
 
-            <a
-                href="{% url 'sales:sales-knowledge-list' %}"
-                class="btn btn-outline-primary"
-            >
-                Clear Filters
-            </a>
+                                <th>
+                                    Product
+                                </th>
 
-            </div>
+                                <th>
+                                    Category
+                                </th>
 
-        {% endif %}
+                                <th>
+                                    Sub-category
+                                </th>
+
+                                <th class="text-end">
+                                    Wholesale Price
+                                </th>
+
+                                <th class="text-end pe-4">
+                                    Action
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            {% for product in products %}
+
+                                <tr>
+
+                                    <!-- PRODUCT NUMBER -->
+
+                                    <td class="ps-4">
+
+                                        <span class="product-number">
+                                            {{ product.product_no }}
+                                        </span>
+
+                                    </td>
+
+
+                                    <!-- PRODUCT -->
+
+                                    <td class="product-cell">
+
+                                        <div class="d-flex align-items-center">
+
+                                            {% if product.image %}
+
+                                                <img
+                                                    src="{{ product.image.url }}"
+                                                    alt="{{ product.name }}"
+                                                    class="product-image me-3"
+                                                >
+
+                                            {% else %}
+
+                                                <div class="product-image-placeholder me-3">
+                                                    <i class="bi bi-box-seam"></i>
+                                                </div>
+
+                                            {% endif %}
+
+
+                                            <div>
+
+                                                <div class="product-name">
+                                                    {{ product.name }}
+                                                </div>
+
+                                                {% if product.sku %}
+
+                                                    <div class="product-sku">
+                                                        SKU: {{ product.sku }}
+                                                    </div>
+
+                                                {% endif %}
+
+                                            </div>
+
+                                        </div>
+
+                                    </td>
+
+
+                                    <!-- CATEGORY -->
+
+                                    <td>
+
+                                        {% if product.category.parent %}
+
+                                            <span class="product-category">
+                                                {{ product.category.parent.name }}
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="product-category">
+                                                {{ product.category.name }}
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- SUB-CATEGORY -->
+
+                                    <td>
+
+                                        {% if product.category.parent %}
+
+                                            <span class="product-subcategory">
+                                                {{ product.category.name }}
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- PRICE -->
+
+                                    <td class="text-end">
+
+                                        {% if product.wholesale_price %}
+
+                                            <span class="product-price">
+                                                R {{ product.wholesale_price|floatformat:2 }}
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- ACTION -->
+
+                                    <td class="text-end pe-4 product-action">
+
+                                        <a
+                                            href="{% url 'sales:sales-knowledge-detail' product.pk %}"
+                                            class="btn btn-sm btn-outline-primary"
+                                        >
+                                            <i class="bi bi-eye me-1"></i>
+                                            View
+                                        </a>
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            {% else %}
+
+                <!-- =================================================
+                     EMPTY STATE
+                     ================================================= -->
+
+                <div class="product-empty">
+
+                    <div class="product-empty-icon">
+                        <i class="bi bi-search"></i>
+                    </div>
+
+                    <div class="product-empty-title">
+                        No products found
+                    </div>
+
+                    <div class="product-empty-text">
+                        Try changing your search or filter criteria.
+                    </div>
+
+                    <a
+                        href="{% url 'sales:sales-knowledge-list' %}"
+                        class="btn btn-outline-primary"
+                    >
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>
+                        Clear Filters
+                    </a>
+
+                </div>
+
+            {% endif %}
 
         </div>
 
     </div>
-    </main>
+
+</main>
 
 
     <!-- ================================================================

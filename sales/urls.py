@@ -152,5 +152,21 @@ urlpatterns = [
         name="sales-knowledge-compare",
     ),
 
+    # ============================================================
+    # LEAD GEOGRAPHY AJAX
+    # ============================================================
+
+    path(
+        "leads/ajax/territories-by-region/",
+        views.ajax_territories_by_region,
+        name="ajax-territories-by-region",
+    ),
+
+    path(
+        "leads/ajax/areas-by-territory/",
+        views.ajax_areas_by_territory,
+        name="ajax-areas-by-territory",
+    ),
+
     
     ]

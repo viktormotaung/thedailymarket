@@ -622,1076 +622,2260 @@
   <!-- MAIN CONTENT -->
 
    
+    <!-- =========================================================
+        MAIN CONTENT
+    ========================================================= -->
+
+    <!-- =========================================================
+        MAIN CONTENT
+    ========================================================= -->
+
     <main class="content">
 
-        <!-- =========================================================
-            PAGE HEADER
-        ========================================================== -->
-
-        <div class="d-flex justify-content-between align-items-center mb-4">
-
-            <div>
-                <h2 class="mb-1">Create Lead</h2>
-
-                <div class="text-muted" style="font-size:13px;">
-                    Capture a new sales lead
-                </div>
-            </div>
-
-            <a
-                href="{% url 'sales:sales-leads' %}"
-                class="btn btn-outline-secondary"
-            >
-                <i class="bi bi-arrow-left"></i>
-                Back to Leads
-            </a>
-
-        </div>
-
-
-        <!-- =========================================================
-            FORM
-        ========================================================== -->
-
-        <form method="post">
-
-            {% csrf_token %}
-
+        <div class="container-fluid px-0">
 
             <!-- =====================================================
-                ERRORS
+                PAGE HEADER
             ====================================================== -->
 
-            {% if form.non_field_errors %}
+            <div class="d-flex flex-column flex-lg-row
+                        justify-content-between
+                        align-items-lg-center
+                        gap-3 mb-4">
 
-                <div class="alert alert-danger">
-                    {{ form.non_field_errors }}
-                </div>
+                <div>
 
-            {% endif %}
+                    <div class="d-flex align-items-center gap-2 mb-2">
 
+                        <span class="badge rounded-pill text-bg-primary">
+                            <i class="bi bi-plus-circle me-1"></i>
+                            New Lead
+                        </span>
 
-            <!-- =====================================================
-                1. LEAD STATUS & OWNERSHIP
-            ====================================================== -->
-
-            <div class="card shadow-sm mb-4">
-
-                <div class="card-header bg-white">
-
-                    <strong style="font-size:15px;">
-                        Lead Status & Ownership
-                    </strong>
-
-                </div>
-
-                <div class="card-body">
-
-                    <div class="row g-3">
-
-                        <!-- STATUS -->
-
-                        <div class="col-md-4">
-
-                            <label
-                                for="{{ form.status.id_for_label }}"
-                                class="form-label"
-                            >
-                                Status
-                                {% if form.status.field.required %}
-                                    <span class="text-danger">*</span>
-                                {% endif %}
-                            </label>
-
-                            {{ form.status }}
-
-                            {% if form.status.errors %}
-                                <div class="text-danger small">
-                                    {{ form.status.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- PRIORITY -->
-
-                        <div class="col-md-4">
-
-                            <label
-                                for="{{ form.priority.id_for_label }}"
-                                class="form-label"
-                            >
-                                Priority
-                                {% if form.priority.field.required %}
-                                    <span class="text-danger">*</span>
-                                {% endif %}
-                            </label>
-
-                            {{ form.priority }}
-
-                            {% if form.priority.errors %}
-                                <div class="text-danger small">
-                                    {{ form.priority.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- ASSIGNED TO -->
-
-                        <div class="col-md-4">
-
-                            <label
-                                for="{{ form.assigned_to.id_for_label }}"
-                                class="form-label"
-                            >
-                                Assigned To
-                            </label>
-
-                            {{ form.assigned_to }}
-
-                            {% if form.assigned_to.errors %}
-                                <div class="text-danger small">
-                                    {{ form.assigned_to.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
+                        <span class="text-muted small">
+                            Sales Pipeline
+                        </span>
 
                     </div>
 
-                </div>
+                    <h2 class="fw-semibold mb-1">
+                        Create Lead
+                    </h2>
 
-            </div>
-
-
-            <!-- =====================================================
-                2. BUSINESS & CONTACT
-            ====================================================== -->
-
-            <div class="card shadow-sm mb-4">
-
-                <div class="card-header bg-white">
-
-                    <strong style="font-size:15px;">
-                        Business & Contact
-                    </strong>
+                    <p class="text-muted mb-0">
+                        Capture the business, contact and opportunity information
+                        needed for your sales team to follow up.
+                    </p>
 
                 </div>
 
-                <div class="card-body">
-
-                    <div class="row g-3">
-
-                        <!-- BUSINESS NAME -->
-
-                        <div class="col-md-6">
-
-                            <label
-                                for="{{ form.business_name.id_for_label }}"
-                                class="form-label"
-                            >
-                                Business Name
-                            </label>
-
-                            {{ form.business_name }}
-
-                            {% if form.business_name.errors %}
-                                <div class="text-danger small">
-                                    {{ form.business_name.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- ENTITY TYPE -->
-
-                        <div class="col-md-6">
-
-                            <label
-                                for="{{ form.entity_type.id_for_label }}"
-                                class="form-label"
-                            >
-                                Entity Type
-                                {% if form.entity_type.field.required %}
-                                    <span class="text-danger">*</span>
-                                {% endif %}
-                            </label>
-
-                            {{ form.entity_type }}
-
-                            {% if form.entity_type.errors %}
-                                <div class="text-danger small">
-                                    {{ form.entity_type.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- CONTACT PERSON -->
-
-                        <div class="col-md-6">
-
-                            <label
-                                for="{{ form.contact_person.id_for_label }}"
-                                class="form-label"
-                            >
-                                Contact Person
-                                {% if form.contact_person.field.required %}
-                                    <span class="text-danger">*</span>
-                                {% endif %}
-                            </label>
-
-                            {{ form.contact_person }}
-
-                            {% if form.contact_person.errors %}
-                                <div class="text-danger small">
-                                    {{ form.contact_person.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- PHONE -->
-
-                        <div class="col-md-6">
-
-                            <label
-                                for="{{ form.phone.id_for_label }}"
-                                class="form-label"
-                            >
-                                Phone
-                                {% if form.phone.field.required %}
-                                    <span class="text-danger">*</span>
-                                {% endif %}
-                            </label>
-
-                            {{ form.phone }}
-
-                            {% if form.phone.errors %}
-                                <div class="text-danger small">
-                                    {{ form.phone.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- WHATSAPP -->
-
-                        <div class="col-md-6">
-
-                            <label
-                                for="{{ form.whatsapp.id_for_label }}"
-                                class="form-label"
-                            >
-                                WhatsApp
-                            </label>
-
-                            {{ form.whatsapp }}
-
-                            {% if form.whatsapp.errors %}
-                                <div class="text-danger small">
-                                    {{ form.whatsapp.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- EMAIL -->
-
-                        <div class="col-md-6">
-
-                            <label
-                                for="{{ form.email.id_for_label }}"
-                                class="form-label"
-                            >
-                                Email
-                            </label>
-
-                            {{ form.email }}
-
-                            {% if form.email.errors %}
-                                <div class="text-danger small">
-                                    {{ form.email.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- =====================================================
-                3. ADDRESS
-            ====================================================== -->
-
-            <div class="card shadow-sm mb-4">
-
-                <div class="card-header bg-white">
-
-                    <strong style="font-size:15px;">
-                        Address
-                    </strong>
-
-                </div>
-
-                <div class="card-body">
-
-                    <div class="row g-3">
-
-                        <!-- ADDRESS LINE 1 -->
-
-                        <div class="col-md-6">
-
-                            <label
-                                for="{{ form.address_line1.id_for_label }}"
-                                class="form-label"
-                            >
-                                Address Line 1
-                            </label>
-
-                            {{ form.address_line1 }}
-
-                            {% if form.address_line1.errors %}
-                                <div class="text-danger small">
-                                    {{ form.address_line1.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- ADDRESS LINE 2 -->
-
-                        <div class="col-md-6">
-
-                            <label
-                                for="{{ form.address_line2.id_for_label }}"
-                                class="form-label"
-                            >
-                                Address Line 2
-                            </label>
-
-                            {{ form.address_line2 }}
-
-                            {% if form.address_line2.errors %}
-                                <div class="text-danger small">
-                                    {{ form.address_line2.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- SUBURB -->
-
-                        <div class="col-md-4">
-
-                            <label
-                                for="{{ form.suburb.id_for_label }}"
-                                class="form-label"
-                            >
-                                Suburb
-                            </label>
-
-                            {{ form.suburb }}
-
-                            {% if form.suburb.errors %}
-                                <div class="text-danger small">
-                                    {{ form.suburb.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- CITY -->
-
-                        <div class="col-md-4">
-
-                            <label
-                                for="{{ form.city.id_for_label }}"
-                                class="form-label"
-                            >
-                                City
-                            </label>
-
-                            {{ form.city }}
-
-                            {% if form.city.errors %}
-                                <div class="text-danger small">
-                                    {{ form.city.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- POSTAL CODE -->
-
-                        <div class="col-md-4">
-
-                            <label
-                                for="{{ form.postal_code.id_for_label }}"
-                                class="form-label"
-                            >
-                                Postal Code
-                            </label>
-
-                            {{ form.postal_code }}
-
-                            {% if form.postal_code.errors %}
-                                <div class="text-danger small">
-                                    {{ form.postal_code.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- PROVINCE -->
-
-                        <div class="col-md-6">
-
-                            <label
-                                for="{{ form.province.id_for_label }}"
-                                class="form-label"
-                            >
-                                Province
-
-                                {% if form.province.field.required %}
-                                    <span class="text-danger">*</span>
-                                {% endif %}
-
-                            </label>
-
-                            {{ form.province }}
-
-                            {% if form.province.errors %}
-                                <div class="text-danger small">
-                                    {{ form.province.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- COUNTRY -->
-
-                        <div class="col-md-6">
-
-                            <label
-                                for="{{ form.country.id_for_label }}"
-                                class="form-label"
-                            >
-                                Country
-
-                                {% if form.country.field.required %}
-                                    <span class="text-danger">*</span>
-                                {% endif %}
-
-                            </label>
-
-                            {{ form.country }}
-
-                            {% if form.country.errors %}
-                                <div class="text-danger small">
-                                    {{ form.country.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- =================================================
-                            GPS LOCATION
-                        ================================================== -->
-
-                        <div class="col-12">
-
-                            <hr class="my-2">
-
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-
-                                <div>
-
-                                    <div class="fw-semibold">
-
-                                        <i class="bi bi-geo-alt me-1"></i>
-                                        GPS Location
-
-                                    </div>
-
-                                    <div class="text-muted small">
-
-                                        Capture the current location of the lead.
-
-                                    </div>
-
-                                </div>
-
-
-                                <button
-                                    type="button"
-                                    id="get-location-btn"
-                                    class="btn btn-primary"
-                                >
-
-                                    <i class="bi bi-crosshair me-1"></i>
-
-                                    Get My Current Location
-
-                                </button>
-
-                            </div>
-
-
-                            <!-- LOCATION STATUS -->
-
-                            <div
-                                id="location-status"
-                                class="small mb-3"
-                                style="display:none;"
-                            ></div>
-
-
-                            <div class="row g-3">
-
-                                <!-- LATITUDE -->
-
-                                <div class="col-md-6">
-
-                                    <label
-                                        for="{{ form.latitude.id_for_label }}"
-                                        class="form-label"
-                                    >
-                                        Latitude
-                                    </label>
-
-                                    {{ form.latitude }}
-
-                                    {% if form.latitude.errors %}
-                                        <div class="text-danger small">
-                                            {{ form.latitude.errors }}
-                                        </div>
-                                    {% endif %}
-
-                                </div>
-
-
-                                <!-- LONGITUDE -->
-
-                                <div class="col-md-6">
-
-                                    <label
-                                        for="{{ form.longitude.id_for_label }}"
-                                        class="form-label"
-                                    >
-                                        Longitude
-                                    </label>
-
-                                    {{ form.longitude }}
-
-                                    {% if form.longitude.errors %}
-                                        <div class="text-danger small">
-                                            {{ form.longitude.errors }}
-                                        </div>
-                                    {% endif %}
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- =====================================================
-                4. SALES TERRITORY
-            ====================================================== -->
-
-            <div class="card shadow-sm mb-4">
-
-                <div class="card-header bg-white">
-
-                    <strong style="font-size:15px;">
-                        Sales Territory
-                    </strong>
-
-                </div>
-
-                <div class="card-body">
-
-                    <div class="row g-3">
-
-                        <!-- REGION -->
-
-                        <div class="col-md-4">
-
-                            <label
-                                for="{{ form.region.id_for_label }}"
-                                class="form-label"
-                            >
-                                Region
-                            </label>
-
-                            {{ form.region }}
-
-                            {% if form.region.errors %}
-                                <div class="text-danger small">
-                                    {{ form.region.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- TERRITORY -->
-
-                        <div class="col-md-4">
-
-                            <label
-                                for="{{ form.territory.id_for_label }}"
-                                class="form-label"
-                            >
-                                Territory
-                            </label>
-
-                            {{ form.territory }}
-
-                            {% if form.territory.errors %}
-                                <div class="text-danger small">
-                                    {{ form.territory.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- AREA -->
-
-                        <div class="col-md-4">
-
-                            <label
-                                for="{{ form.area.id_for_label }}"
-                                class="form-label"
-                            >
-                                Area
-                            </label>
-
-                            {{ form.area }}
-
-                            {% if form.area.errors %}
-                                <div class="text-danger small">
-                                    {{ form.area.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- =====================================================
-                GPS LOCATION SCRIPT
-            ====================================================== -->
-
-            <script>
-
-            document.addEventListener("DOMContentLoaded", function () {
-
-                const button = document.getElementById("get-location-btn");
-
-                const status = document.getElementById("location-status");
-
-                const latitudeField = document.getElementById(
-                    "{{ form.latitude.id_for_label }}"
-                );
-
-                const longitudeField = document.getElementById(
-                    "{{ form.longitude.id_for_label }}"
-                );
-
-
-                if (!button || !latitudeField || !longitudeField) {
-                    return;
-                }
-
-
-                button.addEventListener("click", function () {
-
-                    /* -------------------------------------------------
-                    CHECK BROWSER SUPPORT
-                    ------------------------------------------------- */
-
-                    if (!navigator.geolocation) {
-
-                        status.style.display = "block";
-
-                        status.className =
-                            "text-danger small mb-3";
-
-                        status.innerHTML =
-                            '<i class="bi bi-exclamation-circle me-1"></i>' +
-                            'Location services are not supported by this browser.';
-
-                        return;
-                    }
-
-
-                    /* -------------------------------------------------
-                    BUTTON STATE
-                    ------------------------------------------------- */
-
-                    button.disabled = true;
-
-                    button.innerHTML =
-                        '<span class="spinner-border spinner-border-sm me-1"></span>' +
-                        'Getting Location...';
-
-
-                    status.style.display = "block";
-
-                    status.className =
-                        "text-muted small mb-3";
-
-                    status.innerHTML =
-                        '<i class="bi bi-geo-alt me-1"></i>' +
-                        'Getting your current GPS location...';
-
-
-                    /* -------------------------------------------------
-                    GET GPS POSITION
-                    ------------------------------------------------- */
-
-                    navigator.geolocation.getCurrentPosition(
-
-                        function (position) {
-
-                            const latitude =
-                                position.coords.latitude;
-
-                            const longitude =
-                                position.coords.longitude;
-
-
-                            /* -----------------------------------------
-                            INSERT COORDINATES
-                            ----------------------------------------- */
-
-                            latitudeField.value =
-                                latitude.toFixed(6);
-
-                            longitudeField.value =
-                                longitude.toFixed(6);
-
-
-                            /* -----------------------------------------
-                            SUCCESS
-                            ----------------------------------------- */
-
-                            status.className =
-                                "text-success small mb-3";
-
-                            status.innerHTML =
-                                '<i class="bi bi-check-circle me-1"></i>' +
-                                'Location captured successfully.';
-
-
-                            /* -----------------------------------------
-                            RESTORE BUTTON
-                            ----------------------------------------- */
-
-                            button.disabled = false;
-
-                            button.innerHTML =
-                                '<i class="bi bi-check-lg me-1"></i>' +
-                                'Location Captured';
-
-                        },
-
-
-                        function (error) {
-
-                            let message =
-                                "Unable to determine your location.";
-
-
-                            if (error.code === error.PERMISSION_DENIED) {
-
-                                message =
-                                    "Location permission was denied. Please allow location access and try again.";
-
-                            }
-
-                            else if (
-                                error.code === error.POSITION_UNAVAILABLE
-                            ) {
-
-                                message =
-                                    "Your current location is unavailable.";
-
-                            }
-
-                            else if (
-                                error.code === error.TIMEOUT
-                            ) {
-
-                                message =
-                                    "The location request timed out. Please try again.";
-
-                            }
-
-
-                            /* -----------------------------------------
-                            ERROR MESSAGE
-                            ----------------------------------------- */
-
-                            status.style.display = "block";
-
-                            status.className =
-                                "text-danger small mb-3";
-
-                            status.innerHTML =
-                                '<i class="bi bi-exclamation-circle me-1"></i>' +
-                                message;
-
-
-                            /* -----------------------------------------
-                            RESTORE BUTTON
-                            ----------------------------------------- */
-
-                            button.disabled = false;
-
-                            button.innerHTML =
-                                '<i class="bi bi-crosshair me-1"></i>' +
-                                'Get My Current Location';
-
-                        },
-
-
-                        {
-                            enableHighAccuracy: true,
-                            timeout: 15000,
-                            maximumAge: 0
-                        }
-
-                    );
-
-                });
-
-            });
-
-            </script>
-
-
-            <!-- =====================================================
-                5. OPPORTUNITY
-            ====================================================== -->
-
-            <div class="card shadow-sm mb-4">
-
-                <div class="card-header bg-white">
-
-                    <strong style="font-size:15px;">
-                        Opportunity
-                    </strong>
-
-                </div>
-
-                <div class="card-body">
-
-                    <div class="row g-3">
-
-                        <!-- SOURCE -->
-
-                        <div class="col-md-4">
-
-                            <label
-                                for="{{ form.source.id_for_label }}"
-                                class="form-label"
-                            >
-                                Source
-                            </label>
-
-                            {{ form.source }}
-
-                            {% if form.source.errors %}
-                                <div class="text-danger small">
-                                    {{ form.source.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- POTENTIAL CLIENT TYPE -->
-
-                        <div class="col-md-4">
-
-                            <label
-                                for="{{ form.potential_client_type.id_for_label }}"
-                                class="form-label"
-                            >
-                                Potential Client Type
-                            </label>
-
-                            {{ form.potential_client_type }}
-
-                            {% if form.potential_client_type.errors %}
-                                <div class="text-danger small">
-                                    {{ form.potential_client_type.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- ESTIMATED WEEKLY SPEND -->
-
-                        <div class="col-md-4">
-
-                            <label
-                                for="{{ form.estimated_weekly_spend.id_for_label }}"
-                                class="form-label"
-                            >
-                                Estimated Weekly Spend
-                            </label>
-
-                            {{ form.estimated_weekly_spend }}
-
-                            {% if form.estimated_weekly_spend.errors %}
-                                <div class="text-danger small">
-                                    {{ form.estimated_weekly_spend.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- =====================================================
-                6. FOLLOW-UP
-            ====================================================== -->
-
-            <div class="card shadow-sm mb-4">
-
-                <div class="card-header bg-white">
-
-                    <strong style="font-size:15px;">
-                        Follow-up
-                    </strong>
-
-                </div>
-
-                <div class="card-body">
-
-                    <div class="row g-3">
-
-                        <!-- PREFERRED CALL TIME -->
-
-                        <div class="col-md-6">
-
-                            <label
-                                for="{{ form.preferred_call_time.id_for_label }}"
-                                class="form-label"
-                            >
-                                Preferred Call Time
-                            </label>
-
-                            {{ form.preferred_call_time }}
-
-                            {% if form.preferred_call_time.errors %}
-                                <div class="text-danger small">
-                                    {{ form.preferred_call_time.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- NOTES -->
-
-                        <div class="col-12">
-
-                            <label
-                                for="{{ form.notes.id_for_label }}"
-                                class="form-label"
-                            >
-                                Notes
-                            </label>
-
-                            {{ form.notes }}
-
-                            {% if form.notes.errors %}
-                                <div class="text-danger small">
-                                    {{ form.notes.errors }}
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- =====================================================
-                ACTION BAR
-            ====================================================== -->
-
-            <div
-                class="d-flex justify-content-between align-items-center mb-5"
-            >
 
                 <a
                     href="{% url 'sales:sales-leads' %}"
                     class="btn btn-outline-secondary"
                 >
-                    Cancel
+                    <i class="bi bi-arrow-left me-1"></i>
+                    Back to Leads
                 </a>
-
-                <button
-                    type="submit"
-                    class="btn btn-primary px-4"
-                >
-                    <i class="bi bi-check-lg"></i>
-                    Create Lead
-                </button>
 
             </div>
 
 
-        </form>
+
+            <!-- =====================================================
+                FORM
+            ====================================================== -->
+
+            <form
+                method="post"
+                id="lead-form"
+                novalidate
+            >
+
+                {% csrf_token %}
+
+
+                <!-- =================================================
+                    FORM ERRORS
+                ================================================== -->
+
+                {% if form.non_field_errors %}
+
+                    <div class="alert alert-danger border-0 shadow-sm mb-4">
+
+                        <div class="d-flex align-items-start gap-3">
+
+                            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+
+                            <div>
+
+                                <div class="fw-semibold mb-1">
+                                    Please review the form
+                                </div>
+
+                                {{ form.non_field_errors }}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                {% endif %}
+
+
+
+                <div class="row g-4">
+
+
+                    <!-- =================================================
+                        MAIN FORM COLUMN
+                    ================================================== -->
+
+                    <div class="col-xl-8">
+
+
+                        <!-- =================================================
+                            1. BUSINESS
+                        ================================================== -->
+
+                        <div class="card shadow-sm border-0 mb-4">
+
+                            <div class="card-header bg-white border-bottom py-3">
+
+                                <div class="d-flex align-items-center gap-3">
+
+                                    <div class="lead-section-icon bg-success-subtle text-success">
+
+                                        <i class="bi bi-shop"></i>
+
+                                    </div>
+
+                                    <div>
+
+                                        <h5 class="mb-0 fw-semibold">
+                                            Business Information
+                                        </h5>
+
+                                        <small class="text-muted">
+                                            Start with the business you are prospecting.
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="card-body p-4">
+
+                                <div class="row g-4">
+
+
+                                    <!-- BUSINESS NAME -->
+
+                                    <div class="col-12">
+
+                                        <label
+                                            for="{{ form.business_name.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Business Name
+                                        </label>
+
+                                        {{ form.business_name }}
+
+                                        <div class="form-text">
+                                            Enter the trading name the business is known by.
+                                        </div>
+
+                                        {% if form.business_name.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.business_name.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- ENTITY TYPE -->
+
+                                    <div class="col-md-6">
+
+                                        <label
+                                            for="{{ form.entity_type.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Entity Type
+
+                                            {% if form.entity_type.field.required %}
+                                                <span class="text-danger">*</span>
+                                            {% endif %}
+
+                                        </label>
+
+                                        {{ form.entity_type }}
+
+                                        {% if form.entity_type.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.entity_type.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- POTENTIAL CLIENT TYPE -->
+
+                                    <div class="col-md-6">
+
+                                        <label
+                                            for="{{ form.potential_client_type.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Potential Client Type
+                                        </label>
+
+                                        {{ form.potential_client_type }}
+
+                                        <div class="form-text">
+                                            What type of customer could this become?
+                                        </div>
+
+                                        {% if form.potential_client_type.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.potential_client_type.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+
+                        <!-- =================================================
+                            2. CONTACT
+                        ================================================== -->
+
+                        <div class="card shadow-sm border-0 mb-4">
+
+                            <div class="card-header bg-white border-bottom py-3">
+
+                                <div class="d-flex align-items-center gap-3">
+
+                                    <div class="lead-section-icon bg-primary-subtle text-primary">
+
+                                        <i class="bi bi-person-lines-fill"></i>
+
+                                    </div>
+
+                                    <div>
+
+                                        <h5 class="mb-0 fw-semibold">
+                                            Contact Information
+                                        </h5>
+
+                                        <small class="text-muted">
+                                            Who should the sales team speak to?
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="card-body p-4">
+
+                                <div class="row g-4">
+
+
+                                    <!-- CONTACT PERSON -->
+
+                                    <div class="col-md-6">
+
+                                        <label
+                                            for="{{ form.contact_person.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Contact Person
+
+                                            {% if form.contact_person.field.required %}
+                                                <span class="text-danger">*</span>
+                                            {% endif %}
+
+                                        </label>
+
+                                        {{ form.contact_person }}
+
+                                        <div class="form-text">
+                                            Person you spoke to or should contact.
+                                        </div>
+
+                                        {% if form.contact_person.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.contact_person.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- PHONE -->
+
+                                    <div class="col-md-6">
+
+                                        <label
+                                            for="{{ form.phone.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Phone
+
+                                            {% if form.phone.field.required %}
+                                                <span class="text-danger">*</span>
+                                            {% endif %}
+
+                                        </label>
+
+                                        {{ form.phone }}
+
+                                        {% if form.phone.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.phone.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- WHATSAPP -->
+
+                                    <div class="col-md-6">
+
+                                        <label
+                                            for="{{ form.whatsapp.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            WhatsApp
+                                        </label>
+
+                                        {{ form.whatsapp }}
+
+                                        <div class="form-text">
+                                            Add this if different from the phone number.
+                                        </div>
+
+                                        {% if form.whatsapp.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.whatsapp.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- EMAIL -->
+
+                                    <div class="col-md-6">
+
+                                        <label
+                                            for="{{ form.email.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Email
+                                        </label>
+
+                                        {{ form.email }}
+
+                                        {% if form.email.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.email.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+
+                        <!-- =================================================
+                            3. LOCATION
+                        ================================================== -->
+
+                        <div class="card shadow-sm border-0 mb-4">
+
+                            <div class="card-header bg-white border-bottom py-3">
+
+                                <div class="d-flex align-items-center gap-3">
+
+                                    <div class="lead-section-icon bg-warning-subtle text-warning-emphasis">
+
+                                        <i class="bi bi-geo-alt-fill"></i>
+
+                                    </div>
+
+                                    <div>
+
+                                        <h5 class="mb-0 fw-semibold">
+                                            Business Location
+                                        </h5>
+
+                                        <small class="text-muted">
+                                            Capture the physical location of the business.
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="card-body p-4">
+
+                                <div class="row g-4">
+
+
+                                    <!-- ADDRESS -->
+
+                                    <div class="col-12">
+
+                                        <label
+                                            for="{{ form.address_line1.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Address Line 1
+                                        </label>
+
+                                        {{ form.address_line1 }}
+
+                                        {% if form.address_line1.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.address_line1.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- ADDRESS 2 -->
+
+                                    <div class="col-12">
+
+                                        <label
+                                            for="{{ form.address_line2.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Address Line 2
+                                        </label>
+
+                                        {{ form.address_line2 }}
+
+                                        {% if form.address_line2.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.address_line2.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- SUBURB -->
+
+                                    <div class="col-md-4">
+
+                                        <label
+                                            for="{{ form.suburb.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Suburb
+                                        </label>
+
+                                        {{ form.suburb }}
+
+                                        {% if form.suburb.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.suburb.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- CITY -->
+
+                                    <div class="col-md-4">
+
+                                        <label
+                                            for="{{ form.city.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            City
+                                        </label>
+
+                                        {{ form.city }}
+
+                                        {% if form.city.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.city.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- POSTAL -->
+
+                                    <div class="col-md-4">
+
+                                        <label
+                                            for="{{ form.postal_code.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Postal Code
+                                        </label>
+
+                                        {{ form.postal_code }}
+
+                                        {% if form.postal_code.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.postal_code.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- PROVINCE -->
+
+                                    <div class="col-md-6">
+
+                                        <label
+                                            for="{{ form.province.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Province
+
+                                            {% if form.province.field.required %}
+                                                <span class="text-danger">*</span>
+                                            {% endif %}
+
+                                        </label>
+
+                                        {{ form.province }}
+
+                                        {% if form.province.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.province.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- COUNTRY -->
+
+                                    <div class="col-md-6">
+
+                                        <label
+                                            for="{{ form.country.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Country
+
+                                            {% if form.country.field.required %}
+                                                <span class="text-danger">*</span>
+                                            {% endif %}
+
+                                        </label>
+
+                                        {{ form.country }}
+
+                                        {% if form.country.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.country.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+
+                                    <!-- =================================================
+                                        GPS LOCATION
+                                    ================================================== -->
+
+                                    <div class="col-12">
+
+                                        <div class="gps-panel">
+
+                                            <div class="d-flex flex-column flex-md-row
+                                                        justify-content-between
+                                                        align-items-md-center
+                                                        gap-3 mb-3">
+
+                                                <div>
+
+                                                    <div class="fw-semibold">
+
+                                                        <i class="bi bi-crosshair text-primary me-1"></i>
+
+                                                        GPS Location
+
+                                                    </div>
+
+                                                    <div class="text-muted small">
+
+                                                        Capture the exact business location
+                                                        while you are on site.
+
+                                                    </div>
+
+                                                </div>
+
+
+                                                <button
+                                                    type="button"
+                                                    id="get-location-btn"
+                                                    class="btn btn-primary"
+                                                >
+
+                                                    <i class="bi bi-crosshair me-1"></i>
+
+                                                    Get My Current Location
+
+                                                </button>
+
+                                            </div>
+
+
+                                            <div
+                                                id="location-status"
+                                                class="small mb-3"
+                                                style="display:none;"
+                                                role="status"
+                                                aria-live="polite"
+                                            ></div>
+
+
+                                            <div class="row g-3">
+
+                                                <div class="col-md-6">
+
+                                                    <label
+                                                        for="{{ form.latitude.id_for_label }}"
+                                                        class="form-label fw-semibold"
+                                                    >
+                                                        Latitude
+                                                    </label>
+
+                                                    {{ form.latitude }}
+
+                                                    <div class="form-text">
+                                                        Example: -26.248500
+                                                    </div>
+
+                                                    {% if form.latitude.errors %}
+                                                        <div class="text-danger small mt-1">
+                                                            {{ form.latitude.errors }}
+                                                        </div>
+                                                    {% endif %}
+
+                                                </div>
+
+
+                                                <div class="col-md-6">
+
+                                                    <label
+                                                        for="{{ form.longitude.id_for_label }}"
+                                                        class="form-label fw-semibold"
+                                                    >
+                                                        Longitude
+                                                    </label>
+
+                                                    {{ form.longitude }}
+
+                                                    <div class="form-text">
+                                                        Example: 27.854700
+                                                    </div>
+
+                                                    {% if form.longitude.errors %}
+                                                        <div class="text-danger small mt-1">
+                                                            {{ form.longitude.errors }}
+                                                        </div>
+                                                    {% endif %}
+
+                                                </div>
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+
+                        <!-- =================================================
+                            4. SALES TERRITORY
+                        ================================================== -->
+
+                        <div class="card shadow-sm border-0 mb-4">
+
+                            <div class="card-header bg-white border-bottom py-3">
+
+                                <div class="d-flex align-items-center gap-3">
+
+                                    <div class="lead-section-icon bg-info-subtle text-info-emphasis">
+
+                                        <i class="bi bi-map"></i>
+
+                                    </div>
+
+                                    <div>
+
+                                        <h5 class="mb-0 fw-semibold">
+                                            Sales Territory
+                                        </h5>
+
+                                        <small class="text-muted">
+                                            Select the Region, Territory and Area for this lead.
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="card-body p-4">
+
+                                <div class="territory-flow">
+
+                                    <div class="row g-3">
+
+                                        <!-- REGION -->
+
+                                        <div class="col-md-4">
+
+                                            <label
+                                                for="{{ form.region.id_for_label }}"
+                                                class="form-label fw-semibold"
+                                            >
+                                                Region
+                                            </label>
+
+                                            {{ form.region }}
+
+                                            {% if form.region.errors %}
+                                                <div class="text-danger small mt-1">
+                                                    {{ form.region.errors }}
+                                                </div>
+                                            {% endif %}
+
+                                        </div>
+
+
+                                        <!-- TERRITORY -->
+
+                                        <div class="col-md-4">
+
+                                            <label
+                                                for="{{ form.territory.id_for_label }}"
+                                                class="form-label fw-semibold"
+                                            >
+                                                Territory
+                                            </label>
+
+                                            {{ form.territory }}
+
+                                            {% if form.territory.errors %}
+                                                <div class="text-danger small mt-1">
+                                                    {{ form.territory.errors }}
+                                                </div>
+                                            {% endif %}
+
+                                        </div>
+
+
+                                        <!-- AREA -->
+
+                                        <div class="col-md-4">
+
+                                            <label
+                                                for="{{ form.area.id_for_label }}"
+                                                class="form-label fw-semibold"
+                                            >
+                                                Area
+                                            </label>
+
+                                            {{ form.area }}
+
+                                            {% if form.area.errors %}
+                                                <div class="text-danger small mt-1">
+                                                    {{ form.area.errors }}
+                                                </div>
+                                            {% endif %}
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+
+                        <!-- =================================================
+                            5. OPPORTUNITY
+                        ================================================== -->
+
+                        <div class="card shadow-sm border-0 mb-4">
+
+                            <div class="card-header bg-white border-bottom py-3">
+
+                                <div class="d-flex align-items-center gap-3">
+
+                                    <div class="lead-section-icon bg-success-subtle text-success">
+
+                                        <i class="bi bi-graph-up-arrow"></i>
+
+                                    </div>
+
+                                    <div>
+
+                                        <h5 class="mb-0 fw-semibold">
+                                            Opportunity
+                                        </h5>
+
+                                        <small class="text-muted">
+                                            Understand the potential value of this lead.
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="card-body p-4">
+
+                                <div class="row g-4">
+
+
+                                    {% if form.source %}
+
+                                        <div class="col-md-6">
+
+                                            <label
+                                                for="{{ form.source.id_for_label }}"
+                                                class="form-label fw-semibold"
+                                            >
+                                                Lead Source
+                                            </label>
+
+                                            {{ form.source }}
+
+                                            <div class="form-text">
+                                                Where did this lead come from?
+                                            </div>
+
+                                            {% if form.source.errors %}
+                                                <div class="text-danger small mt-1">
+                                                    {{ form.source.errors }}
+                                                </div>
+                                            {% endif %}
+
+                                        </div>
+
+                                    {% endif %}
+
+
+                                    {% if form.campaign %}
+
+                                        <div class="col-md-6">
+
+                                            <label
+                                                for="{{ form.campaign.id_for_label }}"
+                                                class="form-label fw-semibold"
+                                            >
+                                                Campaign
+                                            </label>
+
+                                            {{ form.campaign }}
+
+                                            {% if form.campaign.errors %}
+                                                <div class="text-danger small mt-1">
+                                                    {{ form.campaign.errors }}
+                                                </div>
+                                            {% endif %}
+
+                                        </div>
+
+                                    {% endif %}
+
+
+                                    {% if form.advert %}
+
+                                        <div class="col-md-6">
+
+                                            <label
+                                                for="{{ form.advert.id_for_label }}"
+                                                class="form-label fw-semibold"
+                                            >
+                                                Advert
+                                            </label>
+
+                                            {{ form.advert }}
+
+                                            {% if form.advert.errors %}
+                                                <div class="text-danger small mt-1">
+                                                    {{ form.advert.errors }}
+                                                </div>
+                                            {% endif %}
+
+                                        </div>
+
+                                    {% endif %}
+
+
+                                    {% if form.medium %}
+
+                                        <div class="col-md-6">
+
+                                            <label
+                                                for="{{ form.medium.id_for_label }}"
+                                                class="form-label fw-semibold"
+                                            >
+                                                Medium
+                                            </label>
+
+                                            {{ form.medium }}
+
+                                            {% if form.medium.errors %}
+                                                <div class="text-danger small mt-1">
+                                                    {{ form.medium.errors }}
+                                                </div>
+                                            {% endif %}
+
+                                        </div>
+
+                                    {% endif %}
+
+
+                                    <div class="col-md-6">
+
+                                        <label
+                                            for="{{ form.estimated_weekly_spend.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Estimated Weekly Spend
+                                        </label>
+
+                                        {{ form.estimated_weekly_spend }}
+
+                                        <div class="form-text">
+                                            Approximate weekly purchasing potential.
+                                        </div>
+
+                                        {% if form.estimated_weekly_spend.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.estimated_weekly_spend.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+
+                        <!-- =========================================================
+                            PRODUCT INTEREST
+                        ========================================================= -->
+                        <section class="card border-0 shadow-sm mb-4" id="product-interest">
+
+                            <div class="card-header bg-white border-0 px-4 pt-4 pb-0">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="lead-section-icon bg-success-subtle text-success">
+                                        <i class="bi bi-box-seam"></i>
+                                    </div>
+
+                                    <div>
+                                        <h2 class="h5 fw-semibold mb-1">Product Interest</h2>
+                                        <p class="text-muted small mb-0">
+                                            Capture the products the business is interested in buying.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card-body p-4">
+
+                                {% if form.product_1.errors or form.product_2.errors or form.product_3.errors or form.product_4.errors or form.product_5.errors or form.product_6.errors or form.product_7.errors or form.product_8.errors or form.product_9.errors or form.product_10.errors %}
+                                    <div class="alert alert-danger d-flex align-items-start gap-2 mb-4">
+                                        <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+                                        <div>
+                                            <strong>Please check the product selections.</strong>
+                                            <div class="small">
+                                                One or more product fields contain an error.
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                <div class="row g-3">
+
+                                    <!-- Product 1 -->
+                                    <div class="col-md-6">
+                                        <label for="{{ form.product_1.id_for_label }}" class="form-label fw-semibold">
+                                            Product 1
+                                        </label>
+
+                                        {{ form.product_1 }}
+
+                                        {% for error in form.product_1.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ error }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <!-- Product 2 -->
+                                    <div class="col-md-6">
+                                        <label for="{{ form.product_2.id_for_label }}" class="form-label fw-semibold">
+                                            Product 2
+                                        </label>
+
+                                        {{ form.product_2 }}
+
+                                        {% for error in form.product_2.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ error }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <!-- Product 3 -->
+                                    <div class="col-md-6">
+                                        <label for="{{ form.product_3.id_for_label }}" class="form-label fw-semibold">
+                                            Product 3
+                                        </label>
+
+                                        {{ form.product_3 }}
+
+                                        {% for error in form.product_3.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ error }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <!-- Product 4 -->
+                                    <div class="col-md-6">
+                                        <label for="{{ form.product_4.id_for_label }}" class="form-label fw-semibold">
+                                            Product 4
+                                        </label>
+
+                                        {{ form.product_4 }}
+
+                                        {% for error in form.product_4.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ error }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <!-- Product 5 -->
+                                    <div class="col-md-6">
+                                        <label for="{{ form.product_5.id_for_label }}" class="form-label fw-semibold">
+                                            Product 5
+                                        </label>
+
+                                        {{ form.product_5 }}
+
+                                        {% for error in form.product_5.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ error }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <!-- Product 6 -->
+                                    <div class="col-md-6">
+                                        <label for="{{ form.product_6.id_for_label }}" class="form-label fw-semibold">
+                                            Product 6
+                                        </label>
+
+                                        {{ form.product_6 }}
+
+                                        {% for error in form.product_6.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ error }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <!-- Product 7 -->
+                                    <div class="col-md-6">
+                                        <label for="{{ form.product_7.id_for_label }}" class="form-label fw-semibold">
+                                            Product 7
+                                        </label>
+
+                                        {{ form.product_7 }}
+
+                                        {% for error in form.product_7.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ error }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <!-- Product 8 -->
+                                    <div class="col-md-6">
+                                        <label for="{{ form.product_8.id_for_label }}" class="form-label fw-semibold">
+                                            Product 8
+                                        </label>
+
+                                        {{ form.product_8 }}
+
+                                        {% for error in form.product_8.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ error }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <!-- Product 9 -->
+                                    <div class="col-md-6">
+                                        <label for="{{ form.product_9.id_for_label }}" class="form-label fw-semibold">
+                                            Product 9
+                                        </label>
+
+                                        {{ form.product_9 }}
+
+                                        {% for error in form.product_9.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ error }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <!-- Product 10 -->
+                                    <div class="col-md-6">
+                                        <label for="{{ form.product_10.id_for_label }}" class="form-label fw-semibold">
+                                            Product 10
+                                        </label>
+
+                                        {{ form.product_10 }}
+
+                                        {% for error in form.product_10.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ error }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                </div>
+
+                                <div class="mt-4 p-3 rounded-3 bg-light border">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <i class="bi bi-lightbulb text-warning mt-1"></i>
+
+                                        <div>
+                                            <div class="fw-semibold small">Sales tip</div>
+                                            <div class="text-muted small">
+                                                Add the products the prospect is most likely to purchase.
+                                                This information helps the salesperson prepare for the next
+                                                conversation and identify the right opportunity.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </section>
+
+
+
+                        <!-- =================================================
+                            7. FOLLOW-UP
+                        ================================================== -->
+
+                        <div class="card shadow-sm border-0 mb-4">
+
+                            <div class="card-header bg-white border-bottom py-3">
+
+                                <div class="d-flex align-items-center gap-3">
+
+                                    <div class="lead-section-icon bg-secondary-subtle text-secondary">
+
+                                        <i class="bi bi-calendar-check"></i>
+
+                                    </div>
+
+                                    <div>
+
+                                        <h5 class="mb-0 fw-semibold">
+                                            Follow-up
+                                        </h5>
+
+                                        <small class="text-muted">
+                                            Make sure the next sales action is clear.
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="card-body p-4">
+
+                                <div class="row g-4">
+
+
+                                    <div class="col-md-6">
+
+                                        <label
+                                            for="{{ form.preferred_call_time.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Preferred Call Time
+                                        </label>
+
+                                        {{ form.preferred_call_time }}
+
+                                        <div class="form-text">
+                                            Best time to contact the business.
+                                        </div>
+
+                                        {% if form.preferred_call_time.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.preferred_call_time.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    {% if form.next_follow_up_at %}
+
+                                        <div class="col-md-6">
+
+                                            <label
+                                                for="{{ form.next_follow_up_at.id_for_label }}"
+                                                class="form-label fw-semibold"
+                                            >
+                                                Next Follow-up
+                                            </label>
+
+                                            {{ form.next_follow_up_at }}
+
+                                            <div class="form-text">
+                                                Schedule the next sales action.
+                                            </div>
+
+                                            {% if form.next_follow_up_at.errors %}
+                                                <div class="text-danger small mt-1">
+                                                    {{ form.next_follow_up_at.errors }}
+                                                </div>
+                                            {% endif %}
+
+                                        </div>
+
+                                    {% endif %}
+
+
+                                    <div class="col-12">
+
+                                        <label
+                                            for="{{ form.notes.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Notes
+                                        </label>
+
+                                        {{ form.notes }}
+
+                                        <div class="form-text">
+                                            Capture anything important for the next interaction.
+                                        </div>
+
+                                        {% if form.notes.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.notes.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- =================================================
+                        RIGHT SIDEBAR
+                    ================================================== -->
+
+                    <div class="col-xl-4">
+
+                        <div
+                            class="position-sticky"
+                            style="top:20px;"
+                        >
+
+
+                            <!-- =================================================
+                                LEAD SETUP
+                            ================================================== -->
+
+                            <div class="card shadow-sm border-0 mb-4">
+
+                                <div class="card-header bg-white border-bottom py-3">
+
+                                    <div class="d-flex align-items-center gap-3">
+
+                                        <div class="lead-section-icon bg-primary-subtle text-primary">
+
+                                            <i class="bi bi-sliders"></i>
+
+                                        </div>
+
+                                        <div>
+
+                                            <h5 class="mb-0 fw-semibold">
+                                                Lead Setup
+                                            </h5>
+
+                                            <small class="text-muted">
+                                                Assign and prioritise this lead.
+                                            </small>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+
+                                <div class="card-body p-4">
+
+
+                                    <!-- STATUS -->
+
+                                    <div class="mb-4">
+
+                                        <label
+                                            for="{{ form.status.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Status
+                                        </label>
+
+                                        {{ form.status }}
+
+                                        <div class="form-text">
+                                            New leads start at this stage.
+                                        </div>
+
+                                        {% if form.status.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.status.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- PRIORITY -->
+
+                                    <div class="mb-4">
+
+                                        <label
+                                            for="{{ form.priority.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Priority
+
+                                            {% if form.priority.field.required %}
+                                                <span class="text-danger">*</span>
+                                            {% endif %}
+
+                                        </label>
+
+                                        {{ form.priority }}
+
+                                        <div class="form-text">
+                                            How urgently should this lead be followed up?
+                                        </div>
+
+                                        {% if form.priority.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.priority.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- ASSIGNED TO -->
+
+                                    <div>
+
+                                        <label
+                                            for="{{ form.assigned_to.id_for_label }}"
+                                            class="form-label fw-semibold"
+                                        >
+                                            Assigned To
+                                        </label>
+
+                                        {{ form.assigned_to }}
+
+                                        <div class="form-text">
+                                            Salesperson responsible for this lead.
+                                        </div>
+
+                                        {% if form.assigned_to.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.assigned_to.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+
+                            <!-- =================================================
+                                QUICK CAPTURE GUIDE
+                            ================================================== -->
+
+                            <div class="card border-0 shadow-sm bg-primary-subtle mb-4">
+
+                                <div class="card-body p-4">
+
+                                    <div class="d-flex gap-3">
+
+                                        <i class="bi bi-lightbulb-fill text-primary fs-5"></i>
+
+                                        <div>
+
+                                            <div class="fw-semibold mb-2">
+                                                Field Capture Tip
+                                            </div>
+
+                                            <div class="small text-muted">
+
+                                                If you are physically at the business,
+                                                capture the GPS location before leaving.
+                                                This makes the lead easier to locate for
+                                                future visits and territory planning.
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+
+                            <!-- =================================================
+                                CAPTURE CHECKLIST
+                            ================================================== -->
+
+                            <div class="card shadow-sm border-0 mb-4">
+
+                                <div class="card-header bg-white border-bottom py-3">
+
+                                    <div class="fw-semibold">
+
+                                        <i class="bi bi-check2-circle text-success me-2"></i>
+
+                                        Lead Capture Checklist
+
+                                    </div>
+
+                                </div>
+
+
+                                <div class="card-body p-4">
+
+                                    <div class="lead-check-item">
+
+                                        <i class="bi bi-check-circle text-success"></i>
+
+                                        <span>
+                                            Business name
+                                        </span>
+
+                                    </div>
+
+
+                                    <div class="lead-check-item">
+
+                                        <i class="bi bi-check-circle text-success"></i>
+
+                                        <span>
+                                            Contact person & phone
+                                        </span>
+
+                                    </div>
+
+
+                                    <div class="lead-check-item">
+
+                                        <i class="bi bi-check-circle text-success"></i>
+
+                                        <span>
+                                            Business location
+                                        </span>
+
+                                    </div>
+
+
+                                    <div class="lead-check-item">
+
+                                        <i class="bi bi-check-circle text-success"></i>
+
+                                        <span>
+                                            Sales territory
+                                        </span>
+
+                                    </div>
+
+
+                                    <div class="lead-check-item">
+
+                                        <i class="bi bi-check-circle text-success"></i>
+
+                                        <span>
+                                            Opportunity & products
+                                        </span>
+
+                                    </div>
+
+
+                                    <div class="lead-check-item mb-0">
+
+                                        <i class="bi bi-check-circle text-success"></i>
+
+                                        <span>
+                                            Next follow-up
+                                        </span>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- =================================================
+                    FINAL ACTION BAR
+                ================================================== -->
+
+                <div
+                    class="lead-action-bar shadow-sm"
+                >
+
+                    <div class="d-flex flex-column
+                                flex-sm-row
+                                justify-content-between
+                                align-items-sm-center
+                                gap-3">
+
+                        <div>
+
+                            <div class="fw-semibold">
+                                Ready to create this lead?
+                            </div>
+
+                            <div class="text-muted small">
+                                Review the key information before saving.
+                            </div>
+
+                        </div>
+
+
+                        <div class="d-flex gap-2">
+
+                            <a
+                                href="{% url 'sales:sales-leads' %}"
+                                class="btn btn-outline-secondary"
+                            >
+                                <i class="bi bi-x-lg me-1"></i>
+                                Cancel
+                            </a>
+
+
+                            <button
+                                type="submit"
+                                class="btn btn-primary px-4"
+                                id="create-lead-btn"
+                            >
+
+                                <i class="bi bi-check-lg me-1"></i>
+
+                                Create Lead
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+            </form>
+
+        </div>
 
     </main>
+
+
+    <!-- =========================================================
+        GPS LOCATION SCRIPT
+    ========================================================= -->
+
+    <script>
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const button = document.getElementById("get-location-btn");
+
+        const status = document.getElementById("location-status");
+
+        const latitudeField = document.getElementById(
+            "{{ form.latitude.id_for_label }}"
+        );
+
+        const longitudeField = document.getElementById(
+            "{{ form.longitude.id_for_label }}"
+        );
+
+
+        if (!button || !latitudeField || !longitudeField) {
+            return;
+        }
+
+
+        button.addEventListener("click", function () {
+
+            /* -----------------------------------------------------
+            CHECK BROWSER SUPPORT
+            ----------------------------------------------------- */
+
+            if (!navigator.geolocation) {
+
+                status.style.display = "block";
+
+                status.className =
+                    "text-danger small mb-3";
+
+                status.innerHTML =
+                    '<i class="bi bi-exclamation-circle me-1"></i>' +
+                    'Location services are not supported by this browser.';
+
+                return;
+            }
+
+
+            /* -----------------------------------------------------
+            BUTTON STATE
+            ----------------------------------------------------- */
+
+            button.disabled = true;
+
+            button.innerHTML =
+                '<span class="spinner-border spinner-border-sm me-1"></span>' +
+                'Getting Location...';
+
+
+            status.style.display = "block";
+
+            status.className =
+                "text-muted small mb-3";
+
+            status.innerHTML =
+                '<i class="bi bi-geo-alt me-1"></i>' +
+                'Getting your current GPS location...';
+
+
+            /* -----------------------------------------------------
+            GET GPS POSITION
+            ----------------------------------------------------- */
+
+            navigator.geolocation.getCurrentPosition(
+
+                function (position) {
+
+                    const latitude =
+                        position.coords.latitude;
+
+                    const longitude =
+                        position.coords.longitude;
+
+
+                    /* -------------------------------------------------
+                    INSERT COORDINATES
+                    ------------------------------------------------- */
+
+                    latitudeField.value =
+                        latitude.toFixed(6);
+
+                    longitudeField.value =
+                        longitude.toFixed(6);
+
+
+                    /* -------------------------------------------------
+                    SUCCESS
+                    ------------------------------------------------- */
+
+                    status.className =
+                        "text-success small mb-3";
+
+                    status.innerHTML =
+                        '<i class="bi bi-check-circle me-1"></i>' +
+                        'Location captured successfully.';
+
+
+                    /* -------------------------------------------------
+                    RESTORE BUTTON
+                    ------------------------------------------------- */
+
+                    button.disabled = false;
+
+                    button.innerHTML =
+                        '<i class="bi bi-check-lg me-1"></i>' +
+                        'Location Captured';
+
+                },
+
+
+                function (error) {
+
+                    let message =
+                        "Unable to determine your location.";
+
+
+                    if (error.code === error.PERMISSION_DENIED) {
+
+                        message =
+                            "Location permission was denied. Please allow location access and try again.";
+
+                    }
+
+                    else if (
+                        error.code === error.POSITION_UNAVAILABLE
+                    ) {
+
+                        message =
+                            "Your current location is unavailable.";
+
+                    }
+
+                    else if (
+                        error.code === error.TIMEOUT
+                    ) {
+
+                        message =
+                            "The location request timed out. Please try again.";
+
+                    }
+
+
+                    /* -------------------------------------------------
+                    ERROR MESSAGE
+                    ------------------------------------------------- */
+
+                    status.style.display = "block";
+
+                    status.className =
+                        "text-danger small mb-3";
+
+                    status.innerHTML =
+                        '<i class="bi bi-exclamation-circle me-1"></i>' +
+                        message;
+
+
+                    /* -------------------------------------------------
+                    RESTORE BUTTON
+                    ------------------------------------------------- */
+
+                    button.disabled = false;
+
+                    button.innerHTML =
+                        '<i class="bi bi-crosshair me-1"></i>' +
+                        'Get My Current Location';
+
+                },
+
+
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 0
+                }
+
+            );
+
+        });
+
+
+        /* =========================================================
+        SUBMIT BUTTON FEEDBACK
+        ========================================================= */
+
+        const form = document.getElementById("lead-form");
+
+        const submitButton =
+            document.getElementById("create-lead-btn");
+
+
+        if (form && submitButton) {
+
+            form.addEventListener("submit", function () {
+
+                /*
+                * Do not prevent submission.
+                * Only change the button to give the user feedback.
+                */
+
+                submitButton.disabled = true;
+
+                submitButton.innerHTML =
+                    '<span class="spinner-border spinner-border-sm me-1"></span>' +
+                    'Creating Lead...';
+
+            });
+
+        }
+
+    });
+
+    </script>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        // ============================================================
+        // LEAD GEOGRAPHY
+        // Region → Territory → Area
+        // ============================================================
+
+        const regionField = document.getElementById(
+            "{{ form.region.id_for_label }}"
+        );
+
+        const territoryField = document.getElementById(
+            "{{ form.territory.id_for_label }}"
+        );
+
+        const areaField = document.getElementById(
+            "{{ form.area.id_for_label }}"
+        );
+
+
+        // ------------------------------------------------------------
+        // AJAX URLS
+        // ------------------------------------------------------------
+
+        const TERRITORY_API_URL =
+            "{% url 'sales:ajax-territories-by-region' %}";
+
+        const AREA_API_URL =
+            "{% url 'sales:ajax-areas-by-territory' %}";
+
+
+        // ------------------------------------------------------------
+        // SET OPTIONS
+        // Same approach used by Quotations
+        // ------------------------------------------------------------
+
+        function setOptions(select, items, placeholder) {
+
+            select.innerHTML = "";
+
+            const defaultOption = document.createElement("option");
+
+            defaultOption.value = "";
+            defaultOption.textContent = placeholder;
+
+            select.appendChild(defaultOption);
+
+
+            items.forEach(function (item) {
+
+                const option = document.createElement("option");
+
+                option.value = item.id;
+                option.textContent = item.name;
+
+                select.appendChild(option);
+
+            });
+        }
+
+
+        // ------------------------------------------------------------
+        // LOAD TERRITORIES
+        // ------------------------------------------------------------
+
+        async function loadTerritories(regionId, keepValue = false) {
+
+            const previousValue = keepValue
+                ? territoryField.value
+                : "";
+
+
+            territoryField.innerHTML =
+                '<option value="">Loading...</option>';
+
+            /*
+            * IMPORTANT:
+            * Territory is NOT permanently disabled.
+            * It is only temporarily disabled during the AJAX request.
+            */
+
+            territoryField.disabled = true;
+
+
+            try {
+
+                const url = new URL(
+                    TERRITORY_API_URL,
+                    window.location.origin
+                );
+
+                url.searchParams.set(
+                    "region_id",
+                    regionId || ""
+                );
+
+
+                const response = await fetch(
+                    url.toString(),
+                    {
+                        credentials: "same-origin",
+                        cache: "no-store"
+                    }
+                );
+
+
+                const data = await response.json();
+
+
+                setOptions(
+                    territoryField,
+                    data.results || [],
+                    "— Select Territory —"
+                );
+
+
+                if (
+                    keepValue &&
+                    previousValue
+                ) {
+                    territoryField.value =
+                        previousValue;
+                }
+
+
+            } catch (error) {
+
+                console.error(
+                    "Territory loading failed:",
+                    error
+                );
+
+
+                setOptions(
+                    territoryField,
+                    [],
+                    "— Select Territory —"
+                );
+            }
+
+
+            // Always re-enable after loading
+            territoryField.disabled = false;
+        }
+
+
+        // ------------------------------------------------------------
+        // LOAD AREAS
+        // ------------------------------------------------------------
+
+        async function loadAreas(territoryId, keepValue = false) {
+
+            const previousValue = keepValue
+                ? areaField.value
+                : "";
+
+
+            areaField.innerHTML =
+                '<option value="">Loading...</option>';
+
+
+            /*
+            * Same approach as Quotations:
+            * temporarily disabled while loading only.
+            */
+
+            areaField.disabled = true;
+
+
+            try {
+
+                const url = new URL(
+                    AREA_API_URL,
+                    window.location.origin
+                );
+
+
+                url.searchParams.set(
+                    "territory_id",
+                    territoryId || ""
+                );
+
+
+                const response = await fetch(
+                    url.toString(),
+                    {
+                        credentials: "same-origin",
+                        cache: "no-store"
+                    }
+                );
+
+
+                const data = await response.json();
+
+
+                setOptions(
+                    areaField,
+                    data.results || [],
+                    "— Select Area —"
+                );
+
+
+                if (
+                    keepValue &&
+                    previousValue
+                ) {
+                    areaField.value =
+                        previousValue;
+                }
+
+
+            } catch (error) {
+
+                console.error(
+                    "Area loading failed:",
+                    error
+                );
+
+
+                setOptions(
+                    areaField,
+                    [],
+                    "— Select Area —"
+                );
+            }
+
+
+            // Always re-enable
+            areaField.disabled = false;
+        }
+
+
+        // ------------------------------------------------------------
+        // REGION CHANGE
+        // ------------------------------------------------------------
+
+        regionField.addEventListener(
+            "change",
+            function () {
+
+                const regionId =
+                    regionField.value;
+
+
+                // Reset Area
+                setOptions(
+                    areaField,
+                    [],
+                    "— Select Area —"
+                );
+
+
+                // Area must remain available
+                areaField.disabled = false;
+
+
+                if (!regionId) {
+
+                    setOptions(
+                        territoryField,
+                        [],
+                        "— Select Territory —"
+                    );
+
+                    territoryField.disabled = false;
+
+                    return;
+                }
+
+
+                loadTerritories(
+                    regionId,
+                    false
+                );
+            }
+        );
+
+
+        // ------------------------------------------------------------
+        // TERRITORY CHANGE
+        // ------------------------------------------------------------
+
+        territoryField.addEventListener(
+            "change",
+            function () {
+
+                const territoryId =
+                    territoryField.value;
+
+
+                if (!territoryId) {
+
+                    setOptions(
+                        areaField,
+                        [],
+                        "— Select Area —"
+                    );
+
+                    areaField.disabled = false;
+
+                    return;
+                }
+
+
+                loadAreas(
+                    territoryId,
+                    false
+                );
+            }
+        );
+
+
+        // ------------------------------------------------------------
+        // INITIAL STATE
+        // ------------------------------------------------------------
+
+        const initialRegion =
+            regionField.value;
+
+
+        const initialTerritory =
+            territoryField.value;
+
+
+        const initialArea =
+            areaField.value;
+
+
+        /*
+        * Unlike the old implementation:
+        *
+        * Territory and Area start ENABLED.
+        */
+
+        territoryField.disabled = false;
+        areaField.disabled = false;
+
+
+        // Existing region → load territories
+        if (initialRegion) {
+
+            loadTerritories(
+                initialRegion,
+                true
+            ).then(function () {
+
+                const territoryId =
+                    territoryField.value ||
+                    initialTerritory;
+
+
+                if (territoryId) {
+
+                    territoryField.value =
+                        territoryId;
+
+
+                    loadAreas(
+                        territoryId,
+                        true
+                    );
+                }
+
+            });
+
+        }
+
+
+    });
+    </script>
+
 
 
 

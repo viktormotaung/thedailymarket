@@ -1287,13 +1287,18 @@
 
                         {% if not lead.prospect %}
 
-                            <a
-                                href="{% url 'sales:lead-convert-to-prospect' lead.pk %}"
-                                class="btn btn-warning w-100"
-                            >
-                                <i class="bi bi-arrow-right-circle me-2"></i>
-                                Convert to Prospect
-                            </a>
+                              <form method="POST"
+                                    action="{% url 'sales:lead-convert-to-prospect' lead.pk %}">
+
+                                  {% csrf_token %}
+
+                                  <button type="submit"
+                                          class="btn btn-primary w-100">
+                                      <i class="bi bi-person-check me-1"></i>
+                                      Convert to Prospect
+                                  </button>
+
+                              </form>
 
                         {% endif %}
 

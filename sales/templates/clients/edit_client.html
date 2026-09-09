@@ -614,307 +614,1250 @@
 
   </aside>
 
-    <!-- MAIN CONTENT -->
+    <!-- =========================================================
+        MAIN CONTENT
+    ========================================================= -->
+
     <main class="content">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-          <div>
-            <h2 class="m-0">Edit Client</h2>
-            <div class="text-muted">
-              {{ client.client_number }} · {{ client.name }}{% if client.organization %} ({{ client.organization }}){% endif %}
+
+        <!-- =====================================================
+            PAGE HEADER
+        ====================================================== -->
+
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+
+            <div>
+
+                <div class="d-flex align-items-center gap-2 mb-2">
+
+                    <span class="badge rounded-pill bg-success-subtle text-success px-3 py-2">
+                        <i class="bi bi-building me-1"></i>
+                        Client
+                    </span>
+
+                    <span class="text-muted small">
+                        {{ client.client_number }}
+                    </span>
+
+                </div>
+
+                <h1 class="h3 fw-semibold mb-1">
+                    Edit Client
+                </h1>
+
+                <div class="text-muted">
+                    Update the business profile, contact details and delivery information.
+                </div>
+
             </div>
-          </div>
-          <div class="d-flex gap-2">
-            <a href="{% url 'sales:client-detail' client.id %}" class="btn btn-outline-secondary">Cancel</a>
-            <a href="{% url 'sales:sales-clients' %}" class="btn btn-outline-secondary">Back to Clients</a>
-          </div>
+
+
+            <div class="d-flex flex-wrap gap-2">
+
+                <a
+                    href="{% url 'sales:client-detail' client.id %}"
+                    class="btn btn-outline-secondary"
+                >
+                    <i class="bi bi-arrow-left me-1"></i>
+                    Cancel
+                </a>
+
+                <a
+                    href="{% url 'sales:sales-clients' %}"
+                    class="btn btn-outline-secondary"
+                >
+                    <i class="bi bi-people me-1"></i>
+                    Back to Clients
+                </a>
+
+            </div>
+
         </div>
-    
+
+
+        <!-- =====================================================
+            MESSAGES
+        ====================================================== -->
+
         {% if messages %}
-          <div class="mt-3">
-            {% for message in messages %}
-              <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-          </div>
+
+            <div class="mb-4">
+
+                {% for message in messages %}
+
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+
+                        <div class="d-flex align-items-start gap-2">
+
+                            <i class="bi bi-info-circle-fill mt-1"></i>
+
+                            <div>
+                                {{ message }}
+                            </div>
+
+                        </div>
+
+                        <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="alert"
+                            aria-label="Close"
+                        ></button>
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
         {% endif %}
-    
-        <form method="post" class="mt-3">
-          {% csrf_token %}
-    
-          {% if form.non_field_errors %}
-            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
-          {% endif %}
-    
-          <div class="row g-3">
 
-            <!-- ================= Identity & Ownership ================= -->
-            <div class="col-lg-6 form-section">
-              <div class="card">
-                <div class="card-header">
-                  <strong>Identity & Ownership</strong>
-                </div>
 
-                <div class="card-body">
+        <!-- =====================================================
+            FORM
+        ====================================================== -->
 
-                  <!-- Client number (read-only) -->
-                  <div class="mb-3">
-                    <label class="form-label">Client Number</label>
-                    <input
-                      type="text"
-                      class="form-control"
-                      value="{{ client.client_number }}"
-                      readonly
-                    />
-                  </div>
+        <form method="post" id="client-edit-form">
 
-                  <div class="row g-3">
+            {% csrf_token %}
 
-                    <!-- Entity type -->
-                    <div class="col-md-6">
-                      {{ form.entity_type.label_tag }}
-                      {{ form.entity_type }}
-                      {% if form.entity_type.errors %}
-                        <div class="text-danger small">
-                          {{ form.entity_type.errors }}
+
+            <!-- =================================================
+                FORM ERRORS
+            ================================================== -->
+
+            {% if form.non_field_errors %}
+
+                <div class="alert alert-danger shadow-sm mb-4">
+
+                    <div class="d-flex align-items-start gap-2">
+
+                        <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+
+                        <div>
+
+                            <div class="fw-semibold mb-1">
+                                Please review the form
+                            </div>
+
+                            {{ form.non_field_errors }}
+
                         </div>
-                      {% endif %}
+
                     </div>
 
-                    <!-- Registration / ID -->
-                    <div class="col-md-6">
-                      {{ form.registration_identifier.label_tag }}
-                      {{ form.registration_identifier }}
-                      {% if form.registration_identifier.errors %}
-                        <div class="text-danger small">
-                          {{ form.registration_identifier.errors }}
+                </div>
+
+            {% endif %}
+
+
+            <!-- =================================================
+                CLIENT SUMMARY
+            ================================================== -->
+
+            <div class="card border-0 shadow-sm mb-4">
+
+                <div class="card-body p-4">
+
+                    <div class="row align-items-center g-4">
+
+                        <div class="col-lg-8">
+
+                            <div class="d-flex align-items-start gap-3">
+
+                                <div
+                                    class="d-flex align-items-center justify-content-center rounded-3 bg-success-subtle text-success flex-shrink-0"
+                                    style="width:52px;height:52px;"
+                                >
+                                    <i class="bi bi-building fs-4"></i>
+                                </div>
+
+                                <div>
+
+                                    <div class="text-muted small mb-1">
+                                        Client
+                                    </div>
+
+                                    <h2 class="h5 fw-semibold mb-1">
+                                        {{ client.name }}
+                                    </h2>
+
+                                    {% if client.organization %}
+
+                                        <div class="text-muted">
+                                            Trading as
+                                            <strong>{{ client.organization }}</strong>
+                                        </div>
+
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
                         </div>
-                      {% endif %}
+
+
+                        <div class="col-lg-4">
+
+                            <div class="row g-3">
+
+                                <div class="col-6">
+
+                                    <div class="small text-muted mb-1">
+                                        Client Number
+                                    </div>
+
+                                    <div class="fw-semibold">
+                                        {{ client.client_number }}
+                                    </div>
+
+                                </div>
+
+
+                                <div class="col-6">
+
+                                    <div class="small text-muted mb-1">
+                                        Client Type
+                                    </div>
+
+                                    <div class="fw-semibold">
+                                        {{ client.client_type|default:"—" }}
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
                     </div>
-
-                  </div>
-
-                  <div class="mb-3 mt-3">
-                    <label class="form-label">Name</label>
-                    {{ form.name }}
-                    {% if form.name.errors %}
-                      <div class="text-danger small">
-                        {{ form.name.errors }}
-                      </div>
-                    {% endif %}
-                  </div>
-
-                  <div class="mb-3">
-                    <label class="form-label">Trading As</label>
-                    {{ form.organization }}
-                    {% if form.organization.errors %}
-                      <div class="text-danger small">
-                        {{ form.organization.errors }}
-                      </div>
-                    {% endif %}
-                  </div>
-
-                  <div class="row g-3">
-                    <div class="col-md-6">
-                      <label class="form-label">Client Type</label>
-                      {{ form.client_type }}
-                    </div>
-                    <div class="col-md-6">
-                      <label class="form-label">Client Size Tier</label>
-                      {{ form.client_size_tier }}
-                    </div>
-                  </div>
 
                 </div>
-              </div>
+
             </div>
 
 
-            <!-- ================= Contact ================= -->
-            <div class="col-lg-6 form-section">
-              <div class="card">
-                <div class="card-header"><strong>Contact</strong></div>
-                <div class="card-body">
-                  <div class="row g-3">
-                    <div class="col-md-6">
-                      <label class="form-label">Contact Person</label>
-                      {{ form.contact_person }}
-                    </div>
-                    <div class="col-md-6">
-                      <label class="form-label">Email</label>
-                      {{ form.email }}
-                    </div>
-                    <div class="col-md-6">
-                      <label class="form-label">Phone</label>
-                      {{ form.phone }}
-                    </div>
-                    <div class="col-md-6">
-                      <label class="form-label">WhatsApp</label>
-                      {{ form.whatsapp }}
-                    </div>
-                  </div>
+            <!-- =================================================
+                MAIN GRID
+            ================================================== -->
+
+            <div class="row g-4">
+
+
+                <!-- =============================================
+                    LEFT / MAIN COLUMN
+                ============================================== -->
+
+                <div class="col-xl-8">
+
+
+                    <!-- =========================================
+                        BUSINESS INFORMATION
+                    ========================================== -->
+
+                    <section class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-header bg-white border-0 px-4 pt-4">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="lead-section-icon bg-primary-subtle text-primary">
+                                    <i class="bi bi-building"></i>
+                                </div>
+
+                                <div>
+
+                                    <h2 class="h5 fw-semibold mb-1">
+                                        Business Information
+                                    </h2>
+
+                                    <p class="text-muted small mb-0">
+                                        Core information used to identify the client.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body p-4">
+
+                            <!-- Client Number -->
+
+                            <div class="mb-4">
+
+                                <label class="form-label fw-semibold">
+                                    Client Number
+                                </label>
+
+                                <div class="input-group">
+
+                                    <span class="input-group-text bg-light">
+                                        <i class="bi bi-hash"></i>
+                                    </span>
+
+                                    <input
+                                        type="text"
+                                        class="form-control bg-light"
+                                        value="{{ client.client_number }}"
+                                        readonly
+                                    >
+
+                                </div>
+
+                                <div class="form-text">
+                                    Client number is automatically assigned and cannot be changed.
+                                </div>
+
+                            </div>
+
+
+                            <div class="row g-3">
+
+                                <!-- Entity Type -->
+
+                                <div class="col-md-6">
+
+                                    {{ form.entity_type.label_tag }}
+
+                                    {{ form.entity_type }}
+
+                                    {% if form.entity_type.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.entity_type.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+
+                                <!-- Registration -->
+
+                                <div class="col-md-6">
+
+                                    {{ form.registration_identifier.label_tag }}
+
+                                    {{ form.registration_identifier }}
+
+                                    {% if form.registration_identifier.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.registration_identifier.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+
+                                <!-- Name -->
+
+                                <div class="col-12">
+
+                                    <label class="form-label fw-semibold">
+                                        Name
+                                    </label>
+
+                                    {{ form.name }}
+
+                                    {% if form.name.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.name.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+
+                                <!-- Trading As -->
+
+                                <div class="col-12">
+
+                                    <label class="form-label fw-semibold">
+                                        Trading As
+                                    </label>
+
+                                    {{ form.organization }}
+
+                                    {% if form.organization.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.organization.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+
+                                <!-- Client Classification -->
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label fw-semibold">
+                                        Client Type
+                                    </label>
+
+                                    {{ form.client_type }}
+
+                                    {% if form.client_type.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.client_type.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label fw-semibold">
+                                        Client Size Tier
+                                    </label>
+
+                                    {{ form.client_size_tier }}
+
+                                    {% if form.client_size_tier.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.client_size_tier.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- =========================================
+                        CONTACT INFORMATION
+                    ========================================== -->
+
+                    <section class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-header bg-white border-0 px-4 pt-4">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="lead-section-icon bg-success-subtle text-success">
+                                    <i class="bi bi-person-lines-fill"></i>
+                                </div>
+
+                                <div>
+
+                                    <h2 class="h5 fw-semibold mb-1">
+                                        Contact Information
+                                    </h2>
+
+                                    <p class="text-muted small mb-0">
+                                        Keep the primary decision-maker and communication details up to date.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body p-4">
+
+                            <div class="row g-3">
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label fw-semibold">
+                                        Contact Person
+                                    </label>
+
+                                    {{ form.contact_person }}
+
+                                    {% if form.contact_person.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.contact_person.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label fw-semibold">
+                                        Email
+                                    </label>
+
+                                    {{ form.email }}
+
+                                    {% if form.email.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.email.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label fw-semibold">
+                                        Phone
+                                    </label>
+
+                                    {{ form.phone }}
+
+                                    {% if form.phone.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.phone.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label fw-semibold">
+                                        WhatsApp
+                                    </label>
+
+                                    {{ form.whatsapp }}
+
+                                    {% if form.whatsapp.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.whatsapp.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- =========================================
+                        BUSINESS LOCATION
+                    ========================================== -->
+
+                    <section class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-header bg-white border-0 px-4 pt-4">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="lead-section-icon bg-warning-subtle text-warning">
+                                    <i class="bi bi-geo-alt-fill"></i>
+                                </div>
+
+                                <div>
+
+                                    <h2 class="h5 fw-semibold mb-1">
+                                        Business Address
+                                    </h2>
+
+                                    <p class="text-muted small mb-0">
+                                        The physical location of the client's business.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body p-4">
+
+                            <div class="mb-3">
+
+                                {{ form.address_line1.label_tag }}
+                                {{ form.address_line1 }}
+
+                                {% if form.address_line1.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.address_line1.errors }}
+                                    </div>
+                                {% endif %}
+
+                            </div>
+
+
+                            <div class="mb-3">
+
+                                {{ form.address_line2.label_tag }}
+                                {{ form.address_line2 }}
+
+                            </div>
+
+
+                            <div class="row g-3">
+
+                                <div class="col-md-4">
+
+                                    {{ form.suburb.label_tag }}
+                                    {{ form.suburb }}
+
+                                </div>
+
+                                <div class="col-md-4">
+
+                                    {{ form.city.label_tag }}
+                                    {{ form.city }}
+
+                                </div>
+
+                                <div class="col-md-4">
+
+                                    {{ form.province.label_tag }}
+                                    {{ form.province }}
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="row g-3 mt-1">
+
+                                <div class="col-md-6">
+
+                                    {{ form.postal_code.label_tag }}
+                                    {{ form.postal_code }}
+
+                                </div>
+
+                                <div class="col-md-6">
+
+                                    {{ form.country.label_tag }}
+                                    {{ form.country }}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- =========================================
+                        DELIVERY ADDRESS
+                    ========================================== -->
+
+                    <section class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-header bg-white border-0 px-4 pt-4">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="lead-section-icon bg-info-subtle text-info">
+                                    <i class="bi bi-truck"></i>
+                                </div>
+
+                                <div>
+
+                                    <h2 class="h5 fw-semibold mb-1">
+                                        Delivery Address
+                                    </h2>
+
+                                    <p class="text-muted small mb-0">
+                                        Where deliveries should be made for this client.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body p-4">
+
+                            <!-- Same address -->
+
+                            <div class="p-3 rounded-3 bg-light border mb-4">
+
+                                <div class="form-check">
+
+                                    <input
+                                        class="form-check-input"
+                                        type="checkbox"
+                                        id="sameAsBusinessAddress"
+                                    >
+
+                                    <label
+                                        class="form-check-label fw-semibold"
+                                        for="sameAsBusinessAddress"
+                                    >
+                                        Delivery address is the same as business address
+                                    </label>
+
+                                </div>
+
+                                <div class="text-muted small ms-4 mt-1">
+                                    Selecting this will copy the business address and lock the delivery fields.
+                                </div>
+
+                            </div>
+
+
+                            <div class="mb-3">
+
+                                {{ form.delivery_address_line1.label_tag }}
+                                {{ form.delivery_address_line1 }}
+
+                            </div>
+
+
+                            <div class="mb-3">
+
+                                {{ form.delivery_address_line2.label_tag }}
+                                {{ form.delivery_address_line2 }}
+
+                            </div>
+
+
+                            <div class="row g-3">
+
+                                <div class="col-md-4">
+
+                                    {{ form.delivery_suburb.label_tag }}
+                                    {{ form.delivery_suburb }}
+
+                                </div>
+
+                                <div class="col-md-4">
+
+                                    {{ form.delivery_city.label_tag }}
+                                    {{ form.delivery_city }}
+
+                                </div>
+
+                                <div class="col-md-4">
+
+                                    {{ form.delivery_province.label_tag }}
+                                    {{ form.delivery_province }}
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="row g-3 mt-1">
+
+                                <div class="col-md-6">
+
+                                    {{ form.delivery_postal_code.label_tag }}
+                                    {{ form.delivery_postal_code }}
+
+                                </div>
+
+                                <div class="col-md-6">
+
+                                    {{ form.delivery_country.label_tag }}
+                                    {{ form.delivery_country }}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- =========================================
+                        DELIVERY LOCATION
+                    ========================================== -->
+
+                    <section class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-header bg-white border-0 px-4 pt-4">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="lead-section-icon bg-danger-subtle text-danger">
+                                    <i class="bi bi-pin-map-fill"></i>
+                                </div>
+
+                                <div>
+
+                                    <h2 class="h5 fw-semibold mb-1">
+                                        Delivery Location
+                                    </h2>
+
+                                    <p class="text-muted small mb-0">
+                                        GPS coordinates used for routing, maps and delivery verification.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body p-4">
+
+                            <div class="p-3 rounded-3 bg-light border mb-4">
+
+                                <div class="d-flex gap-2">
+
+                                    <i class="bi bi-info-circle text-primary mt-1"></i>
+
+                                    <div class="small text-muted">
+
+                                        Accurate coordinates help the logistics team plan delivery
+                                        routes and locate the client's premises.
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="row g-3">
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label fw-semibold">
+                                        Latitude
+                                    </label>
+
+                                    {{ form.delivery_lat }}
+
+                                    {% if form.delivery_lat.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.delivery_lat.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label fw-semibold">
+                                        Longitude
+                                    </label>
+
+                                    {{ form.delivery_lng }}
+
+                                    {% if form.delivery_lng.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.delivery_lng.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+
+                            {% if client.has_delivery_geo %}
+
+                                <div class="mt-4">
+
+                                    <a
+                                        href="{{ client.google_maps_link }}"
+                                        target="_blank"
+                                        rel="noopener"
+                                        class="btn btn-outline-primary"
+                                    >
+                                        <i class="bi bi-map me-1"></i>
+                                        View Delivery Location
+                                    </a>
+
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- =========================================
+                        COMPLIANCE
+                    ========================================== -->
+
+                    <section class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-header bg-white border-0 px-4 pt-4">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="lead-section-icon bg-secondary-subtle text-secondary">
+                                    <i class="bi bi-shield-check"></i>
+                                </div>
+
+                                <div>
+
+                                    <h2 class="h5 fw-semibold mb-1">
+                                        Compliance
+                                    </h2>
+
+                                    <p class="text-muted small mb-0">
+                                        Business registration and tax information.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body p-4">
+
+                            <div class="row g-3">
+
+                                <div class="col-md-6">
+
+                                    {{ form.vat_number.label_tag }}
+                                    {{ form.vat_number }}
+
+                                    {% if form.vat_number.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.vat_number.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- =========================================
+                        NOTES
+                    ========================================== -->
+
+                    <section class="card border-0 shadow-sm mb-5">
+
+                        <div class="card-header bg-white border-0 px-4 pt-4">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="lead-section-icon bg-dark-subtle text-dark">
+                                    <i class="bi bi-journal-text"></i>
+                                </div>
+
+                                <div>
+
+                                    <h2 class="h5 fw-semibold mb-1">
+                                        Notes
+                                    </h2>
+
+                                    <p class="text-muted small mb-0">
+                                        Add any useful information about this client.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body p-4">
+
+                            {{ form.notes }}
+
+                            {% if form.notes.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.notes.errors }}
+                                </div>
+                            {% endif %}
+
+                        </div>
+
+                    </section>
+
+
                 </div>
-              </div>
-            </div>
 
-            <!-- ================= Address ================= -->
-            <div class="col-lg-6 form-section">
-              <div class="card">
-                <div class="card-header"><strong>Business Address</strong></div>
-                <div class="card-body">
-                  {{ form.address_line1.label_tag }} {{ form.address_line1 }}
-                  {{ form.address_line2.label_tag }} {{ form.address_line2 }}
 
-                  <div class="row g-3 mt-2">
-                    <div class="col-md-4">{{ form.suburb.label_tag }} {{ form.suburb }}</div>
-                    <div class="col-md-4">{{ form.city.label_tag }} {{ form.city }}</div>
-                    <div class="col-md-4">{{ form.province.label_tag }} {{ form.province }}</div>
-                  </div>
+                <!-- =============================================
+                    RIGHT / SIDEBAR
+                ============================================== -->
 
-                  <div class="row g-3 mt-2">
-                    <div class="col-md-6">{{ form.postal_code.label_tag }} {{ form.postal_code }}</div>
-                    <div class="col-md-6">{{ form.country.label_tag }} {{ form.country }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+                <div class="col-xl-4">
 
-            <!-- ================= Delivery Address ================= -->
-            <div class="col-lg-6 form-section">
-              <div class="card">
-                <div class="card-header">
-                  <strong>Delivery Address</strong>
-                </div>
-                <div class="card-body">
-                  <div class="form-check mb-3">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      id="sameAsBusinessAddress"
+
+                    <!-- =========================================
+                        SAVE PANEL
+                    ========================================== -->
+
+                    <div
+                        class="card border-0 shadow-sm mb-4"
+                        style="position:sticky;top:20px;z-index:10;"
                     >
-                    <label class="form-check-label" for="sameAsBusinessAddress">
-                      Delivery address same as business address
-                    </label>
-                  </div>
+
+                        <div class="card-body p-4">
+
+                            <div class="d-flex align-items-center gap-3 mb-3">
+
+                                <div
+                                    class="d-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary"
+                                    style="width:44px;height:44px;"
+                                >
+                                    <i class="bi bi-check2-circle fs-5"></i>
+                                </div>
+
+                                <div>
+
+                                    <div class="fw-semibold">
+                                        Save Client
+                                    </div>
+
+                                    <div class="text-muted small">
+                                        Review your changes before saving.
+                                    </div>
+
+                                </div>
+
+                            </div>
 
 
-                  {{ form.delivery_address_line1.label_tag }}
-                  {{ form.delivery_address_line1 }}
+                            <button
+                                type="submit"
+                                class="btn btn-primary w-100 py-2"
+                            >
+                                <i class="bi bi-check-lg me-1"></i>
+                                Save Changes
+                            </button>
 
-                  {{ form.delivery_address_line2.label_tag }}
-                  {{ form.delivery_address_line2 }}
 
-                  <div class="row g-3 mt-2">
-                    <div class="col-md-4">
-                      {{ form.delivery_suburb.label_tag }}
-                      {{ form.delivery_suburb }}
-                    </div>
-                    <div class="col-md-4">
-                      {{ form.delivery_city.label_tag }}
-                      {{ form.delivery_city }}
-                    </div>
-                    <div class="col-md-4">
-                      {{ form.delivery_province.label_tag }}
-                      {{ form.delivery_province }}
-                    </div>
-                  </div>
+                            <a
+                                href="{% url 'sales:client-detail' client.id %}"
+                                class="btn btn-outline-secondary w-100 mt-2"
+                            >
+                                Cancel
+                            </a>
 
-                  <div class="row g-3 mt-2">
-                    <div class="col-md-6">
-                      {{ form.delivery_postal_code.label_tag }}
-                      {{ form.delivery_postal_code }}
+                        </div>
+
                     </div>
-                    <div class="col-md-6">
-                      {{ form.delivery_country.label_tag }}
-                      {{ form.delivery_country }}
+
+
+                    <!-- =========================================
+                        CLIENT PROFILE
+                    ========================================== -->
+
+                    <div class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-header bg-white border-0 px-4 pt-4">
+
+                            <div class="fw-semibold">
+                                Client Profile
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body px-4 pb-4">
+
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+
+                                <span class="text-muted small">
+                                    Client Number
+                                </span>
+
+                                <span class="fw-semibold small">
+                                    {{ client.client_number }}
+                                </span>
+
+                            </div>
+
+
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+
+                                <span class="text-muted small">
+                                    Business
+                                </span>
+
+                                <span class="fw-semibold small text-end">
+                                    {{ client.name|truncatechars:24 }}
+                                </span>
+
+                            </div>
+
+
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+
+                                <span class="text-muted small">
+                                    Type
+                                </span>
+
+                                <span class="fw-semibold small">
+                                    {{ client.client_type|default:"—" }}
+                                </span>
+
+                            </div>
+
+
+                            <div class="d-flex justify-content-between py-2">
+
+                                <span class="text-muted small">
+                                    Size Tier
+                                </span>
+
+                                <span class="fw-semibold small">
+                                    {{ client.client_size_tier|default:"—" }}
+                                </span>
+
+                            </div>
+
+                        </div>
+
                     </div>
-                  </div>
+
+
+                    <!-- =========================================
+                        UPDATE GUIDE
+                    ========================================== -->
+
+                    <div class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-body p-4">
+
+                            <div class="d-flex align-items-center gap-2 mb-3">
+
+                                <i class="bi bi-lightbulb text-warning"></i>
+
+                                <div class="fw-semibold">
+                                    Update Guide
+                                </div>
+
+                            </div>
+
+
+                            <div class="small text-muted">
+
+                                <div class="d-flex gap-2 mb-3">
+
+                                    <i class="bi bi-check-circle text-success"></i>
+
+                                    <span>
+                                        Keep the contact person and WhatsApp number current.
+                                    </span>
+
+                                </div>
+
+
+                                <div class="d-flex gap-2 mb-3">
+
+                                    <i class="bi bi-check-circle text-success"></i>
+
+                                    <span>
+                                        Make sure the delivery address is accurate.
+                                    </span>
+
+                                </div>
+
+
+                                <div class="d-flex gap-2">
+
+                                    <i class="bi bi-check-circle text-success"></i>
+
+                                    <span>
+                                        Accurate GPS coordinates improve delivery planning.
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =========================================
+                        NAVIGATION
+                    ========================================== -->
+
+                    <div class="card border-0 shadow-sm">
+
+                        <div class="card-body p-4">
+
+                            <div class="fw-semibold mb-3">
+                                Client Actions
+                            </div>
+
+
+                            <a
+                                href="{% url 'sales:client-detail' client.id %}"
+                                class="btn btn-outline-primary w-100 mb-2"
+                            >
+                                <i class="bi bi-person-vcard me-1"></i>
+                                View Client Profile
+                            </a>
+
+
+                            <a
+                                href="{% url 'sales:sales-clients' %}"
+                                class="btn btn-outline-secondary w-100"
+                            >
+                                <i class="bi bi-people me-1"></i>
+                                All Clients
+                            </a>
+
+                        </div>
+
+                    </div>
 
                 </div>
-              </div>
+
             </div>
 
 
-            <!-- ================= Delivery Geo ================= -->
-            <div class="col-lg-6 form-section">
-              <div class="card">
-                <div class="card-header">
-                  <strong>Delivery Location (Geo)</strong>
+            <!-- =================================================
+                MOBILE / BOTTOM SAVE BAR
+            ================================================== -->
+
+            <div class="d-xl-none mt-4 mb-4">
+
+                <div class="card border-0 shadow-sm">
+
+                    <div class="card-body p-3">
+
+                        <div class="d-flex flex-column flex-sm-row gap-2">
+
+                            <button
+                                type="submit"
+                                class="btn btn-primary flex-grow-1 py-2"
+                            >
+                                <i class="bi bi-check-lg me-1"></i>
+                                Save Changes
+                            </button>
+
+                            <a
+                                href="{% url 'sales:client-detail' client.id %}"
+                                class="btn btn-outline-secondary"
+                            >
+                                Cancel
+                            </a>
+
+                        </div>
+
+                    </div>
+
                 </div>
-                <div class="card-body">
-                  <p class="text-muted small mb-3">
-                    Used for routing, delivery verification, and maps.
-                    Leave blank if unknown.
-                  </p>
 
-                  <div class="row g-3">
-                    <div class="col-md-6">
-                      <label class="form-label">Latitude</label>
-                      {{ form.delivery_lat }}
-                      {% if form.delivery_lat.errors %}
-                        <div class="text-danger small">{{ form.delivery_lat.errors }}</div>
-                      {% endif %}
-                    </div>
-
-                    <div class="col-md-6">
-                      <label class="form-label">Longitude</label>
-                      {{ form.delivery_lng }}
-                      {% if form.delivery_lng.errors %}
-                        <div class="text-danger small">{{ form.delivery_lng.errors }}</div>
-                      {% endif %}
-                    </div>
-                  </div>
-
-                  {% if client.has_delivery_geo %}
-                    <div class="mt-3">
-                      <a href="{{ client.google_maps_link }}"
-                        target="_blank"
-                        class="btn btn-sm btn-outline-primary">
-                        View on Google Maps
-                      </a>
-                    </div>
-                  {% endif %}
-                </div>
-              </div>
             </div>
 
-            <!-- ================= Compliance ================= -->
-            <div class="col-lg-6 form-section">
-              <div class="card">
-                <div class="card-header">
-                  <strong>Compliance</strong>
-                </div>
-                <div class="card-body">
-
-                  <div class="row g-3">
-                    <div class="col-md-6">
-                      {{ form.vat_number.label_tag }}
-                      {{ form.vat_number }}
-                    </div>
-
-                    
-                  </div>
-
-                </div>
-              </div>
-            </div>
-
-
-            <!-- ================= Notes ================= -->
-            <div class="col-12 form-section">
-              <div class="card">
-                <div class="card-header"><strong>Notes</strong></div>
-                <div class="card-body">
-                  {{ form.notes }}
-                </div>
-              </div>
-            </div>
-
-          </div>
-    
-          <div class="d-flex justify-content-end mt-3 gap-2">
-            <a href="{% url 'client-view' client.id %}" class="btn btn-outline-secondary">Cancel</a>
-            <button type="submit" class="btn btn-primary">Save Changes</button>
-          </div>
         </form>
+
     </main>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

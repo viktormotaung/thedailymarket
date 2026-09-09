@@ -9,7 +9,7 @@ from django.utils import timezone
 import calendar
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from clients.models import Prospect, ProspectUpdate, Client, Lead
-from clients.forms import ProspectForm, ProspectUpdateForm
+from clients.forms import ProspectForm, ProspectUpdateForm, LeadEditForm
 from django.utils.timezone import localdate
 from invoices.models import CommissionEntry, Invoice, MonthlyTarget, MonthlyTargetAllocation, MonthlyCommission
 from products.models import Category, Product, ProductKnowledge
@@ -1355,6 +1355,75 @@ def leads(request):
         context,
     )
 
+# ============================================================
+# LEAD GEOGRAPHY AJAX
+# ============================================================
+
+@login_required
+def ajax_territories_by_region(request):
+
+    region_id = request.GET.get("region_id")
+
+    if not region_id:
+        return JsonResponse({
+            "results": []
+        })
+
+    territories = (
+        Territory.objects
+        .filter(
+            region_id=region_id,
+            status="ACTIVE",
+        )
+        .order_by("name")
+    )
+
+    results = [
+        {
+            "id": territory.id,
+            "name": territory.name,
+        }
+        for territory in territories
+    ]
+
+    return JsonResponse({
+        "results": results
+    })
+
+
+@login_required
+def ajax_areas_by_territory(request):
+
+    territory_id = request.GET.get("territory_id")
+
+    if not territory_id:
+        return JsonResponse({
+            "results": []
+        })
+
+    areas = (
+        Area.objects
+        .filter(
+            territory_id=territory_id,
+            status="ACTIVE",
+        )
+        .order_by("name")
+    )
+
+    results = [
+        {
+            "id": area.id,
+            "name": area.name,
+        }
+        for area in areas
+    ]
+
+    return JsonResponse({
+        "results": results
+    })
+
+
+
 @login_required
 def lead_create(request):
     """
@@ -1367,13 +1436,14 @@ def lead_create(request):
         if form.is_valid():
             lead = form.save(commit=False)
 
-            # The person creating the lead
+            # Person creating the lead
             lead.created_by = request.user
 
-            # Default new leads to NEW unless the form explicitly
-            # provides another valid status.
-            if not lead.status:
-                lead.status = "NEW"
+            # New leads always start as NEW
+            lead.status = "NEW"
+
+            # Lead is assigned to the person creating it
+            lead.assigned_to = request.user
 
             lead.save()
 
@@ -1393,7 +1463,12 @@ def lead_create(request):
         )
 
     else:
-        form = LeadForm()
+        form = LeadForm(
+            initial={
+                "status": "NEW",
+                "assigned_to": request.user,
+            }
+        )
 
     return render(
         request,
@@ -1403,6 +1478,7 @@ def lead_create(request):
             "title": "Create Lead",
         },
     )
+
 
 
 
@@ -1442,7 +1518,10 @@ def lead_edit(request, pk):
     lead = get_object_or_404(Lead, pk=pk)
 
     if request.method == "POST":
-        form = LeadForm(request.POST, instance=lead)
+        form = LeadEditForm(
+            request.POST,
+            instance=lead,
+        )
 
         if form.is_valid():
             lead = form.save()
@@ -1453,7 +1532,9 @@ def lead_edit(request, pk):
             )
 
     else:
-        form = LeadForm(instance=lead)
+        form = LeadEditForm(
+            instance=lead,
+        )
 
     return render(
         request,
@@ -1465,15 +1546,51 @@ def lead_edit(request, pk):
     )
 
 
-@login_required
-def lead_convert_to_prospect(request, pk):
 
+
+@login_required
+@require_POST
+def lead_convert_to_prospect(request, pk):
     lead = get_object_or_404(
         Lead,
         pk=pk,
     )
 
+    print("\n" + "=" * 70)
+    print("LEAD → PROSPECT CONVERSION")
+    print("=" * 70)
+
+    print("Lead ID:", lead.pk)
+    print("Lead Number:", lead.lead_number)
+    print("Business:", lead.business_name)
+
+    print("\nBEFORE CONVERSION:")
+    print("Region:", lead.region_id, lead.region)
+    print("Territory:", lead.territory_id, lead.territory)
+    print("Area:", lead.area_id, lead.area)
+
+    # Perform conversion
     prospect = lead.convert_to_prospect()
+
+    print("\nAFTER CONVERSION:")
+
+    if prospect:
+        print("Prospect ID:", prospect.pk)
+        print("Prospect Number:", getattr(prospect, "prospect_number", None))
+        print("Region:", prospect.region_id, prospect.region)
+        print("Territory:", prospect.territory_id, prospect.territory)
+        print("Area:", prospect.area_id, prospect.area)
+    else:
+        print("ERROR: convert_to_prospect() returned None")
+
+    # Refresh Lead from database
+    lead.refresh_from_db()
+
+    print("\nLEAD AFTER REFRESH:")
+    print("Status:", lead.status)
+    print("Prospect ID:", lead.prospect_id)
+
+    print("=" * 70 + "\n")
 
     messages.success(
         request,
@@ -1486,8 +1603,6 @@ def lead_convert_to_prospect(request, pk):
     )
 
 
-
-
 @login_required
 def prospects(request):
     """
@@ -1498,11 +1613,27 @@ def prospects(request):
           only prospects assigned to themselves.
         - Users with any other role can see all prospects.
 
-    Filters:
+    List filters:
         - Date range
         - Search
         - Stage
         - Status
+
+    View modes:
+        - List (default)
+        - Map
+
+    Map:
+        - Shows ALL prospects historically
+        - Not restricted by date, stage, status, or search filters
+        - Green = Prospect has become a Client
+        - Blue = Still a Prospect
+        - Only prospects with coordinates are displayed
+
+    Important:
+        - Representative-only visibility still applies to the Map.
+        - A Representative therefore only sees their own prospects
+          on the Map.
     """
 
     # ==========================================================
@@ -1560,7 +1691,29 @@ def prospects(request):
     )
 
     # ==========================================================
+    # VIEW MODE
+    #
+    # Default = LIST
+    #
+    # Valid values:
+    #     list
+    #     map
+    # ==========================================================
+
+    view_mode = (
+        request.GET.get("view") or "list"
+    ).strip().lower()
+
+    if view_mode not in {"list", "map"}:
+
+        view_mode = "list"
+
+    # ==========================================================
     # DATE FILTERS
+    #
+    # These filters apply ONLY to the LIST.
+    #
+    # The MAP will show ALL historical prospects.
     #
     # Default:
     #   From = Monday of current week
@@ -1576,17 +1729,21 @@ def prospects(request):
     ).strip()
 
     try:
+
         selected_date_from = date.fromisoformat(
             date_from
         )
+
     except (ValueError, TypeError):
 
         selected_date_from = week_start
 
     try:
+
         selected_date_to = date.fromisoformat(
             date_to
         )
+
     except (ValueError, TypeError):
 
         selected_date_to = today
@@ -1602,21 +1759,27 @@ def prospects(request):
 
     # ==========================================================
     # BASE QUERYSET
+    #
+    # This is the master prospect queryset.
     # ==========================================================
 
-    qs = (
+    base_qs = (
         Prospect.objects
         .select_related(
             "owner",
             "territory",
             "area",
+            "client",
         )
     )
 
     # ==========================================================
     # REP-ONLY VISIBILITY
     #
-    # This is applied directly to the queryset.
+    # This restriction applies to BOTH:
+    #
+    #     1. List
+    #     2. Map
     #
     # A Representative therefore cannot bypass the restriction
     # by changing URL parameters.
@@ -1624,12 +1787,43 @@ def prospects(request):
 
     if rep_only:
 
-        qs = qs.filter(
+        base_qs = base_qs.filter(
             owner=request.user
         )
 
     # ==========================================================
-    # DATE RANGE
+    # MAP QUERYSET
+    #
+    # IMPORTANT:
+    #
+    # The Map gets its data HERE, BEFORE any of the following
+    # List filters are applied:
+    #
+    #     - Date
+    #     - Search
+    #     - Stage
+    #     - Status
+    #
+    # Therefore the Map represents the COMPLETE prospect history.
+    # ==========================================================
+
+    map_qs = (
+        base_qs
+        .order_by("-created_at")
+        .distinct()
+    )
+
+    # ==========================================================
+    # LIST QUERYSET
+    #
+    # Start from the same visibility-controlled queryset,
+    # then apply the normal List filters.
+    # ==========================================================
+
+    qs = base_qs
+
+    # ==========================================================
+    # DATE RANGE — LIST ONLY
     #
     # Use datetime boundaries so the complete selected days
     # are included.
@@ -1666,7 +1860,7 @@ def prospects(request):
     )
 
     # ==========================================================
-    # SEARCH
+    # SEARCH — LIST ONLY
     # ==========================================================
 
     q = (
@@ -1688,7 +1882,7 @@ def prospects(request):
         )
 
     # ==========================================================
-    # STAGE FILTER
+    # STAGE FILTER — LIST ONLY
     # ==========================================================
 
     stage_filter = (
@@ -1710,7 +1904,7 @@ def prospects(request):
         )
 
     # ==========================================================
-    # STATUS FILTER
+    # STATUS FILTER — LIST ONLY
     # ==========================================================
 
     status_filter = (
@@ -1732,13 +1926,15 @@ def prospects(request):
         )
 
     # ==========================================================
-    # TOTAL AFTER FILTERS
+    # TOTAL AFTER LIST FILTERS
     # ==========================================================
 
     prospects_total = qs.count()
 
     # ==========================================================
     # PIPELINE SUMMARY
+    #
+    # This remains based on the LIST filters.
     # ==========================================================
 
     stage_label_map = dict(
@@ -1767,7 +1963,7 @@ def prospects(request):
     ]
 
     # ==========================================================
-    # FINAL QUERYSET
+    # FINAL LIST QUERYSET
     # ==========================================================
 
     prospects_qs = (
@@ -1777,12 +1973,106 @@ def prospects(request):
     )
 
     # ==========================================================
+    # MAP DATA
+    #
+    # IMPORTANT:
+    #
+    # map_qs contains ALL historical prospects.
+    #
+    # It is NOT affected by:
+    #
+    #     - date_from
+    #     - date_to
+    #     - q
+    #     - stage
+    #     - status
+    #
+    # The only visibility restriction is the user's role.
+    # ==========================================================
+
+    map_points = []
+
+    for prospect in map_qs:
+
+        # ------------------------------------------------------
+        # DETERMINE CURRENT RELATIONSHIP
+        #
+        # Actual Client relationship is used.
+        #
+        # NOT:
+        #
+        #     stage == "WON"
+        #
+        # Instead:
+        #
+        #     client_id exists = Client
+        # ------------------------------------------------------
+
+        if prospect.client_id:
+
+            map_color = "#198754"
+            map_status = "Client"
+
+        else:
+
+            map_color = "#0d6efd"
+            map_status = "Prospect"
+
+        # ------------------------------------------------------
+        # ONLY INCLUDE PROSPECTS WITH LOCATION DATA
+        # ------------------------------------------------------
+
+        if (
+            prospect.lat is not None
+            and prospect.lng is not None
+        ):
+
+            map_points.append(
+                {
+                    "name": prospect.name,
+                    "lat": float(prospect.lat),
+                    "lng": float(prospect.lng),
+                    "color": map_color,
+                    "status": map_status,
+                }
+            )
+
+    # ==========================================================
+    # MAP TOTAL
+    #
+    # This is the number of ALL historical prospects that have
+    # valid coordinates and are therefore capable of appearing
+    # on the map.
+    # ==========================================================
+
+    map_total = len(map_points)
+
+    # ==========================================================
+    # PRESERVE FILTERS WHEN SWITCHING VIEW
+    #
+    # This is kept for the List / Map switch.
+    #
+    # NOTE:
+    # The Map itself does NOT apply these filters.
+    # ==========================================================
+
+    switch_params = request.GET.copy()
+
+    switch_params.pop(
+        "view",
+        None
+    )
+
+    switch_query = switch_params.urlencode()
+
+    # ==========================================================
     # CONTEXT
     # ==========================================================
 
     context = {
+
         # ------------------------------------------------------
-        # Prospects
+        # LIST PROSPECTS
         # ------------------------------------------------------
 
         "prospects": prospects_qs,
@@ -1790,19 +2080,19 @@ def prospects(request):
         "prospects_total": prospects_total,
 
         # ------------------------------------------------------
-        # Pipeline
+        # PIPELINE
         # ------------------------------------------------------
 
         "pipeline_summary": pipeline_summary,
 
         # ------------------------------------------------------
-        # Current date
+        # CURRENT DATE
         # ------------------------------------------------------
 
         "today": today,
 
         # ------------------------------------------------------
-        # Date filters
+        # DATE FILTERS
         # ------------------------------------------------------
 
         "selected_date_from": selected_date_from,
@@ -1810,10 +2100,32 @@ def prospects(request):
         "selected_date_to": selected_date_to,
 
         # ------------------------------------------------------
-        # Visibility
+        # VISIBILITY
         # ------------------------------------------------------
 
         "rep_only": rep_only,
+
+        # ------------------------------------------------------
+        # VIEW MODE
+        # ------------------------------------------------------
+
+        "view_mode": view_mode,
+
+        # ------------------------------------------------------
+        # MAP
+        #
+        # This is ALL historical located prospects.
+        # ------------------------------------------------------
+
+        "map_points": map_points,
+
+        "map_total": map_total,
+
+        # ------------------------------------------------------
+        # FILTER QUERY
+        # ------------------------------------------------------
+
+        "switch_query": switch_query,
     }
 
     # ==========================================================
@@ -1825,7 +2137,6 @@ def prospects(request):
         "prospects/prospects.html",
         context,
     )
-
 
 @login_required
 def prospect_create(request):

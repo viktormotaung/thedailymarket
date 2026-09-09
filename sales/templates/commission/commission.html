@@ -82,6 +82,451 @@
     }
 
     /* =========================================================
+      COMMISSION CENTRE
+      ========================================================= */
+
+    .commission-page {
+        max-width: 1550px;
+        margin: 0 auto;
+    }
+
+    /* ---------------------------------------------------------
+      HEADER
+      --------------------------------------------------------- */
+
+    .commission-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .commission-eyebrow {
+        font-size: .72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: #0b5c39;
+        margin-bottom: .3rem;
+    }
+
+    .commission-title {
+        font-size: 1.7rem;
+        font-weight: 700;
+        color: #212529;
+        margin: 0;
+    }
+
+    .commission-subtitle {
+        color: #6c757d;
+        font-size: .88rem;
+        margin-top: .35rem;
+    }
+
+    /* ---------------------------------------------------------
+      FILTER PANEL
+      --------------------------------------------------------- */
+
+    .commission-filter {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 1rem 1.15rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,.025);
+    }
+
+    .commission-filter-label {
+        display: block;
+        font-size: .68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: #6c757d;
+        margin-bottom: .3rem;
+    }
+
+    .commission-filter .form-select {
+        min-height: 42px;
+        border-radius: 8px;
+    }
+
+    /* ---------------------------------------------------------
+      KPI CARDS
+      --------------------------------------------------------- */
+
+    .commission-kpi {
+        height: 100%;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 1.1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,.025);
+        transition: transform .15s ease, box-shadow .15s ease;
+    }
+
+    .commission-kpi:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(0,0,0,.06);
+    }
+
+    .commission-kpi-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: rgba(11,92,57,.09);
+        color: #0b5c39;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: .8rem;
+    }
+
+    .commission-kpi-label {
+        color: #6c757d;
+        font-size: .75rem;
+        font-weight: 600;
+    }
+
+    .commission-kpi-value {
+        color: #212529;
+        font-size: 1.45rem;
+        font-weight: 700;
+        margin-top: .2rem;
+    }
+
+    .commission-kpi-change {
+        font-size: .72rem;
+        margin-top: .35rem;
+    }
+
+    .commission-kpi-highlight {
+        border-color: rgba(11,92,57,.3);
+        background: linear-gradient(
+            135deg,
+            #fff 0%,
+            rgba(11,92,57,.035) 100%
+        );
+    }
+
+    /* ---------------------------------------------------------
+      DASHBOARD SECTION
+      --------------------------------------------------------- */
+
+    .commission-section {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,.025);
+    }
+
+    .commission-section-header {
+        padding: 1rem 1.15rem;
+        border-bottom: 1px solid #eef0f2;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .commission-section-heading {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+    }
+
+    .commission-section-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(11,92,57,.09);
+        color: #0b5c39;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+    }
+
+    .commission-section-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #212529;
+        margin: 0;
+    }
+
+    .commission-section-subtitle {
+        color: #6c757d;
+        font-size: .76rem;
+        margin-top: .15rem;
+    }
+
+    .commission-section-body {
+        padding: 1.15rem;
+    }
+
+    /* ---------------------------------------------------------
+      TARGET PROGRESS
+      --------------------------------------------------------- */
+
+    .commission-target-card {
+        height: 100%;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 1.15rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,.025);
+    }
+
+    .commission-target-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .commission-target-title {
+        font-weight: 700;
+        font-size: .95rem;
+        color: #212529;
+    }
+
+    .commission-target-value {
+        font-size: .76rem;
+        color: #6c757d;
+        margin-top: .15rem;
+    }
+
+    .commission-target-percent {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0b5c39;
+    }
+
+    .commission-target-card .progress {
+        height: 9px;
+        border-radius: 999px;
+        background: #edf0f1;
+    }
+
+    .commission-target-card .progress-bar {
+        border-radius: 999px;
+    }
+
+    .commission-target-stat {
+        text-align: center;
+        padding: .65rem .4rem;
+    }
+
+    .commission-target-stat-label {
+        display: block;
+        color: #6c757d;
+        font-size: .68rem;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+    }
+
+    .commission-target-stat-value {
+        display: block;
+        margin-top: .2rem;
+        font-size: .85rem;
+        font-weight: 700;
+        color: #212529;
+    }
+
+    /* ---------------------------------------------------------
+      BONUS ALERT
+      --------------------------------------------------------- */
+
+    .commission-bonus-alert {
+        border-radius: 10px;
+        font-size: .8rem;
+        margin-top: 1rem;
+    }
+
+    /* ---------------------------------------------------------
+      TABLES
+      --------------------------------------------------------- */
+
+    .commission-table-wrap {
+        overflow-x: auto;
+    }
+
+    .commission-table {
+        min-width: 900px;
+        margin-bottom: 0;
+    }
+
+    .commission-table thead th {
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        color: #495057;
+        font-size: .7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .025em;
+        white-space: nowrap;
+        padding: .75rem;
+    }
+
+    .commission-table tbody td {
+        font-size: .82rem;
+        padding: .8rem .75rem;
+        vertical-align: middle;
+    }
+
+    .commission-table tbody tr {
+        transition: background .15s ease;
+    }
+
+    .commission-table tbody tr.clickable-row {
+        cursor: pointer;
+    }
+
+    .commission-table tbody tr.clickable-row:hover {
+        background: rgba(11,92,57,.035);
+    }
+
+    .commission-rep-name {
+        font-weight: 700;
+        color: #212529;
+    }
+
+    .commission-rank {
+        min-width: 42px;
+        display: inline-flex;
+        justify-content: center;
+    }
+
+    .commission-money {
+        white-space: nowrap;
+        font-weight: 600;
+    }
+
+    .commission-money-total {
+        color: #0b5c39;
+        font-weight: 700;
+    }
+
+    /* ---------------------------------------------------------
+      RANKING BADGES
+      --------------------------------------------------------- */
+
+    .commission-rank-first {
+        background: #ffc107;
+        color: #212529;
+    }
+
+    .commission-rank-second {
+        background: #6c757d;
+        color: #fff;
+    }
+
+    .commission-rank-third {
+        background: #343a40;
+        color: #fff;
+    }
+
+    /* ---------------------------------------------------------
+      TREND CHART
+      --------------------------------------------------------- */
+
+    .commission-chart {
+        position: relative;
+        height: 340px;
+    }
+
+    .commission-chart-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .commission-chart-select {
+        max-width: 220px;
+        min-height: 38px;
+    }
+
+    /* ---------------------------------------------------------
+      EMPTY STATE
+      --------------------------------------------------------- */
+
+    .commission-empty {
+        padding: 2rem 1rem;
+        text-align: center;
+        color: #6c757d;
+    }
+
+    .commission-empty i {
+        display: block;
+        font-size: 1.8rem;
+        margin-bottom: .5rem;
+        opacity: .5;
+    }
+
+    /* ---------------------------------------------------------
+      RESPONSIVE
+      --------------------------------------------------------- */
+
+    @media (max-width: 991.98px) {
+
+        .commission-title {
+            font-size: 1.45rem;
+        }
+
+        .commission-chart {
+            height: 280px;
+        }
+
+    }
+
+    @media (max-width: 767.98px) {
+
+        .commission-header {
+            margin-bottom: 1rem;
+        }
+
+        .commission-filter {
+            padding: .9rem;
+        }
+
+        .commission-kpi-value {
+            font-size: 1.25rem;
+        }
+
+        .commission-section-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .commission-chart-select {
+            width: 100%;
+            max-width: none;
+        }
+
+    }
+
+    @media (max-width: 575.98px) {
+
+        .content {
+            padding: 14px;
+        }
+
+        .commission-title {
+            font-size: 1.3rem;
+        }
+
+        .commission-section-body {
+            padding: .9rem;
+        }
+
+        .commission-chart {
+            height: 240px;
+        }
+
+    }
+
+    /* =========================================================
        CHART
        ========================================================= */
 
@@ -616,750 +1061,1099 @@
 
   
 
-  <!-- MAIN CONTENT -->
+  <!-- =========================================================
+     MAIN CONTENT
+     ========================================================= -->
+
   <main class="content">
 
-    <h2 class="text-center mb-3">Commission Centre</h2>
+    <div class="commission-page">
 
-    <div class="card mb-3">
-      <div class="card-body">
 
-       
-        <form method="get" class="d-flex flex-column flex-md-row gap-2 align-items-md-center">
+      <!-- =====================================================
+          PAGE HEADER
+          ===================================================== -->
 
-          <!-- ===================== -->
-          <!-- PERIOD -->
-          <!-- ===================== -->
-          <select name="period" class="form-select form-select-sm">
+      <div class="commission-header">
 
-            {% for p in periods %}
-              <option
-                value="{{ p.value }}"
-                {% if p.value == selected_period %}selected{% endif %}
-              >
-                {{ p.label }}
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+
+          <div>
+
+            <div class="commission-eyebrow">
+              Sales · Performance
+            </div>
+
+            <h1 class="commission-title">
+              Commission Centre
+            </h1>
+
+            <div class="commission-subtitle">
+              Track commission, revenue, client growth, targets and team performance.
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- =====================================================
+          FILTERS
+          ===================================================== -->
+
+      <div class="commission-filter">
+
+        <form
+          method="get"
+          class="row g-2 align-items-end"
+        >
+
+          <div class="col-12 col-md-3">
+
+            <label class="commission-filter-label">
+              Commission Period
+            </label>
+
+            <select
+              name="period"
+              class="form-select form-select-sm"
+            >
+
+              {% for p in periods %}
+
+                <option
+                  value="{{ p.value }}"
+                  {% if p.value == selected_period %}selected{% endif %}
+                >
+                  {{ p.label }}
+                </option>
+
+              {% endfor %}
+
+            </select>
+
+          </div>
+
+
+          <div class="col-12 col-md-2">
+
+            <label class="commission-filter-label">
+              Year
+            </label>
+
+            <select
+              name="year"
+              class="form-select form-select-sm"
+            >
+
+              {% for y in years %}
+
+                <option
+                  value="{{ y }}"
+                  {% if y == selected_year %}selected{% endif %}
+                >
+                  {{ y }}
+                </option>
+
+              {% endfor %}
+
+            </select>
+
+          </div>
+
+
+          <div class="col-12 col-md-3">
+
+            <label class="commission-filter-label">
+              Sales Rep
+            </label>
+
+            <select
+              name="rep"
+              id="repFilter"
+              class="form-select form-select-sm"
+            >
+
+              <option value="">
+                All Reps
               </option>
-            {% endfor %}
 
-          </select>
+              {% for r in reps %}
+
+                <option
+                  value="{{ r.value }}"
+                  {% if r.value|stringformat:"s" == selected_rep|stringformat:"s" %}
+                    selected
+                  {% endif %}
+                >
+                  {{ r.label }}
+                </option>
+
+              {% endfor %}
+
+            </select>
+
+          </div>
 
 
-          <!-- ===================== -->
-          <!-- YEAR -->
-          <!-- ===================== -->
-          <select name="year" class="form-select form-select-sm">
+          <div class="col-12 col-md-3">
 
-            {% for y in years %}
-              <option
-                value="{{ y }}"
-                {% if y == selected_year %}selected{% endif %}
-              >
-                {{ y }}
+            <label class="commission-filter-label">
+              Territory
+            </label>
+
+            <select
+              name="territory"
+              id="territoryFilter"
+              class="form-select form-select-sm"
+            >
+
+              <option value="">
+                All Territories
               </option>
-            {% endfor %}
 
-          </select>
+              {% for t in territories %}
 
-          <!-- ===================== -->
-          <!-- REP -->
-          <!-- ===================== -->
-          <select
-            name="rep"
-            id="repFilter"
-            class="form-select form-select-sm"
-          >
-            <option value="">
-              All Reps
-            </option>
+                <option
+                  value="{{ t.value }}"
+                  data-region="{{ t.region_value }}"
+                  {% if t.value|stringformat:"s" == selected_territory|stringformat:"s" %}
+                    selected
+                  {% endif %}
+                >
+                  {{ t.label }}
+                </option>
 
-            {% for r in reps %}
-              <option
-                value="{{ r.value }}"
-                {% if r.value|stringformat:"s" == selected_rep|stringformat:"s" %}
-                  selected
-                {% endif %}
-              >
-                {{ r.label }}
-              </option>
-            {% endfor %}
-          </select>
+              {% endfor %}
+
+            </select>
+
+          </div>
 
 
-          <!-- ===================== -->
-          <!-- TERRITORY -->
-          <!-- ===================== -->
-          <select
-            name="territory"
-            id="territoryFilter"
-            class="form-select form-select-sm"
-          >
+          <div class="col-12 col-md-1">
 
-            <option value="">
-              All Territories
-            </option>
+            <button
+              type="submit"
+              class="btn btn-primary btn-sm w-100"
+            >
+              Apply
+            </button>
 
-            {% for t in territories %}
-              <option
-                value="{{ t.value }}"
-                data-region="{{ t.region_value }}"
-                {% if t.value|stringformat:"s" == selected_territory|stringformat:"s" %}
-                  selected
-                {% endif %}
-              >
-                {{ t.label }}
-              </option>
-            {% endfor %}
-
-          </select>
-
-
-          <!-- ===================== -->
-          <!-- APPLY -->
-          <!-- ===================== -->
-          <button
-            type="submit"
-            class="btn btn-primary btn-sm px-4"
-          >
-            Apply
-          </button>
+          </div>
 
         </form>
 
       </div>
-    </div>
 
 
-    <!-- ===================== -->
-    <!-- REGION → TERRITORY -->
-    <!-- ===================== -->
-    <script>
-    document.addEventListener("DOMContentLoaded", function () {
+      <!-- =====================================================
+          KPI CARDS
+          ===================================================== -->
 
-        const regionFilter = document.getElementById("regionFilter");
-        const territoryFilter = document.getElementById("territoryFilter");
-
-        if (!regionFilter || !territoryFilter) {
-            return;
-        }
-
-        const territoryOptions = Array.from(
-            territoryFilter.querySelectorAll("option")
-        );
-
-        function filterTerritories() {
-
-            const selectedRegion = regionFilter.value;
-            const selectedTerritory = "{{ selected_territory|default:'' }}";
-
-            territoryOptions.forEach(function (option) {
-
-                // Always keep "All Territories"
-                if (option.value === "") {
-                    option.hidden = false;
-                    return;
-                }
-
-                const territoryRegion = option.dataset.region;
-
-                if (
-                    selectedRegion === "" ||
-                    territoryRegion === selectedRegion
-                ) {
-                    option.hidden = false;
-                } else {
-                    option.hidden = true;
-
-                    // If the selected territory doesn't belong
-                    // to the selected region, deselect it.
-                    if (option.value === selectedTerritory) {
-                        option.selected = false;
-                    }
-                }
-            });
-
-            // If currently selected territory is not visible,
-            // reset to All Territories.
-            const selectedOption =
-                territoryFilter.options[territoryFilter.selectedIndex];
-
-            if (
-                selectedOption &&
-                selectedOption.hidden
-            ) {
-                territoryFilter.value = "";
-            }
-        }
+      <div class="row g-3 mb-4">
 
 
-        // Filter immediately when page loads
-        filterTerritories();
+        <!-- COMMISSION -->
 
+        <div class="col-12 col-sm-6 col-xl-3">
 
-        // Re-filter whenever region changes
-        regionFilter.addEventListener("change", function () {
+          <div class="commission-kpi">
 
-            territoryFilter.value = "";
-
-            filterTerritories();
-
-        });
-
-    });
-    </script>
-
-
-    <!-- ===================== -->
-    <!-- ADMIN / BUSINESS KPI CARDS -->
-    <!-- ===================== -->
-    <div class="row g-3 mb-4">
-
-      <!-- Total Commission Payable -->
-      <div class="col-md-3">
-        <div class="card p-3 h-100">
-          <small class="text-muted">Total Commission Payable</small>
-
-          <h4 class="mb-1">
-            R{{ total_commission_payable|default:0|floatformat:2|intcomma }}
-          </h4>
-
-          <small class="
-            {% if commission_payable_change.direction == 'up' %}
-              text-success
-            {% elif commission_payable_change.direction == 'down' %}
-              text-danger
-            {% else %}
-              text-muted
-            {% endif %}
-          ">
-            {% if commission_payable_change.direction == "up" %}
-              ↑ {{ commission_payable_change.percent|floatformat:2 }}%
-            {% elif commission_payable_change.direction == "down" %}
-              ↓ {{ commission_payable_change.percent|floatformat:2 }}%
-            {% else %}
-              — {{ commission_payable_change.percent|floatformat:2 }}%
-            {% endif %}
-            vs previous period
-          </small>
-        </div>
-      </div>
-
-      <!-- Revenue Generated -->
-      <div class="col-md-3">
-        <div class="card p-3 h-100">
-          <small class="text-muted">Revenue Generated</small>
-
-          <h4 class="mb-1">
-            R{{ total_revenue|default:0|floatformat:2|intcomma }}
-          </h4>
-
-          <small class="
-            {% if revenue_change.direction == 'up' %}
-              text-success
-            {% elif revenue_change.direction == 'down' %}
-              text-danger
-            {% else %}
-              text-muted
-            {% endif %}
-          ">
-            {% if revenue_change.direction == "up" %}
-              ↑ {{ revenue_change.percent|floatformat:2 }}%
-            {% elif revenue_change.direction == "down" %}
-              ↓ {{ revenue_change.percent|floatformat:2 }}%
-            {% else %}
-              — {{ revenue_change.percent|floatformat:2 }}%
-            {% endif %}
-            vs previous period
-          </small>
-        </div>
-      </div>
-
-      <!-- Unique Clients -->
-      <div class="col-md-3">
-        <div class="card p-3 h-100">
-          <small class="text-muted">Unique Clients</small>
-
-          <h4 class="mb-1">
-            {{ total_clients|default:0 }}
-          </h4>
-
-          <small class="
-            {% if clients_change.direction == 'up' %}
-              text-success
-            {% elif clients_change.direction == 'down' %}
-              text-danger
-            {% else %}
-              text-muted
-            {% endif %}
-          ">
-            {% if clients_change.direction == "up" %}
-              ↑ {{ clients_change.percent|floatformat:2 }}%
-            {% elif clients_change.direction == "down" %}
-              ↓ {{ clients_change.percent|floatformat:2 }}%
-            {% else %}
-              — {{ clients_change.percent|floatformat:2 }}%
-            {% endif %}
-            vs previous period
-          </small>
-        </div>
-      </div>
-
-      <!-- New Business Bonus -->
-      <div class="col-md-3">
-        <div class="card p-3 h-100 border-success">
-          <small class="text-muted">New Business Bonus</small>
-
-          <h4 class="mb-1 text-success">
-            R{{ new_business_bonus_total|default:0|floatformat:2|intcomma }}
-          </h4>
-
-          <small class="
-            {% if new_business_bonus_change.direction == 'up' %}
-              text-success
-            {% elif new_business_bonus_change.direction == 'down' %}
-              text-danger
-            {% else %}
-              text-muted
-            {% endif %}
-          ">
-            {% if new_business_bonus_change.direction == "up" %}
-              ↑ {{ new_business_bonus_change.percent|floatformat:2 }}%
-            {% elif new_business_bonus_change.direction == "down" %}
-              ↓ {{ new_business_bonus_change.percent|floatformat:2 }}%
-            {% else %}
-              — {{ new_business_bonus_change.percent|floatformat:2 }}%
-            {% endif %}
-            vs previous period
-          </small>
-        </div>
-      </div>
-
-    </div>
-
-
-    <!-- ===================== -->
-    <!-- TARGET PROGRESS -->
-    <!-- ===================== -->
-    <div class="row g-3 mb-4">
-
-      <div class="col-lg-6">
-        <div class="card p-4 h-100">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <div>
-              <h5 class="mb-0">Revenue Target Progress</h5>
-              <small class="text-muted">
-                R{{ actual_revenue|default:0|floatformat:0|intcomma }}
-                /
-                R{{ monthly_target|default:0|floatformat:0|intcomma }}
-              </small>
+            <div class="commission-kpi-icon">
+              <i class="bi bi-cash-stack"></i>
             </div>
-            <span class="fw-semibold">{{ revenue_target_pct|default:0|floatformat:2 }}%</span>
+
+            <div class="commission-kpi-label">
+              Total Commission Payable
+            </div>
+
+            <div class="commission-kpi-value">
+              R{{ total_commission_payable|default:0|floatformat:2|intcomma }}
+            </div>
+
+            <div class="commission-kpi-change
+              {% if commission_payable_change.direction == 'up' %}
+                text-success
+              {% elif commission_payable_change.direction == 'down' %}
+                text-danger
+              {% else %}
+                text-muted
+              {% endif %}
+            ">
+
+              {% if commission_payable_change.direction == "up" %}
+                ↑ {{ commission_payable_change.percent|floatformat:2 }}%
+              {% elif commission_payable_change.direction == "down" %}
+                ↓ {{ commission_payable_change.percent|floatformat:2 }}%
+              {% else %}
+                — {{ commission_payable_change.percent|floatformat:2 }}%
+              {% endif %}
+
+              vs previous period
+
+            </div>
+
           </div>
 
-          <div class="progress mb-3" style="height: 8px;">
-            <div class="progress-bar" style="width: {{ revenue_target_pct|default:0 }}%;"></div>
-          </div>
-
-          <div class="row text-center">
-            <div class="col">
-              <small class="text-muted">Remaining</small>
-              <div class="fw-semibold">R{{ revenue_gap|default:0|floatformat:0|intcomma }}</div>
-            </div>
-            <div class="col">
-              <small class="text-muted">Required / Week</small>
-              <div class="fw-semibold">R{{ required_per_week|default:0|floatformat:2|intcomma }}</div>
-            </div>
-            <div class="col">
-              <small class="text-muted">Weekly Avg</small>
-              <div class="fw-semibold">R{{ weekly_average|default:0|floatformat:2|intcomma }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-lg-6">
-        <div class="card p-4 h-100">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <div>
-              <h5 class="mb-0">Client Target Progress</h5>
-              <small class="text-muted">
-                {{ actual_clients|default:0 }}
-                /
-                {{ client_target|default:0 }} clients
-              </small>
-            </div>
-            <span class="fw-semibold">{{ client_target_pct|default:0|floatformat:2 }}%</span>
-          </div>
-
-          <div class="progress mb-3" style="height: 8px;">
-            <div class="progress-bar bg-success" style="width: {{ client_target_pct|default:0 }}%;"></div>
-          </div>
-
-          {% if bonus_active %}
-            <div class="alert alert-success mb-0 py-2">
-              🔥 Bonus clients are now active. Every qualifying new client above target can earn the higher rate.
-            </div>
-          {% else %}
-            <div class="alert alert-light border mb-0 py-2">
-              {{ clients_needed_for_bonus|default:0 }} more client(s) needed before bonus commission activates.
-            </div>
-          {% endif %}
-        </div>
-      </div>
-
-    </div>
-
-
-    <!-- ===================== -->
-    <!-- REP / SUPERVISOR PERFORMANCE TABLE -->
-    <!-- ===================== -->
-    <div class="card p-4 mb-4">
-
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
-        <div>
-          <h5 class="mb-0">Rep Performance</h5>
-          <small class="text-muted">Targets, client count, commission, and bonus visibility.</small>
         </div>
 
-        <a href="{% url 'sales:sales-target-list' %}" class="btn btn-outline-dark btn-sm">
-          Manage Targets
-        </a>
-      </div>
 
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead>
-            <tr>
-              <th style="width: 90px;">Rank</th>
-              <th>Rep</th>
-              <th>Entries</th>
-              <th>Supervisor</th>
-              <th>Commission</th>
-              <th>Bonus</th>
-              <th>Total</th>
-            </tr>
-          </thead>
+        <!-- REVENUE -->
 
-          <tbody>
-            {% for r in rep_commission_summary %}
+        <div class="col-12 col-sm-6 col-xl-3">
 
-            <tr
-              class="clickable-row"
-              data-href="{% url 'sales:sales-commission-rep-detail' r.rep_id %}?month={{ selected_month }}&year={{ selected_year }}{% if selected_territory %}
-    &territory={{ selected_territory }}
-{% endif %}"
-            >
+          <div class="commission-kpi">
 
-              <td>
-                {% if r.ranking == 1 %}
-                  <span class="badge bg-warning text-dark px-3 py-2">#1</span>
-                {% elif r.ranking == 2 %}
-                  <span class="badge bg-secondary px-3 py-2">#2</span>
-                {% elif r.ranking == 3 %}
-                  <span class="badge bg-dark px-3 py-2">#3</span>
-                {% else %}
-                  <span class="fw-semibold">#{{ r.ranking }}</span>
-                {% endif %}
-              </td>
+            <div class="commission-kpi-icon">
+              <i class="bi bi-graph-up-arrow"></i>
+            </div>
 
-              <td>
-                <div class="fw-semibold">{{ r.rep_name }}</div>
-              </td>
+            <div class="commission-kpi-label">
+              Revenue Generated
+            </div>
 
-              <td>{{ r.entries|default:"0" }}</td>
+            <div class="commission-kpi-value">
+              R{{ total_revenue|default:0|floatformat:2|intcomma }}
+            </div>
 
-              <td>
-                  {{ r.supervisor|default:"—" }}
-              </td>
+            <div class="commission-kpi-change
+              {% if revenue_change.direction == 'up' %}
+                text-success
+              {% elif revenue_change.direction == 'down' %}
+                text-danger
+              {% else %}
+                text-muted
+              {% endif %}
+            ">
 
-              <td>R{{ r.base_commission|default:0|floatformat:2|intcomma }}</td>
+              {% if revenue_change.direction == "up" %}
+                ↑ {{ revenue_change.percent|floatformat:2 }}%
+              {% elif revenue_change.direction == "down" %}
+                ↓ {{ revenue_change.percent|floatformat:2 }}%
+              {% else %}
+                — {{ revenue_change.percent|floatformat:2 }}%
+              {% endif %}
 
-              <td>
-                {% if r.bonus_commission > 0 %}
-                  <span class="text-success fw-semibold">
-                    R{{ r.bonus_commission|floatformat:2|intcomma }}
-                  </span>
-                {% else %}
-                  <span class="text-muted">R0.00</span>
-                {% endif %}
-              </td>
+              vs previous period
 
-              <td class="fw-semibold">
-                R{{ r.total_commission|default:0|floatformat:2|intcomma }}
-              </td>
+            </div>
 
-            </tr>
+          </div>
 
-            {% empty %}
-            <tr>
-              <td colspan="6" class="text-center text-muted py-4">
-                No commission data available for this period.
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-    </div>
+        </div>
 
 
-    {% if not is_representative_only %}
+        <!-- CLIENTS -->
 
-    <!-- ========================================================= -->
-    <!-- SUPERVISOR PERFORMANCE -->
-    <!-- ========================================================= -->
-    <div class="card p-4 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
 
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+          <div class="commission-kpi">
 
-        <div>
-          <h5 class="mb-0">Supervisor Performance</h5>
-          <small class="text-muted">
-            Supervisor performance based on commission entries for the selected period.
-          </small>
+            <div class="commission-kpi-icon">
+              <i class="bi bi-people"></i>
+            </div>
+
+            <div class="commission-kpi-label">
+              Unique Clients
+            </div>
+
+            <div class="commission-kpi-value">
+              {{ total_clients|default:0 }}
+            </div>
+
+            <div class="commission-kpi-change
+              {% if clients_change.direction == 'up' %}
+                text-success
+              {% elif clients_change.direction == 'down' %}
+                text-danger
+              {% else %}
+                text-muted
+              {% endif %}
+            ">
+
+              {% if clients_change.direction == "up" %}
+                ↑ {{ clients_change.percent|floatformat:2 }}%
+              {% elif clients_change.direction == "down" %}
+                ↓ {{ clients_change.percent|floatformat:2 }}%
+              {% else %}
+                — {{ clients_change.percent|floatformat:2 }}%
+              {% endif %}
+
+              vs previous period
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- BONUS -->
+
+        <div class="col-12 col-sm-6 col-xl-3">
+
+          <div class="commission-kpi commission-kpi-highlight">
+
+            <div class="commission-kpi-icon">
+              <i class="bi bi-stars"></i>
+            </div>
+
+            <div class="commission-kpi-label">
+              New Business Bonus
+            </div>
+
+            <div class="commission-kpi-value text-success">
+              R{{ new_business_bonus_total|default:0|floatformat:2|intcomma }}
+            </div>
+
+            <div class="commission-kpi-change
+              {% if new_business_bonus_change.direction == 'up' %}
+                text-success
+              {% elif new_business_bonus_change.direction == 'down' %}
+                text-danger
+              {% else %}
+                text-muted
+              {% endif %}
+            ">
+
+              {% if new_business_bonus_change.direction == "up" %}
+                ↑ {{ new_business_bonus_change.percent|floatformat:2 }}%
+              {% elif new_business_bonus_change.direction == "down" %}
+                ↓ {{ new_business_bonus_change.percent|floatformat:2 }}%
+              {% else %}
+                — {{ new_business_bonus_change.percent|floatformat:2 }}%
+              {% endif %}
+
+              vs previous period
+
+            </div>
+
+          </div>
+
         </div>
 
       </div>
 
 
-      <div class="table-responsive">
+      <!-- =====================================================
+          TARGET PROGRESS
+          ===================================================== -->
 
-        <table class="table table-hover align-middle">
-
-          <thead>
-            <tr>
-              <th style="width: 90px;">Rank</th>
-              <th>Supervisor</th>
-              <th>Entries</th>
-              <th>Reps</th>
-              <th>Clients</th>
-              <th>Revenue</th>
-              <th>Commission</th>
-              <th>Total</th>
-            </tr>
-          </thead>
+      <div class="row g-3 mb-4">
 
 
-          <tbody>
+        <!-- REVENUE TARGET -->
 
-            {% for s in supervisor_performance_summary %}
+        <div class="col-lg-6">
 
-            <tr>
+          <div class="commission-target-card">
 
-              <!-- RANK -->
-              <td>
-                {% if s.ranking == 1 %}
+            <div class="commission-target-top">
 
-                  <span class="badge bg-warning text-dark px-3 py-2">
-                    #1
-                  </span>
+              <div>
 
-                {% elif s.ranking == 2 %}
-
-                  <span class="badge bg-secondary px-3 py-2">
-                    #2
-                  </span>
-
-                {% elif s.ranking == 3 %}
-
-                  <span class="badge bg-dark px-3 py-2">
-                    #3
-                  </span>
-
-                {% else %}
-
-                  <span class="fw-semibold">
-                    #{{ s.ranking }}
-                  </span>
-
-                {% endif %}
-              </td>
-
-
-              <!-- SUPERVISOR -->
-              <td>
-                <div class="fw-semibold">
-                  {{ s.supervisor_name|default:"—" }}
+                <div class="commission-target-title">
+                  Revenue Target Progress
                 </div>
-              </td>
+
+                <div class="commission-target-value">
+
+                  R{{ actual_revenue|default:0|floatformat:0|intcomma }}
+
+                  /
+
+                  R{{ monthly_target|default:0|floatformat:0|intcomma }}
+
+                </div>
+
+              </div>
+
+              <div class="commission-target-percent">
+                {{ revenue_target_pct|default:0|floatformat:2 }}%
+              </div>
+
+            </div>
 
 
-              <!-- ENTRIES -->
-              <td>
-                {{ s.entries|default:0 }}
-              </td>
+            <div class="progress mt-3 mb-3">
+
+              <div
+                class="progress-bar"
+                style="width: {{ revenue_target_pct|default:0 }}%;"
+              ></div>
+
+            </div>
 
 
-              <!-- REPS -->
-              <td>
-                {{ s.reps|default:0 }}
-              </td>
+            <div class="row">
+
+              <div class="col-4 commission-target-stat">
+
+                <span class="commission-target-stat-label">
+                  Remaining
+                </span>
+
+                <span class="commission-target-stat-value">
+                  R{{ revenue_gap|default:0|floatformat:0|intcomma }}
+                </span>
+
+              </div>
 
 
-              <!-- CLIENTS -->
-              <td>
-                {{ s.clients|default:0 }}
-              </td>
+              <div class="col-4 commission-target-stat">
+
+                <span class="commission-target-stat-label">
+                  Required / Week
+                </span>
+
+                <span class="commission-target-stat-value">
+                  R{{ required_per_week|default:0|floatformat:2|intcomma }}
+                </span>
+
+              </div>
 
 
-              <!-- REVENUE -->
-              <td>
-                R{{ s.revenue|default:0|floatformat:2|intcomma }}
-              </td>
+              <div class="col-4 commission-target-stat">
 
+                <span class="commission-target-stat-label">
+                  Weekly Avg
+                </span>
 
-              <!-- COMMISSION -->
-              <td>
-                R{{ s.commission|default:0|floatformat:2|intcomma }}
-              </td>
+                <span class="commission-target-stat-value">
+                  R{{ weekly_average|default:0|floatformat:2|intcomma }}
+                </span>
 
+              </div>
 
-              <!-- TOTAL -->
-              <td class="fw-semibold">
-                R{{ s.total_commission|default:0|floatformat:2|intcomma }}
-              </td>
+            </div>
 
-            </tr>
+          </div>
 
-
-            {% empty %}
-
-            <tr>
-              <td colspan="8" class="text-center text-muted py-4">
-                No supervisor performance data available for this period.
-              </td>
-            </tr>
-
-            {% endfor %}
-
-          </tbody>
-
-        </table>
-
-      </div>
-
-    </div>
-
-    {% endif %}
-
-
-     {% if not is_representative_only %}
-
-    <!-- ===================== -->
-    <!-- TERRITORY PERFORMANCE VIEW -->
-    <!-- ===================== -->
-    <div class="card p-4 mb-4">
-
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h5 class="mb-0">Territory Performance</h5>
-          <small class="text-muted">
-            Territory-level view of reps, clients, revenue, and commission exposure.
-          </small>
-        </div>
-      </div>
-
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-
-          <thead>
-            <tr>
-              <th>Territory</th>
-              <th>Reps</th>
-              <th>Clients</th>
-              <th>Revenue</th>
-              <th>Rep Commission</th>
-              <th>Supervisor Commission</th>
-              <th>Total Commission</th>
-            </tr>
-          </thead>
-
-          <tbody>
-
-            {% for t in territory_performance_summary %}
-
-            <tr>
-
-              <td>
-                {{ t.territory }}
-              </td>
-
-              <td>
-                {{ t.rep_count|default:0 }}
-              </td>
-
-              <td>
-                {{ t.clients|default:0 }}
-              </td>
-
-              <td>
-                R{{ t.revenue|default:0|floatformat:2|intcomma }}
-              </td>
-
-              <td>
-                R{{ t.rep_commission_total|default:0|floatformat:2|intcomma }}
-              </td>
-
-              <td>
-                R{{ t.supervisor_commission_total|default:0|floatformat:2|intcomma }}
-              </td>
-
-              <td class="fw-semibold">
-                R{{ t.total_commission|default:0|floatformat:2|intcomma }}
-              </td>
-
-            </tr>
-
-            {% empty %}
-
-            <tr>
-              <td colspan="7" class="text-center text-muted py-4">
-                No territory performance data available.
-              </td>
-            </tr>
-
-            {% endfor %}
-
-          </tbody>
-
-        </table>
-      </div>
-
-    </div>
-
-    {% endif %}
-
-    <!-- ===================== -->
-    <!-- PERFORMANCE TREND GRAPH -->
-    <div class="card p-4 mb-4">
-
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
-        <div>
-          <h5 class="mb-0">Performance Trend</h5>
-          <small class="text-muted">
-            Switch between revenue, commission, active clients, and orders by month.
-          </small>
         </div>
 
-        <select id="performanceTrendMetric" class="form-select form-select-sm" style="max-width: 220px;">
-          <option value="revenue">Revenue</option>
-          <option value="commission">Commission</option>
-          <option value="clients">Active Clients</option>
-          <option value="orders">Orders</option>
-        </select>
+
+        <!-- CLIENT TARGET -->
+
+        <div class="col-lg-6">
+
+          <div class="commission-target-card">
+
+            <div class="commission-target-top">
+
+              <div>
+
+                <div class="commission-target-title">
+                  Client Target Progress
+                </div>
+
+                <div class="commission-target-value">
+                  {{ actual_clients|default:0 }}
+                  /
+                  {{ client_target|default:0 }}
+                  clients
+                </div>
+
+              </div>
+
+              <div class="commission-target-percent">
+                {{ client_target_pct|default:0|floatformat:2 }}%
+              </div>
+
+            </div>
+
+
+            <div class="progress mt-3 mb-3">
+
+              <div
+                class="progress-bar bg-success"
+                style="width: {{ client_target_pct|default:0 }}%;"
+              ></div>
+
+            </div>
+
+
+            {% if bonus_active %}
+
+              <div class="alert alert-success commission-bonus-alert mb-0">
+
+                <strong>
+                  <i class="bi bi-stars me-1"></i>
+                  Bonus Active
+                </strong>
+
+                <div class="mt-1">
+                  Bonus clients are now active. Every qualifying new client above target can earn the higher rate.
+                </div>
+
+              </div>
+
+            {% else %}
+
+              <div class="alert alert-light border commission-bonus-alert mb-0">
+
+                <strong>
+                  Bonus Not Yet Active
+                </strong>
+
+                <div class="mt-1">
+                  {{ clients_needed_for_bonus|default:0 }}
+                  more client(s) needed before bonus commission activates.
+                </div>
+
+              </div>
+
+            {% endif %}
+
+          </div>
+
+        </div>
+
       </div>
 
-      <div style="height: 340px;">
-        <canvas id="performanceTrendChart"></canvas>
+
+      <!-- =====================================================
+          REP PERFORMANCE
+          ===================================================== -->
+
+      <div class="commission-section">
+
+        <div class="commission-section-header">
+
+          <div class="commission-section-heading">
+
+            <div class="commission-section-icon">
+              <i class="bi bi-trophy"></i>
+            </div>
+
+            <div>
+
+              <h2 class="commission-section-title">
+                Rep Performance
+              </h2>
+
+              <div class="commission-section-subtitle">
+                Targets, client activity, commission and bonus performance.
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <a
+            href="{% url 'sales:sales-target-list' %}"
+            class="btn btn-outline-dark btn-sm"
+          >
+            <i class="bi bi-bullseye me-1"></i>
+            Manage Targets
+          </a>
+
+        </div>
+
+
+        <div class="commission-table-wrap">
+
+          <table class="table table-hover commission-table">
+
+            <thead>
+
+              <tr>
+
+                <th>Rank</th>
+                <th>Rep</th>
+                <th>Entries</th>
+                <th>Supervisor</th>
+                <th class="text-end">Commission</th>
+                <th class="text-end">Bonus</th>
+                <th class="text-end">Total</th>
+
+              </tr>
+
+            </thead>
+
+
+            <tbody>
+
+              {% for r in rep_commission_summary %}
+
+                <tr
+                  class="clickable-row"
+                  data-href="{% url 'sales:sales-commission-rep-detail' r.rep_id %}?month={{ selected_month }}&year={{ selected_year }}{% if selected_territory %}&territory={{ selected_territory }}{% endif %}"
+                >
+
+                  <td>
+
+                    {% if r.ranking == 1 %}
+
+                      <span class="badge commission-rank commission-rank-first">
+                        #1
+                      </span>
+
+                    {% elif r.ranking == 2 %}
+
+                      <span class="badge commission-rank commission-rank-second">
+                        #2
+                      </span>
+
+                    {% elif r.ranking == 3 %}
+
+                      <span class="badge commission-rank commission-rank-third">
+                        #3
+                      </span>
+
+                    {% else %}
+
+                      <span class="fw-semibold">
+                        #{{ r.ranking }}
+                      </span>
+
+                    {% endif %}
+
+                  </td>
+
+
+                  <td>
+
+                    <div class="commission-rep-name">
+                      {{ r.rep_name }}
+                    </div>
+
+                  </td>
+
+
+                  <td>
+                    {{ r.entries|default:"0" }}
+                  </td>
+
+
+                  <td>
+                    {{ r.supervisor|default:"—" }}
+                  </td>
+
+
+                  <td class="text-end commission-money">
+                    R{{ r.base_commission|default:0|floatformat:2|intcomma }}
+                  </td>
+
+
+                  <td class="text-end">
+
+                    {% if r.bonus_commission > 0 %}
+
+                      <span class="text-success fw-semibold">
+                        R{{ r.bonus_commission|floatformat:2|intcomma }}
+                      </span>
+
+                    {% else %}
+
+                      <span class="text-muted">
+                        R0.00
+                      </span>
+
+                    {% endif %}
+
+                  </td>
+
+
+                  <td class="text-end commission-money-total">
+                    R{{ r.total_commission|default:0|floatformat:2|intcomma }}
+                  </td>
+
+                </tr>
+
+
+              {% empty %}
+
+                <tr>
+
+                  <td
+                    colspan="7"
+                    class="commission-empty"
+                  >
+
+                    <i class="bi bi-bar-chart"></i>
+
+                    No commission data available for this period.
+
+                  </td>
+
+                </tr>
+
+              {% endfor %}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
       </div>
+
+
+      {% if not is_representative_only %}
+
+
+        <!-- ===================================================
+            SUPERVISOR PERFORMANCE
+            =================================================== -->
+
+        <div class="commission-section">
+
+          <div class="commission-section-header">
+
+            <div class="commission-section-heading">
+
+              <div class="commission-section-icon">
+                <i class="bi bi-person-badge"></i>
+              </div>
+
+              <div>
+
+                <h2 class="commission-section-title">
+                  Supervisor Performance
+                </h2>
+
+                <div class="commission-section-subtitle">
+                  Supervisor performance based on commission activity for the selected period.
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div class="commission-table-wrap">
+
+            <table class="table table-hover commission-table">
+
+              <thead>
+
+                <tr>
+
+                  <th>Rank</th>
+                  <th>Supervisor</th>
+                  <th>Entries</th>
+                  <th>Reps</th>
+                  <th>Clients</th>
+                  <th class="text-end">Revenue</th>
+                  <th class="text-end">Commission</th>
+                  <th class="text-end">Total</th>
+
+                </tr>
+
+              </thead>
+
+
+              <tbody>
+
+                {% for s in supervisor_performance_summary %}
+
+                  <tr>
+
+                    <td>
+
+                      {% if s.ranking == 1 %}
+
+                        <span class="badge commission-rank commission-rank-first">
+                          #1
+                        </span>
+
+                      {% elif s.ranking == 2 %}
+
+                        <span class="badge commission-rank commission-rank-second">
+                          #2
+                        </span>
+
+                      {% elif s.ranking == 3 %}
+
+                        <span class="badge commission-rank commission-rank-third">
+                          #3
+                        </span>
+
+                      {% else %}
+
+                        <span class="fw-semibold">
+                          #{{ s.ranking }}
+                        </span>
+
+                      {% endif %}
+
+                    </td>
+
+
+                    <td>
+
+                      <div class="commission-rep-name">
+                        {{ s.supervisor_name|default:"—" }}
+                      </div>
+
+                    </td>
+
+
+                    <td>
+                      {{ s.entries|default:0 }}
+                    </td>
+
+
+                    <td>
+                      {{ s.reps|default:0 }}
+                    </td>
+
+
+                    <td>
+                      {{ s.clients|default:0 }}
+                    </td>
+
+
+                    <td class="text-end">
+                      R{{ s.revenue|default:0|floatformat:2|intcomma }}
+                    </td>
+
+
+                    <td class="text-end">
+                      R{{ s.commission|default:0|floatformat:2|intcomma }}
+                    </td>
+
+
+                    <td class="text-end commission-money-total">
+                      R{{ s.total_commission|default:0|floatformat:2|intcomma }}
+                    </td>
+
+                  </tr>
+
+
+                {% empty %}
+
+                  <tr>
+
+                    <td
+                      colspan="8"
+                      class="commission-empty"
+                    >
+
+                      <i class="bi bi-person-badge"></i>
+
+                      No supervisor performance data available for this period.
+
+                    </td>
+
+                  </tr>
+
+                {% endfor %}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+
+        <!-- ===================================================
+            TERRITORY PERFORMANCE
+            =================================================== -->
+
+        <div class="commission-section">
+
+          <div class="commission-section-header">
+
+            <div class="commission-section-heading">
+
+              <div class="commission-section-icon">
+                <i class="bi bi-geo-alt"></i>
+              </div>
+
+              <div>
+
+                <h2 class="commission-section-title">
+                  Territory Performance
+                </h2>
+
+                <div class="commission-section-subtitle">
+                  Territory-level view of reps, clients, revenue and commission exposure.
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div class="commission-table-wrap">
+
+            <table class="table table-hover commission-table">
+
+              <thead>
+
+                <tr>
+
+                  <th>Territory</th>
+                  <th>Reps</th>
+                  <th>Clients</th>
+                  <th class="text-end">Revenue</th>
+                  <th class="text-end">Rep Commission</th>
+                  <th class="text-end">Supervisor Commission</th>
+                  <th class="text-end">Total Commission</th>
+
+                </tr>
+
+              </thead>
+
+
+              <tbody>
+
+                {% for t in territory_performance_summary %}
+
+                  <tr>
+
+                    <td>
+
+                      <div class="fw-semibold">
+                        {{ t.territory }}
+                      </div>
+
+                    </td>
+
+
+                    <td>
+                      {{ t.rep_count|default:0 }}
+                    </td>
+
+
+                    <td>
+                      {{ t.clients|default:0 }}
+                    </td>
+
+
+                    <td class="text-end">
+                      R{{ t.revenue|default:0|floatformat:2|intcomma }}
+                    </td>
+
+
+                    <td class="text-end">
+                      R{{ t.rep_commission_total|default:0|floatformat:2|intcomma }}
+                    </td>
+
+
+                    <td class="text-end">
+                      R{{ t.supervisor_commission_total|default:0|floatformat:2|intcomma }}
+                    </td>
+
+
+                    <td class="text-end commission-money-total">
+                      R{{ t.total_commission|default:0|floatformat:2|intcomma }}
+                    </td>
+
+                  </tr>
+
+
+                {% empty %}
+
+                  <tr>
+
+                    <td
+                      colspan="7"
+                      class="commission-empty"
+                    >
+
+                      <i class="bi bi-geo-alt"></i>
+
+                      No territory performance data available.
+
+                    </td>
+
+                  </tr>
+
+                {% endfor %}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+
+      {% endif %}
+
+
+      <!-- =====================================================
+          PERFORMANCE TREND
+          ===================================================== -->
+
+      <div class="commission-section">
+
+        <div class="commission-section-header">
+
+          <div class="commission-section-heading">
+
+            <div class="commission-section-icon">
+              <i class="bi bi-graph-up"></i>
+            </div>
+
+            <div>
+
+              <h2 class="commission-section-title">
+                Performance Trend
+              </h2>
+
+              <div class="commission-section-subtitle">
+                Compare revenue, commission, active clients and orders over time.
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <select
+            id="performanceTrendMetric"
+            class="form-select form-select-sm commission-chart-select"
+          >
+
+            <option value="revenue">
+              Revenue
+            </option>
+
+            <option value="commission">
+              Commission
+            </option>
+
+            <option value="clients">
+              Active Clients
+            </option>
+
+            <option value="orders">
+              Orders
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <div class="commission-section-body">
+
+          <div class="commission-chart">
+
+            <canvas id="performanceTrendChart"></canvas>
+
+          </div>
+
+        </div>
+
+      </div>
+
 
     </div>
-
-
-    
-
-    
-
 
   </main>
 

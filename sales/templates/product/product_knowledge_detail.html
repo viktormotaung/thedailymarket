@@ -82,6 +82,437 @@
     }
 
     /* =========================================================
+      PRODUCT KNOWLEDGE DETAIL
+      ========================================================= */
+
+    .product-detail-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .product-detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .product-detail-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+        margin-bottom: .55rem;
+        font-size: .8rem;
+    }
+
+    .product-detail-breadcrumb a {
+        color: #0b5c39;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .product-detail-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+    .product-detail-eyebrow {
+        font-size: .72rem;
+        font-weight: 700;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: #0b5c39;
+        margin-bottom: .35rem;
+    }
+
+    .product-detail-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        letter-spacing: -.025em;
+        color: #18221d;
+        margin-bottom: .25rem;
+    }
+
+    .product-detail-meta {
+        color: #6c757d;
+        font-size: .84rem;
+    }
+
+    .product-detail-actions {
+        display: flex;
+        gap: .6rem;
+        flex-wrap: wrap;
+    }
+
+    .product-detail-actions .btn {
+        border-radius: 9px;
+        font-weight: 600;
+    }
+
+    /* HERO */
+
+    .product-hero {
+        background: #fff;
+        border: 0;
+        border-radius: 16px;
+        box-shadow: 0 .15rem .65rem rgba(0,0,0,.06);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+
+    .product-hero-body {
+        padding: 1.5rem;
+    }
+
+    .product-hero-image {
+        height: 300px;
+        border-radius: 14px;
+        background: #f5f7f6;
+        border: 1px solid #e8ece9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .product-hero-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 1rem;
+    }
+
+    .product-hero-placeholder {
+        text-align: center;
+        color: #8a938e;
+    }
+
+    .product-hero-placeholder i {
+        font-size: 4rem;
+    }
+
+    .product-hero-placeholder div {
+        margin-top: .5rem;
+        font-size: .78rem;
+    }
+
+    /* PRODUCT IDENTITY */
+
+    .product-availability {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        padding: .38rem .65rem;
+        border-radius: 999px;
+        background: rgba(25,135,84,.1);
+        color: #198754;
+        font-size: .72rem;
+        font-weight: 700;
+        margin-bottom: .8rem;
+    }
+
+    .product-hero-name {
+        font-size: 1.45rem;
+        font-weight: 700;
+        color: #18221d;
+        margin-bottom: 1rem;
+    }
+
+    .product-identity-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0,1fr));
+        gap: 1rem;
+    }
+
+    .product-identity-item {
+        padding-bottom: .75rem;
+        border-bottom: 1px solid #edf0ee;
+    }
+
+    .product-identity-label {
+        color: #8a938e;
+        font-size: .7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .045em;
+        margin-bottom: .25rem;
+    }
+
+    .product-identity-value {
+        color: #18221d;
+        font-size: .85rem;
+        font-weight: 600;
+    }
+
+    /* PRICE PANEL */
+
+    .product-price-panel {
+        height: 100%;
+        border-radius: 14px;
+        background: linear-gradient(145deg, #f4f7f5, #eef3f0);
+        padding: 1.35rem;
+        border: 1px solid #e3e9e5;
+    }
+
+    .product-price-label {
+        color: #68736d;
+        font-size: .72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        margin-bottom: .35rem;
+    }
+
+    .product-price-value {
+        color: #0b5c39;
+        font-size: 2.15rem;
+        line-height: 1.1;
+        font-weight: 800;
+        letter-spacing: -.025em;
+    }
+
+    .product-price-caption {
+        color: #7a847e;
+        font-size: .76rem;
+    }
+
+    .product-special-price {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #dce4df;
+    }
+
+    .product-special-price-label {
+        color: #198754;
+        font-size: .7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+    .product-special-price-value {
+        color: #198754;
+        font-size: 1.3rem;
+        font-weight: 800;
+    }
+
+    /* CONTENT SECTIONS */
+
+    .product-detail-section {
+        background: #fff;
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 .125rem .5rem rgba(0,0,0,.06);
+        overflow: hidden;
+        height: 100%;
+    }
+
+    .product-detail-section-header {
+        padding: 1.05rem 1.25rem;
+        border-bottom: 1px solid #edf0ee;
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+    }
+
+    .product-detail-section-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(11,92,57,.09);
+        color: #0b5c39;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .product-detail-section-title {
+        margin: 0;
+        font-size: .98rem;
+        font-weight: 700;
+        color: #18221d;
+    }
+
+    .product-detail-section-subtitle {
+        margin-top: .12rem;
+        color: #6c757d;
+        font-size: .76rem;
+    }
+
+    .product-detail-section-body {
+        padding: 1.25rem;
+        color: #414a45;
+        font-size: .87rem;
+        line-height: 1.7;
+    }
+
+    /* QUICK FACTS */
+
+    .product-fact-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding: .7rem 0;
+        border-bottom: 1px solid #edf0ee;
+    }
+
+    .product-fact-row:last-child {
+        border-bottom: 0;
+    }
+
+    .product-fact-label {
+        color: #7a847e;
+        font-size: .8rem;
+    }
+
+    .product-fact-value {
+        color: #18221d;
+        font-size: .82rem;
+        font-weight: 600;
+        text-align: right;
+    }
+
+    /* WHY CHOOSE */
+
+    .product-why-card {
+        background: linear-gradient(135deg, #f3f8f5, #ffffff);
+    }
+
+    .product-why-card .product-detail-section-icon {
+        background: rgba(255,193,7,.13);
+        color: #b58100;
+    }
+
+    /* BENEFITS */
+
+    .product-benefit {
+        height: 100%;
+        display: flex;
+        gap: .75rem;
+        align-items: flex-start;
+        padding: .9rem;
+        border: 1px solid #e7ece9;
+        border-radius: 10px;
+        background: #fafbfa;
+    }
+
+    .product-benefit-icon {
+        color: #198754;
+        flex-shrink: 0;
+        margin-top: .1rem;
+    }
+
+    .product-benefit-text {
+        font-size: .84rem;
+        line-height: 1.5;
+        color: #3f4943;
+    }
+
+    /* VARIANTS */
+
+    .product-variants-table {
+        min-width: 650px;
+        margin-bottom: 0;
+    }
+
+    .product-variants-table thead th {
+        background: #f7f9f8;
+        color: #68736d;
+        font-size: .71rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .045em;
+        border-bottom: 1px solid #e7ebe9;
+    }
+
+    .product-variants-table tbody td {
+        font-size: .84rem;
+        padding: .85rem .75rem;
+        border-bottom: 1px solid #eef1ef;
+    }
+
+    /* KEY TAKEAWAYS */
+
+    .product-takeaway {
+        padding: 1.15rem 1.25rem;
+        border-radius: 12px;
+        background: #f7f9f8;
+        border: 1px solid #e7ece9;
+        color: #36413a;
+        line-height: 1.7;
+    }
+
+    /* FOOTER ACTIONS */
+
+    .product-detail-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin: 1.5rem 0 2rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .product-detail-header {
+            flex-direction: column;
+        }
+
+        .product-detail-actions {
+            width: 100%;
+        }
+
+        .product-detail-actions .btn {
+            flex: 1 1 auto;
+        }
+
+        .product-hero-image {
+            height: 260px;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .product-detail-title {
+            font-size: 1.45rem;
+        }
+
+        .product-detail-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .product-detail-actions .btn {
+            width: 100%;
+        }
+
+        .product-hero-body {
+            padding: 1rem;
+        }
+
+        .product-hero-image {
+            height: 220px;
+        }
+
+        .product-identity-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .product-price-value {
+            font-size: 1.8rem;
+        }
+
+        .product-detail-section-body {
+            padding: 1rem;
+        }
+
+        .product-detail-footer {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
+
+    /* =========================================================
        CHART
        ========================================================= */
 
@@ -615,506 +1046,632 @@
   </aside>
 
   <main class="content">
-    <div class="container-fluid">
 
-        <!-- =========================================================
-            PAGE HEADER
-        ========================================================== -->
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div class="container-fluid py-4 product-detail-page">
 
-        <div>
-            <div class="d-flex align-items-center gap-2 mb-2">
-            <a href="{% url 'sales:sales-knowledge-list' %}"
-                class="text-decoration-none text-muted">
-                <i class="bi bi-arrow-left"></i>
-                Products
-            </a>
+        <!-- =====================================================
+             PAGE HEADER
+             ===================================================== -->
 
-            <span class="text-muted">/</span>
+        <div class="product-detail-header">
 
-            <span class="text-muted">
-                Product Details
-            </span>
-            </div>
+            <div>
 
-            <h1 class="h3 fw-bold mb-1">
-            {{ product.name }}
-            </h1>
+                <div class="product-detail-breadcrumb">
 
-            <div class="text-muted small">
-            {{ product.product_no }}
-            {% if product.sku %}
-                · SKU: {{ product.sku }}
-            {% endif %}
-            </div>
-        </div>
+                    <a href="{% url 'sales:sales-knowledge-list' %}">
+                        <i class="bi bi-arrow-left me-1"></i>
+                        Products
+                    </a>
 
-        <div class="d-flex flex-wrap gap-2">
+                    <span class="text-muted">/</span>
 
-            <a href="{% url 'sales:sales-knowledge-list' %}"
-            class="btn btn-outline-secondary">
-            <i class="bi bi-grid me-1"></i>
-            All Products
-            </a>
+                    <span class="text-muted">
+                        Product Details
+                    </span>
 
-            
+                </div>
 
-        </div>
+                <div class="product-detail-eyebrow">
+                    Sales · Product Knowledge
+                </div>
 
-        </div>
+                <h1 class="product-detail-title">
+                    {{ product.name }}
+                </h1>
 
+                <div class="product-detail-meta">
 
-        <!-- =========================================================
-            PRODUCT SUMMARY
-        ========================================================== -->
-        <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body p-4">
+                    {{ product.product_no }}
 
-            <div class="row g-4 align-items-center">
-
-            <!-- PRODUCT IMAGE -->
-            <div class="col-lg-3 col-md-4">
-
-                <div class="product-image-wrapper rounded-4 bg-light d-flex align-items-center justify-content-center"
-                    style="height: 240px; overflow: hidden;">
-
-                {% if product.image %}
-                    <img src="{{ product.image.url }}"
-                        alt="{{ product.name }}"
-                        class="img-fluid"
-                        style="max-height: 220px; max-width: 100%; object-fit: contain;">
-                {% else %}
-                    <div class="text-center text-muted">
-                    <i class="bi bi-box-seam"
-                        style="font-size: 4rem;"></i>
-
-                    <div class="small mt-2">
-                        No product image
-                    </div>
-                    </div>
-                {% endif %}
+                    {% if product.sku %}
+                        <span class="mx-1">•</span>
+                        SKU: {{ product.sku }}
+                    {% endif %}
 
                 </div>
 
             </div>
 
+
+            <div class="product-detail-actions">
+
+                <button
+                    type="button"
+                    id="compareProductBtn"
+                    class="btn btn-primary"
+                    data-product-id="{{ product.pk }}"
+                    data-product-name="{{ product.name }}"
+                    data-product-no="{{ product.product_no }}"
+                    data-product-price="{{ product.wholesale_price|default:'' }}"
+                >
+                    <i class="bi bi-arrow-left-right me-1"></i>
+                    Compare Product
+                </button>
+
+                <a
+                    href="{% url 'sales:sales-knowledge-list' %}"
+                    class="btn btn-outline-secondary"
+                >
+                    <i class="bi bi-grid me-1"></i>
+                    All Products
+                </a>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             PRODUCT HERO
+             ===================================================== -->
+
+        <div class="product-hero">
+
+            <div class="product-hero-body">
+
+                <div class="row g-4 align-items-stretch">
+
+                    <!-- IMAGE -->
+
+                    <div class="col-12 col-lg-3">
+
+                        <div class="product-hero-image">
+
+                            {% if product.image %}
+
+                                <img
+                                    src="{{ product.image.url }}"
+                                    alt="{{ product.name }}"
+                                >
+
+                            {% else %}
+
+                                <div class="product-hero-placeholder">
+
+                                    <i class="bi bi-box-seam"></i>
+
+                                    <div>
+                                        No product image
+                                    </div>
+
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- PRODUCT IDENTITY -->
+
+                    <div class="col-12 col-lg-5">
+
+                        <div class="product-availability">
+                            <i class="bi bi-check-circle-fill"></i>
+                            Available
+                        </div>
+
+                        <div class="product-hero-name">
+                            {{ product.name }}
+                        </div>
+
+
+                        <div class="product-identity-grid">
+
+                            <div class="product-identity-item">
+
+                                <div class="product-identity-label">
+                                    Product No.
+                                </div>
+
+                                <div class="product-identity-value">
+                                    {{ product.product_no|default:"—" }}
+                                </div>
+
+                            </div>
+
+
+                            <div class="product-identity-item">
+
+                                <div class="product-identity-label">
+                                    SKU
+                                </div>
+
+                                <div class="product-identity-value">
+                                    {{ product.sku|default:"—" }}
+                                </div>
+
+                            </div>
+
+
+                            <div class="product-identity-item">
+
+                                <div class="product-identity-label">
+                                    Category
+                                </div>
+
+                                <div class="product-identity-value">
+
+                                    {% if product.category.parent %}
+                                        {{ product.category.parent.name }}
+                                    {% else %}
+                                        {{ product.category.name|default:"—" }}
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="product-identity-item">
+
+                                <div class="product-identity-label">
+                                    Sub-category
+                                </div>
+
+                                <div class="product-identity-value">
+
+                                    {% if product.category.parent %}
+                                        {{ product.category.name }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="product-identity-item">
+
+                                <div class="product-identity-label">
+                                    Unit of Measure
+                                </div>
+
+                                <div class="product-identity-value">
+                                    {{ product.uom|default:"—" }}
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- PRICE -->
+
+                    <div class="col-12 col-lg-4">
+
+                        <div class="product-price-panel">
+
+                            <div class="product-price-label">
+                                Current Wholesale Price
+                            </div>
+
+                            <div class="product-price-value">
+
+                                {% if product.wholesale_price %}
+                                    R {{ product.wholesale_price|floatformat:2 }}
+                                {% else %}
+                                    —
+                                {% endif %}
+
+                            </div>
+
+                            <div class="product-price-caption">
+                                Current listed sales price
+                            </div>
+
+
+                            {% if product.special_wholesale_price_inc %}
+
+                                <div class="product-special-price">
+
+                                    <div class="product-special-price-label">
+                                        Special Price
+                                    </div>
+
+                                    <div class="product-special-price-value">
+                                        R {{ product.special_wholesale_price_inc|floatformat:2 }}
+                                    </div>
+
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             PRODUCT INFORMATION + QUICK FACTS
+             ===================================================== -->
+
+        <div class="row g-4 mb-4">
 
             <!-- PRODUCT INFORMATION -->
-            <div class="col-lg-5 col-md-8">
 
-                <div class="mb-3">
+            <div class="col-12 col-lg-8">
 
-                <span class="badge bg-success-subtle text-success">
-                    <i class="bi bi-check-circle me-1"></i>
-                    Available
-                </span>
+                <div class="product-detail-section">
+
+                    <div class="product-detail-section-header">
+
+                        <div class="product-detail-section-icon">
+                            <i class="bi bi-info-circle"></i>
+                        </div>
+
+                        <div>
+
+                            <h2 class="product-detail-section-title">
+                                Product Information
+                            </h2>
+
+                            <div class="product-detail-section-subtitle">
+                                Product description and core knowledge
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="product-detail-section-body">
+
+                        {% if knowledge.product_description %}
+
+                            {{ knowledge.product_description|linebreaksbr }}
+
+                        {% else %}
+
+                            <span class="text-muted">
+                                No product description has been added yet.
+                            </span>
+
+                        {% endif %}
+
+                    </div>
 
                 </div>
 
-                <h2 class="h4 fw-bold mb-3">
-                {{ product.name }}
-                </h2>
+            </div>
+
+
+            <!-- QUICK FACTS -->
+
+            <div class="col-12 col-lg-4">
+
+                <div class="product-detail-section">
+
+                    <div class="product-detail-section-header">
+
+                        <div class="product-detail-section-icon">
+                            <i class="bi bi-lightning-charge"></i>
+                        </div>
+
+                        <div>
+
+                            <h2 class="product-detail-section-title">
+                                Quick Facts
+                            </h2>
+
+                            <div class="product-detail-section-subtitle">
+                                Key product reference information
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="product-detail-section-body">
+
+                        <div class="product-fact-row">
+
+                            <span class="product-fact-label">
+                                Category
+                            </span>
+
+                            <span class="product-fact-value">
+
+                                {% if product.category.parent %}
+                                    {{ product.category.parent.name }}
+                                {% else %}
+                                    {{ product.category.name|default:"—" }}
+                                {% endif %}
+
+                            </span>
+
+                        </div>
+
+
+                        <div class="product-fact-row">
+
+                            <span class="product-fact-label">
+                                Sub-category
+                            </span>
+
+                            <span class="product-fact-value">
+
+                                {% if product.category.parent %}
+                                    {{ product.category.name }}
+                                {% else %}
+                                    —
+                                {% endif %}
+
+                            </span>
+
+                        </div>
+
+
+                        <div class="product-fact-row">
+
+                            <span class="product-fact-label">
+                                UOM
+                            </span>
+
+                            <span class="product-fact-value">
+                                {{ product.uom|default:"—" }}
+                            </span>
+
+                        </div>
+
+
+                        <div class="product-fact-row">
+
+                            <span class="product-fact-label">
+                                Status
+                            </span>
+
+                            <span class="badge bg-success-subtle text-success">
+                                Available
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             USAGE + YIELD
+             ===================================================== -->
+
+        <div class="row g-4 mb-4">
+
+            <!-- USAGE -->
+
+            <div class="col-12 col-lg-6">
+
+                <div class="product-detail-section">
+
+                    <div class="product-detail-section-header">
+
+                        <div class="product-detail-section-icon">
+                            <i class="bi bi-shop"></i>
+                        </div>
+
+                        <div>
+
+                            <h2 class="product-detail-section-title">
+                                Usage & Application
+                            </h2>
+
+                            <div class="product-detail-section-subtitle">
+                                How the product can be used
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="product-detail-section-body">
+
+                        {% if knowledge.usage_application %}
+
+                            {{ knowledge.usage_application|linebreaksbr }}
+
+                        {% else %}
+
+                            <span class="text-muted">
+                                No usage information has been added yet.
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- YIELD -->
+
+            <div class="col-12 col-lg-6">
+
+                <div class="product-detail-section">
+
+                    <div class="product-detail-section-header">
+
+                        <div class="product-detail-section-icon">
+                            <i class="bi bi-calculator"></i>
+                        </div>
+
+                        <div>
+
+                            <h2 class="product-detail-section-title">
+                                Yield & Portion Information
+                            </h2>
+
+                            <div class="product-detail-section-subtitle">
+                                Yield, serving and portion guidance
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="product-detail-section-body">
+
+                        {% if knowledge.yield_portion_information %}
+
+                            {{ knowledge.yield_portion_information|linebreaksbr }}
+
+                        {% else %}
+
+                            <span class="text-muted">
+                                No yield or portion information has been added yet.
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             WHY CHOOSE THIS PRODUCT
+             ===================================================== -->
+
+        <div class="product-detail-section product-why-card mb-4">
+
+            <div class="product-detail-section-header">
+
+                <div class="product-detail-section-icon">
+                    <i class="bi bi-star"></i>
+                </div>
+
+                <div>
+
+                    <h2 class="product-detail-section-title">
+                        Why Choose This Product
+                    </h2>
+
+                    <div class="product-detail-section-subtitle">
+                        The key selling proposition for this product
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="product-detail-section-body">
+
+                {% if knowledge.why_choose_tdm %}
+
+                    {{ knowledge.why_choose_tdm|linebreaksbr }}
+
+                {% else %}
+
+                    <span class="text-muted">
+                        No product advantages have been added yet.
+                    </span>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             PRODUCT BENEFITS
+             ===================================================== -->
+
+        {% if knowledge.product_benefits.all %}
+
+        <div class="product-detail-section mb-4">
+
+            <div class="product-detail-section-header">
+
+                <div class="product-detail-section-icon">
+                    <i class="bi bi-check2-circle"></i>
+                </div>
+
+                <div>
+
+                    <h2 class="product-detail-section-title">
+                        Product Benefits
+                    </h2>
+
+                    <div class="product-detail-section-subtitle">
+                        Key benefits sales staff should know
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="product-detail-section-body">
 
                 <div class="row g-3">
 
-                <div class="col-sm-6">
-                    <div class="text-muted small">
-                    Product No.
-                    </div>
+                    {% for benefit in knowledge.product_benefits.all %}
 
-                    <div class="fw-semibold">
-                    {{ product.product_no|default:"—" }}
-                    </div>
-                </div>
+                        <div class="col-12 col-md-6">
 
-                <div class="col-sm-6">
-                    <div class="text-muted small">
-                    SKU
-                    </div>
+                            <div class="product-benefit">
 
-                    <div class="fw-semibold">
-                    {{ product.sku|default:"—" }}
-                    </div>
-                </div>
+                                <div class="product-benefit-icon">
+                                    <i class="bi bi-check-circle-fill"></i>
+                                </div>
 
-                <div class="col-sm-6">
-                    <div class="text-muted small">
-                    Category
-                    </div>
+                                <div class="product-benefit-text">
+                                    {{ benefit }}
+                                </div>
 
-                    <div class="fw-semibold">
-                    {% if product.category.parent %}
-                        {{ product.category.parent.name }}
-                    {% else %}
-                        {{ product.category.name|default:"—" }}
-                    {% endif %}
-                    </div>
-                </div>
+                            </div>
 
-                <div class="col-sm-6">
-                    <div class="text-muted small">
-                    Sub-category
-                    </div>
-
-                    <div class="fw-semibold">
-                    {% if product.category.parent %}
-                        {{ product.category.name }}
-                    {% else %}
-                        —
-                    {% endif %}
-                    </div>
-                </div>
-
-                <div class="col-sm-6">
-                    <div class="text-muted small">
-                    Unit of Measure
-                    </div>
-
-                    <div class="fw-semibold">
-                    {{ product.uom|default:"—" }}
-                    </div>
-                </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- CURRENT PRICE -->
-            <div class="col-lg-4">
-
-                <div class="bg-light rounded-4 p-4 h-100">
-
-                <div class="text-muted small text-uppercase fw-semibold mb-2">
-                    Current Wholesale Price
-                </div>
-
-                <div class="display-6 fw-bold mb-2">
-                    {% if product.wholesale_price %}
-                    R {{ product.wholesale_price|floatformat:2 }}
-                    {% else %}
-                    —
-                    {% endif %}
-                </div>
-
-                <div class="text-muted small">
-                    Current listed sales price
-                </div>
-
-                {% if product.special_wholesale_price_inc %}
-                    <hr>
-
-                    <div class="text-muted small text-uppercase fw-semibold mb-1">
-                    Special Price
-                    </div>
-
-                    <div class="h4 fw-bold mb-0">
-                    R {{ product.special_wholesale_price_inc|floatformat:2 }}
-                    </div>
-                {% endif %}
-
-                </div>
-
-            </div>
-
-            </div>
-
-        </div>
-        </div>
-
-
-        <!-- =========================================================
-            QUICK PRODUCT INFORMATION
-        ========================================================== -->
-        <div class="row g-4 mb-4">
-
-        <!-- DESCRIPTION -->
-        <div class="col-lg-8">
-
-            <div class="card border-0 shadow-sm h-100">
-
-            <div class="card-header bg-white border-0 pt-4 px-4">
-                <h5 class="fw-bold mb-0">
-                <i class="bi bi-info-circle me-2 text-primary"></i>
-                Product Information
-                </h5>
-            </div>
-
-            <div class="card-body px-4 pb-4">
-
-                {% if knowledge.product_description %}
-                <p class="mb-0">
-                    {{ knowledge.product_description|linebreaksbr }}
-                </p>
-                {% else %}
-                <p class="text-muted mb-0">
-                    No product description has been added yet.
-                </p>
-                {% endif %}
-
-            </div>
-
-            </div>
-
-        </div>
-
-
-        <!-- QUICK FACTS -->
-        <div class="col-lg-4">
-
-            <div class="card border-0 shadow-sm h-100">
-
-            <div class="card-header bg-white border-0 pt-4 px-4">
-                <h5 class="fw-bold mb-0">
-                <i class="bi bi-lightning-charge me-2 text-warning"></i>
-                Quick Facts
-                </h5>
-            </div>
-
-            <div class="card-body px-4 pb-4">
-
-                <div class="d-flex justify-content-between py-2 border-bottom">
-                <span class="text-muted">Category</span>
-
-                <span class="fw-semibold text-end">
-                    {% if product.category.parent %}
-                    {{ product.category.parent.name }}
-                    {% else %}
-                    {{ product.category.name|default:"—" }}
-                    {% endif %}
-                </span>
-                </div>
-
-                <div class="d-flex justify-content-between py-2 border-bottom">
-                <span class="text-muted">Sub-category</span>
-
-                <span class="fw-semibold text-end">
-                    {% if product.category.parent %}
-                    {{ product.category.name }}
-                    {% else %}
-                    —
-                    {% endif %}
-                </span>
-                </div>
-
-                <div class="d-flex justify-content-between py-2 border-bottom">
-                <span class="text-muted">UOM</span>
-
-                <span class="fw-semibold">
-                    {{ product.uom|default:"—" }}
-                </span>
-                </div>
-
-                <div class="d-flex justify-content-between py-2">
-                <span class="text-muted">Status</span>
-
-                <span class="badge bg-success-subtle text-success">
-                    Available
-                </span>
-                </div>
-
-            </div>
-
-            </div>
-
-        </div>
-
-        </div>
-
-
-        <!-- =========================================================
-            SALES INFORMATION
-        ========================================================== -->
-        <div class="row g-4 mb-4">
-
-        <!-- APPLICATION -->
-        <div class="col-lg-6">
-
-            <div class="card border-0 shadow-sm h-100">
-
-            <div class="card-header bg-white border-0 pt-4 px-4">
-                <h5 class="fw-bold mb-0">
-                <i class="bi bi-shop me-2 text-primary"></i>
-                Usage & Application
-                </h5>
-            </div>
-
-            <div class="card-body px-4 pb-4">
-
-                {% if knowledge.usage_application %}
-                <div class="text-muted">
-                    {{ knowledge.usage_application|linebreaksbr }}
-                </div>
-                {% else %}
-                <div class="text-muted">
-                    No usage information has been added yet.
-                </div>
-                {% endif %}
-
-            </div>
-
-            </div>
-
-        </div>
-
-
-        <!-- YIELD -->
-        <div class="col-lg-6">
-
-            <div class="card border-0 shadow-sm h-100">
-
-            <div class="card-header bg-white border-0 pt-4 px-4">
-                <h5 class="fw-bold mb-0">
-                <i class="bi bi-calculator me-2 text-primary"></i>
-                Yield & Portion Information
-                </h5>
-            </div>
-
-            <div class="card-body px-4 pb-4">
-
-                {% if knowledge.yield_portion_information %}
-                <div class="text-muted">
-                    {{ knowledge.yield_portion_information|linebreaksbr }}
-                </div>
-                {% else %}
-                <div class="text-muted">
-                    No yield or portion information has been added yet.
-                </div>
-                {% endif %}
-
-            </div>
-
-            </div>
-
-        </div>
-
-        </div>
-
-
-        <!-- =========================================================
-            WHY CHOOSE TDM
-        ========================================================== -->
-        <div class="card border-0 shadow-sm mb-4">
-
-        <div class="card-header bg-white border-0 pt-4 px-4">
-            <h5 class="fw-bold mb-0">
-            <i class="bi bi-star me-2 text-warning"></i>
-            Why Choose This Product
-            </h5>
-        </div>
-
-        <div class="card-body px-4 pb-4">
-
-            {% if knowledge.why_choose_tdm %}
-            <div>
-                {{ knowledge.why_choose_tdm|linebreaksbr }}
-            </div>
-            {% else %}
-            <div class="text-muted">
-                No product advantages have been added yet.
-            </div>
-            {% endif %}
-
-        </div>
-
-        </div>
-
-
-        <!-- =========================================================
-            BENEFITS
-        ========================================================== -->
-        {% if knowledge.product_benefits.all %}
-
-        <div class="card border-0 shadow-sm mb-4">
-
-            <div class="card-header bg-white border-0 pt-4 px-4">
-            <h5 class="fw-bold mb-0">
-                <i class="bi bi-check2-circle me-2 text-success"></i>
-                Product Benefits
-            </h5>
-            </div>
-
-            <div class="card-body px-4 pb-4">
-
-            <div class="row g-3">
-
-                {% for benefit in knowledge.product_benefits.all %}
-
-                <div class="col-md-6">
-
-                    <div class="d-flex gap-3 p-3 rounded-3 bg-light">
-
-                    <div class="text-success">
-                        <i class="bi bi-check-circle-fill"></i>
-                    </div>
-
-                    <div>
-                        {{ benefit }}
-                    </div>
-
-                    </div>
-
-                </div>
-
-                {% endfor %}
-
-            </div>
-
-            </div>
-
-        </div>
-
-        {% endif %}
-
-
-        <!-- =========================================================
-            VARIANTS
-        ========================================================== -->
-        {% if knowledge.knowledge_variants.all %}
-
-        <div class="card border-0 shadow-sm mb-4">
-
-            <div class="card-header bg-white border-0 pt-4 px-4">
-            <h5 class="fw-bold mb-0">
-                <i class="bi bi-boxes me-2 text-primary"></i>
-                Variants
-            </h5>
-            </div>
-
-            <div class="card-body px-4 pb-4">
-
-            <div class="table-responsive">
-
-                <table class="table align-middle mb-0">
-
-                <thead>
-                    <tr>
-                    <th>Variant</th>
-                    <th>Description</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-
-                    {% for variant in knowledge.knowledge_variants.all %}
-
-                    <tr>
-                        <td class="fw-semibold">
-                        {{ variant }}
-                        </td>
-
-                        <td class="text-muted">
-                        {{ variant.description|default:"—" }}
-                        </td>
-                    </tr>
+                        </div>
 
                     {% endfor %}
 
-                </tbody>
-
-                </table>
-
-            </div>
+                </div>
 
             </div>
 
@@ -1123,57 +1680,170 @@
         {% endif %}
 
 
-        <!-- =========================================================
-            KEY TAKEAWAYS
-        ========================================================== -->
-        <div class="card border-0 shadow-sm mb-4">
+        <!-- =====================================================
+             VARIANTS
+             ===================================================== -->
 
-        <div class="card-header bg-white border-0 pt-4 px-4">
-            <h5 class="fw-bold mb-0">
-            <i class="bi bi-bullseye me-2 text-danger"></i>
-            Key Takeaways
-            </h5>
-        </div>
+        {% if knowledge.knowledge_variants.all %}
 
-        <div class="card-body px-4 pb-4">
+        <div class="product-detail-section mb-4">
 
-            {% if knowledge.key_takeaways %}
+            <div class="product-detail-section-header">
 
-            <div class="p-3 rounded-3 bg-light">
-                {{ knowledge.key_takeaways|linebreaksbr }}
+                <div class="product-detail-section-icon">
+                    <i class="bi bi-boxes"></i>
+                </div>
+
+                <div>
+
+                    <h2 class="product-detail-section-title">
+                        Variants
+                    </h2>
+
+                    <div class="product-detail-section-subtitle">
+                        Available product variants
+                    </div>
+
+                </div>
+
             </div>
 
-            {% else %}
 
-            <div class="text-muted">
-                No key takeaways have been added yet.
+            <div class="product-detail-section-body">
+
+                <div class="table-responsive">
+
+                    <table class="table align-middle product-variants-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    Variant
+                                </th>
+
+                                <th>
+                                    Description
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            {% for variant in knowledge.knowledge_variants.all %}
+
+                                <tr>
+
+                                    <td class="fw-semibold">
+                                        {{ variant }}
+                                    </td>
+
+                                    <td class="text-muted">
+                                        {{ variant.description|default:"—" }}
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
             </div>
 
-            {% endif %}
+        </div>
+
+        {% endif %}
+
+
+        <!-- =====================================================
+             KEY TAKEAWAYS
+             ===================================================== -->
+
+        <div class="product-detail-section mb-4">
+
+            <div class="product-detail-section-header">
+
+                <div class="product-detail-section-icon">
+                    <i class="bi bi-bullseye"></i>
+                </div>
+
+                <div>
+
+                    <h2 class="product-detail-section-title">
+                        Key Takeaways
+                    </h2>
+
+                    <div class="product-detail-section-subtitle">
+                        What the sales team should remember
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="product-detail-section-body">
+
+                {% if knowledge.key_takeaways %}
+
+                    <div class="product-takeaway">
+                        {{ knowledge.key_takeaways|linebreaksbr }}
+                    </div>
+
+                {% else %}
+
+                    <span class="text-muted">
+                        No key takeaways have been added yet.
+                    </span>
+
+                {% endif %}
+
+            </div>
 
         </div>
 
-        </div>
+
+        <!-- =====================================================
+             FOOTER ACTIONS
+             ===================================================== -->
+
+        <div class="product-detail-footer">
+
+            <a
+                href="{% url 'sales:sales-knowledge-list' %}"
+                class="btn btn-outline-secondary"
+            >
+                <i class="bi bi-arrow-left me-1"></i>
+                Back to Products
+            </a>
 
 
-        
-
-
-        <!-- =========================================================
-            BACK TO PRODUCTS
-        ========================================================== -->
-        <div class="d-flex justify-content-between align-items-center mb-5">
-
-        <a href="{% url 'sales:sales-knowledge-list' %}"
-            class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-1"></i>
-            Back to Products
-        </a>
+            <button
+                type="button"
+                id="compareProductBtnBottom"
+                class="btn btn-primary"
+                data-product-id="{{ product.pk }}"
+                data-product-name="{{ product.name }}"
+                data-product-no="{{ product.product_no }}"
+                data-product-price="{{ product.wholesale_price|default:'' }}"
+            >
+                <i class="bi bi-arrow-left-right me-1"></i>
+                Compare Product
+            </button>
 
         </div>
 
     </div>
-    </main>
+
+</main>
 
     <script>
     document.addEventListener("DOMContentLoaded", function () {

@@ -91,6 +91,199 @@
       height: 220px;
     }
 
+    /* =========================================================
+      QUOTATION UX
+    ========================================================= */
+
+    .quotation-section-icon {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        font-size: 1.1rem;
+    }
+
+    #quotation-form .card {
+        border-radius: 14px;
+    }
+
+    #quotation-form .card-header {
+        border-radius: 14px 14px 0 0;
+    }
+
+    #quotation-form .form-label {
+        margin-bottom: .45rem;
+    }
+
+    #quotation-form .form-control,
+    #quotation-form .form-select {
+        min-height: 42px;
+        border-radius: 8px;
+    }
+
+    #quotation-form textarea.form-control {
+        min-height: 120px;
+    }
+
+
+    /* =========================================================
+      CUSTOMER TARGET OPTIONS
+    ========================================================= */
+
+    .quotation-target-options {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .quotation-target-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        flex: 1 1 220px;
+        padding: 14px 16px;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        background: #fff;
+        cursor: pointer;
+        transition: all .15s ease;
+    }
+
+    .quotation-target-option:hover {
+        border-color: #198754;
+        background: #f8fff9;
+    }
+
+    .quotation-target-option:has(input:checked) {
+        border-color: #198754;
+        background: #f0fff6;
+        box-shadow: 0 0 0 2px rgba(25, 135, 84, .08);
+    }
+
+    .quotation-target-option input {
+        margin-top: 4px;
+    }
+
+
+    /* =========================================================
+      ITEMS TABLE
+    ========================================================= */
+
+    .quotation-table-wrap {
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+    }
+
+    .quotation-table {
+        min-width: 1050px;
+    }
+
+    .quotation-table thead th {
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+        color: #6c757d;
+        white-space: nowrap;
+    }
+
+    .quotation-table tbody td {
+        padding: .7rem;
+        vertical-align: middle;
+    }
+
+    .quotation-table tbody tr:hover {
+        background: #fafafa;
+    }
+
+    .quotation-table .form-control,
+    .quotation-table .form-select {
+        min-height: 38px !important;
+        font-size: .875rem;
+    }
+
+    .quotation-table input[readonly] {
+        background: #f8f9fa;
+    }
+
+    .quotation-items-help {
+        padding: 12px 14px;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 9px;
+    }
+
+
+    /* =========================================================
+      TOTAL SUMMARY
+    ========================================================= */
+
+    .quotation-total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .quotation-total-row strong {
+        font-size: 1rem;
+    }
+
+    .quotation-total-grand {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-top: 12px;
+        padding: 16px;
+        border-radius: 10px;
+        background: #f0fff6;
+    }
+
+
+    /* =========================================================
+      RESPONSIVE
+    ========================================================= */
+
+    @media (max-width: 1199.98px) {
+
+        .quotation-table {
+            min-width: 1000px;
+        }
+
+    }
+
+    @media (max-width: 767.98px) {
+
+        .content {
+            padding: 15px;
+        }
+
+        .quotation-target-options {
+            flex-direction: column;
+        }
+
+        .quotation-target-option {
+            flex-basis: auto;
+        }
+
+        #quotation-form .card-body {
+            padding: 1.1rem !important;
+        }
+
+        .quotation-section-icon {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+        }
+
+    }
+
     @media (max-width: 991.98px) {
       .chart-wrap {
         height: 180px;
@@ -614,241 +807,1041 @@
 
   </aside>
 
-    <!-- MAIN CONTENT -->
+    <!-- =========================================================
+        MAIN CONTENT
+    ========================================================= -->
+
     <main class="content">
 
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <!-- =====================================================
+            PAGE HEADER
+        ====================================================== -->
+
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+
             <div>
-            <h2 class="m-0">Create Quotation</h2>
-            <div class="text-muted small mt-1">
-                Build a quotation before converting it into an order.
-            </div>
+
+                <div class="d-flex align-items-center gap-2 mb-2">
+
+                    <span class="badge rounded-pill bg-success-subtle text-success px-3 py-2">
+                        <i class="bi bi-file-earmark-text me-1"></i>
+                        Sales
+                    </span>
+
+                    <span class="text-muted small">
+                        New Quotation
+                    </span>
+
+                </div>
+
+                <h1 class="h3 fw-semibold mb-1">
+                    Create Quotation
+                </h1>
+
+                <div class="text-muted">
+                    Prepare a professional quotation for a client or prospect.
+                </div>
+
             </div>
 
-            <a href="{% url 'sales:sales-quotations' %}" class="btn btn-outline-secondary">
-            Back to Quotations
-            </a>
+
+            <div class="d-flex flex-wrap gap-2">
+
+                <a
+                    href="{% url 'sales:sales-quotations' %}"
+                    class="btn btn-outline-secondary"
+                >
+                    <i class="bi bi-arrow-left me-1"></i>
+                    Back to Quotations
+                </a>
+
+            </div>
+
         </div>
 
-        <form method="post">
+
+        <!-- =====================================================
+            FORM
+        ====================================================== -->
+
+        <form method="post" id="quotation-form">
+
             {% csrf_token %}
 
-            {% if form.non_field_errors %}
-            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
-            {% endif %}
 
-            {% if formset.non_form_errors %}
-            <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
-            {% endif %}
+            <!-- =================================================
+                FORM ERRORS
+            ================================================== -->
 
-            <!-- Quotation Details -->
-            <div class="card mb-3">
-            <div class="card-header bg-white">
-                <strong>Quotation Details</strong>
-            </div>
+            {% if form.non_field_errors or formset.non_form_errors %}
 
-            <div class="card-body">
-                <div class="row g-3">
+                <div class="alert alert-danger shadow-sm mb-4">
 
-                <div class="col-md-12">
-                    <label class="form-label">Quotation For</label>
+                    <div class="d-flex align-items-start gap-2">
 
-                    <div class="d-flex gap-4 mt-1">
-                    {% for radio in form.quotation_for %}
-                        <div class="form-check">
-                        {{ radio.tag }}
-                        <label class="form-check-label" for="{{ radio.id_for_label }}">
-                            {{ radio.choice_label }}
-                        </label>
-                        </div>
-                    {% endfor %}
-                    </div>
-                </div>
+                        <i class="bi bi-exclamation-triangle-fill mt-1"></i>
 
-                <div class="col-md-6" id="client-wrapper">
-                    <label class="form-label">Existing Client</label>
-                    {{ form.client }}
-                    {{ form.client.errors }}
-                </div>
+                        <div>
 
-                <div class="col-md-6 d-none" id="prospect-wrapper">
-                    <label class="form-label">Prospect</label>
-                    {{ form.prospect }}
-                    {{ form.prospect.errors }}
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">Date</label>
-                    <input type="text" class="form-control" value="{{ now|date:'Y-m-d H:i' }}" readonly>
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">Valid Until</label>
-                    <input type="text" class="form-control" value="+72 Hours" readonly>
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">Status</label>
-                    <input type="text" class="form-control" value="Draft" readonly>
-                </div>
-
-                <div class="col-md-12">
-                    <label class="form-label">Customer Notes</label>
-                    {{ form.customer_notes }}
-                    {{ form.customer_notes.errors }}
-                </div>
-
-                </div>
-            </div>
-            </div>
-
-            <!-- Items -->
-            <div class="card mb-3">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <strong>Items</strong>
-
-                <button type="button" class="btn btn-sm btn-primary" id="add-item-btn">
-                + Add Item
-                </button>
-            </div>
-
-            <div class="card-body p-0">
-                {{ formset.management_form }}
-
-                <div class="table-responsive">
-                <table class="table table-bordered mb-0 align-middle">
-                    <thead class="table-light">
-                    <tr>
-                        <th style="width:15%">Category</th>
-                        <th style="width:25%">Product</th>
-                        <th style="width:8%" class="text-end">Qty</th>
-                        <th style="width:12%" class="text-end">Unit Excl</th>
-                        <th style="width:10%" class="text-end">Disc %</th>
-                        <th style="width:8%" class="text-end">VAT %</th>
-                        <th style="width:12%" class="text-end">VAT Amt</th>
-                        <th style="width:12%" class="text-end">Total</th>
-                        <th style="width:6%" class="text-center">Del</th>
-                    </tr>
-                    </thead>
-
-                    <tbody id="items-tbody">
-                    {% for item_form in formset %}
-                        <tr>
-                        <td>
-                            {{ item_form.id }}
-                            {{ item_form.category }}
-                            {{ item_form.category.errors }}
-                        </td>
-
-                        <td>
-                            {{ item_form.product }}
-                            {{ item_form.product.errors }}
-                        </td>
-
-                        <td>
-                            {{ item_form.quantity }}
-                            {{ item_form.quantity.errors }}
-                        </td>
-
-                        <td>
-                            {{ item_form.unit_price_excl }}
-                            {{ item_form.unit_price_excl.errors }}
-                        </td>
-
-                        <td>
-                            <input type="number"
-                                class="form-control discount-percent-field"
-                                value="0.00"
-                                min="0"
-                                max="100"
-                                step="0.01">
-
-                            <div class="d-none">
-                            {{ item_form.discount_excl }}
+                            <div class="fw-semibold mb-1">
+                                Please review the quotation
                             </div>
 
-                            {{ item_form.discount_excl.errors }}
-                        </td>
+                            {% if form.non_field_errors %}
+                                {{ form.non_field_errors }}
+                            {% endif %}
 
-                        <td>
-                            {{ item_form.vat_percent }}
-                            {{ item_form.vat_percent.errors }}
-                        </td>
+                            {% if formset.non_form_errors %}
+                                {{ formset.non_form_errors }}
+                            {% endif %}
 
-                        <td class="vat-amount text-end">0.00</td>
-                        <td class="line-total text-end">0.00</td>
+                        </div>
 
-                        <td class="text-center">
-                            {{ item_form.DELETE }}
-                        </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-                </div>
-            </div>
-            </div>
-
-            <!-- Totals -->
-            <div class="card mb-3">
-            <div class="card-header bg-white">
-                <strong>Totals</strong>
-            </div>
-
-            <div class="card-body">
-                <div class="row g-3">
-
-                <div class="col-md-3">
-                    <label class="form-label">Discount Total</label>
-                    {{ form.discount_total_excl }}
-                    {{ form.discount_total_excl.errors }}
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">Delivery Fee</label>
-                    {{ form.delivery_fee_excl }}
-                    {{ form.delivery_fee_excl.errors }}
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">Delivery VAT %</label>
-                    {{ form.delivery_fee_vat_percent }}
-                    {{ form.delivery_fee_vat_percent.errors }}
-                </div>
+                    </div>
 
                 </div>
 
-                <hr>
+            {% endif %}
 
-                <div class="row text-end">
-                <div class="col-md-4">
-                    <div class="text-muted small">Total Excl</div>
-                    <div id="total-excl" class="fw-bold">R0.00</div>
+
+            <!-- =================================================
+                MAIN GRID
+            ================================================== -->
+
+            <div class="row g-4">
+
+
+                <!-- =================================================
+                    LEFT / MAIN WORK AREA
+                ================================================= -->
+
+                <div class="col-xl-8">
+
+
+                    <!-- =============================================
+                        CUSTOMER / QUOTATION DETAILS
+                    ============================================== -->
+
+                    <section class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-header bg-white border-0 px-4 pt-4">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="quotation-section-icon bg-primary-subtle text-primary">
+                                    <i class="bi bi-person-vcard"></i>
+                                </div>
+
+                                <div>
+
+                                    <h2 class="h5 fw-semibold mb-1">
+                                        Customer Details
+                                    </h2>
+
+                                    <p class="text-muted small mb-0">
+                                        Select who this quotation is being prepared for.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body p-4">
+
+                            <!-- Quotation For -->
+
+                            <div class="mb-4">
+
+                                <label class="form-label fw-semibold">
+                                    Quotation For
+                                </label>
+
+                                <div class="quotation-target-options">
+
+                                    {% for radio in form.quotation_for %}
+
+                                        <label
+                                            class="quotation-target-option"
+                                            for="{{ radio.id_for_label }}"
+                                        >
+
+                                            {{ radio.tag }}
+
+                                            <span>
+
+                                                <span class="fw-semibold d-block">
+                                                    {{ radio.choice_label }}
+                                                </span>
+
+                                                {% if radio.choice_label == "Client" %}
+                                                    <span class="text-muted small">
+                                                        An existing customer
+                                                    </span>
+                                                {% else %}
+                                                    <span class="text-muted small">
+                                                        A prospect being converted
+                                                    </span>
+                                                {% endif %}
+
+                                            </span>
+
+                                        </label>
+
+                                    {% endfor %}
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- Client / Prospect -->
+
+                            <div class="row g-3">
+
+                                <div
+                                    class="col-12"
+                                    id="client-wrapper"
+                                >
+
+                                    <label class="form-label fw-semibold">
+                                        Existing Client
+                                    </label>
+
+                                    {{ form.client }}
+
+                                    {% if form.client.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.client.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="form-text">
+                                        Select the client receiving this quotation.
+                                    </div>
+
+                                </div>
+
+
+                                <div
+                                    class="col-12 d-none"
+                                    id="prospect-wrapper"
+                                >
+
+                                    <label class="form-label fw-semibold">
+                                        Prospect
+                                    </label>
+
+                                    {{ form.prospect }}
+
+                                    {% if form.prospect.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.prospect.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="form-text">
+                                        Select the prospect this quotation is being prepared for.
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- Quotation Meta -->
+
+                            <div class="row g-3 mt-2">
+
+                                <div class="col-md-4">
+
+                                    <label class="form-label fw-semibold">
+                                        Date
+                                    </label>
+
+                                    <div class="input-group">
+
+                                        <span class="input-group-text bg-light">
+                                            <i class="bi bi-calendar3"></i>
+                                        </span>
+
+                                        <input
+                                            type="text"
+                                            class="form-control bg-light"
+                                            value="{{ now|date:'Y-m-d H:i' }}"
+                                            readonly
+                                        >
+
+                                    </div>
+
+                                </div>
+
+
+                                <div class="col-md-4">
+
+                                    <label class="form-label fw-semibold">
+                                        Valid Until
+                                    </label>
+
+                                    <div class="input-group">
+
+                                        <span class="input-group-text bg-light">
+                                            <i class="bi bi-clock"></i>
+                                        </span>
+
+                                        <input
+                                            type="text"
+                                            class="form-control bg-light"
+                                            value="+72 Hours"
+                                            readonly
+                                        >
+
+                                    </div>
+
+                                </div>
+
+
+                                <div class="col-md-4">
+
+                                    <label class="form-label fw-semibold">
+                                        Status
+                                    </label>
+
+                                    <div class="input-group">
+
+                                        <span class="input-group-text bg-light">
+                                            <i class="bi bi-circle-fill text-warning"
+                                              style="font-size:.55rem;"></i>
+                                        </span>
+
+                                        <input
+                                            type="text"
+                                            class="form-control bg-light"
+                                            value="Draft"
+                                            readonly
+                                        >
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- Customer Notes -->
+
+                            <div class="mt-4">
+
+                                <label class="form-label fw-semibold">
+                                    Customer Notes
+                                </label>
+
+                                {{ form.customer_notes }}
+
+                                {% if form.customer_notes.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.customer_notes.errors }}
+                                    </div>
+                                {% endif %}
+
+                                <div class="form-text">
+                                    Add any instructions, requirements or notes that should appear with the quotation.
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- =============================================
+                        QUOTATION ITEMS
+                    ============================================== -->
+
+                    <section class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-header bg-white border-0 px-4 pt-4">
+
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+
+                                <div class="d-flex align-items-center gap-3">
+
+                                    <div class="quotation-section-icon bg-success-subtle text-success">
+                                        <i class="bi bi-box-seam"></i>
+                                    </div>
+
+                                    <div>
+
+                                        <h2 class="h5 fw-semibold mb-1">
+                                            Quotation Items
+                                        </h2>
+
+                                        <p class="text-muted small mb-0">
+                                            Add the products, quantities and pricing for this quotation.
+                                        </p>
+
+                                    </div>
+
+                                </div>
+
+
+                                <button
+                                    type="button"
+                                    class="btn btn-primary"
+                                    id="add-item-btn"
+                                >
+                                    <i class="bi bi-plus-lg me-1"></i>
+                                    Add Item
+                                </button>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body p-4">
+
+                            {{ formset.management_form }}
+
+
+                            <!-- Desktop helper -->
+
+                            <div class="quotation-items-help mb-3">
+
+                                <div class="d-flex align-items-start gap-2">
+
+                                    <i class="bi bi-lightbulb text-warning mt-1"></i>
+
+                                    <div class="small text-muted">
+                                        Select a category first. Available products will then load automatically.
+                                        Product pricing and VAT are populated from the selected product.
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="table-responsive quotation-table-wrap">
+
+                                <table class="table quotation-table align-middle mb-0">
+
+                                    <thead>
+
+                                        <tr>
+
+                                            <th style="width:15%;">
+                                                Category
+                                            </th>
+
+                                            <th style="width:25%;">
+                                                Product
+                                            </th>
+
+                                            <th style="width:8%;" class="text-end">
+                                                Qty
+                                            </th>
+
+                                            <th style="width:12%;" class="text-end">
+                                                Unit Excl
+                                            </th>
+
+                                            <th style="width:10%;" class="text-end">
+                                                Disc %
+                                            </th>
+
+                                            <th style="width:8%;" class="text-end">
+                                                VAT %
+                                            </th>
+
+                                            <th style="width:11%;" class="text-end">
+                                                VAT
+                                            </th>
+
+                                            <th style="width:12%;" class="text-end">
+                                                Total
+                                            </th>
+
+                                            <th style="width:5%;" class="text-center">
+                                                <i class="bi bi-trash"></i>
+                                            </th>
+
+                                        </tr>
+
+                                    </thead>
+
+
+                                    <tbody id="items-tbody">
+
+                                        {% for item_form in formset %}
+
+                                            <tr>
+
+                                                <td>
+
+                                                    {{ item_form.id }}
+
+                                                    {{ item_form.category }}
+
+                                                    {% if item_form.category.errors %}
+                                                        <div class="text-danger small">
+                                                            {{ item_form.category.errors }}
+                                                        </div>
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                                <td>
+
+                                                    {{ item_form.product }}
+
+                                                    {% if item_form.product.errors %}
+                                                        <div class="text-danger small">
+                                                            {{ item_form.product.errors }}
+                                                        </div>
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                                <td>
+
+                                                    {{ item_form.quantity }}
+
+                                                    {% if item_form.quantity.errors %}
+                                                        <div class="text-danger small">
+                                                            {{ item_form.quantity.errors }}
+                                                        </div>
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                                <td>
+
+                                                    {{ item_form.unit_price_excl }}
+
+                                                    {% if item_form.unit_price_excl.errors %}
+                                                        <div class="text-danger small">
+                                                            {{ item_form.unit_price_excl.errors }}
+                                                        </div>
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                                <td>
+
+                                                    <input
+                                                        type="number"
+                                                        class="form-control discount-percent-field"
+                                                        value="0.00"
+                                                        min="0"
+                                                        max="100"
+                                                        step="0.01"
+                                                        placeholder="0"
+                                                    >
+
+                                                    <div class="d-none">
+                                                        {{ item_form.discount_excl }}
+                                                    </div>
+
+                                                    {% if item_form.discount_excl.errors %}
+                                                        <div class="text-danger small">
+                                                            {{ item_form.discount_excl.errors }}
+                                                        </div>
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                                <td>
+
+                                                    {{ item_form.vat_percent }}
+
+                                                    {% if item_form.vat_percent.errors %}
+                                                        <div class="text-danger small">
+                                                            {{ item_form.vat_percent.errors }}
+                                                        </div>
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                                <td class="text-end">
+
+                                                    <span class="vat-amount fw-semibold">
+                                                        0.00
+                                                    </span>
+
+                                                </td>
+
+
+                                                <td class="text-end">
+
+                                                    <span class="line-total fw-semibold">
+                                                        0.00
+                                                    </span>
+
+                                                </td>
+
+
+                                                <td class="text-center">
+
+                                                    <div class="d-flex justify-content-center">
+
+                                                        {{ item_form.DELETE }}
+
+                                                    </div>
+
+                                                </td>
+
+                                            </tr>
+
+                                        {% endfor %}
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+
+                            <!-- Empty state hint -->
+
+                            <div class="text-center text-muted small py-3">
+
+                                <i class="bi bi-plus-circle me-1"></i>
+                                Add additional products using the <strong>Add Item</strong> button.
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- =============================================
+                        ADDITIONAL CHARGES
+                    ============================================== -->
+
+                    <section class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-header bg-white border-0 px-4 pt-4">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="quotation-section-icon bg-warning-subtle text-warning">
+                                    <i class="bi bi-calculator"></i>
+                                </div>
+
+                                <div>
+
+                                    <h2 class="h5 fw-semibold mb-1">
+                                        Adjustments & Delivery
+                                    </h2>
+
+                                    <p class="text-muted small mb-0">
+                                        Apply an overall discount or delivery charge where required.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body p-4">
+
+                            <div class="row g-3">
+
+                                <div class="col-md-4">
+
+                                    <label class="form-label fw-semibold">
+                                        Discount Total
+                                    </label>
+
+                                    {{ form.discount_total_excl }}
+
+                                    {% if form.discount_total_excl.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.discount_total_excl.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="form-text">
+                                        Overall discount excluding VAT.
+                                    </div>
+
+                                </div>
+
+
+                                <div class="col-md-4">
+
+                                    <label class="form-label fw-semibold">
+                                        Delivery Fee
+                                    </label>
+
+                                    {{ form.delivery_fee_excl }}
+
+                                    {% if form.delivery_fee_excl.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.delivery_fee_excl.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+
+                                <div class="col-md-4">
+
+                                    <label class="form-label fw-semibold">
+                                        Delivery VAT %
+                                    </label>
+
+                                    {{ form.delivery_fee_vat_percent }}
+
+                                    {% if form.delivery_fee_vat_percent.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.delivery_fee_vat_percent.errors }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- =============================================
+                        MOBILE SAVE AREA
+                    ============================================== -->
+
+                    <div class="d-xl-none mb-4">
+
+                        <div class="card border-0 shadow-sm">
+
+                            <div class="card-body p-3">
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-success w-100 py-2"
+                                >
+                                    <i class="bi bi-check-lg me-1"></i>
+                                    Save Quotation
+                                </button>
+
+                                <a
+                                    href="{% url 'sales:sales-quotations' %}"
+                                    class="btn btn-outline-secondary w-100 mt-2"
+                                >
+                                    Cancel
+                                </a>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
                 </div>
 
-                <div class="col-md-4">
-                    <div class="text-muted small">VAT</div>
-                    <div id="total-vat" class="fw-bold">R0.00</div>
+
+                <!-- =================================================
+                    RIGHT / SUMMARY SIDEBAR
+                ================================================== -->
+
+                <div class="col-xl-4">
+
+
+                    <!-- =============================================
+                        QUOTATION SUMMARY
+                    ============================================== -->
+
+                    <div
+                        class="card border-0 shadow-sm mb-4"
+                        style="position:sticky;top:20px;z-index:10;"
+                    >
+
+                        <div class="card-header bg-white border-0 px-4 pt-4">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="quotation-section-icon bg-success-subtle text-success">
+                                    <i class="bi bi-receipt"></i>
+                                </div>
+
+                                <div>
+
+                                    <h2 class="h5 fw-semibold mb-1">
+                                        Quotation Summary
+                                    </h2>
+
+                                    <p class="text-muted small mb-0">
+                                        Live quotation totals
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body p-4">
+
+
+                            <div class="quotation-total-row">
+
+                                <span class="text-muted">
+                                    Total Excl
+                                </span>
+
+                                <strong id="total-excl">
+                                    R0.00
+                                </strong>
+
+                            </div>
+
+
+                            <div class="quotation-total-row">
+
+                                <span class="text-muted">
+                                    VAT
+                                </span>
+
+                                <strong id="total-vat">
+                                    R0.00
+                                </strong>
+
+                            </div>
+
+
+                            <div class="quotation-total-grand">
+
+                                <div>
+
+                                    <div class="small text-muted">
+                                        Total Incl
+                                    </div>
+
+                                    <div class="small text-muted">
+                                        Including VAT
+                                    </div>
+
+                                </div>
+
+                                <div
+                                    id="total-inc"
+                                    class="fw-bold text-success fs-4"
+                                >
+                                    R0.00
+                                </div>
+
+                            </div>
+
+
+                            <hr class="my-4">
+
+
+                            <button
+                                type="submit"
+                                class="btn btn-success w-100 py-2"
+                            >
+                                <i class="bi bi-check-lg me-1"></i>
+                                Save Quotation
+                            </button>
+
+
+                            <a
+                                href="{% url 'sales:sales-quotations' %}"
+                                class="btn btn-outline-secondary w-100 mt-2"
+                            >
+                                Cancel
+                            </a>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =============================================
+                        QUOTATION STATUS
+                    ============================================== -->
+
+                    <div class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-body p-4">
+
+                            <div class="fw-semibold mb-3">
+                                Quotation Status
+                            </div>
+
+
+                            <div class="d-flex align-items-center gap-2 mb-3">
+
+                                <span
+                                    class="d-inline-flex align-items-center justify-content-center rounded-circle bg-warning-subtle"
+                                    style="width:34px;height:34px;"
+                                >
+                                    <i class="bi bi-pencil text-warning"></i>
+                                </span>
+
+                                <div>
+
+                                    <div class="fw-semibold small">
+                                        Draft
+                                    </div>
+
+                                    <div class="text-muted small">
+                                        Not yet issued
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="small text-muted">
+
+                                This quotation will remain a draft until it is saved
+                                and processed through the normal sales workflow.
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =============================================
+                        SALES GUIDANCE
+                    ============================================== -->
+
+                    <div class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-body p-4">
+
+                            <div class="d-flex align-items-center gap-2 mb-3">
+
+                                <i class="bi bi-lightbulb text-warning"></i>
+
+                                <div class="fw-semibold">
+                                    Sales Checklist
+                                </div>
+
+                            </div>
+
+
+                            <div class="small text-muted">
+
+
+                                <div class="d-flex gap-2 mb-3">
+
+                                    <i class="bi bi-check-circle text-success"></i>
+
+                                    <span>
+                                        Confirm the correct client or prospect.
+                                    </span>
+
+                                </div>
+
+
+                                <div class="d-flex gap-2 mb-3">
+
+                                    <i class="bi bi-check-circle text-success"></i>
+
+                                    <span>
+                                        Add all required products and quantities.
+                                    </span>
+
+                                </div>
+
+
+                                <div class="d-flex gap-2 mb-3">
+
+                                    <i class="bi bi-check-circle text-success"></i>
+
+                                    <span>
+                                        Review discounts and delivery charges.
+                                    </span>
+
+                                </div>
+
+
+                                <div class="d-flex gap-2">
+
+                                    <i class="bi bi-check-circle text-success"></i>
+
+                                    <span>
+                                        Check the final total before saving.
+                                    </span>
+
+                                </div>
+
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =============================================
+                        QUICK NAVIGATION
+                    ============================================== -->
+
+                    <div class="card border-0 shadow-sm">
+
+                        <div class="card-body p-4">
+
+                            <div class="fw-semibold mb-3">
+                                Quick Navigation
+                            </div>
+
+
+                            <a
+                                href="#"
+                                class="btn btn-outline-primary w-100 mb-2"
+                                onclick="document.getElementById('client-wrapper').scrollIntoView({behavior:'smooth'}); return false;"
+                            >
+                                <i class="bi bi-person me-1"></i>
+                                Customer Details
+                            </a>
+
+
+                            <a
+                                href="#items-tbody"
+                                class="btn btn-outline-primary w-100 mb-2"
+                            >
+                                <i class="bi bi-box-seam me-1"></i>
+                                Quotation Items
+                            </a>
+
+
+                            <a
+                                href="#"
+                                class="btn btn-outline-primary w-100"
+                                onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); return false;"
+                            >
+                                <i class="bi bi-calculator me-1"></i>
+                                Review Total
+                            </a>
+
+                        </div>
+
+                    </div>
+
                 </div>
 
-                <div class="col-md-4">
-                    <div class="text-muted small">Total Incl</div>
-                    <div id="total-inc" class="fw-bold text-success fs-5">R0.00</div>
-                </div>
-                </div>
-            </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="d-flex justify-content-end gap-2">
-            <a href="{% url 'sales:sales-quotations' %}" class="btn btn-outline-secondary">
-                Cancel
-            </a>
-
-            <button type="submit" class="btn btn-success">
-                Save Quotation
-            </button>
             </div>
 
         </form>

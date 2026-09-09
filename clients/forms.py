@@ -9,7 +9,17 @@ from django.utils import timezone
 from .models import Client
 from .models import GAUTENG_CITY_CHOICES
 
-from .models import Client, Prospect, ProspectUpdate, ClientCompliance, ClientComplianceDocument, Lead
+from .models import (
+    Client,
+    Prospect,
+    ProspectUpdate,
+    ClientCompliance,
+    ClientComplianceDocument,
+    Lead,
+    Region,
+    Territory,
+    Area,
+)
 
 def _bs(extra_class=None):
     """
@@ -1574,7 +1584,6 @@ class LeadForm(forms.ModelForm):
         })
     )
 
-
     # ============================================================
     # GPS LOCATION
     # ============================================================
@@ -1585,8 +1594,7 @@ class LeadForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={
             "class": "form-control",
             "step": "0.000001",
-            "readonly": "readonly",
-            "placeholder": "Captured automatically",
+            "placeholder": "-26.248500",
         })
     )
 
@@ -1596,19 +1604,163 @@ class LeadForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={
             "class": "form-control",
             "step": "0.000001",
-            "readonly": "readonly",
-            "placeholder": "Captured automatically",
+            "placeholder": "27.854700",
         })
     )
 
+    # ============================================================
+    # INITIALISATION
+    # ============================================================
+
+    def __init__(self, *args, **kwargs):
+
+        # Logged-in user passed from the view
+        self.user = kwargs.pop("user", None)
+
+        super().__init__(*args, **kwargs)
+
+        # ========================================================
+        # REGION / TERRITORY / AREA
+        # ========================================================
+
+        # --------------------------------------------------------
+        # Region
+        # --------------------------------------------------------
+
+        self.fields["region"].queryset = (
+            Region.objects
+            .filter(status="ACTIVE")
+            .order_by("name")
+        )
+
+        # --------------------------------------------------------
+        # Territory
+        #
+        # IMPORTANT:
+        # Do NOT disable this field.
+        # It must always remain selectable.
+        # --------------------------------------------------------
+
+        self.fields["territory"].queryset = (
+            Territory.objects
+            .filter(status="ACTIVE")
+            .order_by("name")
+        )
+
+        # --------------------------------------------------------
+        # Area
+        #
+        # IMPORTANT:
+        # Do NOT disable this field.
+        # It must always remain selectable.
+        # --------------------------------------------------------
+
+        self.fields["area"].queryset = (
+            Area.objects
+            .filter(status="ACTIVE")
+            .order_by("name")
+        )
+
+        # ========================================================
+        # STATUS
+        # ========================================================
+
+        # Every new lead starts as NEW.
+        # The field is disabled so the user cannot change it.
+
+        if "status" in self.fields:
+            self.fields["status"].initial = "NEW"
+            self.fields["status"].disabled = True
+
+        # ========================================================
+        # ASSIGNED TO
+        # ========================================================
+
+        # Automatically assign the lead to the logged-in user.
+        # The field is disabled so the user cannot change it.
+
+        if "assigned_to" in self.fields:
+            self.fields["assigned_to"].disabled = True
+
+            if self.user:
+                self.fields["assigned_to"].initial = self.user
+
+    # ============================================================
+    # VALIDATION
+    # ============================================================
+
+    def clean(self):
+
+        cleaned_data = super().clean()
+
+        region = cleaned_data.get("region")
+        territory = cleaned_data.get("territory")
+        area = cleaned_data.get("area")
+
+        # --------------------------------------------------------
+        # Territory must belong to selected Region
+        # --------------------------------------------------------
+
+        if territory and region:
+
+            if territory.region_id != region.id:
+
+                self.add_error(
+                    "territory",
+                    "The selected Territory does not belong to the selected Region."
+                )
+
+        # --------------------------------------------------------
+        # Area must belong to selected Territory
+        # --------------------------------------------------------
+
+        if area and territory:
+
+            if area.territory_id != territory.id:
+
+                self.add_error(
+                    "area",
+                    "The selected Area does not belong to the selected Territory."
+                )
+
+        # --------------------------------------------------------
+        # Area cannot be selected without Territory
+        # --------------------------------------------------------
+
+        if area and not territory:
+
+            self.add_error(
+                "area",
+                "Please select a Territory before selecting an Area."
+            )
+
+        # --------------------------------------------------------
+        # Territory cannot be selected without Region
+        # --------------------------------------------------------
+
+        if territory and not region:
+
+            self.add_error(
+                "territory",
+                "Please select a Region before selecting a Territory."
+            )
+
+        return cleaned_data
+
+    # ============================================================
+    # META
+    # ============================================================
 
     class Meta:
+
         model = Lead
 
         fields = [
+
             # ----------------------------------------------------
             # LEAD
             # ----------------------------------------------------
+
             "status",
             "priority",
             "assigned_to",
@@ -1616,6 +1768,7 @@ class LeadForm(forms.ModelForm):
             # ----------------------------------------------------
             # BUSINESS
             # ----------------------------------------------------
+
             "business_name",
             "entity_type",
             "potential_client_type",
@@ -1623,6 +1776,7 @@ class LeadForm(forms.ModelForm):
             # ----------------------------------------------------
             # CONTACT
             # ----------------------------------------------------
+
             "contact_person",
             "phone",
             "whatsapp",
@@ -1631,6 +1785,7 @@ class LeadForm(forms.ModelForm):
             # ----------------------------------------------------
             # LOCATION
             # ----------------------------------------------------
+
             "address_line1",
             "address_line2",
             "suburb",
@@ -1643,19 +1798,24 @@ class LeadForm(forms.ModelForm):
             "territory",
             "area",
 
+            # ----------------------------------------------------
             # GPS
+            # ----------------------------------------------------
+
             "latitude",
             "longitude",
 
             # ----------------------------------------------------
             # SALES
             # ----------------------------------------------------
+
             "estimated_weekly_spend",
             "preferred_call_time",
 
             # ----------------------------------------------------
             # MARKETING
             # ----------------------------------------------------
+
             "campaign",
             "advert",
             "medium",
@@ -1663,16 +1823,22 @@ class LeadForm(forms.ModelForm):
             # ----------------------------------------------------
             # ACTIVITY
             # ----------------------------------------------------
+
             "last_contact_at",
             "next_follow_up_at",
 
             # ----------------------------------------------------
             # NOTES
             # ----------------------------------------------------
+
             "notes",
         ]
 
         widgets = {
+
+            # ----------------------------------------------------
+            # DATE / TIME
+            # ----------------------------------------------------
 
             "last_contact_at": forms.DateTimeInput(
                 attrs={
@@ -1688,7 +1854,198 @@ class LeadForm(forms.ModelForm):
                 }
             ),
 
+            "preferred_call_time": forms.TimeInput(
+                attrs={
+                    "type": "time",
+                    "class": "form-control",
+                }
+            ),
+
+            # ----------------------------------------------------
+            # SELECTS
+            # ----------------------------------------------------
+
+            "status": forms.Select(
+                attrs={
+                    "class": "form-select",
+                }
+            ),
+
+            "priority": forms.Select(
+                attrs={
+                    "class": "form-select",
+                }
+            ),
+
+            "assigned_to": forms.Select(
+                attrs={
+                    "class": "form-select",
+                }
+            ),
+
+            "entity_type": forms.Select(
+                attrs={
+                    "class": "form-select",
+                }
+            ),
+
+            "potential_client_type": forms.Select(
+                attrs={
+                    "class": "form-select",
+                }
+            ),
+
+            "province": forms.Select(
+                attrs={
+                    "class": "form-select",
+                }
+            ),
+
+            "region": forms.Select(
+                attrs={
+                    "class": "form-select",
+                }
+            ),
+
+            "territory": forms.Select(
+                attrs={
+                    "class": "form-select",
+                }
+            ),
+
+            "area": forms.Select(
+                attrs={
+                    "class": "form-select",
+                }
+            ),
+
+            # ----------------------------------------------------
+            # TEXT INPUTS
+            # ----------------------------------------------------
+
+            "business_name": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            "contact_person": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            "phone": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            "whatsapp": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            "email": forms.EmailInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            "address_line1": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            "address_line2": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            "suburb": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            "city": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            "postal_code": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            "country": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            "campaign": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            "advert": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            "medium": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+
+            # ----------------------------------------------------
+            # SALES
+            # ----------------------------------------------------
+
+            "estimated_weekly_spend": forms.NumberInput(
+                attrs={
+                    "class": "form-control",
+                    "step": "0.01",
+                    "min": "0",
+                }
+            ),
+
+            # ----------------------------------------------------
+            # NOTES
+            # ----------------------------------------------------
+
+            "notes": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                }
+            ),
         }
 
 
+
+
+class LeadEditForm(LeadForm):
+    """
+    Form used when editing an existing sales lead.
+
+    This is the same as LeadForm, except Assigned To
+    can be changed by the user.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Assigned To must be editable when editing a lead
+        if "assigned_to" in self.fields:
+            self.fields["assigned_to"].disabled = False
         

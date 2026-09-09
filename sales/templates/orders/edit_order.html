@@ -82,6 +82,336 @@
     }
 
     /* =========================================================
+      EDIT ORDER PAGE
+      ========================================================= */
+
+    .order-edit-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .order-edit-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .order-edit-eyebrow {
+        font-size: .72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: #0b5c39;
+        margin-bottom: .35rem;
+    }
+
+    .order-edit-title {
+        font-size: 1.7rem;
+        font-weight: 700;
+        color: #212529;
+        margin: 0;
+    }
+
+    .order-edit-meta {
+        color: #6c757d;
+        font-size: .9rem;
+        margin-top: .35rem;
+    }
+
+    .order-edit-actions {
+        display: flex;
+        gap: .5rem;
+        flex-wrap: wrap;
+    }
+
+    /* Sections */
+
+    .order-edit-section {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .025);
+    }
+
+    .order-edit-section-header {
+        padding: 1rem 1.15rem;
+        border-bottom: 1px solid #eef0f2;
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+    }
+
+    .order-edit-section-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(11, 92, 57, .09);
+        color: #0b5c39;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+    }
+
+    .order-edit-section-title {
+        font-weight: 700;
+        color: #212529;
+        margin: 0;
+        font-size: 1rem;
+    }
+
+    .order-edit-section-subtitle {
+        color: #6c757d;
+        font-size: .8rem;
+        margin-top: .15rem;
+    }
+
+    .order-edit-section-body {
+        padding: 1.15rem;
+    }
+
+    /* Form controls */
+
+    #order-edit-form .form-label {
+        font-size: .82rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: .4rem;
+    }
+
+    #order-edit-form .form-control,
+    #order-edit-form .form-select {
+        min-height: 42px;
+        border-radius: 8px;
+        border-color: #dfe3e7;
+    }
+
+    #order-edit-form textarea.form-control {
+        min-height: 120px;
+    }
+
+    #order-edit-form .form-control:focus,
+    #order-edit-form .form-select:focus {
+        border-color: #0b5c39;
+        box-shadow: 0 0 0 .2rem rgba(11, 92, 57, .10);
+    }
+
+    /* Help text */
+
+    .order-edit-help {
+        font-size: .78rem;
+        color: #6c757d;
+        margin-top: .5rem;
+    }
+
+    /* Items */
+
+    .order-items-wrap {
+        overflow-x: auto;
+    }
+
+    .order-items-table {
+        min-width: 900px;
+        margin-bottom: 0;
+    }
+
+    .order-items-table thead th {
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        color: #495057;
+        font-size: .75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .025em;
+        white-space: nowrap;
+        padding: .75rem;
+    }
+
+    .order-items-table tbody td {
+        vertical-align: middle;
+        padding: .65rem;
+    }
+
+    .order-items-table .form-control,
+    .order-items-table .form-select {
+        min-height: 40px;
+        font-size: .88rem;
+    }
+
+    .order-items-table .form-check {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .order-items-table .form-check-input {
+        width: 1.1rem;
+        height: 1.1rem;
+        margin: 0;
+    }
+
+    .order-items-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .order-items-toolbar-note {
+        font-size: .78rem;
+        color: #6c757d;
+    }
+
+    /* Right summary */
+
+    .order-edit-sticky {
+        position: sticky;
+        top: 1rem;
+    }
+
+    .order-edit-summary {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .025);
+        margin-bottom: 1rem;
+    }
+
+    .order-edit-summary-header {
+        padding: 1rem 1.1rem;
+        border-bottom: 1px solid #eef0f2;
+        font-weight: 700;
+    }
+
+    .order-edit-summary-body {
+        padding: 1.1rem;
+    }
+
+    .order-edit-check {
+        display: flex;
+        align-items: flex-start;
+        gap: .7rem;
+        padding: .65rem 0;
+        border-bottom: 1px solid #f0f1f2;
+    }
+
+    .order-edit-check:last-child {
+        border-bottom: 0;
+    }
+
+    .order-edit-check-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(11, 92, 57, .09);
+        color: #0b5c39;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        font-size: .8rem;
+    }
+
+    .order-edit-check strong {
+        display: block;
+        font-size: .82rem;
+    }
+
+    .order-edit-check span {
+        display: block;
+        color: #6c757d;
+        font-size: .76rem;
+    }
+
+    /* Save panel */
+
+    .order-edit-save {
+        background: #0b5c39;
+        color: #fff;
+        border-radius: 14px;
+        padding: 1.15rem;
+        box-shadow: 0 6px 18px rgba(11, 92, 57, .15);
+    }
+
+    .order-edit-save-title {
+        font-weight: 700;
+        margin-bottom: .25rem;
+    }
+
+    .order-edit-save-text {
+        color: rgba(255, 255, 255, .78);
+        font-size: .8rem;
+        margin-bottom: 1rem;
+    }
+
+    .order-edit-save .btn-light {
+        font-weight: 600;
+    }
+
+    /* Bottom mobile action bar */
+
+    .order-edit-mobile-actions {
+        display: none;
+    }
+
+    /* Responsive */
+
+    @media (max-width: 991.98px) {
+        .order-edit-sticky {
+            position: static;
+        }
+
+        .order-edit-mobile-actions {
+            display: flex;
+            position: sticky;
+            bottom: 0;
+            z-index: 1020;
+            background: rgba(255, 255, 255, .96);
+            backdrop-filter: blur(8px);
+            border-top: 1px solid #dee2e6;
+            padding: .75rem;
+            gap: .5rem;
+            margin: 1rem -20px -20px;
+        }
+
+        .order-edit-mobile-actions .btn {
+            flex: 1;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .content {
+            padding: 14px;
+        }
+
+        .order-edit-title {
+            font-size: 1.35rem;
+        }
+
+        .order-edit-section-body {
+            padding: .9rem;
+        }
+
+        .order-edit-section-header {
+            padding: .85rem .9rem;
+        }
+
+        .order-edit-actions {
+            width: 100%;
+        }
+
+        .order-edit-actions .btn {
+            flex: 1;
+        }
+
+        .order-items-table {
+            min-width: 850px;
+        }
+    }
+
+    /* =========================================================
        CHART
        ========================================================= */
 
@@ -614,160 +944,717 @@
 
   </aside>
 
-    <!-- MAIN CONTENT -->
+    <!-- =========================================================
+     MAIN CONTENT
+     ========================================================= -->
+
     <main class="content">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-          <div>
-            <h2 class="m-0">Edit Order #{{ order.id }}</h2>
-            <div class="meta mt-1">
-              Client: {{ order.client }} · Submitted {{ order.submitted_at|date:"Y-m-d H:i" }}
+
+      <div class="order-edit-page">
+
+        <!-- =====================================================
+            HEADER
+            ===================================================== -->
+
+        <div class="order-edit-header">
+
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+
+            <div>
+              <div class="order-edit-eyebrow">
+                Sales · Orders
+              </div>
+
+              <h1 class="order-edit-title">
+                Edit Order #{{ order.id }}
+              </h1>
+
+              <div class="order-edit-meta">
+                Client: {{ order.client }}
+                ·
+                Submitted {{ order.submitted_at|date:"Y-m-d H:i" }}
+              </div>
             </div>
+
+            <div class="order-edit-actions">
+
+              <a
+                href="{% url 'sales:view-order' order.id %}"
+                class="btn btn-outline-secondary"
+              >
+                <i class="bi bi-x-lg me-1"></i>
+                Cancel
+              </a>
+
+              <a
+                href="{% url 'sales:sales-orders' %}"
+                class="btn btn-outline-secondary"
+              >
+                <i class="bi bi-arrow-left me-1"></i>
+                Back to Orders
+              </a>
+
+            </div>
+
           </div>
-          <div class="d-flex gap-2">
-            <a href="{% url 'sales:view-order' order.id %}" class="btn btn-outline-secondary">Cancel</a>
-            <a href="{% url 'sales:sales-orders' %}" class="btn btn-outline-secondary">Back to Orders</a>
-          </div>
+
         </div>
-    
+
+
+        <!-- =====================================================
+            MESSAGES
+            ===================================================== -->
+
         {% if messages %}
-          <div class="mt-3">
+          <div class="mb-3">
             {% for message in messages %}
-              <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+              <div class="alert alert-{{ message.tags }} mb-2">
+                {{ message }}
+              </div>
             {% endfor %}
           </div>
         {% endif %}
-    
-        <form method="post" class="mt-3">
+
+
+        <!-- =====================================================
+            FORM
+            ===================================================== -->
+
+        <form method="post" id="order-edit-form">
+
           {% csrf_token %}
-    
+
           {% if form.non_field_errors %}
-            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            <div class="alert alert-danger mb-3">
+              {{ form.non_field_errors }}
+            </div>
           {% endif %}
-    
-          <div class="row g-3">
-            <!-- Order details -->
-            <div class="col-lg-6">
-              <div class="card">
-                <div class="card-header bg-white"><strong>Order Details</strong></div>
-                <div class="card-body">
+
+
+          <div class="row g-4">
+
+
+            <!-- =================================================
+                LEFT COLUMN
+                ================================================= -->
+
+            <div class="col-lg-8">
+
+
+              <!-- ===============================================
+                  ORDER DETAILS
+                  =============================================== -->
+
+              <div class="order-edit-section">
+
+                <div class="order-edit-section-header">
+
+                  <div class="order-edit-section-icon">
+                    <i class="bi bi-receipt"></i>
+                  </div>
+
+                  <div>
+                    <h2 class="order-edit-section-title">
+                      Order Details
+                    </h2>
+
+                    <div class="order-edit-section-subtitle">
+                      Customer, date, channel and order status
+                    </div>
+                  </div>
+
+                </div>
+
+
+                <div class="order-edit-section-body">
+
                   <div class="mb-3">
-                    <label class="form-label" for="{{ form.client.id_for_label }}">Client</label>
+
+                    <label
+                      class="form-label"
+                      for="{{ form.client.id_for_label }}"
+                    >
+                      Client
+                    </label>
+
                     {{ form.client }}
-                    {% if form.client.errors %}<div class="text-danger small">{{ form.client.errors }}</div>{% endif %}
+
+                    {% if form.client.errors %}
+                      <div class="text-danger small mt-1">
+                        {{ form.client.errors }}
+                      </div>
+                    {% endif %}
+
                   </div>
+
+
                   <div class="row g-3">
+
                     <div class="col-md-6">
-                      <label class="form-label" for="{{ form.order_date.id_for_label }}">Order Date</label>
+
+                      <label
+                        class="form-label"
+                        for="{{ form.order_date.id_for_label }}"
+                      >
+                        Order Date
+                      </label>
+
                       {{ form.order_date }}
-                      {% if form.order_date.errors %}<div class="text-danger small">{{ form.order_date.errors }}</div>{% endif %}
+
+                      {% if form.order_date.errors %}
+                        <div class="text-danger small mt-1">
+                          {{ form.order_date.errors }}
+                        </div>
+                      {% endif %}
+
                     </div>
+
+
                     <div class="col-md-3">
-                      <label class="form-label" for="{{ form.channel.id_for_label }}">Channel</label>
+
+                      <label
+                        class="form-label"
+                        for="{{ form.channel.id_for_label }}"
+                      >
+                        Channel
+                      </label>
+
                       {{ form.channel }}
-                      {% if form.channel.errors %}<div class="text-danger small">{{ form.channel.errors }}</div>{% endif %}
+
+                      {% if form.channel.errors %}
+                        <div class="text-danger small mt-1">
+                          {{ form.channel.errors }}
+                        </div>
+                      {% endif %}
+
                     </div>
+
+
                     <div class="col-md-3">
-                      <label class="form-label" for="{{ form.status.id_for_label }}">Status</label>
+
+                      <label
+                        class="form-label"
+                        for="{{ form.status.id_for_label }}"
+                      >
+                        Status
+                      </label>
+
                       {{ form.status }}
-                      {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors }}</div>{% endif %}
+
+                      {% if form.status.errors %}
+                        <div class="text-danger small mt-1">
+                          {{ form.status.errors }}
+                        </div>
+                      {% endif %}
+
                     </div>
+
                   </div>
+
+
                   <div class="mt-3">
-                    <label class="form-label" for="{{ form.customer_notes.id_for_label }}">Customer Notes</label>
+
+                    <label
+                      class="form-label"
+                      for="{{ form.customer_notes.id_for_label }}"
+                    >
+                      Customer Notes
+                    </label>
+
                     {{ form.customer_notes }}
-                    {% if form.customer_notes.errors %}<div class="text-danger small">{{ form.customer_notes.errors }}</div>{% endif %}
+
+                    {% if form.customer_notes.errors %}
+                      <div class="text-danger small mt-1">
+                        {{ form.customer_notes.errors }}
+                      </div>
+                    {% endif %}
+
+                    <div class="order-edit-help">
+                      Notes that may be relevant to the customer or fulfilment of this order.
+                    </div>
+
                   </div>
+
                 </div>
+
               </div>
-            </div>
-    
-            <!-- Charges -->
-            <div class="col-lg-6">
-              <div class="card">
-                <div class="card-header bg-white"><strong>Charges</strong></div>
-                <div class="card-body">
-                  <div class="row g-3">
-                    <div class="col-md-4">
-                      <label class="form-label" for="{{ form.discount_total_excl.id_for_label }}">Discount (excl)</label>
-                      {{ form.discount_total_excl }}
-                      {% if form.discount_total_excl.errors %}<div class="text-danger small">{{ form.discount_total_excl.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4">
-                      <label class="form-label" for="{{ form.delivery_fee_excl.id_for_label }}">Delivery Fee (excl)</label>
-                      {{ form.delivery_fee_excl }}
-                      {% if form.delivery_fee_excl.errors %}<div class="text-danger small">{{ form.delivery_fee_excl.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4">
-                      <label class="form-label" for="{{ form.delivery_fee_vat_percent.id_for_label }}">Delivery VAT %</label>
-                      {{ form.delivery_fee_vat_percent }}
-                      {% if form.delivery_fee_vat_percent.errors %}<div class="text-danger small">{{ form.delivery_fee_vat_percent.errors }}</div>{% endif %}
-                    </div>
+
+
+              <!-- ===============================================
+                  ORDER ITEMS
+                  =============================================== -->
+
+              <div class="order-edit-section">
+
+                <div class="order-edit-section-header">
+
+                  <div class="order-edit-section-icon">
+                    <i class="bi bi-box-seam"></i>
                   </div>
-                  <div class="mt-3">
-                    <label class="form-label" for="{{ form.notes.id_for_label }}">Internal Notes</label>
-                    {{ form.notes }}
-                    {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
+
+                  <div class="flex-grow-1">
+
+                    <div class="order-items-toolbar">
+
+                      <div>
+                        <h2 class="order-edit-section-title">
+                          Order Items
+                        </h2>
+
+                        <div class="order-edit-section-subtitle">
+                          Products, quantities, pricing and VAT
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        id="add-item-btn"
+                        class="btn btn-sm btn-outline-primary"
+                      >
+                        <i class="bi bi-plus-lg me-1"></i>
+                        Add Item
+                      </button>
+
+                    </div>
+
                   </div>
+
                 </div>
-              </div>
-            </div>
-    
-            <!-- Items -->
-            <div class="col-12">
-              <div class="card">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                  <strong>Items</strong>
-                  <div class="d-flex gap-2 align-items-center">
-                    <span class="small text-muted">Leave “Unit excl” blank to auto-prefill from product pricing.</span>
-                    <button type="button" id="add-item-btn" class="btn btn-sm btn-outline-primary">Add item</button>
+
+
+                <div class="order-edit-section-body p-0">
+
+                  <div class="px-3 pt-3">
+
+                    <div class="order-items-toolbar-note">
+                      Leave “Unit excl” blank to auto-prefill from product pricing.
+                    </div>
+
                   </div>
-                </div>
-                <div class="card-body p-0">
+
+
                   {{ formset.management_form }}
-                  <div class="table-responsive">
-                    <table class="table table-bordered table-striped mb-0">
+
+
+                  <div class="order-items-wrap mt-3">
+
+                    <table class="table table-hover order-items-table">
+
                       <thead>
+
                         <tr class="align-middle">
-                          <th style="width: 16%">Category</th>
-                          <th style="width: 28%">Product</th>
-                          <th style="width: 10%">Qty</th>
-                          <th style="width: 14%">Unit excl (R)</th>
-                          <th style="width: 14%">Discount excl (R)</th>
-                          <th style="width: 10%">VAT %</th>
-                          <th style="width: 8%" class="text-center">Remove</th>
+
+                          <th style="width:16%;">
+                            Category
+                          </th>
+
+                          <th style="width:28%;">
+                            Product
+                          </th>
+
+                          <th style="width:10%;">
+                            Qty
+                          </th>
+
+                          <th style="width:14%;">
+                            Unit excl (R)
+                          </th>
+
+                          <th style="width:14%;">
+                            Discount excl (R)
+                          </th>
+
+                          <th style="width:10%;">
+                            VAT %
+                          </th>
+
+                          <th
+                            style="width:8%;"
+                            class="text-center"
+                          >
+                            Remove
+                          </th>
+
                         </tr>
+
                       </thead>
+
+
                       <tbody id="items-tbody">
+
                         {% for f in formset.forms %}
+
                           {{ f.id }}
+
                           <tr>
-                            <td>{{ f.category }}</td>
-                            <td>{{ f.product }}</td>
-                            <td>{{ f.quantity }}</td>
-                            <td>{{ f.unit_price_excl }}</td>
-                            <td>{{ f.discount_excl }}</td>
-                            <td>{{ f.vat_percent }}</td>
-                            <td class="text-center">{{ f.DELETE }}</td>
+
+                            <td>
+                              {{ f.category }}
+                            </td>
+
+                            <td>
+                              {{ f.product }}
+                            </td>
+
+                            <td>
+                              {{ f.quantity }}
+                            </td>
+
+                            <td>
+                              {{ f.unit_price_excl }}
+                            </td>
+
+                            <td>
+                              {{ f.discount_excl }}
+                            </td>
+
+                            <td>
+                              {{ f.vat_percent }}
+                            </td>
+
+                            <td class="text-center">
+                              {{ f.DELETE }}
+                            </td>
+
                           </tr>
+
+
                           {% if f.non_field_errors %}
-                            <tr><td colspan="7" class="text-danger small">{{ f.non_field_errors }}</td></tr>
+
+                            <tr>
+                              <td
+                                colspan="7"
+                                class="text-danger small"
+                              >
+                                {{ f.non_field_errors }}
+                              </td>
+                            </tr>
+
                           {% endif %}
+
                         {% endfor %}
+
                       </tbody>
+
                     </table>
+
                   </div>
+
                 </div>
+
               </div>
+
+
+              <!-- ===============================================
+                  CHARGES
+                  =============================================== -->
+
+              <div class="order-edit-section">
+
+                <div class="order-edit-section-header">
+
+                  <div class="order-edit-section-icon">
+                    <i class="bi bi-calculator"></i>
+                  </div>
+
+                  <div>
+                    <h2 class="order-edit-section-title">
+                      Charges & Adjustments
+                    </h2>
+
+                    <div class="order-edit-section-subtitle">
+                      Discounts, delivery and internal notes
+                    </div>
+                  </div>
+
+                </div>
+
+
+                <div class="order-edit-section-body">
+
+                  <div class="row g-3">
+
+                    <div class="col-md-4">
+
+                      <label
+                        class="form-label"
+                        for="{{ form.discount_total_excl.id_for_label }}"
+                      >
+                        Discount (excl)
+                      </label>
+
+                      {{ form.discount_total_excl }}
+
+                      {% if form.discount_total_excl.errors %}
+                        <div class="text-danger small mt-1">
+                          {{ form.discount_total_excl.errors }}
+                        </div>
+                      {% endif %}
+
+                    </div>
+
+
+                    <div class="col-md-4">
+
+                      <label
+                        class="form-label"
+                        for="{{ form.delivery_fee_excl.id_for_label }}"
+                      >
+                        Delivery Fee (excl)
+                      </label>
+
+                      {{ form.delivery_fee_excl }}
+
+                      {% if form.delivery_fee_excl.errors %}
+                        <div class="text-danger small mt-1">
+                          {{ form.delivery_fee_excl.errors }}
+                        </div>
+                      {% endif %}
+
+                    </div>
+
+
+                    <div class="col-md-4">
+
+                      <label
+                        class="form-label"
+                        for="{{ form.delivery_fee_vat_percent.id_for_label }}"
+                      >
+                        Delivery VAT %
+                      </label>
+
+                      {{ form.delivery_fee_vat_percent }}
+
+                      {% if form.delivery_fee_vat_percent.errors %}
+                        <div class="text-danger small mt-1">
+                          {{ form.delivery_fee_vat_percent.errors }}
+                        </div>
+                      {% endif %}
+
+                    </div>
+
+                  </div>
+
+
+                  <div class="mt-3">
+
+                    <label
+                      class="form-label"
+                      for="{{ form.notes.id_for_label }}"
+                    >
+                      Internal Notes
+                    </label>
+
+                    {{ form.notes }}
+
+                    {% if form.notes.errors %}
+                      <div class="text-danger small mt-1">
+                        {{ form.notes.errors }}
+                      </div>
+                    {% endif %}
+
+                    <div class="order-edit-help">
+                      Internal sales or operational notes. These are not customer-facing.
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+
+              <!-- ===============================================
+                  DESKTOP SAVE ACTIONS
+                  =============================================== -->
+
+              <div class="d-flex justify-content-end gap-2 mt-3 d-none d-lg-flex">
+
+                <a
+                  href="{% url 'sales:view-order' order.id %}"
+                  class="btn btn-outline-secondary"
+                >
+                  Cancel
+                </a>
+
+                <button
+                  type="submit"
+                  class="btn btn-success px-4"
+                >
+                  <i class="bi bi-check-lg me-1"></i>
+                  Save Changes
+                </button>
+
+              </div>
+
             </div>
-    
-          </div><!-- /row -->
-    
-          <div class="d-flex justify-content-end mt-3 gap-2">
-            <a href="{% url 'sales:view-order' order.id %}" class="btn btn-outline-secondary">Cancel</a>
-            <button type="submit" class="btn btn-primary">Save Changes</button>
+
+
+            <!-- =================================================
+                RIGHT COLUMN
+                ================================================= -->
+
+            <div class="col-lg-4">
+
+              <div class="order-edit-sticky">
+
+
+                <!-- =============================================
+                    EDIT SUMMARY
+                    ============================================= -->
+
+                <div class="order-edit-summary">
+
+                  <div class="order-edit-summary-header">
+                    Order Update
+                  </div>
+
+                  <div class="order-edit-summary-body">
+
+                    <div class="order-edit-check">
+
+                      <div class="order-edit-check-icon">
+                        <i class="bi bi-person"></i>
+                      </div>
+
+                      <div>
+                        <strong>Customer</strong>
+                        <span>
+                          Confirm the correct client is selected.
+                        </span>
+                      </div>
+
+                    </div>
+
+
+                    <div class="order-edit-check">
+
+                      <div class="order-edit-check-icon">
+                        <i class="bi bi-calendar3"></i>
+                      </div>
+
+                      <div>
+                        <strong>Order Date</strong>
+                        <span>
+                          Check the date before saving.
+                        </span>
+                      </div>
+
+                    </div>
+
+
+                    <div class="order-edit-check">
+
+                      <div class="order-edit-check-icon">
+                        <i class="bi bi-box-seam"></i>
+                      </div>
+
+                      <div>
+                        <strong>Items</strong>
+                        <span>
+                          Verify products, quantities and pricing.
+                        </span>
+                      </div>
+
+                    </div>
+
+
+                    <div class="order-edit-check">
+
+                      <div class="order-edit-check-icon">
+                        <i class="bi bi-truck"></i>
+                      </div>
+
+                      <div>
+                        <strong>Delivery</strong>
+                        <span>
+                          Confirm delivery fee and VAT where applicable.
+                        </span>
+                      </div>
+
+                    </div>
+
+
+                    <div class="order-edit-check">
+
+                      <div class="order-edit-check-icon">
+                        <i class="bi bi-sticky"></i>
+                      </div>
+
+                      <div>
+                        <strong>Notes</strong>
+                        <span>
+                          Keep customer and internal notes appropriate.
+                        </span>
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+
+                <!-- =============================================
+                    SAVE PANEL
+                    ============================================= -->
+
+                <div class="order-edit-save">
+
+                  <div class="order-edit-save-title">
+                    Ready to save?
+                  </div>
+
+                  <div class="order-edit-save-text">
+                    Review the order details and items before committing your changes.
+                  </div>
+
+                  <button
+                    type="submit"
+                    class="btn btn-light w-100"
+                  >
+                    <i class="bi bi-check-lg me-1"></i>
+                    Save Changes
+                  </button>
+
+                </div>
+
+
+              </div>
+
+            </div>
+
           </div>
+
+
+          <!-- ===============================================
+              MOBILE ACTION BAR
+              =============================================== -->
+
+          <div class="order-edit-mobile-actions">
+
+            <a
+              href="{% url 'sales:view-order' order.id %}"
+              class="btn btn-outline-secondary"
+            >
+              Cancel
+            </a>
+
+            <button
+              type="submit"
+              class="btn btn-success"
+            >
+              <i class="bi bi-check-lg me-1"></i>
+              Save
+            </button>
+
+          </div>
+
         </form>
-      </main>
+
+      </div>
+
+    </main>
     
       <!-- Empty form row template -->
       <script type="text/template" id="empty-form-row">
