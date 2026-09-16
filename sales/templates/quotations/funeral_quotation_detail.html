@@ -1,0 +1,1915 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Dashboard - The Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    /* --- Desktop: fixed (non-movable) sidebar --- */
+    @media (min-width: 992px) {
+      html, body { height: 100%; }
+      body { min-height: 100vh; overflow-x: hidden; }
+      .sidebar-desktop {
+        position: fixed; top: 0; left: 0; width: 220px; height: 100vh; overflow-y: auto;
+      }
+      main.content { margin-left: 220px; min-height: 100vh; }
+    }
+
+    /* Shared styles */
+    .sidebar-skin { background-color: #0b5c39; color: #fff; padding: 1rem; }
+    .sidebar-skin .nav-link { color: #fff; margin: .25rem 0; display: block; }
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+    .logo-img { max-height: 80px; width: auto; }
+    .content { background: #f8f9fa; padding: 20px; }
+    .sidebar-skin .nav-link.ps-4 { font-size: .95rem; opacity: .95; }
+
+    /* --- Compact chart height --- */
+    .chart-wrap { position: relative; width: 100%; height: 220px; }
+    @media (max-width: 991.98px) { .chart-wrap { height: 180px; } }
+    @media (max-width: 575.98px) { .chart-wrap { height: 150px; } }
+    .chart-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- MOBILE/TABLET TOP BAR -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="#">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  <!-- MOBILE OFFCANVAS MENU -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header sidebar-skin">
+      <h5 class="offcanvas-title" id="mobileMenuLabel">Sales Staff Platform</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body sidebar-skin">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" class="logo-img">
+      </div>
+
+      <!-- =====================================================
+     MAIN NAVIGATION
+     FUNERAL CONSULTANT PORTAL
+     ===================================================== -->
+
+        <!-- DASHBOARD -->
+
+        <a
+        href="{% url 'sales:funeral-consultant-dashboard' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'funeral-consultant-dashboard' %}active{% endif %}"
+
+        >
+
+        Dashboard </a>
+
+        <!-- =====================================================
+            LEADS
+            INACTIVE
+            Not part of the Funeral Consultant workflow
+            ===================================================== -->
+
+        <a
+        href="#"
+        class="nav-link disabled"
+        aria-disabled="true"
+        style="opacity: 0.45; pointer-events: none;"
+
+        >
+
+        Leads </a>
+
+        <!-- =====================================================
+            PROSPECTS
+            INACTIVE
+            Not part of the Funeral Consultant workflow
+            ===================================================== -->
+
+        <a
+        href="#"
+        class="nav-link disabled"
+        aria-disabled="true"
+        style="opacity: 0.45; pointer-events: none;"
+
+        >
+
+        Prospects </a>
+
+        <!-- =====================================================
+            CUSTOMERS
+            Previously labelled CLIENTS
+            Includes list + create + detail
+            ===================================================== -->
+
+        <a
+        href="{% url 'sales:funeral-customers' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'funeral-customers' or request.resolver_match.url_name == 'funeral-customer-create' or request.resolver_match.url_name == 'funeral-customer-detail' %}active{% endif %}"
+
+        >
+
+        Customers </a>
+
+        <!-- =====================================================
+            QUOTATIONS
+            Includes list + create + edit + detail
+            ===================================================== -->
+
+        <a
+        href="{% url 'sales:funeral-quotations' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'funeral-quotations' or request.resolver_match.url_name == 'funeral-quotation-create' or request.resolver_match.url_name == 'funeral-quotation-detail' or request.resolver_match.url_name == 'funeral-quotation-edit' %}active{% endif %}"
+
+        >
+
+        Quotations </a>
+
+        <!-- =====================================================
+            ORDERS
+            Includes list + create + edit + detail
+            ===================================================== -->
+
+        <a
+        href="{% url 'sales:funeral-orders' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'funeral-orders' or request.resolver_match.url_name == 'funeral-order-create' or request.resolver_match.url_name == 'funeral-order-detail' or request.resolver_match.url_name == 'funeral-order-edit' %}active{% endif %}"
+
+        >
+
+        Orders </a>
+
+        <!-- =====================================================
+            INVOICES
+            Includes list + detail + Email + WhatsApp + SMS
+            ===================================================== -->
+
+        <a
+        href="{% url 'sales:funeral-invoices' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'funeral-invoices' or request.resolver_match.url_name == 'funeral-invoice-detail' or request.resolver_match.url_name == 'funeral-send-invoice-email' or request.resolver_match.url_name == 'funeral-send-invoice-whatsapp' or request.resolver_match.url_name == 'funeral-send-invoice-sms' %}active{% endif %}"
+
+        >
+
+        Invoices </a>
+
+        <!-- =====================================================
+            COMMISSION
+            Includes commission list + commission detail
+            ===================================================== -->
+
+        <a
+        href="#"
+        class="nav-link disabled"
+        aria-disabled="true"
+        style="opacity: 0.45; pointer-events: none;"
+
+        >
+
+        Commission </a>
+
+
+        <!-- =====================================================
+            TICKETS
+            Includes list + create + detail
+            ===================================================== -->
+
+        <a
+        href="{% url 'sales:funeral-tickets' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'funeral-tickets' or request.resolver_match.url_name == 'funeral-ticket-create' or request.resolver_match.url_name == 'funeral-ticket-detail' %}active{% endif %}"
+
+        >
+
+        Tickets </a>
+
+        <!-- =====================================================
+            PRODUCTS
+            Product Knowledge
+            ===================================================== -->
+
+        <a
+        href="#"
+        class="nav-link disabled"
+        aria-disabled="true"
+        style="opacity: 0.45; pointer-events: none;"
+
+        >
+
+        Products </a>
+
+
+      <hr class="border-light">
+
+    
+      <button type="button"
+        class="btn btn-outline-light w-100 text-center mb-2"
+        data-bs-toggle="modal"
+        data-bs-target="#switchPlatformModal">
+        Switch Platform
+      </button>
+
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit"
+                class="btn btn-outline-light w-100 text-center">
+          Sign Out
+        </button>
+      </form>
+
+      <hr class="border-light">
+
+      <!-- LOGGED-IN USER -->
+      <div class="mb-3">
+        <div
+          class="bg-white bg-opacity-10 rounded px-2 py-2 text-center"
+          style="font-size: 0.85rem;"
+        >
+          <div class="text-white-50 small">
+            Logged in as
+          </div>
+
+          <div class="fw-semibold text-white">
+            {% if request.user.get_full_name %}
+              {{ request.user.get_full_name }}
+            {% else %}
+              {{ request.user.username }}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      
+    </div>
+  </div>
+
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="The Daily Market" class="logo-img">
+    </div>
+
+    <h6 class="text-uppercase fw-semibold mb-2">
+      <a href="#"
+        class="text-decoration-none text-reset">
+        Sales Staff Platform
+      </a>
+    </h6>
+
+    <hr class="border-light">
+
+    <!-- =====================================================
+     MAIN NAVIGATION
+     FUNERAL CONSULTANT PORTAL
+     ===================================================== -->
+
+        <!-- DASHBOARD -->
+
+        <a
+        href="{% url 'sales:funeral-consultant-dashboard' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'funeral-consultant-dashboard' %}active{% endif %}"
+
+        >
+
+        Dashboard </a>
+
+        <!-- =====================================================
+            LEADS
+            INACTIVE
+            Not part of the Funeral Consultant workflow
+            ===================================================== -->
+
+        <a
+        href="#"
+        class="nav-link disabled"
+        aria-disabled="true"
+        style="opacity: 0.45; pointer-events: none;"
+
+        >
+
+        Leads </a>
+
+        <!-- =====================================================
+            PROSPECTS
+            INACTIVE
+            Not part of the Funeral Consultant workflow
+            ===================================================== -->
+
+        <a
+        href="#"
+        class="nav-link disabled"
+        aria-disabled="true"
+        style="opacity: 0.45; pointer-events: none;"
+
+        >
+
+        Prospects </a>
+
+        <!-- =====================================================
+            CUSTOMERS
+            Previously labelled CLIENTS
+            Includes list + create + detail
+            ===================================================== -->
+
+        <a
+        href="{% url 'sales:funeral-customers' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'funeral-customers' or request.resolver_match.url_name == 'funeral-customer-create' or request.resolver_match.url_name == 'funeral-customer-detail' %}active{% endif %}"
+
+        >
+
+        Customers </a>
+
+        <!-- =====================================================
+            QUOTATIONS
+            Includes list + create + edit + detail
+            ===================================================== -->
+
+        <a
+        href="{% url 'sales:funeral-quotations' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'funeral-quotations' or request.resolver_match.url_name == 'funeral-quotation-create' or request.resolver_match.url_name == 'funeral-quotation-detail' or request.resolver_match.url_name == 'funeral-quotation-edit' %}active{% endif %}"
+
+        >
+
+        Quotations </a>
+
+        <!-- =====================================================
+            ORDERS
+            Includes list + create + edit + detail
+            ===================================================== -->
+
+        <a
+        href="{% url 'sales:funeral-orders' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'funeral-orders' or request.resolver_match.url_name == 'funeral-order-create' or request.resolver_match.url_name == 'funeral-order-detail' or request.resolver_match.url_name == 'funeral-order-edit' %}active{% endif %}"
+
+        >
+
+        Orders </a>
+
+        <!-- =====================================================
+            INVOICES
+            Includes list + detail + Email + WhatsApp + SMS
+            ===================================================== -->
+
+        <a
+        href="{% url 'sales:funeral-invoices' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'funeral-invoices' or request.resolver_match.url_name == 'funeral-invoice-detail' or request.resolver_match.url_name == 'funeral-send-invoice-email' or request.resolver_match.url_name == 'funeral-send-invoice-whatsapp' or request.resolver_match.url_name == 'funeral-send-invoice-sms' %}active{% endif %}"
+
+        >
+
+        Invoices </a>
+
+        <!-- =====================================================
+            COMMISSION
+            Includes commission list + commission detail
+            ===================================================== -->
+
+        <a
+        href="#"
+        class="nav-link disabled"
+        aria-disabled="true"
+        style="opacity: 0.45; pointer-events: none;"
+
+        >
+
+        Commission </a>
+
+
+        <!-- =====================================================
+            TICKETS
+            Includes list + create + detail
+            ===================================================== -->
+
+        <a
+        href="{% url 'sales:funeral-tickets' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'funeral-tickets' or request.resolver_match.url_name == 'funeral-ticket-create' or request.resolver_match.url_name == 'funeral-ticket-detail' %}active{% endif %}"
+
+        >
+
+        Tickets </a>
+
+        <!-- =====================================================
+            PRODUCTS
+            Product Knowledge
+            ===================================================== -->
+
+        <a
+        href="#"
+        class="nav-link disabled"
+        aria-disabled="true"
+        style="opacity: 0.45; pointer-events: none;"
+
+        >
+
+        Products </a>
+
+
+    <hr class="border-light">
+
+    <button type="button"
+        class="btn btn-outline-light w-100 text-center mb-2"
+        data-bs-toggle="modal"
+        data-bs-target="#switchPlatformModal">
+        Switch Platform
+    </button>
+
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit"
+                class="btn btn-outline-light w-100 text-center">
+        Sign Out
+      </button>
+    </form>
+    
+
+    <!-- LOGGED-IN USER -->
+    <div class="mb-3">
+      <div
+        class="bg-white bg-opacity-10 rounded px-2 py-2 text-center"
+        style="font-size: 0.85rem;"
+      >
+        <div class="text-white-50 small">
+          Logged in as
+        </div>
+
+        <div class="fw-semibold text-white">
+          {% if request.user.get_full_name %}
+            {{ request.user.get_full_name }}
+          {% else %}
+            {{ request.user.username }}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </aside>
+
+    <main class="content">
+
+        <!-- =========================================================
+            PAGE HEADER
+        ========================================================== -->
+        <div class="d-flex flex-column flex-lg-row align-items-lg-center
+                    justify-content-between gap-3 mb-4">
+
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <a href="{% url 'sales:funeral-quotations' %}"
+                    class="text-decoration-none text-muted">
+                        <i class="bi bi-arrow-left"></i>
+                        Quotations
+                    </a>
+
+                    <span class="text-muted">/</span>
+
+                    <span class="text-muted">
+                        Quotation #{{ quotation.id }}
+                    </span>
+                </div>
+
+                <h1 class="h3 fw-semibold mb-1">
+                    Quotation #{{ quotation.id }}
+                </h1>
+
+                <p class="text-muted mb-0">
+                    Funeral beneficiary quotation
+                </p>
+            </div>
+
+
+            <!-- ACTIONS -->
+            {% if quotation.status == "draft" or quotation.status == "sent" %}
+
+                <div class="dropdown">
+                    <button
+                        class="btn btn-outline-primary dropdown-toggle"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                    >
+                        <i class="bi bi-arrow-repeat me-1"></i>
+                        Change Status
+                    </button>
+
+                    <ul class="dropdown-menu dropdown-menu-end">
+
+                        {% if quotation.status == "draft" %}
+                            <li>
+                                <form method="post"
+                                    action="{% url 'sales:funeral-quotation-change-status' quotation.pk %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="accepted">
+
+                                    <button type="submit" class="dropdown-item text-success">
+                                        <i class="bi bi-check-circle me-2"></i>
+                                        Accept Quotation
+                                    </button>
+                                </form>
+                            </li>
+
+                            <li>
+                                <form method="post"
+                                    action="{% url 'sales:funeral-quotation-change-status' quotation.pk %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="rejected">
+
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="bi bi-x-circle me-2"></i>
+                                        Reject Quotation
+                                    </button>
+                                </form>
+                            </li>
+                        {% endif %}
+
+                        {% if quotation.status == "sent" %}
+                            <li>
+                                <form method="post"
+                                    action="{% url 'sales:funeral-quotation-change-status' quotation.pk %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="accepted">
+
+                                    <button type="submit" class="dropdown-item text-success">
+                                        <i class="bi bi-check-circle me-2"></i>
+                                        Accept Quotation
+                                    </button>
+                                </form>
+                            </li>
+
+                            <li>
+                                <form method="post"
+                                    action="{% url 'sales:funeral-quotation-change-status' quotation.pk %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="rejected">
+
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="bi bi-x-circle me-2"></i>
+                                        Reject Quotation
+                                    </button>
+                                </form>
+                            </li>
+                        {% endif %}
+
+                    </ul>
+                </div>
+
+                {% endif %}
+        </div>
+
+
+        <!-- =========================================================
+            MAIN GRID
+        ========================================================== -->
+        <div class="row g-4">
+
+
+            <!-- =====================================================
+                LEFT COLUMN
+            ====================================================== -->
+            <div class="col-lg-8">
+
+
+                <!-- =================================================
+                    QUOTATION INFORMATION
+                ================================================== -->
+                <div class="card border-0 shadow-sm mb-4">
+
+                    <div class="card-body p-4">
+
+                        <div class="d-flex align-items-start
+                                    justify-content-between gap-3 mb-4">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="rounded-3 bg-primary-subtle
+                                            text-primary d-flex align-items-center
+                                            justify-content-center"
+                                    style="width:48px;height:48px;">
+                                    <i class="bi bi-file-earmark-text fs-4"></i>
+                                </div>
+
+                                <div>
+                                    <h2 class="h5 fw-semibold mb-1">
+                                        Quotation Information
+                                    </h2>
+
+                                    <p class="text-muted mb-0">
+                                        Details and status of this quotation
+                                    </p>
+                                </div>
+
+                            </div>
+
+
+                            <!-- STATUS -->
+                            <div>
+                                {% if quotation.status == "draft" %}
+                                    <span class="badge rounded-pill bg-secondary-subtle text-secondary px-3 py-2">
+                                        Draft
+                                    </span>
+
+                                {% elif quotation.status == "sent" %}
+                                    <span class="badge rounded-pill bg-info-subtle text-info px-3 py-2">
+                                        Sent
+                                    </span>
+
+                                {% elif quotation.status == "accepted" %}
+                                    <span class="badge rounded-pill bg-success-subtle text-success px-3 py-2">
+                                        Accepted
+                                    </span>
+
+                                {% elif quotation.status == "rejected" %}
+                                    <span class="badge rounded-pill bg-danger-subtle text-danger px-3 py-2">
+                                        Rejected
+                                    </span>
+
+                                {% elif quotation.status == "expired" %}
+                                    <span class="badge rounded-pill bg-warning-subtle text-warning px-3 py-2">
+                                        Expired
+                                    </span>
+
+                                {% else %}
+                                    <span class="badge rounded-pill bg-secondary-subtle text-secondary px-3 py-2">
+                                        {{ quotation.get_status_display }}
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                        </div>
+
+
+                        <div class="row g-4">
+
+                            <!-- QUOTATION NUMBER -->
+                            <div class="col-md-4">
+                                <div class="small text-muted mb-1">
+                                    Quotation
+                                </div>
+
+                                <div class="fw-semibold">
+                                    #{{ quotation.id }}
+                                </div>
+                            </div>
+
+
+                            <!-- QUOTATION DATE -->
+                            <div class="col-md-4">
+                                <div class="small text-muted mb-1">
+                                    Quotation Date
+                                </div>
+
+                                <div class="fw-semibold">
+                                    {{ quotation.quotation_date|date:"d M Y H:i" }}
+                                </div>
+                            </div>
+
+
+                            <!-- VALID UNTIL -->
+                            <div class="col-md-4">
+                                <div class="small text-muted mb-1">
+                                    Valid Until
+                                </div>
+
+                                <div class="fw-semibold">
+                                    {{ quotation.valid_until|date:"d M Y" }}
+                                </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                    CUSTOMER DETAILS
+                ================================================== -->
+                <div class="card border-0 shadow-sm mb-4"
+                    id="customer-details">
+
+                    <div class="card-body p-4">
+
+                        <div class="d-flex align-items-center gap-3 mb-4">
+
+                            <div class="rounded-3 bg-primary-subtle
+                                        text-primary d-flex align-items-center
+                                        justify-content-center"
+                                style="width:48px;height:48px;">
+                                <i class="bi bi-person-vcard fs-4"></i>
+                            </div>
+
+                            <div>
+                                <h2 class="h5 fw-semibold mb-1">
+                                    Customer Details
+                                </h2>
+
+                                <p class="text-muted mb-0">
+                                    Funeral beneficiary receiving the quotation
+                                </p>
+                            </div>
+
+                        </div>
+
+
+                        <div class="row g-4">
+
+                            <!-- CUSTOMER -->
+                            <div class="col-md-6">
+
+                                <div class="small text-muted mb-1">
+                                    Customer / Beneficiary
+                                </div>
+
+                                <div class="fw-semibold">
+                                    {{ quotation.end_user.full_name }}
+                                </div>
+
+                                <div class="small text-muted mt-1">
+                                    {{ quotation.end_user.end_user_number }}
+                                </div>
+
+                            </div>
+
+
+                            <!-- CUSTOMER TYPE -->
+                            <div class="col-md-6">
+
+                                <div class="small text-muted mb-1">
+                                    Customer Type
+                                </div>
+
+                                <div>
+                                    <span class="badge bg-light text-dark border">
+                                        Funeral Beneficiary
+                                    </span>
+                                </div>
+
+                            </div>
+
+
+                            <!-- PHONE -->
+                            {% if quotation.end_user.phone %}
+                                <div class="col-md-6">
+
+                                    <div class="small text-muted mb-1">
+                                        Phone
+                                    </div>
+
+                                    <div class="fw-medium">
+                                        {{ quotation.end_user.phone }}
+                                    </div>
+
+                                </div>
+                            {% endif %}
+
+
+                            <!-- WHATSAPP -->
+                            {% if quotation.end_user.whatsapp %}
+                                <div class="col-md-6">
+
+                                    <div class="small text-muted mb-1">
+                                        WhatsApp
+                                    </div>
+
+                                    <div class="fw-medium">
+                                        {{ quotation.end_user.whatsapp }}
+                                    </div>
+
+                                </div>
+                            {% endif %}
+
+
+                            <!-- EMAIL -->
+                            {% if quotation.end_user.email %}
+                                <div class="col-md-6">
+
+                                    <div class="small text-muted mb-1">
+                                        Email
+                                    </div>
+
+                                    <div class="fw-medium text-break">
+                                        {{ quotation.end_user.email }}
+                                    </div>
+
+                                </div>
+                            {% endif %}
+
+
+                            <!-- VIEW CUSTOMER -->
+                            <div class="col-12">
+
+                                <a href="{% url 'sales:funeral-customer-detail' quotation.end_user.pk %}"
+                                class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-person me-1"></i>
+                                    View Customer
+                                </a>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                    FUNERAL PARLOUR
+                ================================================== -->
+                <div class="card border-0 shadow-sm mb-4">
+
+                    <div class="card-body p-4">
+
+                        <div class="d-flex align-items-center gap-3 mb-4">
+
+                            <div class="rounded-3 bg-warning-subtle
+                                        text-warning d-flex align-items-center
+                                        justify-content-center"
+                                style="width:48px;height:48px;">
+                                <i class="bi bi-building fs-4"></i>
+                            </div>
+
+                            <div>
+                                <h2 class="h5 fw-semibold mb-1">
+                                    Funeral Parlour
+                                </h2>
+
+                                <p class="text-muted mb-0">
+                                    Client through which this quotation was created
+                                </p>
+                            </div>
+
+                        </div>
+
+
+                        <div class="border rounded-3 p-3 bg-light">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="rounded-2 bg-white border
+                                            d-flex align-items-center
+                                            justify-content-center"
+                                    style="width:42px;height:42px;">
+                                    <i class="bi bi-building text-primary"></i>
+                                </div>
+
+                                <div>
+
+                                    <div class="fw-semibold">
+                                        {{ quotation.client.name }}
+                                    </div>
+
+                                    {% if quotation.client.organization %}
+                                        <div class="small text-muted">
+                                            {{ quotation.client.organization }}
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                    QUOTATION ITEMS
+                ================================================== -->
+                <div class="card border-0 shadow-sm mb-4">
+
+                    <div class="card-body p-4">
+
+                        <div class="d-flex align-items-center
+                                    justify-content-between gap-3 mb-4">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="rounded-3 bg-success-subtle
+                                            text-success d-flex align-items-center
+                                            justify-content-center"
+                                    style="width:48px;height:48px;">
+                                    <i class="bi bi-cart3 fs-4"></i>
+                                </div>
+
+                                <div>
+                                    <h2 class="h5 fw-semibold mb-1">
+                                        Quotation Items
+                                    </h2>
+
+                                    <p class="text-muted mb-0">
+                                        Products included in this quotation
+                                    </p>
+                                </div>
+
+                            </div>
+
+                            <span class="badge bg-light text-dark border">
+                                {{ item_rows|length }} item{{ item_rows|length|pluralize }}
+                            </span>
+
+                        </div>
+
+
+                        {% if item_rows %}
+
+                            <!-- DESKTOP TABLE -->
+                            <div class="table-responsive d-none d-md-block">
+
+                                <table class="table align-middle mb-0">
+
+                                    <thead class="table-light">
+
+                                        <tr>
+
+                                            <th style="width:40%;">
+                                                Product
+                                            </th>
+
+                                            <th class="text-center">
+                                                Qty
+                                            </th>
+
+                                            <th class="text-end">
+                                                Unit Price
+                                            </th>
+
+                                            <th class="text-end">
+                                                Discount
+                                            </th>
+
+                                            <th class="text-end">
+                                                VAT
+                                            </th>
+
+                                            <th class="text-end">
+                                                Total
+                                            </th>
+
+                                        </tr>
+
+                                    </thead>
+
+                                    <tbody>
+
+                                        {% for item in item_rows %}
+
+                                            <tr>
+
+                                                <!-- PRODUCT -->
+                                                <td>
+
+                                                    <div class="fw-semibold">
+                                                        {{ item.product_name|default:item.product.name }}
+                                                    </div>
+
+                                                    <div class="small text-muted">
+
+                                                        {% if item.sku %}
+                                                            SKU: {{ item.sku }}
+                                                        {% endif %}
+
+                                                        {% if item.uom %}
+                                                            {% if item.sku %} · {% endif %}
+                                                            {{ item.uom }}
+                                                        {% endif %}
+
+                                                    </div>
+
+                                                    {% if item.category %}
+                                                        <div class="small text-muted">
+                                                            {{ item.category.name }}
+                                                        </div>
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                                <!-- QUANTITY -->
+                                                <td class="text-center">
+
+                                                    <span class="fw-medium">
+                                                        {{ item.quantity|floatformat:2 }}
+                                                    </span>
+
+                                                </td>
+
+
+                                                <!-- UNIT PRICE -->
+                                                <td class="text-end">
+
+                                                    R{{ item.unit_price_excl|floatformat:2 }}
+
+                                                </td>
+
+
+                                                <!-- DISCOUNT -->
+                                                <td class="text-end">
+
+                                                    {% if item.discount_excl %}
+                                                        R{{ item.discount_excl|floatformat:2 }}
+                                                    {% else %}
+                                                        <span class="text-muted">
+                                                            —
+                                                        </span>
+                                                    {% endif %}
+
+                                                </td>
+
+
+                                                <!-- VAT -->
+                                                <td class="text-end">
+
+                                                    <div>
+                                                        R{{ item.line_vat_amount|floatformat:2 }}
+                                                    </div>
+
+                                                    <div class="small text-muted">
+                                                        {{ item.vat_percent|floatformat:2 }}%
+                                                    </div>
+
+                                                </td>
+
+
+                                                <!-- TOTAL -->
+                                                <td class="text-end fw-semibold">
+
+                                                    R{{ item.line_total_inc|floatformat:2 }}
+
+                                                </td>
+
+                                            </tr>
+
+                                        {% endfor %}
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+
+                            <!-- MOBILE ITEMS -->
+                            <div class="d-md-none">
+
+                                {% for item in item_rows %}
+
+                                    <div class="border rounded-3 p-3 mb-3">
+
+                                        <div class="d-flex justify-content-between
+                                                    align-items-start gap-3 mb-3">
+
+                                            <div>
+
+                                                <div class="fw-semibold">
+                                                    {{ item.product_name|default:item.product.name }}
+                                                </div>
+
+                                                {% if item.sku %}
+                                                    <div class="small text-muted">
+                                                        SKU: {{ item.sku }}
+                                                    </div>
+                                                {% endif %}
+
+                                            </div>
+
+                                            <div class="fw-semibold text-nowrap">
+                                                R{{ item.line_total_inc|floatformat:2 }}
+                                            </div>
+
+                                        </div>
+
+
+                                        <div class="row g-3 small">
+
+                                            <div class="col-4">
+
+                                                <div class="text-muted">
+                                                    Quantity
+                                                </div>
+
+                                                <div class="fw-medium">
+                                                    {{ item.quantity|floatformat:2 }}
+                                                </div>
+
+                                            </div>
+
+
+                                            <div class="col-4">
+
+                                                <div class="text-muted">
+                                                    Unit Price
+                                                </div>
+
+                                                <div class="fw-medium">
+                                                    R{{ item.unit_price_excl|floatformat:2 }}
+                                                </div>
+
+                                            </div>
+
+
+                                            <div class="col-4">
+
+                                                <div class="text-muted">
+                                                    VAT
+                                                </div>
+
+                                                <div class="fw-medium">
+                                                    {{ item.vat_percent|floatformat:2 }}%
+                                                </div>
+
+                                            </div>
+
+
+                                            <div class="col-6">
+
+                                                <div class="text-muted">
+                                                    Discount
+                                                </div>
+
+                                                <div class="fw-medium">
+
+                                                    {% if item.discount_excl %}
+                                                        R{{ item.discount_excl|floatformat:2 }}
+                                                    {% else %}
+                                                        —
+                                                    {% endif %}
+
+                                                </div>
+
+                                            </div>
+
+
+                                            <div class="col-6">
+
+                                                <div class="text-muted">
+                                                    VAT Amount
+                                                </div>
+
+                                                <div class="fw-medium">
+                                                    R{{ item.line_vat_amount|floatformat:2 }}
+                                                </div>
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                {% endfor %}
+
+                            </div>
+
+                        {% else %}
+
+                            <div class="text-center py-5">
+
+                                <div class="mb-3">
+                                    <i class="bi bi-cart-x fs-1 text-muted"></i>
+                                </div>
+
+                                <h3 class="h6 fw-semibold">
+                                    No quotation items
+                                </h3>
+
+                                <p class="text-muted mb-0">
+                                    No products have been added to this quotation.
+                                </p>
+
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                    CUSTOMER NOTES
+                ================================================== -->
+                {% if quotation.customer_notes %}
+
+                    <div class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-body p-4">
+
+                            <div class="d-flex align-items-center gap-3 mb-3">
+
+                                <div class="rounded-3 bg-info-subtle
+                                            text-info d-flex align-items-center
+                                            justify-content-center"
+                                    style="width:44px;height:44px;">
+                                    <i class="bi bi-chat-left-text fs-5"></i>
+                                </div>
+
+                                <div>
+                                    <h2 class="h6 fw-semibold mb-1">
+                                        Customer Notes
+                                    </h2>
+
+                                    <p class="small text-muted mb-0">
+                                        Notes included with this quotation
+                                    </p>
+                                </div>
+
+                            </div>
+
+
+                            <div class="bg-light border rounded-3 p-3">
+                                <div class="text-break">
+                                    {{ quotation.customer_notes|linebreaksbr }}
+                                </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                {% endif %}
+
+
+                <!-- =================================================
+                    INTERNAL NOTES
+                ================================================== -->
+                {% if quotation.notes %}
+
+                    <div class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-body p-4">
+
+                            <div class="d-flex align-items-center gap-3 mb-3">
+
+                                <div class="rounded-3 bg-secondary-subtle
+                                            text-secondary d-flex align-items-center
+                                            justify-content-center"
+                                    style="width:44px;height:44px;">
+                                    <i class="bi bi-sticky fs-5"></i>
+                                </div>
+
+                                <div>
+                                    <h2 class="h6 fw-semibold mb-1">
+                                        Internal Notes
+                                    </h2>
+
+                                    <p class="small text-muted mb-0">
+                                        Internal information relating to this quotation
+                                    </p>
+                                </div>
+
+                            </div>
+
+
+                            <div class="bg-light border rounded-3 p-3">
+                                <div class="text-break">
+                                    {{ quotation.notes|linebreaksbr }}
+                                </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+
+            <!-- =====================================================
+                RIGHT COLUMN
+            ====================================================== -->
+            <div class="col-lg-4">
+
+
+                <!-- =================================================
+                    QUOTATION SUMMARY
+                ================================================== -->
+                <div class="card border-0 shadow-sm mb-4"
+                    style="position:sticky;top:20px;">
+
+                    <div class="card-body p-4">
+
+                        <div class="d-flex align-items-center gap-3 mb-4">
+
+                            <div class="rounded-3 bg-success-subtle
+                                        text-success d-flex align-items-center
+                                        justify-content-center"
+                                style="width:48px;height:48px;">
+                                <i class="bi bi-receipt fs-4"></i>
+                            </div>
+
+                            <div>
+                                <h2 class="h5 fw-semibold mb-1">
+                                    Quotation Summary
+                                </h2>
+
+                                <p class="text-muted mb-0">
+                                    Financial summary
+                                </p>
+                            </div>
+
+                        </div>
+
+
+                        <!-- SUBTOTAL -->
+                        <div class="d-flex justify-content-between
+                                    align-items-center mb-3">
+
+                            <span class="text-muted">
+                                Subtotal Excl.
+                            </span>
+
+                            <span class="fw-semibold">
+                                R{{ quotation.subtotal_excl|floatformat:2 }}
+                            </span>
+
+                        </div>
+
+
+                        <!-- DISCOUNT -->
+                        {% if quotation.discount_total_excl %}
+
+                            <div class="d-flex justify-content-between
+                                        align-items-center mb-3">
+
+                                <span class="text-muted">
+                                    Discount
+                                </span>
+
+                                <span class="text-danger fw-semibold">
+                                    -R{{ quotation.discount_total_excl|floatformat:2 }}
+                                </span>
+
+                            </div>
+
+                        {% endif %}
+
+
+                        <!-- DELIVERY -->
+                        {% if quotation.delivery_fee_excl %}
+
+                            <div class="d-flex justify-content-between
+                                        align-items-center mb-3">
+
+                                <span class="text-muted">
+                                    Delivery
+                                </span>
+
+                                <span class="fw-semibold">
+                                    R{{ quotation.delivery_fee_excl|floatformat:2 }}
+                                </span>
+
+                            </div>
+
+                        {% endif %}
+
+
+                        <hr>
+
+
+                        <!-- VAT -->
+                        <div class="d-flex justify-content-between
+                                    align-items-center mb-3">
+
+                            <span class="text-muted">
+                                VAT
+                            </span>
+
+                            <span class="fw-semibold">
+                                R{{ quotation.vat_total|floatformat:2 }}
+                            </span>
+
+                        </div>
+
+
+                        <!-- GRAND TOTAL -->
+                        <div class="bg-success-subtle rounded-3 p-3 mt-3">
+
+                            <div class="small text-muted mb-1">
+                                Total Including VAT
+                            </div>
+
+                            <div class="fs-3 fw-bold text-success">
+                                R{{ quotation.grand_total_inc|floatformat:2 }}
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                    CUSTOMER QUICK INFO
+                ================================================== -->
+                <div class="card border-0 shadow-sm mb-4">
+
+                    <div class="card-body p-4">
+
+                        <h2 class="h6 fw-semibold mb-3">
+                            Customer
+                        </h2>
+
+
+                        <div class="d-flex align-items-center gap-3 mb-3">
+
+                            <div class="rounded-circle bg-primary-subtle
+                                        text-primary d-flex align-items-center
+                                        justify-content-center"
+                                style="width:44px;height:44px;">
+
+                                <i class="bi bi-person"></i>
+
+                            </div>
+
+
+                            <div class="min-width-0">
+
+                                <div class="fw-semibold text-truncate">
+                                    {{ quotation.end_user.full_name }}
+                                </div>
+
+                                <div class="small text-muted">
+                                    {{ quotation.end_user.end_user_number }}
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        {% if quotation.end_user.phone %}
+
+                            <div class="d-flex align-items-center gap-2
+                                        small mb-2">
+
+                                <i class="bi bi-telephone text-muted"></i>
+
+                                <span>
+                                    {{ quotation.end_user.phone }}
+                                </span>
+
+                            </div>
+
+                        {% endif %}
+
+
+                        {% if quotation.end_user.whatsapp %}
+
+                            <div class="d-flex align-items-center gap-2
+                                        small mb-2">
+
+                                <i class="bi bi-whatsapp text-muted"></i>
+
+                                <span>
+                                    {{ quotation.end_user.whatsapp }}
+                                </span>
+
+                            </div>
+
+                        {% endif %}
+
+
+                        <a href="{% url 'sales:funeral-customer-detail' quotation.end_user.pk %}"
+                        class="btn btn-outline-primary btn-sm w-100 mt-2">
+                            <i class="bi bi-person me-1"></i>
+                            View Customer
+                        </a>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                    QUOTATION ACTIVITY
+                ================================================== -->
+                <div class="card border-0 shadow-sm mb-4">
+
+                    <div class="card-body p-4">
+
+                        <h2 class="h6 fw-semibold mb-3">
+                            Quotation Information
+                        </h2>
+
+
+                        <div class="d-flex justify-content-between
+                                    align-items-start mb-3">
+
+                            <span class="small text-muted">
+                                Created By
+                            </span>
+
+                            <span class="small fw-semibold text-end">
+                                {% if quotation.created_by %}
+                                    {{ quotation.created_by.get_full_name|default:quotation.created_by.username }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </span>
+
+                        </div>
+
+
+                        <div class="d-flex justify-content-between
+                                    align-items-start mb-3">
+
+                            <span class="small text-muted">
+                                Created
+                            </span>
+
+                            <span class="small fw-semibold text-end">
+                                {{ quotation.created_at|date:"d M Y H:i" }}
+                            </span>
+
+                        </div>
+
+
+                        <div class="d-flex justify-content-between
+                                    align-items-start mb-3">
+
+                            <span class="small text-muted">
+                                Last Updated
+                            </span>
+
+                            <span class="small fw-semibold text-end">
+                                {{ quotation.updated_at|date:"d M Y H:i" }}
+                            </span>
+
+                        </div>
+
+
+                        {% if quotation.accepted_by %}
+
+                            <div class="d-flex justify-content-between
+                                        align-items-start mb-3">
+
+                                <span class="small text-muted">
+                                    Accepted By
+                                </span>
+
+                                <span class="small fw-semibold text-end">
+                                    {{ quotation.accepted_by.get_full_name|default:quotation.accepted_by.username }}
+                                </span>
+
+                            </div>
+
+                        {% endif %}
+
+
+                        {% if quotation.accepted_at %}
+
+                            <div class="d-flex justify-content-between
+                                        align-items-start">
+
+                                <span class="small text-muted">
+                                    Accepted
+                                </span>
+
+                                <span class="small fw-semibold text-end">
+                                    {{ quotation.accepted_at|date:"d M Y H:i" }}
+                                </span>
+
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                    CONVERTED ORDER
+                ================================================== -->
+                {% if quotation.converted_order %}
+
+                    <div class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-body p-4">
+
+                            <div class="d-flex align-items-center gap-3 mb-3">
+
+                                <div class="rounded-3 bg-success-subtle
+                                            text-success d-flex align-items-center
+                                            justify-content-center"
+                                    style="width:44px;height:44px;">
+                                    <i class="bi bi-check2-circle fs-5"></i>
+                                </div>
+
+                                <div>
+                                    <h2 class="h6 fw-semibold mb-1">
+                                        Converted to Order
+                                    </h2>
+
+                                    <p class="small text-muted mb-0">
+                                        This quotation has been converted.
+                                    </p>
+                                </div>
+
+                            </div>
+
+
+                            <div class="border rounded-3 p-3 bg-light">
+
+                                <div class="small text-muted mb-1">
+                                    Order
+                                </div>
+
+                                <div class="fw-semibold">
+                                    #{{ quotation.converted_order.id }}
+                                </div>
+
+                            </div>
+
+                            <a href="{% url 'sales:funeral-order-detail' quotation.converted_order.pk %}"
+                            class="btn btn-outline-success btn-sm w-100 mt-3">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>
+                                View Order
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                {% endif %}
+
+
+                <!-- =================================================
+                    QUICK NAVIGATION
+                ================================================== -->
+                <div class="card border-0 shadow-sm">
+
+                    <div class="card-body p-4">
+
+                        <h2 class="h6 fw-semibold mb-3">
+                            Quick Navigation
+                        </h2>
+
+
+                        <div class="d-grid gap-2">
+
+                            <a href="{% url 'sales:funeral-quotations' %}"
+                            class="btn btn-light border text-start">
+                                <i class="bi bi-file-earmark-text me-2"></i>
+                                All Quotations
+                            </a>
+
+
+                            <a href="{% url 'sales:funeral-customer-detail' quotation.end_user.pk %}"
+                            class="btn btn-light border text-start">
+                                <i class="bi bi-person me-2"></i>
+                                Customer Details
+                            </a>
+
+
+                            {% if quotation.can_edit %}
+
+                                <a href="{% url 'sales:funeral-quotation-edit' quotation.pk %}"
+                                class="btn btn-light border text-start">
+                                    <i class="bi bi-pencil me-2"></i>
+                                    Edit Quotation
+                                </a>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+  
+  
+  <!-- SWITCH PLATFORM MODAL -->
+  <div class="modal fade"
+      id="switchPlatformModal"
+      tabindex="-1"
+      aria-labelledby="switchPlatformModalLabel"
+      aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+
+        <div class="modal-header justify-content-center position-relative">
+          <h5 class="modal-title w-100 text-center" id="switchPlatformModalLabel">
+            Switch Platform
+          </h5>
+          <button type="button"
+                  class="btn-close position-absolute"
+                  style="right:1rem; top:1rem;"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body text-center">
+          <p class="mb-3 text-muted">Choose a platform to continue:</p>
+
+          <div class="d-grid gap-2">
+
+            <!-- Main Staff Portal -->
+            <a
+              href="{% url 'staff-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_staff_portal %} disabled{% endif %}"
+              {% if not can_staff_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Main Staff Portal
+            </a>
+
+            <!-- Funder Portal -->
+            <a
+              href="{% url 'funder-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_lender_portal %} disabled{% endif %}"
+              {% if not can_lender_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Funder Portal
+            </a>
+
+            <!-- Sales Portal -->
+            <a
+              href="{% url 'sales:sales-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_sales_portal %} disabled{% endif %}"
+              {% if not can_sales_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Sales Portal
+            </a>
+
+            <!-- Logistics Portal -->
+            <a
+              href="{% url 'logistics:logistics-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_logistics_portal %} disabled{% endif %}"
+              {% if not can_logistics_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Logistics Portal
+            </a>
+
+          </div>
+        </div>
+
+        <div class="modal-footer justify-content-center border-0">
+          <small class="text-muted">
+            Platforms you don’t have access to are disabled.
+          </small>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    // Chart data from Django
+    const labels = {{ sales_labels|safe }};
+    const dataPoints = {{ sales_data|safe }};
+
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Orders',
+          data: dataPoints,
+          tension: 0.3,
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true },
+          tooltip: { mode: 'index', intersect: false }
+        },
+        scales: {
+          x: { title: { display: false } },
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  </script>
+
+
+    <!-- =============================================================
+        CHART.JS
+        ============================================================= -->
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+    <script>
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const canvas =
+            document.getElementById("salesActivityChart");
+
+        if (!canvas) {
+            return;
+        }
+
+
+        const labels =
+            {{ sales_labels|safe }};
+
+        const data =
+            {{ sales_data|safe }};
+
+
+        new Chart(canvas, {
+
+            type: "line",
+
+            data: {
+
+                labels: labels,
+
+                datasets: [{
+
+                    label:
+                        "{% if rep_only %}My Orders{% else %}Orders{% endif %}",
+
+                    data: data,
+
+                    tension: 0.35,
+
+                    fill: true,
+
+                    borderWidth: 2,
+
+                    pointRadius: 3,
+
+                    pointHoverRadius: 5
+
+                }]
+
+            },
+
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                plugins: {
+
+                    legend: {
+                        display: false
+                    }
+
+                },
+
+                scales: {
+
+                    y: {
+
+                        beginAtZero: true,
+
+                        ticks: {
+
+                            precision: 0
+
+                        }
+
+                    },
+
+                    x: {
+
+                        grid: {
+                            display: false
+                        }
+
+                    }
+
+                }
+
+            }
+
+        });
+
+    });
+
+    </script>
+
+   
+</body>
+</html>
+

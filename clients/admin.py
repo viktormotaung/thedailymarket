@@ -16,6 +16,8 @@ from .models import (
     TradePoint,
     Lead,
     LeadActivity,
+    EndUser,
+
 )
 
 
@@ -1293,3 +1295,140 @@ class TradePointAdmin(admin.ModelAdmin):
     def signed_points_display(self, obj):
         sign = "+" if obj.is_credit else "-"
         return f"{sign}{obj.points}"
+
+
+
+
+# ============================================================
+# END USERS
+# ============================================================
+
+@admin.register(EndUser)
+class EndUserAdmin(admin.ModelAdmin):
+    list_display = (
+        "end_user_number",
+        "full_name_display",
+        "client",
+        "end_user_type",
+        "phone",
+        "city",
+        "status",
+        "account_manager",
+        "created_at",
+    )
+
+    list_filter = (
+        "end_user_type",
+        "status",
+        "client",
+        "city",
+        "province",
+        "account_manager",
+        ("created_at", admin.DateFieldListFilter),
+    )
+
+    search_fields = (
+        "end_user_number",
+        "first_name",
+        "surname",
+        "phone",
+        "whatsapp",
+        "email",
+        "client__client_number",
+        "client__name",
+        "client__organization",
+    )
+
+    ordering = (
+        "client",
+        "surname",
+        "first_name",
+    )
+
+    list_per_page = 50
+    save_on_top = True
+
+    autocomplete_fields = (
+        "client",
+        "account_manager",
+    )
+
+    readonly_fields = (
+        "end_user_number",
+        "created_at",
+        "updated_at",
+        "maps_link",
+    )
+
+    fieldsets = (
+        ("End User", {
+            "fields": (
+                ("end_user_number", "status"),
+                ("end_user_type",),
+                "client",
+            ),
+        }),
+
+        ("Identity", {
+            "fields": (
+                ("first_name", "surname"),
+            ),
+        }),
+
+        ("Contact", {
+            "fields": (
+                ("phone", "whatsapp"),
+                "email",
+            ),
+        }),
+
+        ("Delivery / Fulfilment Address", {
+            "fields": (
+                "address_line1",
+                "address_line2",
+                ("suburb", "city"),
+                ("province", "postal_code"),
+                "country",
+                ("latitude", "longitude"),
+                "maps_link",
+            ),
+        }),
+
+        ("Internal Ownership", {
+            "fields": (
+                "account_manager",
+            ),
+        }),
+
+        ("Notes", {
+            "fields": (
+                "notes",
+            ),
+        }),
+
+        ("Meta", {
+            "fields": (
+                "created_at",
+                "updated_at",
+            ),
+            "classes": ("collapse",),
+        }),
+    )
+
+    @admin.display(description="Name")
+    def full_name_display(self, obj):
+        return obj.full_name
+
+    @admin.display(description="Map")
+    def maps_link(self, obj):
+        if not obj.has_geo:
+            return "-"
+
+        return format_html(
+            '<a href="https://www.google.com/maps/search/?api=1&query={},{}" '
+            'target="_blank" rel="noopener">Open map</a>',
+            obj.latitude,
+            obj.longitude,
+        )
+
+

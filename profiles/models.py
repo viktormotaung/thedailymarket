@@ -398,6 +398,18 @@ class SalesRepProfile(models.Model):
         help_text="Staff member responsible for this sales rep. The supervisor may also be the rep themselves.",
     )
 
+    is_funeral_consultant = models.BooleanField(
+        default=False,
+        verbose_name="Funeral Parlour Consultant"
+    )
+
+    funeral_parlours = models.ManyToManyField(
+        "clients.Client",
+        blank=True,
+        related_name="funeral_consultants",
+        limit_choices_to={"client_type": "FUNERAL_PARLOUR"}
+    )
+
     notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -484,6 +496,9 @@ class SalesRepProfile(models.Model):
         ).strip()
 
         return f"SalesRepProfile for {name}"
+
+
+
 
 class DriverProfile(models.Model):
     """
@@ -581,6 +596,8 @@ class DriverProfile(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
 
 class SalesOperator(models.Model):
     """

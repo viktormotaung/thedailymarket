@@ -1,6 +1,7 @@
 # orders/admin.py
 from decimal import Decimal
 from django.contrib import admin, messages
+from django.db import transaction
 
 from .models import Order, OrderItem, OrderAudit, Quotation, QuotationItem
 
@@ -160,6 +161,7 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "client",
+        "end_user",
         "status",
         "channel",
         "subtotal_excl_display",
@@ -182,9 +184,13 @@ class OrderAdmin(admin.ModelAdmin):
         "client__organization",
         "client__email",
         "client__phone",
+        "end_user__end_user_number",
+        "end_user__first_name",
+        "end_user__surname",
+        "end_user__phone",
     )
 
-    autocomplete_fields = ("client", "created_by")
+    autocomplete_fields = ("client", "end_user", "created_by")
 
     readonly_fields = (
         "submitted_at",
@@ -200,7 +206,7 @@ class OrderAdmin(admin.ModelAdmin):
     fieldsets = (
         ("Order Info", {
             "fields": (
-                ("client", "created_by"),
+                ("client", "end_user", "created_by"),
                 ("status", "channel"),
                 "customer_notes",
                 "notes",
@@ -524,6 +530,7 @@ class QuotationAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "client",
+        "end_user",
         "status",
         "created_by",
         "grand_total_inc_display",
@@ -541,9 +548,13 @@ class QuotationAdmin(admin.ModelAdmin):
         "id",
         "client__name",
         "client__organization",
+        "end_user__end_user_number",
+        "end_user__first_name",
+        "end_user__surname",
+        "end_user__phone",
     )
 
-    autocomplete_fields = ("client", "created_by")
+    autocomplete_fields = ("client", "end_user", "created_by")
 
     readonly_fields = (
         "subtotal_excl",
@@ -559,7 +570,7 @@ class QuotationAdmin(admin.ModelAdmin):
     fieldsets = (
         ("Quotation Info", {
             "fields": (
-                ("client", "created_by"),
+                ("client", "end_user", "created_by"),
                 ("status", "quotation_date", "valid_until"),
                 "customer_notes",
                 "notes",

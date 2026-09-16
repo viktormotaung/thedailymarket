@@ -114,6 +114,8 @@ class Territory(models.Model):
     def __str__(self):
         return self.name
 
+
+
 class Area(models.Model):
     territory = models.ForeignKey(
         Territory,
@@ -142,6 +144,7 @@ class Area(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class Client(models.Model):
     # ---- Ownership ----
@@ -2836,3 +2839,266 @@ class TradePoint(models.Model):
     @property
     def is_debit(self):
         return self.transaction_type == "DEBIT"
+
+
+
+class EndUser(models.Model):
+    """
+    An individual who receives or benefits from a transaction
+    made through a TDM commercial client.
+
+    Example:
+        Client = Icebolethu Soweto Branch
+        EndUser = John Motaung
+        End User Number = 001-0001
+    """
+
+    END_USER_TYPES = [
+        ("FUNERAL_BENEFICIARY", "Funeral Beneficiary"),
+        ("GENERAL", "General End User"),
+    ]
+
+    # -------------------------------------------------
+    # COMMERCIAL CLIENT
+    # -------------------------------------------------
+
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name="end_users",
+        help_text="TDM client through which this end user is served.",
+    )
+
+    # -------------------------------------------------
+    # IDENTITY
+    # -------------------------------------------------
+
+    end_user_type = models.CharField(
+        max_length=30,
+        choices=END_USER_TYPES,
+        default="FUNERAL_BENEFICIARY",
+        db_index=True,
+    )
+
+    first_name = models.CharField(
+        max_length=120,
+    )
+
+    surname = models.CharField(
+        max_length=120,
+    )
+
+    # -------------------------------------------------
+    # TDM END USER NUMBER
+    # -------------------------------------------------
+
+    end_user_number = models.CharField(
+        max_length=30,
+        unique=True,
+        editable=False,
+        db_index=True,
+        help_text="Unique TDM reference automatically assigned to the end user.",
+    )
+
+    # -------------------------------------------------
+    # CONTACT
+    # -------------------------------------------------
+
+    phone = models.CharField(
+        max_length=50,
+        blank=True,
+    )
+
+    whatsapp = models.CharField(
+        max_length=50,
+        blank=True,
+    )
+
+    email = models.EmailField(
+        blank=True,
+    )
+
+    # -------------------------------------------------
+    # DELIVERY / FULFILMENT ADDRESS
+    # -------------------------------------------------
+
+    address_line1 = models.CharField(
+        max_length=200,
+        blank=True,
+    )
+
+    address_line2 = models.CharField(
+        max_length=200,
+        blank=True,
+    )
+
+    suburb = models.CharField(
+        max_length=120,
+        blank=True,
+    )
+
+    city = models.CharField(
+        max_length=120,
+        choices=GAUTENG_CITY_CHOICES,
+        blank=True,
+    )
+
+    province = models.CharField(
+        max_length=10,
+        choices=Client.PROVINCES,
+        blank=True,
+    )
+
+    postal_code = models.CharField(
+        max_length=20,
+        blank=True,
+    )
+
+    country = models.CharField(
+        max_length=120,
+        default="South Africa",
+    )
+
+    # -------------------------------------------------
+    # GPS
+    # -------------------------------------------------
+
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(Decimal("-90")),
+            MaxValueValidator(Decimal("90")),
+        ],
+    )
+
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(Decimal("-180")),
+            MaxValueValidator(Decimal("180")),
+        ],
+    )
+
+    # -------------------------------------------------
+    # INTERNAL TDM OWNERSHIP
+    # -------------------------------------------------
+
+    account_manager = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="managed_end_users",
+        help_text="Internal TDM staff member responsible for this end user.",
+    )
+
+    # -------------------------------------------------
+    # STATUS / NOTES
+    # -------------------------------------------------
+
+    STATUS_CHOICES = [
+        ("ACTIVE", "Active"),
+        ("INACTIVE", "Inactive"),
+    ]
+
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="ACTIVE",
+        db_index=True,
+    )
+
+    notes = models.TextField(
+        blank=True,
+    )
+
+    # -------------------------------------------------
+    # META
+    # -------------------------------------------------
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = ["surname", "first_name"]
+        indexes = [
+            models.Index(fields=["client", "surname"]),
+            models.Index(fields=["client", "end_user_number"]),
+        ]
+
+    def __str__(self):
+        return f"{self.full_name} ({self.end_user_number})"
+
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.surname}".strip()
+
+    @property
+    def has_geo(self):
+        return self.latitude is not None and self.longitude is not None
+
+    def address_as_line(self):
+        parts = [
+            self.address_line1,
+            self.address_line2,
+            self.suburb,
+            self.city,
+            self.get_province_display() if self.province else "",
+            self.postal_code,
+            self.country,
+        ]
+        return ", ".join(str(p) for p in parts if p)
+
+    def save(self, *args, **kwargs):
+        if not self.end_user_number:
+            client_number = self.client.client_number
+
+            # Extract numeric portion of the client number.
+            # Example: CL0001 -> 0001
+            client_code = "".join(
+                char for char in client_number
+                if char.isdigit()
+            )
+
+            # Find the next end-user number for this client.
+            last_end_user = (
+                EndUser.objects
+                .filter(client=self.client)
+                .exclude(end_user_number="")
+                .order_by("-id")
+                .first()
+            )
+
+            if last_end_user:
+                try:
+                    last_sequence = int(
+                        last_end_user.end_user_number.split("-")[-1]
+                    )
+                except (ValueError, IndexError):
+                    last_sequence = 0
+            else:
+                last_sequence = 0
+
+            next_sequence = last_sequence + 1
+
+            self.end_user_number = (
+                f"{client_code}-{next_sequence:04d}"
+            )
+
+        super().save(*args, **kwargs)
+
+
+
+
+           

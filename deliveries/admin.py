@@ -280,6 +280,7 @@ class DeliveryStopInline(admin.TabularInline):
     extra = 0
     readonly_fields = (
         "order",
+        "end_user",
         "customer_name",
         "status",
         "sequence",
@@ -289,6 +290,7 @@ class DeliveryStopInline(admin.TabularInline):
     fields = (
         "sequence",
         "customer_name",
+        "end_user",
         "status",
         "distance_km",
         "drive_min",
@@ -501,6 +503,7 @@ class DeliveryStopAdmin(admin.ModelAdmin):
         "run",
         "sequence",
         "customer_name",
+        "end_user_name",
         "status",
         "drive_min",
         "distance_km",
@@ -509,11 +512,17 @@ class DeliveryStopAdmin(admin.ModelAdmin):
 
     list_filter = (
         "status",
+        "end_user__end_user_type",
+        "end_user__status",
         "run__service_date",
     )
 
     search_fields = (
         "customer_name",
+        "end_user__end_user_number",
+        "end_user__first_name",
+        "end_user__surname",
+        "end_user__phone",
         "order__id",
     )
 
@@ -527,6 +536,7 @@ class DeliveryStopAdmin(admin.ModelAdmin):
     readonly_fields = (
         "run",
         "order",
+        "end_user",
         "sequence",
         "customer_name",
         "phone",
@@ -611,6 +621,12 @@ class DeliveryStopAdmin(admin.ModelAdmin):
     # =====================================
     # DISPLAY HELPERS
     # =====================================
+
+    @admin.display(description="End User")
+    def end_user_name(self, obj):
+        if not obj.end_user:
+            return "—"
+        return f"{obj.end_user.full_name} ({obj.end_user.end_user_number})"
 
     def arrival_time_display(self, obj):
         if obj.ended_at:

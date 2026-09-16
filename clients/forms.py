@@ -4,11 +4,13 @@ from .models import ProspectOperatingHours
 from decimal import Decimal
 from .models import ClientOperatingHours
 from django import forms
+from django.contrib.auth import get_user_model
+from profiles.models import SalesRepProfile
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from .models import Client
 from .models import GAUTENG_CITY_CHOICES
-
+from .models import EndUser
 from .models import (
     Client,
     Prospect,
@@ -20,6 +22,38 @@ from .models import (
     Territory,
     Area,
 )
+
+
+User = get_user_model()
+
+
+def _sales_rep_users_queryset():
+    """
+    Return active Django users who have a SalesRepProfile.
+
+    The filter is based on the existence of a SalesRepProfile rather
+    than a specific role, so Representatives, Supervisors, Managers,
+    and users with multiple sales roles can all appear in sales
+    ownership / assignment dropdowns.
+    """
+    sales_rep_user_ids = (
+        SalesRepProfile.objects
+        .values_list("user_id", flat=True)
+    )
+
+    return (
+        User.objects
+        .filter(
+            id__in=sales_rep_user_ids,
+            is_active=True,
+        )
+        .order_by(
+            "first_name",
+            "last_name",
+            "username",
+        )
+    )
+
 
 def _bs(extra_class=None):
     """
@@ -219,6 +253,9 @@ class ClientForm(forms.ModelForm):
     # ----------------------------
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Account Manager must be an active user with a SalesRepProfile.
+        self.fields["account_manager"].queryset = _sales_rep_users_queryset()
 
         
 
@@ -455,6 +492,9 @@ class ProspectForm(forms.ModelForm):
             "phone",
             "whatsapp",
 
+            # ---- Account ownership ----
+            "owner",
+
             # ---- Segmentation ----
             "potential_client_type",
             "potential_size_tier",
@@ -528,6 +568,11 @@ class ProspectForm(forms.ModelForm):
             "whatsapp": forms.TextInput(attrs={
                 "class": "form-control",
                 "placeholder": "+27 82 123 4567",
+            }),
+
+            # Account ownership
+            "owner": forms.Select(attrs={
+                "class": "form-select",
             }),
 
             # Segmentation
@@ -607,6 +652,24 @@ class ProspectForm(forms.ModelForm):
     # ----------------------------
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # ========================================================
+        # ACCOUNT OWNER
+        # ========================================================
+        # Use the same ownership dropdown pool as Leads:
+        # every active Django User with a SalesRepProfile.
+        if "owner" in self.fields:
+            self.fields["owner"].queryset = _sales_rep_users_queryset()
+            self.fields["owner"].required = False
+
+            # New prospects are owned by the logged-in user in the
+            # create view. Keep the owner field locked on creation,
+            # matching the Lead workflow. Existing prospects can be
+            # reassigned by selecting another eligible sales user.
+            if not self.instance.pk:
+                self.fields["owner"].disabled = True
+            else:
+                self.fields["owner"].disabled = False
 
         self.fields["registration_identifier"].label = "Registration / ID Number"
         self.fields["registration_identifier"].help_text = (
@@ -1114,6 +1177,7 @@ class ClientEditForm(forms.ModelForm):
             "organization",
             "client_type",
             "client_size_tier",
+            "account_manager",
 
             # Territory
             "region",
@@ -1175,6 +1239,7 @@ class ClientEditForm(forms.ModelForm):
             "province": forms.Select(attrs=_bs("form-select")),
             "client_type": forms.Select(attrs=_bs("form-select")),
             "client_size_tier": forms.Select(attrs=_bs("form-select")),
+            "account_manager": forms.Select(attrs=_bs("form-select")),
             "price_type": forms.Select(attrs=_bs("form-select")),
             "status": forms.Select(attrs=_bs("form-select")),
             "account_type": forms.Select(attrs=_bs("form-select")),
@@ -1202,6 +1267,10 @@ class ClientEditForm(forms.ModelForm):
     # ----------------------------
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Account Manager uses the same sales-user pool as Leads:
+        # every active Django User with a SalesRepProfile.
+        self.fields["account_manager"].queryset = _sales_rep_users_queryset()
 
         
         # Defaults only for new clients
@@ -1619,6 +1688,9 @@ class LeadForm(forms.ModelForm):
 
         super().__init__(*args, **kwargs)
 
+        # Assigned To must be an active user with a SalesRepProfile.
+        self.fields["assigned_to"].queryset = _sales_rep_users_queryset()
+
         # ========================================================
         # REGION / TERRITORY / AREA
         # ========================================================
@@ -1971,9 +2043,9 @@ class LeadForm(forms.ModelForm):
                 }
             ),
 
-            "city": forms.TextInput(
+            "city": forms.Select(
                 attrs={
-                    "class": "form-control",
+                    "class": "form-select",
                 }
             ),
 
@@ -2049,3 +2121,200 @@ class LeadEditForm(LeadForm):
         if "assigned_to" in self.fields:
             self.fields["assigned_to"].disabled = False
         
+
+
+# -------------------------------------------------
+# End User Form
+# -------------------------------------------------
+class EndUserForm(forms.ModelForm):
+    """
+    Create / edit an End User linked to a TDM commercial Client.
+
+    The End User is the person receiving or benefiting from a transaction;
+    the Client remains the commercial account.
+    """
+
+    city = forms.ChoiceField(
+        choices=GAUTENG_CITY_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="City",
+    )
+
+    province = forms.ChoiceField(
+        choices=Client.PROVINCES,
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Province",
+    )
+
+    class Meta:
+        model = EndUser
+        fields = [
+            # Commercial relationship
+            "client",
+            "end_user_type",
+
+            # Identity
+            "first_name",
+            "surname",
+
+            # Contact
+            "phone",
+            "whatsapp",
+            "email",
+
+            # Delivery / fulfilment address
+            "address_line1",
+            "address_line2",
+            "suburb",
+            "city",
+            "province",
+            "postal_code",
+            "country",
+
+            # GPS
+            "latitude",
+            "longitude",
+
+            # Internal ownership
+            "account_manager",
+
+            # Status / notes
+            "status",
+            "notes",
+        ]
+
+        widgets = {
+            "client": forms.Select(attrs={"class": "form-select"}),
+            "end_user_type": forms.Select(attrs={"class": "form-select"}),
+            "first_name": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "First name",
+            }),
+            "surname": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Surname",
+            }),
+            "phone": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "+27 82 123 4567",
+            }),
+            "whatsapp": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "+27 82 123 4567",
+            }),
+            "email": forms.EmailInput(attrs={
+                "class": "form-control",
+                "placeholder": "name@example.com",
+            }),
+            "address_line1": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Street address",
+            }),
+            "address_line2": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Unit / complex / additional address",
+            }),
+            "suburb": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Suburb",
+            }),
+            "postal_code": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Postal code",
+            }),
+            "country": forms.TextInput(attrs={
+                "class": "form-control",
+            }),
+            "latitude": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.000001",
+                "placeholder": "-26.248500",
+            }),
+            "longitude": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.000001",
+                "placeholder": "27.854700",
+            }),
+            "account_manager": forms.Select(attrs={"class": "form-select"}),
+            "status": forms.Select(attrs={"class": "form-select"}),
+            "notes": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 3,
+                "placeholder": "Notes about this end user...",
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        # Optional client supplied by the view, e.g. when creating an
+        # End User from a specific Client profile.
+        client = kwargs.pop("client", None)
+        super().__init__(*args, **kwargs)
+
+        self.fields["country"].initial = "South Africa"
+
+        # If the view supplies the Client, keep the relationship fixed.
+        if client is not None:
+            self.fields["client"].queryset = Client.objects.filter(pk=client.pk)
+            self.fields["client"].initial = client
+            self.fields["client"].disabled = True
+
+        else:
+            self.fields["client"].queryset = (
+                Client.objects
+                .filter(status="ACTIVE")
+                .order_by("name")
+            )
+
+        # Account Manager must be an active user with a SalesRepProfile.
+        self.fields["account_manager"].queryset = _sales_rep_users_queryset()
+
+        # When editing an existing End User, retain its current Client even
+        # if that Client is no longer ACTIVE.
+        if self.instance.pk and self.instance.client_id and client is None:
+            self.fields["client"].queryset = Client.objects.filter(
+                pk=self.instance.client_id
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        client = cleaned.get("client")
+
+        if not client:
+            self.add_error("client", "Please select the commercial client.")
+
+        # An End User must always belong to the Client selected on the form.
+        if self.instance.pk and client:
+            if self.instance.client_id != client.pk:
+                # This is only relevant if someone attempts to move an
+                # existing End User between commercial clients.
+                self.add_error(
+                    "client",
+                    "An existing end user cannot be moved to another client.",
+                )
+
+        latitude = cleaned.get("latitude")
+        longitude = cleaned.get("longitude")
+
+        if (latitude is None) != (longitude is None):
+            self.add_error(
+                "latitude" if latitude is None else "longitude",
+                "Please provide both latitude and longitude when capturing GPS coordinates.",
+            )
+
+        return cleaned
+
+
+
+
+    
+
+
+    
+
+
+    
+
+
+    

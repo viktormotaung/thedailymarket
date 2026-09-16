@@ -68,6 +68,7 @@ class InvoiceAdmin(admin.ModelAdmin):
     list_display = [
         "id",
         "client_name",
+        "end_user_name",
         "order_id",
         "segment",
         "invoice_date",
@@ -86,11 +87,17 @@ class InvoiceAdmin(admin.ModelAdmin):
         "invoice_date",
         "due_date",
         "client__account_type",
+        "end_user__end_user_type",
+        "end_user__status",
     ]
 
     search_fields = [
         "client__name",
         "client__client_number",
+        "end_user__end_user_number",
+        "end_user__first_name",
+        "end_user__surname",
+        "end_user__phone",
         "order__id",
     ]
 
@@ -102,6 +109,7 @@ class InvoiceAdmin(admin.ModelAdmin):
         "credit_used",
         "amount_due",
         "client",
+        "end_user",
         "order",
     ]
 
@@ -111,6 +119,7 @@ class InvoiceAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "client",
+                    "end_user",
                     "order",
                     "segment",
                     "status",
@@ -157,6 +166,12 @@ class InvoiceAdmin(admin.ModelAdmin):
     def client_name(self, obj):
         return obj.client.name
 
+    @admin.display(description="End User")
+    def end_user_name(self, obj):
+        if not obj.end_user:
+            return "—"
+        return f"{obj.end_user.full_name} ({obj.end_user.end_user_number})"
+
     def order_id(self, obj):
         return f"#{obj.order.id}" if obj.order else "—"
 
@@ -202,7 +217,7 @@ class InvoiceAdmin(admin.ModelAdmin):
     def send_invoice_view(self, request, invoice_id):
         db = self._db(request)
 
-        invoice = Invoice.objects.using(db).select_related("client", "order").get(pk=invoice_id)
+        invoice = Invoice.objects.using(db).select_related("client", "end_user", "order").get(pk=invoice_id)
 
         if request.method == "POST":
             email = request.POST.get("email")

@@ -1,0 +1,4675 @@
+{% load static humanize %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Invoice INV-{{ invoice.id }} - The Daily Market
+    </title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+        rel="stylesheet"
+    >
+
+    <style>
+
+        /* =========================================================
+           GLOBAL
+           ========================================================= */
+
+        html,
+        body {
+            min-height: 100%;
+        }
+
+        body {
+            background: #f8f9fa;
+            overflow-x: hidden;
+        }
+
+
+        /* =========================================================
+           DESKTOP SIDEBAR
+           ========================================================= */
+
+        @media (min-width: 992px) {
+
+            html,
+            body {
+                height: 100%;
+            }
+
+            body {
+                min-height: 100vh;
+            }
+
+            .sidebar-desktop {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 220px;
+                height: 100vh;
+                overflow-y: auto;
+                z-index: 1030;
+            }
+
+            main.content {
+                margin-left: 220px;
+                min-height: 100vh;
+            }
+        }
+
+
+        /* =========================================================
+           SIDEBAR
+           ========================================================= */
+
+        .sidebar-skin {
+            background-color: #0b5c39;
+            color: #fff;
+            padding: 1rem;
+        }
+
+        .sidebar-skin .nav-link {
+            color: #fff;
+            margin: .25rem 0;
+            display: block;
+        }
+
+        .sidebar-skin .nav-link.active,
+        .sidebar-skin .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            border-radius: 4px;
+            padding-left: 8px;
+        }
+
+        .sidebar-skin .nav-link.disabled {
+            color: #fff;
+        }
+
+        .logo-img {
+            max-height: 80px;
+            width: auto;
+        }
+
+
+        /* =========================================================
+           CONTENT
+           ========================================================= */
+
+        .content {
+            background: #f8f9fa;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+
+        /* =========================================================
+           INVOICE HEADER
+           ========================================================= */
+
+        .invoice-header {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            padding: 1.5rem;
+        }
+
+        .invoice-number {
+            font-size: 1.65rem;
+            font-weight: 700;
+        }
+
+        .invoice-meta {
+            color: #6c757d;
+            font-size: .9rem;
+        }
+
+
+        /* =========================================================
+           CARDS
+           ========================================================= */
+
+        .invoice-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .invoice-card-header {
+            padding: .9rem 1.1rem;
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+        }
+
+        .invoice-card-body {
+            padding: 1.1rem;
+        }
+
+
+        /* =========================================================
+           STATUS BADGES
+           ========================================================= */
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            padding: .4rem .7rem;
+            border-radius: 999px;
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .status-paid {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .status-unpaid {
+            background: #fff3cd;
+            color: #664d03;
+        }
+
+        .status-partial {
+            background: #cff4fc;
+            color: #055160;
+        }
+
+        .status-overdue {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .status-default {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+
+        /* =========================================================
+           INFORMATION ROWS
+           ========================================================= */
+
+        .info-label {
+            color: #6c757d;
+            font-size: .78rem;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            margin-bottom: .15rem;
+        }
+
+        .info-value {
+            font-weight: 500;
+        }
+
+        .info-block {
+            margin-bottom: .9rem;
+        }
+
+
+        /* =========================================================
+           PAYMENT SUMMARY
+           ========================================================= */
+
+        .payment-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: .45rem 0;
+        }
+
+        .payment-row.total {
+            font-size: 1.1rem;
+            font-weight: 700;
+            padding-top: .75rem;
+            border-top: 1px solid #dee2e6;
+            margin-top: .5rem;
+        }
+
+        .payment-row.outstanding {
+            color: #842029;
+            font-weight: 600;
+        }
+
+
+        /* =========================================================
+           INVOICE TABLE
+           ========================================================= */
+
+        .invoice-table-wrapper {
+            overflow-x: auto;
+        }
+
+        .invoice-table {
+            width: 100%;
+            min-width: 950px;
+            margin-bottom: 0;
+        }
+
+        .invoice-table thead th {
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-size: .78rem;
+            text-transform: uppercase;
+            letter-spacing: .025em;
+            white-space: nowrap;
+        }
+
+        .invoice-table td {
+            vertical-align: middle;
+        }
+
+        .invoice-table .numeric {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .invoice-table .product-name {
+            font-weight: 500;
+        }
+
+        .invoice-table .sku {
+            font-size: .78rem;
+            color: #6c757d;
+        }
+
+
+        /* =========================================================
+           TOTALS
+           ========================================================= */
+
+        .totals-box {
+            max-width: 420px;
+            margin-left: auto;
+        }
+
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: .45rem 0;
+        }
+
+        .totals-row.grand-total {
+            border-top: 2px solid #212529;
+            margin-top: .5rem;
+            padding-top: .75rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+
+        /* =========================================================
+           ACTION BUTTONS
+           ========================================================= */
+
+        .action-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .5rem;
+        }
+
+
+        /* =========================================================
+           CONTACT BOX
+           ========================================================= */
+
+        .contact-item {
+            display: flex;
+            align-items: flex-start;
+            gap: .65rem;
+            margin-bottom: .7rem;
+        }
+
+        .contact-item i {
+            width: 20px;
+            color: #0b5c39;
+            margin-top: .15rem;
+        }
+
+
+        /* =========================================================
+           ALERTS
+           ========================================================= */
+
+        .overdue-alert {
+            border-left: 4px solid #dc3545;
+        }
+
+
+        /* =========================================================
+           MOBILE
+           ========================================================= */
+
+        @media (max-width: 767.98px) {
+
+            .content {
+                padding: 12px;
+            }
+
+            .invoice-header {
+                padding: 1rem;
+            }
+
+            .invoice-number {
+                font-size: 1.3rem;
+            }
+
+            .action-bar .btn {
+                width: 100%;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<!-- =============================================================
+     MOBILE / TABLET TOP BAR
+     ============================================================= -->
+
+<nav
+    class="navbar navbar-dark d-lg-none"
+    style="background:#0b5c39;"
+>
+
+    <div class="container-fluid">
+
+        <button
+            class="navbar-toggler"
+            type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#mobileMenu"
+            aria-controls="mobileMenu"
+            aria-label="Toggle navigation"
+        >
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <span class="navbar-brand ms-2">
+            {{ funeral_client.name }}
+        </span>
+
+    </div>
+
+</nav>
+
+
+<!-- =============================================================
+     MOBILE OFFCANVAS
+     ============================================================= -->
+
+<div
+    class="offcanvas offcanvas-start d-lg-none"
+    tabindex="-1"
+    id="mobileMenu"
+    aria-labelledby="mobileMenuLabel"
+>
+
+    <div class="offcanvas-header sidebar-skin">
+
+        <h5
+            class="offcanvas-title"
+            id="mobileMenuLabel"
+        >
+            {{ funeral_client.name }}
+        </h5>
+
+        <button
+            type="button"
+            class="btn-close btn-close-white"
+            data-bs-dismiss="offcanvas"
+            aria-label="Close"
+        ></button>
+
+    </div>
+
+
+    <div class="offcanvas-body sidebar-skin">
+
+        <div class="text-center mb-3">
+
+            <img
+                src="{% static 'images/logo.png' %}"
+                alt="The Daily Market"
+                class="logo-img"
+            >
+
+        </div>
+
+
+        <div class="text-center mb-3">
+
+            <div class="small text-white-50">
+                Funeral Consultant Portal
+            </div>
+
+            <div class="fw-semibold">
+                {{ funeral_client.name }}
+            </div>
+
+        </div>
+
+
+        <!-- DASHBOARD -->
+
+        <a
+            href="{% url 'sales:funeral-consultant-dashboard' %}"
+            class="nav-link"
+        >
+            <i class="bi bi-speedometer2 me-2"></i>
+            Dashboard
+        </a>
+
+
+        <!-- LEADS -->
+
+        <a
+            href="#"
+            class="nav-link disabled"
+            aria-disabled="true"
+            style="opacity:.45; pointer-events:none;"
+        >
+            <i class="bi bi-person-plus me-2"></i>
+            Leads
+        </a>
+
+
+        <!-- PROSPECTS -->
+
+        <a
+            href="#"
+            class="nav-link disabled"
+            aria-disabled="true"
+            style="opacity:.45; pointer-events:none;"
+        >
+            <i class="bi bi-people me-2"></i>
+            Prospects
+        </a>
+
+
+        <!-- CUSTOMERS -->
+
+        <a
+            href="{% url 'sales:funeral-customers' %}"
+            class="nav-link"
+        >
+            <i class="bi bi-person-vcard me-2"></i>
+            Customers
+        </a>
+
+
+        <!-- QUOTATIONS -->
+
+        <a
+            href="{% url 'sales:funeral-quotations' %}"
+            class="nav-link"
+        >
+            <i class="bi bi-file-earmark-text me-2"></i>
+            Quotations
+        </a>
+
+
+        <!-- ORDERS -->
+
+        <a
+            href="{% url 'sales:funeral-orders' %}"
+            class="nav-link"
+        >
+            <i class="bi bi-cart3 me-2"></i>
+            Orders
+        </a>
+
+
+        <!-- INVOICES -->
+
+        <a
+            href="{% url 'sales:funeral-invoices' %}"
+            class="nav-link active"
+        >
+            <i class="bi bi-receipt me-2"></i>
+            Invoices
+        </a>
+
+
+        <!-- COMMISSION -->
+
+        <a
+            href="#"
+            class="nav-link disabled"
+            aria-disabled="true"
+            style="opacity:.45; pointer-events:none;"
+        >
+            <i class="bi bi-percent me-2"></i>
+            Commission
+        </a>
+
+
+        <!-- TICKETS -->
+
+        <a
+            href="{% url 'sales:funeral-tickets' %}"
+            class="nav-link"
+        >
+            <i class="bi bi-ticket-detailed me-2"></i>
+            Tickets
+        </a>
+
+
+        <!-- PRODUCTS -->
+
+        <a
+            href="#"
+            class="nav-link disabled"
+            aria-disabled="true"
+            style="opacity:.45; pointer-events:none;"
+        >
+            <i class="bi bi-box-seam me-2"></i>
+            Products
+        </a>
+
+
+        <hr class="border-light">
+
+
+        <button
+            type="button"
+            class="btn btn-outline-light w-100 mb-2"
+            data-bs-toggle="modal"
+            data-bs-target="#switchPlatformModal"
+        >
+            Switch Platform
+        </button>
+
+
+        <form
+            method="post"
+            action="{% url 'logout' %}"
+        >
+
+            {% csrf_token %}
+
+            <button
+                type="submit"
+                class="btn btn-outline-light w-100"
+            >
+                Sign Out
+            </button>
+
+        </form>
+
+
+        <hr class="border-light">
+
+
+        <div class="text-center">
+
+            <div class="text-white-50 small">
+                Logged in as
+            </div>
+
+            <div class="fw-semibold">
+
+                {% if request.user.get_full_name %}
+
+                    {{ request.user.get_full_name }}
+
+                {% else %}
+
+                    {{ request.user.username }}
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     DESKTOP SIDEBAR
+     ============================================================= -->
+
+<aside
+    class="sidebar-desktop d-none d-lg-block sidebar-skin"
+>
+
+    <div class="text-center mb-3">
+
+        <img
+            src="{% static 'images/logo.png' %}"
+            alt="The Daily Market"
+            class="logo-img"
+        >
+
+    </div>
+
+
+    <h6 class="text-uppercase fw-semibold mb-2">
+
+        {{ funeral_client.name }}
+
+    </h6>
+
+    <div class="small text-white-50 mb-3">
+
+        Funeral Consultant Portal
+
+    </div>
+
+
+    <hr class="border-light">
+
+
+    <!-- DASHBOARD -->
+
+    <a
+        href="{% url 'sales:funeral-consultant-dashboard' %}"
+        class="nav-link"
+    >
+
+        <i class="bi bi-speedometer2 me-2"></i>
+
+        Dashboard
+
+    </a>
+
+
+    <!-- LEADS -->
+
+    <a
+        href="#"
+        class="nav-link disabled"
+        aria-disabled="true"
+        style="opacity:.45; pointer-events:none;"
+    >
+
+        <i class="bi bi-person-plus me-2"></i>
+
+        Leads
+
+    </a>
+
+
+    <!-- PROSPECTS -->
+
+    <a
+        href="#"
+        class="nav-link disabled"
+        aria-disabled="true"
+        style="opacity:.45; pointer-events:none;"
+    >
+
+        <i class="bi bi-people me-2"></i>
+
+        Prospects
+
+    </a>
+
+
+    <!-- CUSTOMERS -->
+
+    <a
+        href="{% url 'sales:funeral-customers' %}"
+        class="nav-link"
+    >
+
+        <i class="bi bi-person-vcard me-2"></i>
+
+        Customers
+
+    </a>
+
+
+    <!-- QUOTATIONS -->
+
+    <a
+        href="{% url 'sales:funeral-quotations' %}"
+        class="nav-link"
+    >
+
+        <i class="bi bi-file-earmark-text me-2"></i>
+
+        Quotations
+
+    </a>
+
+
+    <!-- ORDERS -->
+
+    <a
+        href="{% url 'sales:funeral-orders' %}"
+        class="nav-link"
+    >
+
+        <i class="bi bi-cart3 me-2"></i>
+
+        Orders
+
+    </a>
+
+
+    <!-- INVOICES -->
+
+    <a
+        href="{% url 'sales:funeral-invoices' %}"
+        class="nav-link active"
+    >
+
+        <i class="bi bi-receipt me-2"></i>
+
+        Invoices
+
+    </a>
+
+
+    <!-- COMMISSION -->
+
+    <a
+        href="#"
+        class="nav-link disabled"
+        aria-disabled="true"
+        style="opacity:.45; pointer-events:none;"
+    >
+
+        <i class="bi bi-percent me-2"></i>
+
+        Commission
+
+    </a>
+
+
+    <!-- TICKETS -->
+
+    <a
+        href="{% url 'sales:funeral-tickets' %}"
+        class="nav-link"
+    >
+
+        <i class="bi bi-ticket-detailed me-2"></i>
+
+        Tickets
+
+    </a>
+
+
+    <!-- PRODUCTS -->
+
+    <a
+        href="#"
+        class="nav-link disabled"
+        aria-disabled="true"
+        style="opacity:.45; pointer-events:none;"
+    >
+
+        <i class="bi bi-box-seam me-2"></i>
+
+        Products
+
+    </a>
+
+
+    <hr class="border-light">
+
+
+    <button
+        type="button"
+        class="btn btn-outline-light w-100 mb-2"
+        data-bs-toggle="modal"
+        data-bs-target="#switchPlatformModal"
+    >
+
+        Switch Platform
+
+    </button>
+
+
+    <form
+        method="post"
+        action="{% url 'logout' %}"
+    >
+
+        {% csrf_token %}
+
+        <button
+            type="submit"
+            class="btn btn-outline-light w-100"
+        >
+
+            Sign Out
+
+        </button>
+
+    </form>
+
+
+    <hr class="border-light">
+
+
+    <div class="text-center">
+
+        <div class="text-white-50 small">
+            Logged in as
+        </div>
+
+        <div class="fw-semibold">
+
+            {% if request.user.get_full_name %}
+
+                {{ request.user.get_full_name }}
+
+            {% else %}
+
+                {{ request.user.username }}
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</aside>
+
+
+<!-- =============================================================
+     MAIN CONTENT
+     ============================================================= -->
+
+<main class="content">
+
+
+    <div class="container-fluid py-3">
+
+
+        <!-- =====================================================
+             TOP HEADER
+             ===================================================== -->
+
+        <div class="invoice-header mb-4">
+
+            <div
+                class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3"
+            >
+
+                <div>
+
+                    <div class="text-muted small mb-1">
+
+                        {{ funeral_client.name }}
+
+                    </div>
+
+                    <div class="invoice-number">
+
+                        Invoice INV-{{ invoice.id }}
+
+                    </div>
+
+                    <div class="invoice-meta">
+
+                        Invoice date:
+                        {{ invoice.created_at|date:"d M Y" }}
+
+                        {% if invoice.due_date %}
+
+                            &nbsp; • &nbsp;
+
+                            Due:
+                            {{ invoice.due_date|date:"d M Y" }}
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                <div class="text-md-end">
+
+                    <div class="mb-2">
+                        <a
+                            href="{% url 'sales:funeral-invoice-download' invoice.id %}"
+                            class="btn btn-sm btn-outline-dark"
+                        >
+                            <i class="bi bi-download me-1"></i>
+                            Download
+                        </a>
+                    </div>
+
+
+                    <!-- STATUS -->
+
+                    {% if is_overdue %}
+
+                        <span class="status-badge status-overdue">
+
+                            <i class="bi bi-exclamation-circle"></i>
+
+                            Overdue
+
+                        </span>
+
+                    {% elif invoice.status == "paid" %}
+
+                        <span class="status-badge status-paid">
+
+                            <i class="bi bi-check-circle"></i>
+
+                            Paid
+
+                        </span>
+
+                    {% elif invoice.status == "partial" %}
+
+                        <span class="status-badge status-partial">
+
+                            <i class="bi bi-hourglass-split"></i>
+
+                            Partially Paid
+
+                        </span>
+
+                    {% elif invoice.status == "unpaid" %}
+
+                        <span class="status-badge status-unpaid">
+
+                            <i class="bi bi-clock"></i>
+
+                            Unpaid
+
+                        </span>
+
+                    {% else %}
+
+                        <span class="status-badge status-default">
+
+                            {{ invoice.status|title }}
+
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             OVERDUE ALERT
+             ===================================================== -->
+
+        {% if is_overdue %}
+
+            <div
+                class="alert alert-danger overdue-alert mb-4"
+                role="alert"
+            >
+
+                <div class="d-flex gap-2">
+
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+
+                    <div>
+
+                        <strong>Invoice overdue</strong>
+
+                        <div class="small mt-1">
+
+                            This invoice was due on
+                            {{ invoice.due_date|date:"d M Y" }}.
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        {% endif %}
+
+
+        <!-- =====================================================
+             CUSTOMER / FUNERAL PARLOUR / ORDER
+             ===================================================== -->
+
+        <div class="row g-4 mb-4">
+
+
+            <!-- CUSTOMER -->
+
+            <div class="col-lg-4">
+
+                <div class="invoice-card h-100">
+
+                    <div class="invoice-card-header">
+
+                        <i class="bi bi-person me-1"></i>
+
+                        Customer / Beneficiary
+
+                    </div>
+
+
+                    <div class="invoice-card-body">
+
+
+                        {% if end_user %}
+
+                            <div class="info-block">
+
+                                <div class="info-label">
+                                    Full Name
+                                </div>
+
+                                <div class="info-value fs-5">
+
+                                    {{ end_user.first_name }}
+                                    {{ end_user.surname }}
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="info-block">
+
+                                <div class="info-label">
+                                    TDM End User Number
+                                </div>
+
+                                <div class="info-value">
+
+                                    {{ end_user.end_user_number }}
+
+                                </div>
+
+                            </div>
+
+
+                            {% if end_user.phone %}
+
+                                <div class="contact-item">
+
+                                    <i class="bi bi-telephone"></i>
+
+                                    <div>
+
+                                        <div class="info-label">
+                                            Phone
+                                        </div>
+
+                                        <div>
+                                            {{ end_user.phone }}
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            {% endif %}
+
+
+                            {% if end_user.whatsapp %}
+
+                                <div class="contact-item">
+
+                                    <i class="bi bi-whatsapp"></i>
+
+                                    <div>
+
+                                        <div class="info-label">
+                                            WhatsApp
+                                        </div>
+
+                                        <div>
+                                            {{ end_user.whatsapp }}
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            {% endif %}
+
+
+                            {% if end_user.email %}
+
+                                <div class="contact-item">
+
+                                    <i class="bi bi-envelope"></i>
+
+                                    <div>
+
+                                        <div class="info-label">
+                                            Email
+                                        </div>
+
+                                        <div class="text-break">
+                                            {{ end_user.email }}
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            {% endif %}
+
+
+                            {% if end_user.address_line1 %}
+
+                                <div class="info-block mt-3">
+
+                                    <div class="info-label">
+                                        Delivery Address
+                                    </div>
+
+                                    <div>
+
+                                        {{ end_user.address_line1 }}
+
+                                        {% if end_user.address_line2 %}
+                                            <br>
+                                            {{ end_user.address_line2 }}
+                                        {% endif %}
+
+                                        {% if end_user.suburb %}
+                                            <br>
+                                            {{ end_user.suburb }}
+                                        {% endif %}
+
+                                        {% if end_user.city %}
+                                            <br>
+                                            {{ end_user.city }}
+                                        {% endif %}
+
+                                        {% if end_user.province %}
+                                            <br>
+                                            {{ end_user.get_province_display }}
+                                        {% endif %}
+
+                                        {% if end_user.postal_code %}
+                                            <br>
+                                            {{ end_user.postal_code }}
+                                        {% endif %}
+
+                                    </div>
+
+                                </div>
+
+                            {% endif %}
+
+                        {% else %}
+
+                            <div class="text-muted">
+
+                                No beneficiary information is
+                                attached to this invoice.
+
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- FUNERAL PARLOUR -->
+
+            <div class="col-lg-4">
+
+                <div class="invoice-card h-100">
+
+                    <div class="invoice-card-header">
+
+                        <i class="bi bi-building me-1"></i>
+
+                        Funeral Parlour
+
+                    </div>
+
+
+                    <div class="invoice-card-body">
+
+                        <div class="info-block">
+
+                            <div class="info-label">
+                                Client
+                            </div>
+
+                            <div class="info-value fs-5">
+
+                                {{ funeral_client.name }}
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="info-block">
+
+                            <div class="info-label">
+                                Client ID
+                            </div>
+
+                            <div class="info-value">
+
+                                {{ funeral_client.id }}
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="info-block">
+
+                            <div class="info-label">
+                                Invoice Merchant
+                            </div>
+
+                            <div>
+
+                                {{ merchant_name }}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ORDER -->
+
+            <div class="col-lg-4">
+
+                <div class="invoice-card h-100">
+
+                    <div class="invoice-card-header">
+
+                        <i class="bi bi-cart3 me-1"></i>
+
+                        Order
+
+                    </div>
+
+
+                    <div class="invoice-card-body">
+
+                        {% if order %}
+
+                            <div class="info-block">
+
+                                <div class="info-label">
+                                    Order Number
+                                </div>
+
+                                <div class="info-value">
+
+                                    #{{ order.id }}
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="info-block">
+
+                                <div class="info-label">
+                                    Status
+                                </div>
+
+                                <div class="info-value">
+
+                                    <span class="badge bg-info text-dark">
+
+                                        {{ order.status|title }}
+
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+
+                            {% if order.get_channel_display %}
+
+                                <div class="info-block">
+
+                                    <div class="info-label">
+                                        Channel
+                                    </div>
+
+                                    <div>
+
+                                        {{ order.get_channel_display }}
+
+                                    </div>
+
+                                </div>
+
+                            {% endif %}
+
+
+                            {% if order.submitted_at %}
+
+                                <div class="info-block">
+
+                                    <div class="info-label">
+                                        Submitted
+                                    </div>
+
+                                    <div>
+
+                                        {{ order.submitted_at|date:"d M Y H:i" }}
+
+                                    </div>
+
+                                </div>
+
+                            {% endif %}
+
+                        {% else %}
+
+                            <div class="text-muted">
+
+                                No related order found.
+
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             PAYMENT SUMMARY + ACTIONS
+             ===================================================== -->
+
+        <div class="row g-4 mb-4">
+
+
+            <!-- PAYMENT SUMMARY -->
+
+            <div class="col-lg-5">
+
+                <div class="invoice-card h-100">
+
+                    <div class="invoice-card-header">
+
+                        <i class="bi bi-cash-stack me-1"></i>
+
+                        Payment Summary
+
+                    </div>
+
+
+                    <div class="invoice-card-body">
+
+
+                        <div class="payment-row">
+
+                            <span>
+                                Order Total
+                            </span>
+
+                            <strong>
+                                R{{ invoice.order_total_inc|floatformat:2|intcomma }}
+                            </strong>
+
+                        </div>
+
+
+                        <div class="payment-row">
+
+                            <span>
+                                Deposit Required
+                            </span>
+
+                            <strong>
+                                R{{ deposit_required|floatformat:2|intcomma }}
+                            </strong>
+
+                        </div>
+
+
+                        <div class="payment-row">
+
+                            <span>
+                                Deposit Paid
+                            </span>
+
+                            <strong>
+                                R{{ deposit_paid|floatformat:2|intcomma }}
+                            </strong>
+
+                        </div>
+
+
+                        <div
+                            class="payment-row {% if deposit_outstanding > 0 %}outstanding{% endif %}"
+                        >
+
+                            <span>
+                                Deposit Outstanding
+                            </span>
+
+                            <strong>
+                                R{{ deposit_outstanding|floatformat:2|intcomma }}
+                            </strong>
+
+                        </div>
+
+
+                        {% if credit_used > 0 %}
+
+                            <hr>
+
+
+                            <div class="payment-row">
+
+                                <span>
+                                    Credit Used
+                                </span>
+
+                                <strong>
+                                    R{{ credit_used|floatformat:2|intcomma }}
+                                </strong>
+
+                            </div>
+
+
+                            <div class="payment-row">
+
+                                <span>
+                                    Credit Repaid
+                                </span>
+
+                                <strong>
+                                    R{{ credit_repaid|floatformat:2|intcomma }}
+                                </strong>
+
+                            </div>
+
+
+                            <div class="payment-row">
+
+                                <span>
+                                    Credit Outstanding
+                                </span>
+
+                                <strong>
+
+                                    R{{ credit_outstanding|floatformat:2|intcomma }}
+
+                                </strong>
+
+                            </div>
+
+                        {% endif %}
+
+
+                        {% if is_overdue %}
+
+                            <div class="mt-3">
+
+                                <span class="badge bg-danger">
+
+                                    <i class="bi bi-exclamation-circle me-1"></i>
+
+                                    Overdue
+
+                                </span>
+
+                            </div>
+
+                        {% elif invoice.due_date %}
+
+                            <div class="mt-3">
+
+                                <span class="badge bg-light text-dark border">
+
+                                    Due
+                                    {{ invoice.due_date|date:"d M Y" }}
+
+                                </span>
+
+                            </div>
+
+                        {% endif %}
+
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- PAYMENT / COMMUNICATION ACTIONS -->
+
+            <div class="col-lg-7">
+
+                <div class="invoice-card h-100">
+
+                    <div class="invoice-card-header">
+
+                        <i class="bi bi-lightning-charge me-1"></i>
+
+                        Invoice Actions
+
+                    </div>
+
+
+                    <div class="invoice-card-body">
+
+
+                        <div class="action-bar">
+
+
+                            <!-- BACK -->
+
+                            <a
+                                href="{% url 'sales:funeral-invoices' %}"
+                                class="btn btn-outline-secondary"
+                            >
+
+                                <i class="bi bi-arrow-left me-1"></i>
+
+                                Back to Invoices
+
+                            </a>
+
+
+                            <!-- DOWNLOAD -->
+
+                            <a
+                                href="{% url 'sales:funeral-invoice-download' invoice.id %}"
+                                class="btn btn-outline-dark"
+                            >
+
+                                <i class="bi bi-download me-1"></i>
+
+                                Download Invoice
+
+                            </a>
+
+
+                            <!-- EMAIL -->
+
+                            <button
+                                type="button"
+                                class="btn btn-outline-primary"
+                                data-bs-toggle="modal"
+                                data-bs-target="#sendInvoiceModal"
+                            >
+
+                                <i class="bi bi-envelope me-1"></i>
+
+                                Send Invoice
+
+                            </button>
+
+
+                            <!-- PAYMENT -->
+
+                            {% if deposit_outstanding > 0 %}
+
+                                <button
+                                    type="button"
+                                    class="btn btn-primary"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#paymentChoiceModal"
+                                    data-payment-kind="deposit"
+                                >
+
+                                    <i class="bi bi-cash-coin me-1"></i>
+
+                                    Pay Deposit
+
+                                </button>
+
+                            {% endif %}
+
+
+                            {% if credit_outstanding > 0 %}
+
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-primary"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#paymentChoiceModal"
+                                    data-payment-kind="credit"
+                                >
+
+                                    <i class="bi bi-credit-card me-1"></i>
+
+                                    Repay Credit
+
+                                </button>
+
+                            {% endif %}
+
+                        </div>
+
+
+                        <div class="mt-3">
+
+                            <a
+                                href="{% url 'sales:funeral-invoice-download' invoice.id %}"
+                                class="btn btn-outline-dark btn-sm"
+                            >
+                                <i class="bi bi-download me-1"></i>
+                                Download Invoice
+                            </a>
+
+                        </div>
+
+
+                        <div class="mt-4">
+
+                            <div class="small text-muted">
+
+                                Customer communication
+
+                            </div>
+
+                            <div class="mt-2">
+
+                                {% if default_email %}
+
+                                    <div class="small">
+
+                                        <i class="bi bi-envelope me-1"></i>
+
+                                        {{ default_email }}
+
+                                    </div>
+
+                                {% endif %}
+
+
+                                {% if end_user.whatsapp %}
+
+                                    <div class="small mt-1">
+
+                                        <i class="bi bi-whatsapp me-1"></i>
+
+                                        {{ end_user.whatsapp }}
+
+                                    </div>
+
+                                {% endif %}
+
+
+                                {% if end_user.phone %}
+
+                                    <div class="small mt-1">
+
+                                        <i class="bi bi-telephone me-1"></i>
+
+                                        {{ end_user.phone }}
+
+                                    </div>
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             INVOICE ITEMS
+             ===================================================== -->
+
+        <div class="invoice-card mb-4">
+
+            <div
+                class="invoice-card-header d-flex justify-content-between align-items-center"
+            >
+
+                <div>
+
+                    <i class="bi bi-list-ul me-1"></i>
+
+                    Invoice Items
+
+                </div>
+
+                <span class="badge bg-light text-dark border">
+
+                    {{ items|length }} item{{ items|length|pluralize }}
+
+                </span>
+
+            </div>
+
+
+            <div class="invoice-table-wrapper">
+
+                <table class="table invoice-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Category
+                            </th>
+
+                            <th>
+                                SKU
+                            </th>
+
+                            <th>
+                                Product
+                            </th>
+
+                            <th class="numeric">
+                                Qty
+                            </th>
+
+                            <th class="numeric">
+                                Unit Excl
+                            </th>
+
+                            <th class="numeric">
+                                Discount
+                            </th>
+
+                            <th class="numeric">
+                                VAT %
+                            </th>
+
+                            <th class="numeric">
+                                Line Excl
+                            </th>
+
+                            <th class="numeric">
+                                Line VAT
+                            </th>
+
+                            <th class="numeric">
+                                Line Inc
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        {% for item in items %}
+
+                            <tr>
+
+
+                                <!-- CATEGORY -->
+
+                                <td>
+
+                                    {% if item.category %}
+
+                                        {{ item.category.name }}
+
+                                    {% else %}
+
+                                        —
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <!-- SKU -->
+
+                                <td>
+
+                                    <div class="sku">
+
+                                        {{ item.sku|default:"—" }}
+
+                                    </div>
+
+                                </td>
+
+
+                                <!-- PRODUCT -->
+
+                                <td>
+
+                                    <div class="product-name">
+
+                                        {% if item.product_name %}
+
+                                            {{ item.product_name }}
+
+                                        {% elif item.product %}
+
+                                            {{ item.product.name }}
+
+                                        {% else %}
+
+                                            —
+
+                                        {% endif %}
+
+                                    </div>
+
+                                </td>
+
+
+                                <!-- QUANTITY -->
+
+                                <td class="numeric">
+
+                                    {{ item.quantity|floatformat:2 }}
+
+                                </td>
+
+
+                                <!-- UNIT EXCL -->
+
+                                <td class="numeric">
+
+                                    R{{ item.unit_price_excl|floatformat:2|intcomma }}
+
+                                </td>
+
+
+                                <!-- DISCOUNT -->
+
+                                <td class="numeric">
+
+                                    R{{ item.discount_excl|default:"0"|floatformat:2|intcomma }}
+
+                                </td>
+
+
+                                <!-- VAT -->
+
+                                <td class="numeric">
+
+                                    {{ item.vat_percent|floatformat:2 }}%
+
+                                </td>
+
+
+                                <!-- LINE EXCL -->
+
+                                <td class="numeric">
+
+                                    R{{ item.line_total_excl|floatformat:2|intcomma }}
+
+                                </td>
+
+
+                                <!-- LINE VAT -->
+
+                                <td class="numeric">
+
+                                    R{{ item.line_vat_amount|floatformat:2|intcomma }}
+
+                                </td>
+
+
+                                <!-- LINE INC -->
+
+                                <td class="numeric fw-semibold">
+
+                                    R{{ item.display_line_total_inc|floatformat:2|intcomma }}
+
+                                </td>
+
+
+                            </tr>
+
+                        {% empty %}
+
+                            <tr>
+
+                                <td
+                                    colspan="10"
+                                    class="text-center text-muted py-5"
+                                >
+
+                                    <i
+                                        class="bi bi-inbox fs-3 d-block mb-2"
+                                    ></i>
+
+                                    No invoice items found.
+
+                                </td>
+
+                            </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+            <!-- =================================================
+                 TOTALS
+                 ================================================= -->
+
+            <div class="p-3 p-md-4">
+
+                <div class="totals-box">
+
+
+                    <div class="totals-row">
+
+                        <span>
+                            Subtotal Excl
+                        </span>
+
+                        <strong>
+
+                            R{{ invoice.subtotal_excl|floatformat:2|intcomma }}
+
+                        </strong>
+
+                    </div>
+
+
+                    {% if invoice.discount_total_excl > 0 %}
+
+                        <div class="totals-row">
+
+                            <span>
+                                Discount
+                            </span>
+
+                            <strong>
+
+                                -R{{ invoice.discount_total_excl|floatformat:2|intcomma }}
+
+                            </strong>
+
+                        </div>
+
+                    {% endif %}
+
+
+                    {% if invoice.delivery_fee_excl > 0 %}
+
+                        <div class="totals-row">
+
+                            <span>
+                                Delivery Fee
+                            </span>
+
+                            <strong>
+
+                                R{{ invoice.delivery_fee_excl|floatformat:2|intcomma }}
+
+                            </strong>
+
+                        </div>
+
+                    {% endif %}
+
+
+                    <div class="totals-row">
+
+                        <span>
+                            VAT
+                        </span>
+
+                        <strong>
+
+                            R{{ invoice.vat_total|floatformat:2|intcomma }}
+
+                        </strong>
+
+                    </div>
+
+
+                    <div class="totals-row grand-total">
+
+                        <span>
+                            Total Incl.
+                        </span>
+
+                        <strong>
+
+                            R{{ invoice.grand_total_inc|floatformat:2|intcomma }}
+
+                        </strong>
+
+                    </div>
+
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             NOTES
+             ===================================================== -->
+
+        {% if order.customer_notes or order.notes %}
+
+            <div class="row g-4 mb-4">
+
+
+                {% if order.customer_notes %}
+
+                    <div class="col-md-6">
+
+                        <div class="invoice-card h-100">
+
+                            <div class="invoice-card-header">
+
+                                <i class="bi bi-chat-left-text me-1"></i>
+
+                                Customer Notes
+
+                            </div>
+
+                            <div class="invoice-card-body">
+
+                                {{ order.customer_notes|linebreaksbr }}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                {% endif %}
+
+
+                {% if order.notes %}
+
+                    <div class="col-md-6">
+
+                        <div class="invoice-card h-100">
+
+                            <div class="invoice-card-header">
+
+                                <i class="bi bi-sticky me-1"></i>
+
+                                Notes
+
+                            </div>
+
+                            <div class="invoice-card-body">
+
+                                {{ order.notes|linebreaksbr }}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+        {% endif %}
+
+
+    </div>
+
+</main>
+
+
+<!-- =============================================================
+     SEND INVOICE MODAL
+     ============================================================= -->
+
+<div
+    class="modal fade"
+    id="sendInvoiceModal"
+    tabindex="-1"
+    aria-labelledby="sendInvoiceModalLabel"
+    aria-hidden="true"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+
+            <div class="modal-header">
+
+                <h5
+                    class="modal-title"
+                    id="sendInvoiceModalLabel"
+                >
+
+                    Send Invoice
+
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+                <p class="text-muted">
+
+                    Choose how you want to send
+                    Invoice INV-{{ invoice.id }}
+                    to the beneficiary.
+
+                </p>
+
+
+                <div class="d-grid gap-2">
+
+
+                    <button
+                        type="button"
+                        class="btn btn-success"
+                        data-bs-toggle="modal"
+                        data-bs-target="#sendInvoiceWhatsappModal"
+                    >
+
+                        <i class="bi bi-whatsapp me-2"></i>
+
+                        Send via WhatsApp
+
+                    </button>
+
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-success"
+                        data-bs-toggle="modal"
+                        data-bs-target="#sendInvoiceSmsModal"
+                    >
+
+                        <i class="bi bi-chat-dots me-2"></i>
+
+                        Send via SMS
+
+                    </button>
+
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#sendInvoiceEmailModal"
+                    >
+
+                        <i class="bi bi-envelope me-2"></i>
+
+                        Send via Email
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     SEND INVOICE EMAIL
+     ============================================================= -->
+
+<div
+    class="modal fade"
+    id="sendInvoiceEmailModal"
+    tabindex="-1"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+
+            <div class="modal-header">
+
+                <h5 class="modal-title">
+
+                    Send Invoice via Email
+
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+
+                <div
+                    id="invoiceEmailError"
+                    class="alert alert-danger d-none"
+                ></div>
+
+
+                <div
+                    id="invoiceEmailSuccess"
+                    class="alert alert-success d-none"
+                >
+                    Invoice sent successfully.
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-semibold">
+                        Recipient Name
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="invoiceEmailRecipientName"
+                        value="{{ end_user_name }}"
+                    >
+
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-semibold">
+                        Recipient Email
+                    </label>
+
+                    <input
+                        type="email"
+                        class="form-control"
+                        id="invoiceEmailAddress"
+                        value="{{ default_email }}"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Cancel
+                </button>
+
+
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    id="sendInvoiceEmailBtn"
+                >
+
+                    <span
+                        id="sendInvoiceEmailSpinner"
+                        class="spinner-border spinner-border-sm d-none"
+                    ></span>
+
+                    <span id="sendInvoiceEmailBtnText">
+                        Send Email
+                    </span>
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     SEND INVOICE WHATSAPP
+     ============================================================= -->
+
+<div
+    class="modal fade"
+    id="sendInvoiceWhatsappModal"
+    tabindex="-1"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+
+            <div class="modal-header">
+
+                <h5 class="modal-title">
+
+                    Send Invoice via WhatsApp
+
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+
+                <div
+                    id="invoiceWhatsappError"
+                    class="alert alert-danger d-none"
+                ></div>
+
+
+                <div
+                    id="invoiceWhatsappSuccess"
+                    class="alert alert-success d-none"
+                >
+                    Invoice sent successfully.
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-semibold">
+                        Recipient Name
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="invoiceWhatsappRecipientName"
+                        value="{{ end_user_name }}"
+                    >
+
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-semibold">
+                        WhatsApp Number
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="invoiceWhatsappNumber"
+                        value="{{ default_whatsapp }}"
+                        placeholder="082 123 4567"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Cancel
+                </button>
+
+
+                <button
+                    type="button"
+                    class="btn btn-success"
+                    id="sendInvoiceWhatsappBtn"
+                >
+
+                    <span
+                        id="sendInvoiceWhatsappSpinner"
+                        class="spinner-border spinner-border-sm d-none"
+                    ></span>
+
+                    <span id="sendInvoiceWhatsappBtnText">
+                        Send WhatsApp
+                    </span>
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     SEND INVOICE SMS
+     ============================================================= -->
+
+<div
+    class="modal fade"
+    id="sendInvoiceSmsModal"
+    tabindex="-1"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+
+            <div class="modal-header">
+
+                <h5 class="modal-title">
+
+                    Send Invoice via SMS
+
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+
+                <div
+                    id="invoiceSmsError"
+                    class="alert alert-danger d-none"
+                ></div>
+
+
+                <div
+                    id="invoiceSmsSuccess"
+                    class="alert alert-success d-none"
+                >
+                    Invoice sent successfully.
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-semibold">
+                        Recipient Name
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="invoiceSmsRecipientName"
+                        value="{{ end_user_name }}"
+                    >
+
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-semibold">
+                        Mobile Number
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="invoiceSmsNumber"
+                        value="{{ default_phone }}"
+                        placeholder="082 123 4567"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Cancel
+                </button>
+
+
+                <button
+                    type="button"
+                    class="btn btn-success"
+                    id="sendInvoiceSmsBtn"
+                >
+
+                    <span
+                        id="sendInvoiceSmsSpinner"
+                        class="spinner-border spinner-border-sm d-none"
+                    ></span>
+
+                    <span id="sendInvoiceSmsBtnText">
+                        Send SMS
+                    </span>
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     PAYMENT CHOICE MODAL
+     ============================================================= -->
+
+<div
+    class="modal fade"
+    id="paymentChoiceModal"
+    tabindex="-1"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+
+            <div class="modal-header">
+
+                <h5 class="modal-title">
+
+                    Pay
+                    <span
+                        class="text-capitalize"
+                        id="paymentKindLabel"
+                    >
+                        Deposit
+                    </span>
+
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+                <p class="mb-3">
+
+                    What would you like to do for this
+                    <span
+                        class="text-lowercase"
+                        id="paymentKindLabelInline"
+                    >
+                        deposit
+                    </span>?
+
+                </p>
+
+
+                <ul class="mb-0">
+
+                    <li>
+
+                        <strong>
+                            Confirm Payment
+                        </strong>
+
+                        – capture a payment you have already received.
+
+                    </li>
+
+                    <li class="mt-2">
+
+                        <strong>
+                            Send Request Payment
+                        </strong>
+
+                        – request payment from the beneficiary.
+
+                    </li>
+
+                </ul>
+
+            </div>
+
+
+            <div
+                class="modal-footer d-flex justify-content-between"
+            >
+
+                <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#paymentRequestChannelModal"
+                >
+
+                    <i class="bi bi-send me-1"></i>
+
+                    Send Request Payment
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="btn btn-success"
+                    id="btnOpenConfirmModal"
+                    data-bs-toggle="modal"
+                    data-bs-target="#confirmPaymentModal"
+                    data-invoice-id="{{ invoice.id }}"
+                    data-deposit-outstanding="{{ deposit_outstanding }}"
+                    data-credit-outstanding="{{ credit_outstanding }}"
+                    data-merchant-id="{{ merchant_id }}"
+                    data-merchant-name="{{ merchant_name }}"
+                    data-kind="deposit"
+                >
+
+                    <i class="bi bi-check2-circle me-1"></i>
+
+                    Confirm Payment
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     PAYMENT REQUEST CHANNEL
+     ============================================================= -->
+
+<div
+    class="modal fade"
+    id="paymentRequestChannelModal"
+    tabindex="-1"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+
+            <div class="modal-header">
+
+                <h5 class="modal-title">
+
+                    Choose Payment Request Channel
+
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+                <p class="text-muted mb-3">
+
+                    Select how you want to send the payment request
+                    for INV-{{ invoice.id }}.
+
+                </p>
+
+
+                <div class="d-grid gap-2">
+
+
+                    <button
+                        type="button"
+                        class="btn btn-success"
+                        data-bs-toggle="modal"
+                        data-bs-target="#sendPaymentRequestWhatsappModal"
+                    >
+
+                        <i class="bi bi-whatsapp me-2"></i>
+
+                        Send via WhatsApp
+
+                    </button>
+
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-success"
+                        data-bs-toggle="modal"
+                        data-bs-target="#sendPaymentRequestSmsModal"
+                    >
+
+                        <i class="bi bi-chat-dots me-2"></i>
+
+                        Send via SMS
+
+                    </button>
+
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#sendPaymentRequestEmailModal"
+                    >
+
+                        <i class="bi bi-envelope me-2"></i>
+
+                        Send via Email
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     PAYMENT REQUEST WHATSAPP
+     ============================================================= -->
+
+<div
+    class="modal fade"
+    id="sendPaymentRequestWhatsappModal"
+    tabindex="-1"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+
+            <div class="modal-header">
+
+                <h5 class="modal-title">
+
+                    Payment Request via WhatsApp
+
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+                <div
+                    id="paymentRequestWhatsappError"
+                    class="alert alert-danger d-none"
+                ></div>
+
+
+                <div
+                    id="paymentRequestWhatsappSuccess"
+                    class="alert alert-success d-none"
+                >
+                    Payment request sent successfully.
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-semibold">
+
+                        Recipient Name
+
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="paymentRequestWhatsappRecipientName"
+                        value="{{ end_user_name }}"
+                    >
+
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-semibold">
+
+                        WhatsApp Number
+
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="paymentRequestWhatsappNumber"
+                        value="{{ default_whatsapp }}"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+
+                    Cancel
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="btn btn-success"
+                    id="sendPaymentRequestWhatsappBtn"
+                >
+
+                    <span
+                        id="paymentRequestWhatsappSpinner"
+                        class="spinner-border spinner-border-sm d-none"
+                    ></span>
+
+                    <span id="paymentRequestWhatsappBtnText">
+
+                        Send Request
+
+                    </span>
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     PAYMENT REQUEST SMS
+     ============================================================= -->
+
+<div
+    class="modal fade"
+    id="sendPaymentRequestSmsModal"
+    tabindex="-1"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+
+            <div class="modal-header">
+
+                <h5 class="modal-title">
+
+                    Payment Request via SMS
+
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+                <div
+                    id="paymentRequestSmsError"
+                    class="alert alert-danger d-none"
+                ></div>
+
+
+                <div
+                    id="paymentRequestSmsSuccess"
+                    class="alert alert-success d-none"
+                >
+                    Payment request sent successfully.
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-semibold">
+
+                        Recipient Name
+
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="paymentRequestSmsRecipientName"
+                        value="{{ end_user_name }}"
+                    >
+
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-semibold">
+
+                        Mobile Number
+
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="paymentRequestSmsNumber"
+                        value="{{ default_phone }}"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+
+                    Cancel
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="btn btn-success"
+                    id="sendPaymentRequestSmsBtn"
+                >
+
+                    <span
+                        id="paymentRequestSmsSpinner"
+                        class="spinner-border spinner-border-sm d-none"
+                    ></span>
+
+                    <span id="paymentRequestSmsBtnText">
+
+                        Send Request
+
+                    </span>
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     PAYMENT REQUEST EMAIL
+     ============================================================= -->
+
+<div
+    class="modal fade"
+    id="sendPaymentRequestEmailModal"
+    tabindex="-1"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+
+            <div class="modal-header">
+
+                <h5 class="modal-title">
+
+                    Payment Request via Email
+
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+                <div
+                    id="paymentRequestEmailError"
+                    class="alert alert-danger d-none"
+                ></div>
+
+
+                <div
+                    id="paymentRequestEmailSuccess"
+                    class="alert alert-success d-none"
+                >
+                    Payment request sent successfully.
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-semibold">
+
+                        Recipient Name
+
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="paymentRequestRecipientName"
+                        value="{{ end_user_name }}"
+                    >
+
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-semibold">
+
+                        Recipient Email
+
+                    </label>
+
+                    <input
+                        type="email"
+                        class="form-control"
+                        id="paymentRequestEmail"
+                        value="{{ default_email }}"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+
+                    Cancel
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    id="sendPaymentRequestEmailBtn"
+                >
+
+                    <span
+                        id="paymentRequestEmailSpinner"
+                        class="spinner-border spinner-border-sm d-none"
+                    ></span>
+
+                    <span id="paymentRequestEmailBtnText">
+
+                        Send Email
+
+                    </span>
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     CONFIRM PAYMENT MODAL
+     ============================================================= -->
+
+<div
+    class="modal fade"
+    id="confirmPaymentModal"
+    tabindex="-1"
+    aria-labelledby="confirmPaymentModalLabel"
+    aria-hidden="true"
+>
+
+    <div
+    class="modal fade"
+    id="confirmPaymentModal"
+    tabindex="-1"
+    aria-labelledby="confirmPaymentModalLabel"
+    aria-hidden="true"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+          <div class="modal-content">
+
+              <form
+                  method="post"
+                  action="{% url 'sales:funeral-confirm-payment' invoice.id %}"
+              >
+
+                  {% csrf_token %}
+
+                  <div class="modal-header">
+
+                      <h5
+                          class="modal-title"
+                          id="confirmPaymentModalLabel"
+                      >
+
+                          Confirm
+                          <span
+                              class="text-capitalize"
+                              id="confirmKindLabel"
+                          >
+                              Deposit
+                          </span>
+                          Payment
+
+                      </h5>
+
+                      <button
+                          type="button"
+                          class="btn-close"
+                          data-bs-dismiss="modal"
+                          aria-label="Close"
+                      ></button>
+
+                  </div>
+
+                  <div class="modal-body">
+
+                      <input
+                          type="hidden"
+                          name="kind"
+                          id="confirmKindInput"
+                          value="deposit"
+                      >
+
+                      <div class="mb-3">
+
+                          <label
+                              for="confirmMerchantId"
+                              class="form-label"
+                          >
+                              Merchant ID
+                          </label>
+
+                          <input
+                              type="text"
+                              id="confirmMerchantId"
+                              class="form-control"
+                              value="{{ merchant_id }}"
+                              readonly
+                          >
+
+                      </div>
+
+                      <div class="mb-3">
+
+                          <label
+                              for="confirmMerchantName"
+                              class="form-label"
+                          >
+                              Merchant Name
+                          </label>
+
+                          <input
+                              type="text"
+                              id="confirmMerchantName"
+                              class="form-control"
+                              value="{{ merchant_name }}"
+                              readonly
+                          >
+
+                      </div>
+
+                      <div class="mb-3">
+
+                          <label
+                              for="confirmInvoiceNumber"
+                              class="form-label"
+                          >
+                              Invoice Number
+                          </label>
+
+                          <input
+                              type="text"
+                              id="confirmInvoiceNumber"
+                              class="form-control"
+                              value="{{ invoice.id }}"
+                              readonly
+                          >
+
+                      </div>
+
+                      <div class="mb-3">
+
+                          <label
+                              for="confirmAmountInput"
+                              class="form-label"
+                          >
+                              Amount
+                          </label>
+
+                          <div class="input-group">
+
+                              <span class="input-group-text">
+                                  R
+                              </span>
+
+                              <input
+                                  type="text"
+                                  class="form-control"
+                                  name="amount"
+                                  id="confirmAmountInput"
+                                  value="{{ deposit_outstanding|floatformat:2 }}"
+                                  required
+                              >
+
+                          </div>
+
+                          <div class="form-text">
+                              You can adjust this amount if necessary.
+                          </div>
+
+                      </div>
+
+                      <div class="mb-3">
+
+                          <label
+                              for="confirmReferenceInput"
+                              class="form-label"
+                          >
+                              Reference
+                          </label>
+
+                          <input
+                              type="text"
+                              class="form-control"
+                              name="reference"
+                              id="confirmReferenceInput"
+                              value="INV-{{ invoice.id }}: deposit"
+                              required
+                          >
+
+                      </div>
+
+                      <div class="mb-3">
+
+                          <label
+                              for="confirmProvider"
+                              class="form-label"
+                          >
+                              Provider Source
+                          </label>
+
+                          <select
+                              name="provider"
+                              id="confirmProvider"
+                              class="form-select"
+                              required
+                          >
+
+                              <option value="">
+                                  Select provider
+                              </option>
+
+                              <option value="eft">
+                                  Direct EFT
+                              </option>
+
+                              <option value="cash_deposit">
+                                  Cash Deposit
+                              </option>
+
+                          </select>
+
+                      </div>
+
+                  </div>
+
+                  <div class="modal-footer">
+
+                      <button
+                          type="button"
+                          class="btn btn-outline-secondary"
+                          data-bs-dismiss="modal"
+                      >
+                          Cancel
+                      </button>
+
+                      <button
+                          type="submit"
+                          class="btn btn-success"
+                      >
+
+                          <i class="bi bi-check2-circle me-1"></i>
+
+                          Confirm Payment
+
+                      </button>
+
+                  </div>
+
+              </form>
+
+          </div>
+
+      </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     SWITCH PLATFORM MODAL
+     ============================================================= -->
+
+<div
+    class="modal fade"
+    id="switchPlatformModal"
+    tabindex="-1"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+
+            <div class="modal-header">
+
+                <h5 class="modal-title w-100 text-center">
+
+                    Switch Platform
+
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body text-center">
+
+                <p class="text-muted">
+
+                    Choose a platform to continue:
+
+                </p>
+
+
+                <div class="d-grid gap-2">
+
+
+                    <a
+                        href="{% url 'staff-dashboard' %}"
+                        class="btn btn-outline-primary"
+                    >
+
+                        Main Staff Portal
+
+                    </a>
+
+
+                    <a
+                        href="{% url 'funder-dashboard' %}"
+                        class="btn btn-outline-primary"
+                    >
+
+                        Funder Portal
+
+                    </a>
+
+
+                    <a
+                        href="{% url 'sales:sales-dashboard' %}"
+                        class="btn btn-outline-primary"
+                    >
+
+                        Sales Portal
+
+                    </a>
+
+
+                    <a
+                        href="{% url 'logistics:logistics-dashboard' %}"
+                        class="btn btn-outline-primary"
+                    >
+
+                        Logistics Portal
+
+                    </a>
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-footer justify-content-center border-0">
+
+                <small class="text-muted">
+
+                    Platforms you don't have access to are disabled.
+
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     BOOTSTRAP
+     ============================================================= -->
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+></script>
+
+
+<!-- =============================================================
+     JAVASCRIPT
+     ============================================================= -->
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+
+    /* =========================================================
+       PAYMENT KIND
+       ========================================================= */
+
+    const paymentChoiceModal =
+        document.getElementById("paymentChoiceModal");
+
+    if (paymentChoiceModal) {
+
+        paymentChoiceModal.addEventListener(
+            "show.bs.modal",
+            function (event) {
+
+                const button = event.relatedTarget;
+
+                if (!button) {
+                    return;
+                }
+
+                const kind =
+                    button.getAttribute("data-payment-kind")
+                    || "deposit";
+
+                const label =
+                    kind === "credit"
+                        ? "Credit Repayment"
+                        : "Deposit";
+
+                const labelInline =
+                    kind === "credit"
+                        ? "credit repayment"
+                        : "deposit";
+
+
+                const paymentKindLabel =
+                    document.getElementById(
+                        "paymentKindLabel"
+                    );
+
+                const paymentKindLabelInline =
+                    document.getElementById(
+                        "paymentKindLabelInline"
+                    );
+
+                const confirmKindLabel =
+                    document.getElementById(
+                        "confirmKindLabel"
+                    );
+
+                const confirmKindInput =
+                    document.getElementById(
+                        "confirmKindInput"
+                    );
+
+                const confirmAmountInput =
+                    document.getElementById(
+                        "confirmAmountInput"
+                    );
+
+                const confirmReferenceInput =
+                    document.getElementById(
+                        "confirmReferenceInput"
+                    );
+
+
+                if (paymentKindLabel) {
+
+                    paymentKindLabel.textContent = label;
+
+                }
+
+
+                if (paymentKindLabelInline) {
+
+                    paymentKindLabelInline.textContent =
+                        labelInline;
+
+                }
+
+
+                if (confirmKindLabel) {
+
+                    confirmKindLabel.textContent = label;
+
+                }
+
+
+                if (confirmKindInput) {
+
+                    confirmKindInput.value = kind;
+
+                }
+
+
+                if (confirmReferenceInput) {
+
+                    confirmReferenceInput.value =
+                        "INV-{{ invoice.id }}: "
+                        + kind;
+
+                }
+
+
+                if (confirmAmountInput) {
+
+                    if (kind === "deposit") {
+
+                        confirmAmountInput.value =
+                            "{{ deposit_outstanding|floatformat:2 }}";
+
+                    } else if (kind === "credit") {
+
+                        confirmAmountInput.value =
+                            "{{ credit_outstanding|floatformat:2 }}";
+
+                    }
+
+                }
+
+            }
+        );
+
+    }
+
+
+    /* =========================================================
+       CSRF
+       ========================================================= */
+
+    function getCookie(name) {
+
+        let cookieValue = null;
+
+        if (document.cookie && document.cookie !== "") {
+
+            const cookies =
+                document.cookie.split(";");
+
+            for (
+                let i = 0;
+                i < cookies.length;
+                i++
+            ) {
+
+                const cookie =
+                    cookies[i].trim();
+
+                if (
+                    cookie.substring(
+                        0,
+                        name.length + 1
+                    ) === (name + "=")
+                ) {
+
+                    cookieValue =
+                        decodeURIComponent(
+                            cookie.substring(
+                                name.length + 1
+                            )
+                        );
+
+                    break;
+
+                }
+
+            }
+
+        }
+
+        return cookieValue;
+
+    }
+
+
+    /* =========================================================
+       GENERIC JSON POST
+       ========================================================= */
+
+    async function postJson(
+        url,
+        payload
+    ) {
+
+        const response =
+            await fetch(
+                url,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "X-CSRFToken":
+                            getCookie("csrftoken"),
+
+                        "X-Requested-With":
+                            "XMLHttpRequest"
+                    },
+
+                    body:
+                        JSON.stringify(payload)
+                }
+            );
+
+
+        let data = {};
+
+        try {
+
+            data =
+                await response.json();
+
+        } catch (error) {
+
+            data = {};
+
+        }
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error
+                || data.message
+                || "Something went wrong."
+            );
+
+        }
+
+
+        return data;
+
+    }
+
+
+    /* =========================================================
+       EMAIL
+       ========================================================= */
+
+    const emailButton =
+        document.getElementById(
+            "sendInvoiceEmailBtn"
+        );
+
+    if (emailButton) {
+
+        emailButton.addEventListener(
+            "click",
+            async function () {
+
+                const email =
+                    document.getElementById(
+                        "invoiceEmailAddress"
+                    ).value.trim();
+
+                const recipientName =
+                    document.getElementById(
+                        "invoiceEmailRecipientName"
+                    ).value.trim();
+
+
+                const errorBox =
+                    document.getElementById(
+                        "invoiceEmailError"
+                    );
+
+                const successBox =
+                    document.getElementById(
+                        "invoiceEmailSuccess"
+                    );
+
+                const spinner =
+                    document.getElementById(
+                        "sendInvoiceEmailSpinner"
+                    );
+
+                const buttonText =
+                    document.getElementById(
+                        "sendInvoiceEmailBtnText"
+                    );
+
+
+                errorBox.classList.add("d-none");
+
+                successBox.classList.add("d-none");
+
+
+                if (!email) {
+
+                    errorBox.textContent =
+                        "Please enter an email address.";
+
+                    errorBox.classList.remove(
+                        "d-none"
+                    );
+
+                    return;
+
+                }
+
+
+                spinner.classList.remove("d-none");
+
+                buttonText.textContent =
+                    "Sending...";
+
+                emailButton.disabled = true;
+
+
+                try {
+
+                    const data =
+                        await postJson(
+                            "{% url 'sales:funeral-send-invoice-email' invoice.id %}",
+                            {
+                                email: email,
+                                recipient_name:
+                                    recipientName
+                            }
+                        );
+
+
+                    if (
+                        data.success === false
+                    ) {
+
+                        throw new Error(
+                            data.error
+                            || "Unable to send invoice."
+                        );
+
+                    }
+
+
+                    successBox.classList.remove(
+                        "d-none"
+                    );
+
+                    buttonText.textContent =
+                        "Sent";
+
+                } catch (error) {
+
+                    errorBox.textContent =
+                        error.message;
+
+                    errorBox.classList.remove(
+                        "d-none"
+                    );
+
+                    buttonText.textContent =
+                        "Send Email";
+
+                } finally {
+
+                    spinner.classList.add(
+                        "d-none"
+                    );
+
+                    emailButton.disabled =
+                        false;
+
+                }
+
+            }
+        );
+
+    }
+
+
+    /* =========================================================
+       WHATSAPP
+       ========================================================= */
+
+    const whatsappButton =
+        document.getElementById(
+            "sendInvoiceWhatsappBtn"
+        );
+
+    if (whatsappButton) {
+
+        whatsappButton.addEventListener(
+            "click",
+            async function () {
+
+                const phone =
+                    document.getElementById(
+                        "invoiceWhatsappNumber"
+                    ).value.trim();
+
+                const recipientName =
+                    document.getElementById(
+                        "invoiceWhatsappRecipientName"
+                    ).value.trim();
+
+
+                const errorBox =
+                    document.getElementById(
+                        "invoiceWhatsappError"
+                    );
+
+                const successBox =
+                    document.getElementById(
+                        "invoiceWhatsappSuccess"
+                    );
+
+                const spinner =
+                    document.getElementById(
+                        "sendInvoiceWhatsappSpinner"
+                    );
+
+                const buttonText =
+                    document.getElementById(
+                        "sendInvoiceWhatsappBtnText"
+                    );
+
+
+                errorBox.classList.add("d-none");
+
+                successBox.classList.add("d-none");
+
+
+                if (!phone) {
+
+                    errorBox.textContent =
+                        "Please enter a WhatsApp number.";
+
+                    errorBox.classList.remove(
+                        "d-none"
+                    );
+
+                    return;
+
+                }
+
+
+                spinner.classList.remove("d-none");
+
+                buttonText.textContent =
+                    "Sending...";
+
+                whatsappButton.disabled =
+                    true;
+
+
+                try {
+
+                    const data =
+                        await postJson(
+                            "{% url 'sales:funeral-send-invoice-whatsapp' invoice.id %}",
+                            {
+                                phone: phone,
+                                whatsapp: phone,
+                                recipient_name:
+                                    recipientName
+                            }
+                        );
+
+
+                    if (
+                        data.success === false
+                    ) {
+
+                        throw new Error(
+                            data.error
+                            || "Unable to send invoice."
+                        );
+
+                    }
+
+
+                    successBox.classList.remove(
+                        "d-none"
+                    );
+
+                    buttonText.textContent =
+                        "Sent";
+
+                } catch (error) {
+
+                    errorBox.textContent =
+                        error.message;
+
+                    errorBox.classList.remove(
+                        "d-none"
+                    );
+
+                    buttonText.textContent =
+                        "Send WhatsApp";
+
+                } finally {
+
+                    spinner.classList.add(
+                        "d-none"
+                    );
+
+                    whatsappButton.disabled =
+                        false;
+
+                }
+
+            }
+        );
+
+    }
+
+
+    /* =========================================================
+       SMS
+       ========================================================= */
+
+    const smsButton =
+        document.getElementById(
+            "sendInvoiceSmsBtn"
+        );
+
+    if (smsButton) {
+
+        smsButton.addEventListener(
+            "click",
+            async function () {
+
+                const phone =
+                    document.getElementById(
+                        "invoiceSmsNumber"
+                    ).value.trim();
+
+                const recipientName =
+                    document.getElementById(
+                        "invoiceSmsRecipientName"
+                    ).value.trim();
+
+
+                const errorBox =
+                    document.getElementById(
+                        "invoiceSmsError"
+                    );
+
+                const successBox =
+                    document.getElementById(
+                        "invoiceSmsSuccess"
+                    );
+
+                const spinner =
+                    document.getElementById(
+                        "sendInvoiceSmsSpinner"
+                    );
+
+                const buttonText =
+                    document.getElementById(
+                        "sendInvoiceSmsBtnText"
+                    );
+
+
+                errorBox.classList.add("d-none");
+
+                successBox.classList.add("d-none");
+
+
+                if (!phone) {
+
+                    errorBox.textContent =
+                        "Please enter a mobile number.";
+
+                    errorBox.classList.remove(
+                        "d-none"
+                    );
+
+                    return;
+
+                }
+
+
+                spinner.classList.remove("d-none");
+
+                buttonText.textContent =
+                    "Sending...";
+
+                smsButton.disabled = true;
+
+
+                try {
+
+                    const data =
+                        await postJson(
+                            "{% url 'sales:funeral-send-invoice-sms' invoice.id %}",
+                            {
+                                phone: phone,
+                                recipient_name:
+                                    recipientName
+                            }
+                        );
+
+
+                    if (
+                        data.success === false
+                    ) {
+
+                        throw new Error(
+                            data.error
+                            || "Unable to send invoice."
+                        );
+
+                    }
+
+
+                    successBox.classList.remove(
+                        "d-none"
+                    );
+
+                    buttonText.textContent =
+                        "Sent";
+
+                } catch (error) {
+
+                    errorBox.textContent =
+                        error.message;
+
+                    errorBox.classList.remove(
+                        "d-none"
+                    );
+
+                    buttonText.textContent =
+                        "Send SMS";
+
+                } finally {
+
+                    spinner.classList.add(
+                        "d-none"
+                    );
+
+                    smsButton.disabled =
+                        false;
+
+                }
+
+            }
+        );
+
+    }
+
+
+    /* =========================================================
+       PAYMENT REQUEST EMAIL
+       ========================================================= */
+
+    const paymentRequestEmailButton =
+        document.getElementById(
+            "sendPaymentRequestEmailBtn"
+        );
+
+    if (paymentRequestEmailButton) {
+
+        paymentRequestEmailButton.addEventListener(
+            "click",
+            async function () {
+
+                const email =
+                    document.getElementById(
+                        "paymentRequestEmail"
+                    ).value.trim();
+
+                const recipientName =
+                    document.getElementById(
+                        "paymentRequestRecipientName"
+                    ).value.trim();
+
+
+                const errorBox =
+                    document.getElementById(
+                        "paymentRequestEmailError"
+                    );
+
+                const successBox =
+                    document.getElementById(
+                        "paymentRequestEmailSuccess"
+                    );
+
+                const spinner =
+                    document.getElementById(
+                        "paymentRequestEmailSpinner"
+                    );
+
+                const buttonText =
+                    document.getElementById(
+                        "paymentRequestEmailBtnText"
+                    );
+
+
+                errorBox.classList.add("d-none");
+
+                successBox.classList.add("d-none");
+
+
+                if (!email) {
+
+                    errorBox.textContent =
+                        "Please enter an email address.";
+
+                    errorBox.classList.remove(
+                        "d-none"
+                    );
+
+                    return;
+
+                }
+
+
+                spinner.classList.remove("d-none");
+
+                buttonText.textContent =
+                    "Sending...";
+
+                paymentRequestEmailButton.disabled =
+                    true;
+
+
+                try {
+
+                    const data =
+                        await postJson(
+                            "{% url 'sales:funeral-payment-request-email' invoice.id %}",
+                            {
+                                email: email,
+                                recipient_name:
+                                    recipientName
+                            }
+                        );
+
+
+                    if (
+                        data.success === false
+                    ) {
+
+                        throw new Error(
+                            data.error
+                            || "Unable to send payment request."
+                        );
+
+                    }
+
+
+                    successBox.classList.remove(
+                        "d-none"
+                    );
+
+                    buttonText.textContent =
+                        "Sent";
+
+                } catch (error) {
+
+                    errorBox.textContent =
+                        error.message;
+
+                    errorBox.classList.remove(
+                        "d-none"
+                    );
+
+                    buttonText.textContent =
+                        "Send Email";
+
+                } finally {
+
+                    spinner.classList.add(
+                        "d-none"
+                    );
+
+                    paymentRequestEmailButton.disabled =
+                        false;
+
+                }
+
+            }
+        );
+
+    }
+
+
+    /* =========================================================
+       PAYMENT REQUEST WHATSAPP
+       ========================================================= */
+
+    const paymentRequestWhatsappButton =
+        document.getElementById(
+            "sendPaymentRequestWhatsappBtn"
+        );
+
+    if (paymentRequestWhatsappButton) {
+
+        paymentRequestWhatsappButton.addEventListener(
+            "click",
+            async function () {
+
+                const phone =
+                    document.getElementById(
+                        "paymentRequestWhatsappNumber"
+                    ).value.trim();
+
+                const recipientName =
+                    document.getElementById(
+                        "paymentRequestWhatsappRecipientName"
+                    ).value.trim();
+
+
+                const errorBox =
+                    document.getElementById(
+                        "paymentRequestWhatsappError"
+                    );
+
+                const successBox =
+                    document.getElementById(
+                        "paymentRequestWhatsappSuccess"
+                    );
+
+                const spinner =
+                    document.getElementById(
+                        "paymentRequestWhatsappSpinner"
+                    );
+
+                const buttonText =
+                    document.getElementById(
+                        "paymentRequestWhatsappBtnText"
+                    );
+
+
+                errorBox.classList.add("d-none");
+
+                successBox.classList.add("d-none");
+
+
+                if (!phone) {
+
+                    errorBox.textContent =
+                        "Please enter a WhatsApp number.";
+
+                    errorBox.classList.remove(
+                        "d-none"
+                    );
+
+                    return;
+
+                }
+
+
+                spinner.classList.remove("d-none");
+
+                buttonText.textContent =
+                    "Sending...";
+
+                paymentRequestWhatsappButton.disabled =
+                    true;
+
+
+                try {
+
+                    const data =
+                        await postJson(
+                            "{% url 'sales:funeral-payment-request-whatsapp' invoice.id %}",
+                            {
+                                phone: phone,
+                                whatsapp: phone,
+                                recipient_name:
+                                    recipientName
+                            }
+                        );
+
+
+                    if (
+                        data.success === false
+                    ) {
+
+                        throw new Error(
+                            data.error
+                            || "Unable to send payment request."
+                        );
+
+                    }
+
+
+                    successBox.classList.remove(
+                        "d-none"
+                    );
+
+                    buttonText.textContent =
+                        "Sent";
+
+                } catch (error) {
+
+                    errorBox.textContent =
+                        error.message;
+
+                    errorBox.classList.remove(
+                        "d-none"
+                    );
+
+                    buttonText.textContent =
+                        "Send Request";
+
+                } finally {
+
+                    spinner.classList.add(
+                        "d-none"
+                    );
+
+                    paymentRequestWhatsappButton.disabled =
+                        false;
+
+                }
+
+            }
+        );
+
+    }
+
+
+    /* =========================================================
+       PAYMENT REQUEST SMS
+       ========================================================= */
+
+    const paymentRequestSmsButton =
+        document.getElementById(
+            "sendPaymentRequestSmsBtn"
+        );
+
+    if (paymentRequestSmsButton) {
+
+        paymentRequestSmsButton.addEventListener(
+            "click",
+            async function () {
+
+                const phone =
+                    document.getElementById(
+                        "paymentRequestSmsNumber"
+                    ).value.trim();
+
+                const recipientName =
+                    document.getElementById(
+                        "paymentRequestSmsRecipientName"
+                    ).value.trim();
+
+
+                const errorBox =
+                    document.getElementById(
+                        "paymentRequestSmsError"
+                    );
+
+                const successBox =
+                    document.getElementById(
+                        "paymentRequestSmsSuccess"
+                    );
+
+                const spinner =
+                    document.getElementById(
+                        "paymentRequestSmsSpinner"
+                    );
+
+                const buttonText =
+                    document.getElementById(
+                        "paymentRequestSmsBtnText"
+                    );
+
+
+                errorBox.classList.add("d-none");
+
+                successBox.classList.add("d-none");
+
+
+                if (!phone) {
+
+                    errorBox.textContent =
+                        "Please enter a mobile number.";
+
+                    errorBox.classList.remove(
+                        "d-none"
+                    );
+
+                    return;
+
+                }
+
+
+                spinner.classList.remove("d-none");
+
+                buttonText.textContent =
+                    "Sending...";
+
+                paymentRequestSmsButton.disabled =
+                    true;
+
+
+                try {
+
+                    const data =
+                        await postJson(
+                            "{% url 'sales:funeral-payment-request-sms' invoice.id %}",
+                            {
+                                phone: phone,
+                                recipient_name:
+                                    recipientName
+                            }
+                        );
+
+
+                    if (
+                        data.success === false
+                    ) {
+
+                        throw new Error(
+                            data.error
+                            || "Unable to send payment request."
+                        );
+
+                    }
+
+
+                    successBox.classList.remove(
+                        "d-none"
+                    );
+
+                    buttonText.textContent =
+                        "Sent";
+
+                } catch (error) {
+
+                    errorBox.textContent =
+                        error.message;
+
+                    errorBox.classList.remove(
+                        "d-none"
+                    );
+
+                    buttonText.textContent =
+                        "Send Request";
+
+                } finally {
+
+                    spinner.classList.add(
+                        "d-none"
+                    );
+
+                    paymentRequestSmsButton.disabled =
+                        false;
+
+                }
+
+            }
+        );
+
+    }
+
+
+});
+
+</script>
+
+
+</body>
+
+</html>
+
+

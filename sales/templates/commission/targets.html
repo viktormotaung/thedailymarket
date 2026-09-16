@@ -1,4 +1,9 @@
 {% load static humanize %}
+<!--
+    IMPORTANT:
+    This file is the template rendered by sales.views.target_list:
+    commission/targets.html
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -79,6 +84,401 @@
     .sidebar-skin .nav-link.ps-4 {
       font-size: .95rem;
       opacity: .95;
+    }
+
+    /* =========================================================
+      TARGETS PAGE
+      ========================================================= */
+
+    .targets-page {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 0 4px 40px;
+    }
+
+    .targets-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 28px;
+    }
+
+    .targets-eyebrow {
+        font-size: .72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .12em;
+        color: #0b5c39;
+        margin-bottom: 6px;
+    }
+
+    .targets-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #18251f;
+        margin: 0;
+    }
+
+    .targets-subtitle {
+        color: #6b7280;
+        margin: 6px 0 0;
+        font-size: .92rem;
+    }
+
+    .targets-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .targets-header-actions .btn {
+        min-height: 42px;
+        border-radius: 9px;
+        font-weight: 600;
+        padding: .55rem 1rem;
+    }
+
+    /* =========================================================
+       GUARANTEED TARGET ACTIONS
+       ========================================================= */
+
+    .targets-header-copy {
+        width: 100%;
+    }
+
+    .new-target-action-row {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin: -8px 0 24px;
+        position: relative;
+        z-index: 20;
+    }
+
+    .new-target-action {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-width: 170px;
+        min-height: 48px;
+        padding: 12px 24px;
+        border-radius: 10px;
+        background: #198754 !important;
+        border: 1px solid #198754 !important;
+        color: #ffffff !important;
+        text-decoration: none !important;
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1.2;
+        white-space: nowrap;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .new-target-action:hover,
+    .new-target-action:focus,
+    .new-target-action:active {
+        background: #157347 !important;
+        border-color: #146c43 !important;
+        color: #ffffff !important;
+        text-decoration: none !important;
+    }
+
+    .targets-card-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    .card-add-target {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 8px 14px;
+        border-radius: 8px;
+        background: #198754 !important;
+        border: 1px solid #198754 !important;
+        color: #ffffff !important;
+        text-decoration: none !important;
+        font-size: .85rem;
+        font-weight: 700;
+        white-space: nowrap;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .card-add-target:hover,
+    .card-add-target:focus {
+        background: #157347 !important;
+        border-color: #146c43 !important;
+        color: #ffffff !important;
+        text-decoration: none !important;
+    }
+
+    /* Main card */
+
+    .targets-card {
+        background: #fff;
+        border: 1px solid #e7ebe8;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 3px 14px rgba(0, 0, 0, .04);
+    }
+
+    .targets-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 20px;
+        border-bottom: 1px solid #edf0ee;
+    }
+
+    .targets-card-heading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .targets-card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: rgba(11, 92, 57, .09);
+        color: #0b5c39;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+    }
+
+    .targets-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #18251f;
+        margin: 0;
+    }
+
+    .targets-card-subtitle {
+        font-size: .8rem;
+        color: #7a847f;
+        margin: 2px 0 0;
+    }
+
+    .targets-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 34px;
+        height: 28px;
+        padding: 0 9px;
+        border-radius: 999px;
+        background: #f0f5f2;
+        color: #0b5c39;
+        font-size: .78rem;
+        font-weight: 700;
+    }
+
+    /* Table */
+
+    .targets-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .targets-table {
+        width: 100%;
+        margin: 0;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .targets-table thead th {
+        background: #f7f9f8;
+        color: #66716b;
+        font-size: .72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .055em;
+        padding: 13px 18px;
+        border-bottom: 1px solid #e7ebe8;
+        white-space: nowrap;
+    }
+
+    .targets-table tbody td {
+        padding: 16px 18px;
+        vertical-align: middle;
+        border-bottom: 1px solid #eef1ef;
+        color: #29342e;
+        font-size: .9rem;
+    }
+
+    .targets-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .targets-table tbody tr {
+        transition: background .15s ease;
+    }
+
+    .targets-table tbody tr:hover {
+        background: #f8fbf9;
+    }
+
+    .target-period {
+        font-weight: 700;
+        color: #18251f;
+    }
+
+    .target-year {
+        color: #6b7280;
+        font-size: .84rem;
+    }
+
+    .target-area {
+        display: inline-flex;
+        align-items: center;
+        padding: .32rem .62rem;
+        border-radius: 999px;
+        background: #f2f5f3;
+        color: #46534c;
+        font-size: .78rem;
+        font-weight: 600;
+    }
+
+    .target-amount {
+        font-size: .95rem;
+        font-weight: 700;
+        color: #0b5c39;
+    }
+
+    .target-daily {
+        font-weight: 600;
+        color: #34423a;
+    }
+
+    .target-days {
+        color: #6b7280;
+        font-weight: 600;
+    }
+
+    .targets-empty {
+        padding: 60px 20px !important;
+        text-align: center;
+    }
+
+    .targets-empty-icon {
+        width: 54px;
+        height: 54px;
+        border-radius: 14px;
+        background: #f0f5f2;
+        color: #0b5c39;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 14px;
+        font-size: 1.35rem;
+    }
+
+    .targets-empty-title {
+        font-weight: 700;
+        color: #27332d;
+        margin-bottom: 4px;
+    }
+
+    .targets-empty-text {
+        color: #7a847f;
+        font-size: .88rem;
+        margin: 0;
+    }
+
+    /* Mobile */
+
+    @media (max-width: 767.98px) {
+
+        .new-target-action-row {
+            justify-content: stretch;
+            margin-top: -4px;
+        }
+
+        .new-target-action {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .targets-card-actions {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .card-add-target {
+            flex: 1 1 auto;
+        }
+
+        .content {
+            padding: 14px;
+        }
+
+        .targets-page {
+            padding-bottom: 24px;
+        }
+
+        .targets-header {
+            flex-direction: column;
+            align-items: stretch;
+            margin-bottom: 20px;
+        }
+
+        .targets-title {
+            font-size: 1.45rem;
+        }
+
+        .targets-header-actions {
+            width: 100%;
+        }
+
+        .targets-header-actions .btn {
+            width: 100%;
+        }
+
+        .targets-card-header {
+            padding: 15px;
+        }
+
+        .targets-table thead th,
+        .targets-table tbody td {
+            padding: 12px 14px;
+        }
+
+        .targets-table thead th {
+            font-size: .68rem;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+
+        .targets-card-header {
+            align-items: flex-start;
+        }
+
+        .targets-card-subtitle {
+            max-width: 230px;
+        }
+
+        .targets-table tbody td {
+            font-size: .84rem;
+        }
+
+        .target-amount {
+            font-size: .9rem;
+        }
     }
 
     /* =========================================================
@@ -616,68 +1016,217 @@
 
   
 
-    <!-- MAIN CONTENT -->
+    <!-- =========================================================
+     MAIN CONTENT
+     ========================================================= -->
+
     <main class="content container-fluid">
 
-        <div class="text-center mb-4">
+        <div class="targets-page">
 
-            <h3 class="mb-2">Targets</h3>
+            <!-- =====================================================
+                PAGE HEADER
+                ===================================================== -->
 
-            <a href="{% url 'sales:sales-add-target' %}" class="btn btn-primary btn-sm">
-                + New Target
-            </a>
+            <div class="targets-header">
 
-        </div>
+                <div class="targets-header-copy">
+                    <div class="targets-eyebrow">
+                        Commission Management
+                    </div>
 
-        <!-- TARGET TABLE -->
-        <div class="card">
-            <div class="card-body p-0">
+                    <h1 class="targets-title">
+                        Sales Targets
+                    </h1>
 
-                <table class="table table-hover table-striped mb-0">
-                    <thead>
-                        <tr>
-                        <th>Month</th>
-                        <th>Year</th>
-                        <th>Area</th>
-                        <th>Target</th>
-                        <th>Daily Target</th>
-                        <th>Total Days</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {% for t in targets %}
-                        <tr onclick="window.location.href='#'" style="cursor:pointer;">
-                        <td>{{ t.get_month_display }}</td>
-                        <td>{{ t.year }}</td>
-                        <td>{{ t.get_area_display }}</td>
-
-                        <td>
-                            <strong>
-                            R{{ t.monthly_target|floatformat:0|intcomma }}
-                            </strong>
-                        </td>
-
-                        <td>
-                            R{{ t.get_daily_target|floatformat:0|intcomma }}
-                        </td>
-
-                        <td>
-                            {{ t.get_total_working_days }}
-                        </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
-                            No targets created yet.
-                        </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-
-                </table>
+                    <p class="targets-subtitle">
+                        Manage monthly sales targets and working-day expectations.
+                    </p>
+                </div>
 
             </div>
+
+            <!-- ALWAYS-VISIBLE NEW TARGET ACTION -->
+            <div class="new-target-action-row">
+                <a
+                    href="{% url 'sales:sales-add-target' %}"
+                    class="new-target-action"
+                >
+                    <i class="bi bi-plus-lg"></i>
+                    <span>New Target</span>
+                </a>
+            </div>
+
+
+            <!-- =====================================================
+                TARGETS CARD
+                ===================================================== -->
+
+            <div class="targets-card">
+
+                <div class="targets-card-header">
+
+                    <div class="targets-card-heading">
+
+                        <div class="targets-card-icon">
+                            <i class="bi bi-bullseye"></i>
+                        </div>
+
+                        <div>
+
+                            <h2 class="targets-card-title">
+                                Monthly Targets
+                            </h2>
+
+                            <p class="targets-card-subtitle">
+                                Revenue targets by month and area
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                    <div class="targets-card-actions">
+                        <a
+                            href="{% url 'sales:sales-add-target' %}"
+                            class="card-add-target"
+                        >
+                            <i class="bi bi-plus-lg me-1"></i>
+                            Add Target
+                        </a>
+
+                        <div class="targets-count">
+                            {{ targets|length }}
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                    TARGET TABLE
+                    ================================================= -->
+
+                <div class="targets-table-wrap">
+
+                    <table class="targets-table">
+
+                        <thead>
+
+                            <tr>
+                                <th>Period</th>
+                                <th>Area</th>
+                                <th>Monthly Target</th>
+                                <th>Daily Target</th>
+                                <th>Working Days</th>
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            {% for t in targets %}
+
+                            <tr>
+
+                                <td>
+
+                                    <div class="target-period">
+                                        {{ t.get_month_display }}
+                                    </div>
+
+                                    <div class="target-year">
+                                        {{ t.year }}
+                                    </div>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="target-area">
+                                        {{ t.get_area_display }}
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="target-amount">
+                                        R{{ t.monthly_target|floatformat:0|intcomma }}
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="target-daily">
+                                        R{{ t.get_daily_target|floatformat:0|intcomma }}
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="target-days">
+                                        {{ t.get_total_working_days }}
+                                    </span>
+
+                                </td>
+
+                            </tr>
+
+                            {% empty %}
+
+                            <tr>
+
+                                <td
+                                    colspan="5"
+                                    class="targets-empty"
+                                >
+
+                                    <div class="targets-empty-icon">
+                                        <i class="bi bi-bullseye"></i>
+                                    </div>
+
+                                    <div class="targets-empty-title">
+                                        No targets created yet
+                                    </div>
+
+                                    <p class="targets-empty-text">
+                                        Create your first sales target to start tracking performance.
+                                    </p>
+
+                                    <div class="mt-3">
+
+                                        <a
+                                            href="{% url 'sales:sales-add-target' %}"
+                                            class="btn btn-success btn-sm"
+                                        >
+                                            <i class="bi bi-plus-lg me-1"></i>
+                                            Create Target
+                                        </a>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
         </div>
 
     </main>
@@ -845,3 +1394,4 @@
 
 </body>
 </html>
+

@@ -57,6 +57,15 @@ class Invoice(models.Model):
         Client, on_delete=models.CASCADE, related_name="invoices"
     )
 
+    end_user = models.ForeignKey(
+        "clients.EndUser",
+        on_delete=models.SET_NULL,
+        related_name="invoices",
+        null=True,
+        blank=True,
+        help_text="End user receiving or benefiting from this invoice.",
+    )
+
     STATUS_CHOICES = [
         ("unpaid", "Unpaid"),
         ("partial", "Partially Paid"),
@@ -119,10 +128,45 @@ class Invoice(models.Model):
             models.Index(fields=["status"]),
             models.Index(fields=["invoice_date"]),
             models.Index(fields=["client", "status"]),
+            models.Index(fields=["end_user", "status"]),
         ]
 
     def __str__(self) -> str:
+        if self.end_user:
+            return (
+                f"Invoice #{self.id or '—'} · "
+                f"{self.client} · "
+                f"{self.end_user.full_name} · "
+                f"{self.status}"
+            )
+
         return f"Invoice #{self.id or '—'} · {self.client} · {self.status}"
+
+    def clean(self):
+        super().clean()
+
+        if self.end_user and not self.client:
+            raise ValidationError(
+                "An end user can only be linked to a client invoice."
+            )
+
+        if (
+            self.end_user
+            and self.client
+            and self.end_user.client_id != self.client_id
+        ):
+            raise ValidationError(
+                "The selected end user does not belong to the selected client."
+            )
+
+        if (
+            self.end_user
+            and self.order_id
+            and self.order.end_user_id != self.end_user_id
+        ):
+            raise ValidationError(
+                "The invoice end user must match the order end user."
+            )
 
     # ---------- Core logic (deposit + credit) ----------
 
@@ -177,6 +221,7 @@ class Invoice(models.Model):
                 # CREDIT client but no CreditAccount yet:
                 # You can customise this behaviour if you want different defaults.
                 pass
+
         UtilizationSegment = apps.get_model("invoices", "UtilizationSegment")
 
         cycle_days = term_days if term_days > 0 else 1
@@ -204,7 +249,6 @@ class Invoice(models.Model):
             base_date = self.invoice_date or localdate()
             self.due_date = base_date + timedelta(days=term_days)
 
-    
     @classmethod
     def create_for_order(cls, order: Order) -> "Invoice":
         db = order._state.db  # 🔥 KEY LINE
@@ -212,10 +256,14 @@ class Invoice(models.Model):
         if hasattr(order, "invoice"):
             inv: "Invoice" = order.invoice
 
+            # Keep invoice End User aligned with the Order
+            inv.end_user = order.end_user
+
             inv.calculate_totals()
             inv.save(
                 using=db,
                 update_fields=[
+                    "end_user",
                     "order_total_inc",
                     "amount_due",
                     "deposit_required",
@@ -230,7 +278,11 @@ class Invoice(models.Model):
             return inv
 
         with transaction.atomic(using=db):  # 🔥 IMPORTANT
-            invoice = cls(order=order, client=order.client)
+            invoice = cls(
+                order=order,
+                client=order.client,
+                end_user=order.end_user,
+            )
 
             invoice.calculate_totals()
 
@@ -294,8 +346,6 @@ class Invoice(models.Model):
             txn.save(using=db, update_fields=["amount"])
 
         return txn
-    
-
 
     def ensure_credit_issue_txn(self):
         from transactions.models import Transaction
@@ -342,7 +392,7 @@ class Invoice(models.Model):
             reference=f"INV-{self.id} credit funded",
             note="Funder covered credit portion",
         )
-    
+
     def remove_credit_issue_txn(self):
         from transactions.models import Transaction
 
@@ -411,9 +461,7 @@ class Invoice(models.Model):
         ).order_by("-posted_at", "-id"):
             ce.delete()
 
-    
-
-        # --- payments & status (cash deposit side) ---
+    # --- payments & status (cash deposit side) ---
 
     def recalc_deposit_from_transactions(self, save: bool = True) -> None:
         """
@@ -516,7 +564,6 @@ class Invoice(models.Model):
 
         # Ensure credit artefacts reflect the (possibly new) state
         self.ensure_credit_after_deposit()
-        
 
     # --- credit repayments (ledger side only) ---
 
@@ -608,8 +655,6 @@ class Invoice(models.Model):
             ce.delete()
 
         super().delete(*args, **kwargs)
-
-
 
 @receiver(post_save, sender=Invoice)
 def ensure_order_progress_after_payment(sender, instance, **kwargs):
@@ -1219,6 +1264,8 @@ def get_commission_period_for_date(paid_day):
         )
 
     return start_date, end_date
+
+
 
 def get_commission_period(year: int, month: int):
     """

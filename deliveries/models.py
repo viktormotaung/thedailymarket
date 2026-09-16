@@ -359,47 +359,75 @@ class PickingBatch(models.Model):
             orders = list(
                 Order.objects.using(db)
                 .filter(id__in=order_ids)
-                .select_related("client")
+                .select_related("client", "end_user")
             )
 
-            orders_by_client = {}
+            orders_by_destination = {}
 
             for order in orders:
 
                 if not order.client_id:
                     continue
 
-                orders_by_client.setdefault(
+                # A normal TDM order has no End User, so it remains
+                # grouped by Client exactly as before.
+                #
+                # Where an End User exists, the physical delivery
+                # destination is the End User. This means multiple
+                # End Users belonging to the same Client become
+                # separate physical delivery stops.
+                destination_key = (
                     order.client_id,
+                    order.end_user_id,
+                )
+
+                orders_by_destination.setdefault(
+                    destination_key,
                     []
                 ).append(order)
 
             # =========================================================
-            # 6. CREATE / REUSE ONE CUSTOMER STOP PER CLIENT
+            # 6. CREATE / REUSE ONE CUSTOMER STOP PER DESTINATION
+            # =========================================================
+            #
+            # Destination = Client + End User
+            #
+            # For ordinary TDM orders:
+            #   Client A + no End User
+            #       -> ONE physical stop
+            #
+            # For funeral / End User orders:
+            #   Client A + End User 1
+            #       -> ONE physical stop
+            #
+            #   Client A + End User 2
+            #       -> DIFFERENT physical stop
+            #
+            # Multiple orders for the SAME Client + SAME End User
+            # remain grouped into ONE physical stop.
             # =========================================================
 
-            for client_id, client_orders in orders_by_client.items():
+            for (client_id, end_user_id), destination_orders in orders_by_destination.items():
 
                 # -----------------------------------------------------
-                # Look for an existing CUSTOMER stop for this client
-                # on this delivery run.
-                #
-                # This is important because a client may have:
-                #
-                # Order 101
-                # Order 102
-                # Order 103
-                #
-                # We want ONE stop.
+                # Look for an existing CUSTOMER stop for this exact
+                # physical destination on this delivery run.
                 # -----------------------------------------------------
+
+                destination_filter = {
+                    "stop_type": "CUSTOMER",
+                    "order__client_id": client_id,
+                }
+
+                if end_user_id:
+                    destination_filter["end_user_id"] = end_user_id
+                else:
+                    destination_filter["end_user__isnull"] = True
 
                 stop = (
                     run.stops.using(db)
-                    .filter(
-                        stop_type="CUSTOMER",
-                        order__client_id=client_id,
-                    )
-                    .select_related("order")
+                    .filter(**destination_filter)
+                    .select_related("order", "end_user")
                     .first()
                 )
 
@@ -415,22 +443,26 @@ class PickingBatch(models.Model):
 
                 if stop is None:
 
-                    representative_order = client_orders[0]
+                    representative_order = destination_orders[0]
 
                     stop = DeliveryStop.objects.using(db).create(
                         run=run,
                         order=representative_order,
+                        end_user_id=end_user_id,
                         status="assigned",
                         sequence=0,
                         stop_type="CUSTOMER",
                     )
 
-                    # Copy the client's delivery address and coordinates.
+                    # Copy the End User's delivery details when the
+                    # order has an End User. Otherwise fall back to
+                    # the Client's delivery details.
                     stop.snapshot_from_order()
 
                     stop.save(
                         using=db,
                         update_fields=[
+                            "end_user",
                             "customer_name",
                             "phone",
                             "email",
@@ -452,8 +484,8 @@ class PickingBatch(models.Model):
                     # -------------------------------------------------
                     # Existing customer stop.
                     #
-                    # Refresh the address snapshot from the
-                    # representative order so the stop remains
+                    # Refresh the snapshot from the representative
+                    # order so the physical destination remains
                     # current.
                     # -------------------------------------------------
 
@@ -462,6 +494,7 @@ class PickingBatch(models.Model):
                     stop.save(
                         using=db,
                         update_fields=[
+                            "end_user",
                             "customer_name",
                             "phone",
                             "email",
@@ -479,23 +512,23 @@ class PickingBatch(models.Model):
                     )
 
                 # =====================================================
-                # 7. ADD ALL ITEMS FROM ALL ORDERS FOR THIS CLIENT
+                # 7. ADD ALL ITEMS FROM ALL ORDERS FOR THIS DESTINATION
                 #    TO THE SAME DELIVERY STOP
                 # =====================================================
 
-                client_order_ids = [
+                destination_order_ids = [
                     order.id
-                    for order in client_orders
+                    for order in destination_orders
                 ]
 
-                client_picking_items = (
+                destination_picking_items = (
                     self.items.using(db)
                     .filter(
-                        order_id__in=client_order_ids
+                        order_id__in=destination_order_ids
                     )
                 )
 
-                for pi in client_picking_items:
+                for pi in destination_picking_items:
 
                     planned = (
                         pi.picked_qty
@@ -1178,6 +1211,15 @@ class DeliveryStop(models.Model):
         blank=True,
     )
 
+    end_user = models.ForeignKey(
+        "clients.EndUser",
+        on_delete=models.SET_NULL,
+        related_name="delivery_stops",
+        null=True,
+        blank=True,
+        help_text="End user receiving the delivery, where applicable.",
+    )
+
     supplier = models.ForeignKey(
         Supplier,
         on_delete=models.PROTECT,
@@ -1300,6 +1342,57 @@ class DeliveryStop(models.Model):
         if not self.order:
             return
 
+        # ---------------------------------------------------------
+        # End User delivery
+        # ---------------------------------------------------------
+        # When an order is linked to an End User, the End User is
+        # the physical recipient / delivery destination.
+        #
+        # The Client remains the commercial account on the Order.
+        # ---------------------------------------------------------
+        end_user = getattr(self.order, "end_user", None)
+
+        if end_user:
+            self.end_user = end_user
+            self.customer_name = end_user.full_name
+            self.phone = end_user.phone or end_user.whatsapp or ""
+            self.email = end_user.email or ""
+
+            self.address_line1 = end_user.address_line1 or ""
+            self.address_line2 = end_user.address_line2 or ""
+            self.suburb = end_user.suburb or ""
+            self.city = end_user.city or ""
+
+            self.province = (
+                end_user.get_province_display()
+                if end_user.province
+                else ""
+            )
+
+            self.postal_code = end_user.postal_code or ""
+            self.country = end_user.country or ""
+
+            self.lat = (
+                float(end_user.latitude)
+                if end_user.latitude is not None
+                else None
+            )
+            self.lng = (
+                float(end_user.longitude)
+                if end_user.longitude is not None
+                else None
+            )
+
+            return
+
+        # ---------------------------------------------------------
+        # Existing Client delivery
+        # ---------------------------------------------------------
+        # If there is no End User, preserve the existing TDM
+        # Client-based delivery behaviour.
+        # ---------------------------------------------------------
+        self.end_user = None
+
         c = self.order.client
         self.customer_name = str(c)
         self.phone = getattr(c, "phone", "") or ""
@@ -1311,7 +1404,11 @@ class DeliveryStop(models.Model):
         self.city = c.delivery_city or c.city or ""
 
         prov_disp = getattr(c, "get_delivery_province_display", None)
-        self.province = prov_disp() if callable(prov_disp) else (c.delivery_province or c.province or "")
+        self.province = (
+            prov_disp()
+            if callable(prov_disp)
+            else (c.delivery_province or c.province or "")
+        )
 
         self.postal_code = c.delivery_postal_code or c.postal_code or ""
         self.country = c.delivery_country or c.country or ""
@@ -1341,6 +1438,10 @@ class DeliveryStop(models.Model):
     # -----------------------------
     class Meta:
         ordering = ["run_id", "sequence", "id"]
+        indexes = [
+            models.Index(fields=["end_user", "status"]),
+            models.Index(fields=["run", "end_user"]),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["run", "order"],
@@ -1623,4 +1724,5 @@ class ExternalDeliveryRate(models.Model):
     @property
     def total_per_km(self):
         return self.driver_per_km + self.assistant_per_km
+
 

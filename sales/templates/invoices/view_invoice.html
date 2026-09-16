@@ -291,7 +291,7 @@
 
     .invoice-payment-actions {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         gap: .5rem;
         margin-top: 1rem;
     }
@@ -1157,13 +1157,22 @@
 
               <button
                 type="button"
-                class="btn btn-secondary"
-                disabled
-                title="WhatsApp sending is currently unavailable"
+                class="btn btn-outline-success"
+                data-bs-toggle="modal"
+                data-bs-target="#sendInvoiceWhatsappModal"
               >
                 <i class="bi bi-whatsapp me-1"></i>
                 WhatsApp
               </button>
+
+              <a
+                href="{% url 'sales:sales-invoice-download' invoice.id %}"
+                class="btn btn-outline-dark"
+                target="_blank"
+              >
+                <i class="bi bi-download me-1"></i>
+                PDF
+              </a>
 
 
               <button
@@ -1835,6 +1844,9 @@
                   <button
                     type="button"
                     class="btn btn-light {% if invoice.status == 'paid' %}disabled{% endif %}"
+                    data-bs-toggle="modal"
+                    data-bs-target="#confirmPaymentModal"
+                    data-payment-kind="deposit"
                     {% if invoice.status == 'paid' %}
                       disabled
                       title="Invoice already paid"
@@ -1845,17 +1857,7 @@
                   </button>
 
 
-                  <button
-                    type="button"
-                    class="btn btn-outline-light {% if invoice.status == 'paid' %}disabled{% endif %}"
-                    {% if invoice.status == 'paid' %}
-                      disabled
-                      title="Invoice already paid"
-                    {% endif %}
-                  >
-                    <i class="bi bi-credit-card me-1"></i>
-                    Pay Credit
-                  </button>
+                  
 
                 </div>
 
@@ -2047,15 +2049,32 @@
                   <button
                     type="button"
                     class="invoice-quick-action"
-                    disabled
-                    title="WhatsApp sending is currently unavailable"
+                    data-bs-toggle="modal"
+                    data-bs-target="#sendInvoiceWhatsappModal"
                   >
 
                     <i class="bi bi-whatsapp"></i>
 
                     <span>
                       <strong>Send by WhatsApp</strong>
-                      <span>Currently unavailable.</span>
+                      <span>Send the invoice directly to the customer.</span>
+                    </span>
+
+                  </button>
+
+
+                  <button
+                    type="button"
+                    class="invoice-quick-action"
+                    data-bs-toggle="modal"
+                    data-bs-target="#paymentRequestModal"
+                  >
+
+                    <i class="bi bi-send"></i>
+
+                    <span>
+                      <strong>Request Payment</strong>
+                      <span>Send a payment request by email, WhatsApp or SMS.</span>
                     </span>
 
                   </button>
@@ -2118,6 +2137,25 @@
             <i class="bi bi-chat-dots me-1"></i>
             SMS
           </button>
+
+          <button
+            type="button"
+            class="btn btn-outline-dark"
+            data-bs-toggle="modal"
+            data-bs-target="#paymentRequestModal"
+          >
+            <i class="bi bi-send me-1"></i>
+            Request
+          </button>
+
+          <a
+            href="{% url 'sales:sales-invoice-download' invoice.id %}"
+            class="btn btn-outline-secondary"
+            target="_blank"
+          >
+            <i class="bi bi-download me-1"></i>
+            PDF
+          </a>
 
 
           {% if order and order.id %}
@@ -2326,6 +2364,189 @@
             <span id="invoiceSmsSpinner"
                   class="spinner-border spinner-border-sm d-none"></span>
             <span id="invoiceSmsBtnText">Send SMS</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- =========================================================
+       CONFIRM PAYMENT MODAL
+       ========================================================= -->
+  <div class="modal fade" id="confirmPaymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow">
+        <form method="post" action="{% url 'sales:sales-invoice-confirm-payment' invoice.id %}">
+          {% csrf_token %}
+
+          <div class="modal-header">
+            <h5 class="modal-title fw-semibold">Confirm Invoice Payment</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+
+          <div class="modal-body">
+            <div class="alert alert-light border">
+              <div class="small text-muted">Invoice</div>
+              <div class="fw-semibold">INV-{{ invoice.id }}</div>
+            </div>
+
+            <input type="hidden" name="kind" id="paymentKind" value="deposit">
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Payment Type</label>
+              <select class="form-select" id="paymentKindSelect" name="kind">
+                <option value="deposit">Deposit / Invoice Payment</option>
+                <option value="credit">Credit Repayment</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Amount</label>
+              <div class="input-group">
+                <span class="input-group-text">R</span>
+                <input
+                  type="number"
+                  class="form-control"
+                  name="amount"
+                  id="paymentAmount"
+                  value="{{ deposit_outstanding|floatformat:2 }}"
+                  min="0.01"
+                  step="0.01"
+                  required
+                >
+              </div>
+              <div class="form-text">
+                Deposit outstanding: R{{ deposit_outstanding|floatformat:2 }}
+              </div>
+            </div>
+
+            <div class="mb-3" id="paymentProviderWrap">
+              <label class="form-label fw-semibold">Payment Method</label>
+              <select class="form-select" name="provider" id="paymentProvider">
+                <option value="eft">EFT</option>
+                <option value="cash_deposit">Cash Deposit</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Reference</label>
+              <input
+                type="text"
+                class="form-control"
+                name="reference"
+                id="paymentReference"
+                value="INV-{{ invoice.id }}: deposit"
+                required
+              >
+            </div>
+
+            <div class="alert alert-warning small mb-0">
+              Only confirm payment once the payment has actually been received and verified.
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-success">
+              <i class="bi bi-check-circle me-1"></i>
+              Confirm Payment
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- =========================================================
+       PAYMENT REQUEST MODAL
+       ========================================================= -->
+  <div class="modal fade" id="paymentRequestModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow">
+
+        <div class="modal-header">
+          <h5 class="modal-title fw-semibold">Request Payment · INV-{{ invoice.id }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div id="paymentRequestError" class="alert alert-danger d-none"></div>
+          <div id="paymentRequestSuccess" class="alert alert-success d-none"></div>
+
+          <div class="alert alert-light border mb-3">
+            <div class="small text-muted">Amount outstanding</div>
+            <div class="fs-4 fw-bold">R{{ deposit_outstanding|floatformat:2 }}</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Recipient Name</label>
+            <input
+              type="text"
+              class="form-control"
+              id="paymentRequestRecipientName"
+              value="{{ client.organization|default:client.name }}"
+            >
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Email</label>
+            <input
+              type="email"
+              class="form-control"
+              id="paymentRequestEmail"
+              value="{{ client.email }}"
+              placeholder="email@example.com"
+            >
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">WhatsApp Number</label>
+            <input
+              type="text"
+              class="form-control"
+              id="paymentRequestWhatsapp"
+              value="{{ client.whatsapp|default:client.phone }}"
+              placeholder="27721234567"
+            >
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">SMS Number</label>
+            <input
+              type="text"
+              class="form-control"
+              id="paymentRequestSms"
+              value="{{ client.phone|default:client.whatsapp }}"
+              placeholder="27721234567"
+            >
+          </div>
+
+          <div class="form-text">
+            Choose a channel below. The invoice payment request will be sent using the selected contact details.
+          </div>
+        </div>
+
+        <div class="modal-footer flex-wrap">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+
+          <button type="button" class="btn btn-outline-primary" id="paymentRequestEmailBtn">
+            <span class="spinner-border spinner-border-sm d-none" id="paymentRequestEmailSpinner"></span>
+            <i class="bi bi-envelope me-1"></i> Email
+          </button>
+
+          <button type="button" class="btn btn-success" id="paymentRequestWhatsappBtn">
+            <span class="spinner-border spinner-border-sm d-none" id="paymentRequestWhatsappSpinner"></span>
+            <i class="bi bi-whatsapp me-1"></i> WhatsApp
+          </button>
+
+          <button type="button" class="btn btn-outline-success" id="paymentRequestSmsBtn">
+            <span class="spinner-border spinner-border-sm d-none" id="paymentRequestSmsSpinner"></span>
+            <i class="bi bi-chat-dots me-1"></i> SMS
           </button>
         </div>
 
@@ -2578,5 +2799,202 @@
   </script>
 
   
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+
+    // ---------------------------------------------------------
+    // Confirm payment modal
+    // ---------------------------------------------------------
+    const confirmModal = document.getElementById("confirmPaymentModal");
+    const paymentKindSelect = document.getElementById("paymentKindSelect");
+    const paymentKindHidden = document.getElementById("paymentKind");
+    const paymentAmount = document.getElementById("paymentAmount");
+    const paymentReference = document.getElementById("paymentReference");
+    const paymentProviderWrap = document.getElementById("paymentProviderWrap");
+
+    if (confirmModal) {
+      confirmModal.addEventListener("show.bs.modal", function (event) {
+        const trigger = event.relatedTarget;
+        const kind = trigger ? (trigger.getAttribute("data-payment-kind") || "deposit") : "deposit";
+
+        paymentKindSelect.value = kind;
+        paymentKindHidden.value = kind;
+
+        if (kind === "credit") {
+          paymentProviderWrap.classList.add("d-none");
+          paymentReference.value = "INV-{{ invoice.id }}: credit repayment";
+          paymentAmount.value = "{{ invoice.credit_used|default:0|floatformat:2 }}";
+        } else {
+          paymentProviderWrap.classList.remove("d-none");
+          paymentReference.value = "INV-{{ invoice.id }}: deposit";
+          paymentAmount.value = "{{ deposit_outstanding|floatformat:2 }}";
+        }
+      });
+
+      paymentKindSelect.addEventListener("change", function () {
+        const kind = this.value;
+        paymentKindHidden.value = kind;
+
+        if (kind === "credit") {
+          paymentProviderWrap.classList.add("d-none");
+          paymentReference.value = "INV-{{ invoice.id }}: credit repayment";
+          paymentAmount.value = "{{ invoice.credit_used|default:0|floatformat:2 }}";
+        } else {
+          paymentProviderWrap.classList.remove("d-none");
+          paymentReference.value = "INV-{{ invoice.id }}: deposit";
+          paymentAmount.value = "{{ deposit_outstanding|floatformat:2 }}";
+        }
+      });
+    }
+
+    // ---------------------------------------------------------
+    // Payment request helpers
+    // ---------------------------------------------------------
+    const requestError = document.getElementById("paymentRequestError");
+    const requestSuccess = document.getElementById("paymentRequestSuccess");
+
+    function requestMessage(message, success=false) {
+      requestError.classList.add("d-none");
+      requestSuccess.classList.add("d-none");
+
+      if (success) {
+        requestSuccess.textContent = message;
+        requestSuccess.classList.remove("d-none");
+      } else {
+        requestError.textContent = message;
+        requestError.classList.remove("d-none");
+      }
+    }
+
+    function setRequestButton(button, spinner, busy, text) {
+      button.disabled = busy;
+      spinner.classList.toggle("d-none", !busy);
+      const icon = button.querySelector("i");
+      if (icon) icon.classList.toggle("d-none", busy);
+      if (!busy && text) {
+        // Restore icon visibility on next render.
+        if (icon) icon.classList.remove("d-none");
+      }
+    }
+
+    async function sendPaymentRequest(url, formData, button, spinner, successText) {
+      requestMessage("");
+      setRequestButton(button, spinner, true);
+
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": "{{ csrf_token }}"
+          },
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || "Unable to send payment request.");
+        }
+
+        requestMessage(data.message || successText, true);
+
+        setTimeout(() => {
+          const modal = bootstrap.Modal.getInstance(
+            document.getElementById("paymentRequestModal")
+          );
+          if (modal) modal.hide();
+        }, 1200);
+
+      } catch (error) {
+        requestMessage(error.message || "Unable to send payment request.");
+      } finally {
+        setRequestButton(button, spinner, false);
+      }
+    }
+
+    const emailBtn = document.getElementById("paymentRequestEmailBtn");
+    const whatsappBtn = document.getElementById("paymentRequestWhatsappBtn");
+    const smsBtn = document.getElementById("paymentRequestSmsBtn");
+
+    if (emailBtn) {
+      emailBtn.addEventListener("click", function () {
+        const email = document.getElementById("paymentRequestEmail").value.trim();
+        const recipientName = document.getElementById("paymentRequestRecipientName").value.trim();
+
+        if (!email) {
+          requestMessage("Please enter an email address.");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("email", email);
+        formData.append("recipient_name", recipientName);
+
+        sendPaymentRequest(
+          "{% url 'sales:sales-send-invoice-payment-request-email' invoice.id %}",
+          formData,
+          emailBtn,
+          document.getElementById("paymentRequestEmailSpinner"),
+          "Payment request sent by email."
+        );
+      });
+    }
+
+    if (whatsappBtn) {
+      whatsappBtn.addEventListener("click", function () {
+        const phone = document.getElementById("paymentRequestWhatsapp").value.trim();
+
+        if (!phone) {
+          requestMessage("Please enter a WhatsApp number.");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("phone", phone);
+
+        sendPaymentRequest(
+          "{% url 'sales:sales-send-invoice-payment-request-whatsapp' invoice.id %}",
+          formData,
+          whatsappBtn,
+          document.getElementById("paymentRequestWhatsappSpinner"),
+          "Payment request sent by WhatsApp."
+        );
+      });
+    }
+
+    if (smsBtn) {
+      smsBtn.addEventListener("click", function () {
+        const phone = document.getElementById("paymentRequestSms").value.trim();
+
+        if (!phone) {
+          requestMessage("Please enter an SMS number.");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("phone", phone);
+
+        sendPaymentRequest(
+          "{% url 'sales:sales-send-invoice-payment-request-sms' invoice.id %}",
+          formData,
+          smsBtn,
+          document.getElementById("paymentRequestSmsSpinner"),
+          "Payment request sent by SMS."
+        );
+      });
+    }
+
+    const requestModal = document.getElementById("paymentRequestModal");
+    if (requestModal) {
+      requestModal.addEventListener("show.bs.modal", function () {
+        requestError.classList.add("d-none");
+        requestSuccess.classList.add("d-none");
+      });
+    }
+
+  });
+  </script>
+
 </body>
 </html>

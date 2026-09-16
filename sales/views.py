@@ -1,5 +1,5 @@
 # C:\Seshibo Daily Market\seshibo_site\sales\views.py
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from datetime import timedelta, date, datetime
 from django.db import models as db_models  # <--- import db models utilities (Sum, Count, etc.)
 from django.contrib.auth.decorators import login_required
@@ -8,10 +8,11 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 import calendar
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from clients.models import Prospect, ProspectUpdate, Client, Lead
-from clients.forms import ProspectForm, ProspectUpdateForm, LeadEditForm
+from clients.models import Prospect, ProspectUpdate, Client, Lead, EndUser
+from clients.forms import ProspectForm, ProspectUpdateForm, LeadEditForm, EndUserForm
 from django.utils.timezone import localdate
 from invoices.models import CommissionEntry, Invoice, MonthlyTarget, MonthlyTargetAllocation, MonthlyCommission
+from invoices.models import CommissionEntry
 from products.models import Category, Product, ProductKnowledge
 from orders.models import Order, OrderItem, Quotation, QuotationItem
 from django import forms
@@ -19,7 +20,7 @@ from django.forms import ModelForm, inlineformset_factory, widgets
 from django.db.models import (
     Sum, Count, F, Q, Value, DecimalField, IntegerField, ExpressionWrapper
 )
-
+import uuid
 from communications.services.whatsapp import send_invoice_whatsapp
 from communications.services.smsportal import send_sms
 from django.core.mail import EmailMultiAlternatives
@@ -44,7 +45,7 @@ import calendar
 from clients.models import Client, Region, Territory, Area
 from profiles.models import SalesRepProfile
 from invoices.models import CommissionEntry, Invoice, MonthlyTarget
-
+import logging
 
 from invoices.models import MonthlyTarget
 from collections import OrderedDict
@@ -87,6 +88,8 @@ from profiles.models import SalesRepProfile
 from clients.forms import ProspectForm, ProspectUpdateForm, LeadForm
 User = get_user_model()
 User = get_user_model()
+logger = logging.getLogger(__name__)
+
 DAY_OPTIONS = [7, 14, 30, 60]
 
 
@@ -100,6 +103,39 @@ def sales_dashboard(request):
     today = timezone.localdate()
 
     # =====================================================
+    # FUNERAL CONSULTANT ROUTING
+    # =====================================================
+    #
+    # Funeral Parlour Consultants are still Sales Portal
+    # users, but they have their own dashboard experience.
+    #
+    # The Sales Portal button still points to:
+    #
+    #     sales:sales-dashboard
+    #
+    # This view acts as the entry point and routes Funeral
+    # Consultants to their dedicated dashboard.
+    # =====================================================
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=user)
+        )
+
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+
+    if (
+        current_profile is not None
+        and current_profile.is_funeral_consultant
+    ):
+        return redirect(
+            "sales:funeral-consultant-dashboard"
+        )
+
+    # =====================================================
     # ROLE / VISIBILITY
     #
     # ONLY a user whose sole role is Representative is
@@ -110,20 +146,12 @@ def sales_dashboard(request):
     # Management                   = unrestricted
     # =====================================================
 
-    try:
-        current_profile = (
-            SalesRepProfile.objects
-            .prefetch_related("roles")
-            .get(user=user)
-        )
-
+    if current_profile is not None:
         current_role_names = {
             role.name
             for role in current_profile.roles.all()
         }
-
-    except SalesRepProfile.DoesNotExist:
-        current_profile = None
+    else:
         current_role_names = set()
 
     rep_only = (
@@ -348,8 +376,13 @@ def sales_dashboard(request):
             )
         )
 
-    prospects_current = prospects_current_qs.count()
-    prospects_previous = prospects_previous_qs.count()
+    prospects_current = (
+        prospects_current_qs.count()
+    )
+
+    prospects_previous = (
+        prospects_previous_qs.count()
+    )
 
     prospects_trend = build_trend(
         prospects_current,
@@ -932,8 +965,6 @@ def sales_dashboard(request):
         "sales/dashboard.html",
         context
     )
-
-
 
 
 
@@ -3770,6 +3801,121 @@ def view_quotation(request, pk):
 
 
 
+@login_required
+@require_POST
+def quotation_accept(request, pk):
+    """
+    Accept a quotation.
+
+    Draft and Sent quotations may be accepted.
+    Accepted, Rejected and Expired quotations cannot be accepted.
+
+    Access follows the same rules as view_quotation:
+    - Representative-only users may only access their own clients.
+    - Other authorised sales users may access the quotation.
+    """
+
+    # -------------------------------------------------
+    # ROLE / ACCESS CONTROL
+    # -------------------------------------------------
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=request.user)
+        )
+
+        current_role_names = {
+            role.name
+            for role in current_profile.roles.all()
+        }
+
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    # Representative-only users
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    # -------------------------------------------------
+    # GET QUOTATION
+    # -------------------------------------------------
+
+    quotation = get_object_or_404(
+        Quotation.objects
+        .select_related(
+            "client",
+            "client__account_manager",
+            "prospect",
+            "created_by",
+            "accepted_by",
+            "converted_order",
+        ),
+        pk=pk,
+    )
+
+    # -------------------------------------------------
+    # REP ACCESS CHECK
+    # -------------------------------------------------
+
+    if (
+        rep_only
+        and quotation.client_id is not None
+        and quotation.client.account_manager_id != request.user.id
+    ):
+        messages.error(
+            request,
+            "You do not have access to this quotation."
+        )
+
+        return redirect(
+            "sales:sales-quotations"
+        )
+
+    # -------------------------------------------------
+    # ACCEPTANCE CHECK
+    # -------------------------------------------------
+
+    if quotation.status not in ["draft", "sent"]:
+        messages.warning(
+            request,
+            (
+                f"This quotation cannot be accepted because its "
+                f"current status is {quotation.get_status_display()}."
+            ),
+        )
+
+        return redirect(
+            "sales:sales-view-quotation",
+            pk=quotation.pk,
+        )
+
+    # -------------------------------------------------
+    # ACCEPT QUOTATION
+    # -------------------------------------------------
+
+    quotation.status = "accepted"
+    quotation.accepted_by = request.user
+    quotation.accepted_at = timezone.now()
+
+    quotation.save()
+
+    messages.success(
+        request,
+        f"Quotation #{quotation.pk} has been accepted successfully.",
+    )
+
+    return redirect(
+        "sales:sales-view-quotation",
+        pk=quotation.pk,
+    )
+
+
+
 class QuotationCreateForm(forms.ModelForm):
     quotation_for = forms.ChoiceField(
         choices=[
@@ -4582,6 +4728,8 @@ def orders(request):
         },
     )
 
+
+
 class OrderForm(ModelForm):
     class Meta:
         model = Order
@@ -4735,6 +4883,11 @@ def view_order(request, pk):
     Reps with any additional role (for example Representative + Supervisor)
     retain broader access.
 
+    Order actions:
+        - Approve: only while pending AND only for users with
+          Supervisor or Manager role.
+        - Cancel: available until the order reaches a locked status.
+
     Totals are recalculated in-memory only (no DB write).
     """
 
@@ -4749,20 +4902,67 @@ def view_order(request, pk):
             .get(user=request.user)
         )
 
+        current_roles = list(
+            current_profile.roles.all()
+        )
+
+        # Use role CODE for permission checks because the code is
+        # the internal/stable identifier for the role.
+        current_role_codes = {
+            (role.code or "").strip().upper()
+            for role in current_roles
+        }
+
+        # Keep role names available if needed by the template.
         current_role_names = {
-            role.name
-            for role in current_profile.roles.all()
+            (role.name or "").strip()
+            for role in current_roles
         }
 
     except SalesRepProfile.DoesNotExist:
         current_profile = None
+        current_roles = []
+        current_role_codes = set()
         current_role_names = set()
 
+    # -------------------------------------------------
+    # ROLE DEFINITIONS
+    # -------------------------------------------------
+
+    # A user may approve an order if they have EITHER:
+    #
+    #     SUPERVISOR
+    #     MANAGER
+    #
+    # This intentionally allows:
+    #
+    #     Supervisor
+    #     Manager
+    #     Representative + Supervisor
+    #     Representative + Manager
+    #     Supervisor + Manager
+    #
+    # but NOT:
+    #
+    #     Representative only
+    #
+    approval_roles = {
+        "SUPERVISOR",
+        "MANAGER",
+    }
+
+    can_user_approve = bool(
+        current_profile
+        and current_role_codes.intersection(approval_roles)
+    )
+
     # A user is rep-only ONLY when their complete role
-    # set is exactly {"Representative"}.
+    # set is exactly {"REP"}.
+    #
+    # We use the role CODE here rather than the display name.
     rep_only = (
         current_profile is not None
-        and current_role_names == {"Representative"}
+        and current_role_codes == {"REP"}
     )
 
     # -------------------------------------------------
@@ -4794,12 +4994,174 @@ def view_order(request, pk):
     #
     # IMPORTANT:
     # This protects the actual URL as well as the list UI.
-    if rep_only and order.client.account_manager_id != request.user.id:
+    if (
+        rep_only
+        and order.client.account_manager_id != request.user.id
+    ):
         messages.error(
             request,
             "You do not have access to this order."
         )
         return redirect("sales:orders")
+
+    # -------------------------------------------------
+    # ORDER ACTIONS
+    # -------------------------------------------------
+
+    # These statuses are terminal for consultant actions.
+    locked_statuses = {
+        "complete",
+        "returned",
+        "cancelled",
+        "credit_blocked",
+    }
+
+    if request.method == "POST":
+
+        action = (
+            request.POST.get("action") or ""
+        ).strip().lower()
+
+        # =====================================================
+        # APPROVE
+        # =====================================================
+
+        if action == "approve":
+
+            # -------------------------------------------------
+            # SECURITY CHECK:
+            # ONLY SUPERVISORS AND MANAGERS MAY APPROVE
+            # -------------------------------------------------
+
+            if not can_user_approve:
+                messages.error(
+                    request,
+                    "You do not have permission to approve orders. "
+                    "Only Supervisors and Managers may approve orders."
+                )
+                return redirect(
+                    "view-order",
+                    pk=order.pk,
+                )
+
+            # -------------------------------------------------
+            # LOCKED STATUS CHECK
+            # -------------------------------------------------
+
+            if order.status in locked_statuses:
+                messages.error(
+                    request,
+                    (
+                        f"This order cannot be approved because "
+                        f"its current status is "
+                        f"“{order.get_status_display()}”."
+                    ),
+                )
+                return redirect(
+                    "view-order",
+                    pk=order.pk,
+                )
+
+            # -------------------------------------------------
+            # ONLY PENDING ORDERS MAY BE APPROVED
+            # -------------------------------------------------
+
+            if order.status != "pending":
+                messages.info(
+                    request,
+                    (
+                        f"This order cannot be approved because "
+                        f"it is currently "
+                        f"“{order.get_status_display()}”."
+                    ),
+                )
+                return redirect(
+                    "view-order",
+                    pk=order.pk,
+                )
+
+            old_status = order.get_status_display()
+
+            # -------------------------------------------------
+            # APPROVE
+            # -------------------------------------------------
+
+            # Use normal save() so the existing Order.save()
+            # approval workflow and audit logic remains active.
+            order.status = "approved"
+            order.save()
+
+            messages.success(
+                request,
+                (
+                    f"Order #{order.pk} was approved "
+                    f"from “{old_status}”."
+                ),
+            )
+
+            return redirect(
+                "view-order",
+                pk=order.pk,
+            )
+
+        # =====================================================
+        # CANCEL
+        # =====================================================
+
+        elif action == "cancel":
+
+            # -------------------------------------------------
+            # LOCKED STATUS CHECK
+            # -------------------------------------------------
+
+            if order.status in locked_statuses:
+                messages.error(
+                    request,
+                    (
+                        f"This order cannot be cancelled because "
+                        f"its current status is "
+                        f"“{order.get_status_display()}”."
+                    ),
+                )
+                return redirect(
+                    "view-order",
+                    pk=order.pk,
+                )
+
+            old_status = order.get_status_display()
+
+            # Use normal save() so the existing Order.save()
+            # status and audit logic remains active.
+            order.status = "cancelled"
+            order.save()
+
+            messages.success(
+                request,
+                (
+                    f"Order #{order.pk} was cancelled "
+                    f"from “{old_status}”."
+                ),
+            )
+
+            return redirect(
+                "view-order",
+                pk=order.pk,
+            )
+
+        # =====================================================
+        # INVALID ACTION
+        # =====================================================
+
+        else:
+            messages.error(
+                request,
+                "Invalid order action.",
+            )
+
+            return redirect(
+                "view-order",
+                pk=order.pk,
+            )
 
     # -------------------------------------------------
     # KEEP TOTALS FRESH
@@ -4842,6 +5204,32 @@ def view_order(request, pk):
     )
 
     # -------------------------------------------------
+    # DETERMINE AVAILABLE ACTIONS
+    # -------------------------------------------------
+
+    # APPROVE:
+    #
+    # 1. User must have Supervisor or Manager role.
+    # 2. Order must be pending.
+    # 3. Order must not be locked.
+    #
+    # This controls the UI AND mirrors the server-side
+    # permission check above.
+    can_approve = (
+        can_user_approve
+        and order.status == "pending"
+        and order.status not in locked_statuses
+    )
+
+    # CANCEL:
+    #
+    # Currently available to any user who can access the order,
+    # until the order reaches a locked status.
+    can_cancel = (
+        order.status not in locked_statuses
+    )
+
+    # -------------------------------------------------
     # RENDER
     # -------------------------------------------------
 
@@ -4852,11 +5240,23 @@ def view_order(request, pk):
             "order": order,
             "items": items,
             "invoice": invoice,
+
+            # Existing access information
             "rep_only": rep_only,
+
+            # Role information
+            "current_role_codes": current_role_codes,
+            "current_role_names": current_role_names,
+            "can_user_approve": can_user_approve,
+
+            # Order action permissions
+            "can_approve": can_approve,
+            "can_cancel": can_cancel,
+
+            # Status information
+            "locked_statuses": locked_statuses,
         },
     )
-
-
 
 @login_required
 def delete_order(request, pk):
@@ -5434,6 +5834,705 @@ def view_invoice(request, pk):
 
 
 
+
+
+# =========================================================
+# INVOICE ACTIONS
+# =========================================================
+
+@login_required
+@require_POST
+def invoice_confirm_payment(request, pk):
+    """Record a manual deposit payment or credit repayment."""
+    invoice = get_object_or_404(Invoice, pk=pk)
+
+    # Representative-only users may only act on their own clients.
+    try:
+        profile = SalesRepProfile.objects.prefetch_related("roles").get(
+            user=request.user
+        )
+        role_names = {role.name for role in profile.roles.all()}
+    except SalesRepProfile.DoesNotExist:
+        role_names = set()
+
+    if role_names == {"Representative"} and invoice.client.account_manager_id != request.user.id:
+        messages.error(request, "You do not have access to this invoice.")
+        return redirect("sales:view-invoice", pk=invoice.pk)
+
+    kind = (request.POST.get("kind") or "deposit").strip().lower()
+    if kind not in {"deposit", "credit"}:
+        messages.error(request, "Invalid payment type.")
+        return redirect("sales:view-invoice", pk=invoice.pk)
+
+    raw_amount = (request.POST.get("amount") or "").replace(",", "").strip()
+    reference = (request.POST.get("reference") or "").strip()
+
+    try:
+        amount = Decimal(raw_amount)
+    except (InvalidOperation, TypeError):
+        messages.error(request, "Invalid amount entered.")
+        return redirect("sales:view-invoice", pk=invoice.pk)
+
+    if amount <= 0:
+        messages.error(request, "Amount must be greater than zero.")
+        return redirect("sales:view-invoice", pk=invoice.pk)
+
+    if not reference:
+        reference = f"INV-{invoice.id}: {kind}"
+
+    note = f"Manual {kind} payment captured on invoice screen."
+
+    # ---------------------------------------------------------
+    # CREDIT REPAYMENT
+    # ---------------------------------------------------------
+    if kind == "credit":
+        try:
+            invoice.record_credit_repayment(
+                amount=amount,
+                reference=reference,
+                note=note,
+            )
+        except Exception as exc:
+            logger.exception("Credit repayment failed for invoice %s", invoice.pk)
+            messages.error(request, f"Payment failed: {exc}")
+            return redirect("sales:view-invoice", pk=invoice.pk)
+
+        messages.success(
+            request,
+            f"Credit repayment of R{amount:.2f} recorded successfully."
+        )
+        return redirect("sales:view-invoice", pk=invoice.pk)
+
+    # ---------------------------------------------------------
+    # DEPOSIT / NORMAL PAYMENT
+    # ---------------------------------------------------------
+    provider = (request.POST.get("provider") or "").strip()
+    if provider not in {"eft", "cash_deposit"}:
+        messages.error(request, "Please select a valid payment provider.")
+        return redirect("sales:view-invoice", pk=invoice.pk)
+
+    try:
+        invoice.record_payment(
+            amount=amount,
+            reference=reference,
+            note=note,
+        )
+
+        # Keep the online payment record in sync with the invoice payment.
+        from online_payments.models import Payment
+
+        payment_reference = reference
+        if Payment.objects.filter(reference=payment_reference).exists():
+            payment_reference = f"{reference}-PAY-{uuid.uuid4().hex[:6]}"
+
+        payment = Payment.objects.create(
+            reference=payment_reference,
+            amount=amount,
+            client=invoice.client,
+            invoice=invoice,
+            created_by=request.user,
+            provider=provider,
+            status="pending",
+        )
+
+        payment.status = "success"
+        if hasattr(payment, "paid_at"):
+            payment.paid_at = timezone.now()
+        payment.save()
+
+    except Exception as exc:
+        logger.exception("Invoice payment failed for invoice %s", invoice.pk)
+        messages.error(request, f"Payment failed: {exc}")
+        return redirect("sales:view-invoice", pk=invoice.pk)
+
+    messages.success(
+        request,
+        f"Payment of R{amount:.2f} recorded successfully."
+    )
+    return redirect("sales:view-invoice", pk=invoice.pk)
+
+
+@login_required
+def invoice_download(request, pk):
+    """Render the invoice PDF template for download/printing."""
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("client", "order", "order__client"),
+        pk=pk,
+    )
+
+    try:
+        profile = SalesRepProfile.objects.prefetch_related("roles").get(
+            user=request.user
+        )
+        role_names = {role.name for role in profile.roles.all()}
+    except SalesRepProfile.DoesNotExist:
+        role_names = set()
+
+    if role_names == {"Representative"} and invoice.client.account_manager_id != request.user.id:
+        messages.error(request, "You do not have access to this invoice.")
+        return redirect("sales:sales-invoices")
+
+    order = invoice.order
+    items = list(
+        order.items.all()
+        .select_related("product", "category")
+        .order_by("id")
+    )
+
+    for item in items:
+        unit_price_excl = item.unit_price_excl or Decimal("0.00")
+        vat_percent = item.vat_percent or Decimal("0.00")
+        line_total_excl = item.line_total_excl or Decimal("0.00")
+        line_vat_amount = item.line_vat_amount or Decimal("0.00")
+
+        item.display_unit_price_inc = (
+            unit_price_excl
+            + (unit_price_excl * vat_percent / Decimal("100"))
+        )
+        item.display_line_total_inc = line_total_excl + line_vat_amount
+
+    return render(
+        request,
+        "invoices/invoice_pdf.html",
+        {
+            "invoice": invoice,
+            "order": order,
+            "client": invoice.client,
+            "items": items,
+        },
+    )
+
+
+@login_required
+@require_POST
+def send_invoice_payment_request(request, pk):
+    """Return payment-request information used by the invoice action UI."""
+    invoice = get_object_or_404(Invoice, pk=pk)
+
+    try:
+        profile = SalesRepProfile.objects.prefetch_related("roles").get(
+            user=request.user
+        )
+        role_names = {role.name for role in profile.roles.all()}
+    except SalesRepProfile.DoesNotExist:
+        role_names = set()
+
+    if role_names == {"Representative"} and invoice.client.account_manager_id != request.user.id:
+        return JsonResponse({"success": False, "error": "Access denied."}, status=403)
+
+    if invoice.is_fully_paid():
+        return JsonResponse({
+            "success": False,
+            "error": "This invoice is already fully paid.",
+        }, status=400)
+
+    return JsonResponse({
+        "success": True,
+        "invoice_id": invoice.id,
+        "invoice_number": f"INV-{invoice.id}",
+        "amount": str(invoice.amount_due),
+        "payment_url": f"{settings.SITE_URL}/invoices/public/{invoice.public_token}/",
+    })
+
+
+@login_required
+@require_POST
+def send_invoice_payment_request_email(request, pk):
+    """Send an invoice payment request by email."""
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("client", "order"),
+        pk=pk,
+    )
+
+    if invoice.is_fully_paid():
+        return JsonResponse({"success": False, "error": "Invoice is already fully paid."}, status=400)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        data = {}
+
+    email_to = (data.get("email") or "").strip()
+    recipient_name = (data.get("recipient_name") or "").strip()
+
+    if not email_to:
+        email_to = (
+            getattr(invoice.client, "email", "")
+            or getattr(invoice.client, "billing_email", "")
+            or ""
+        ).strip()
+
+    if not email_to:
+        return JsonResponse({"success": False, "error": "No email address provided."}, status=400)
+
+    if not recipient_name:
+        recipient_name = (
+            getattr(invoice.client, "organization", None)
+            or getattr(invoice.client, "name", None)
+            or "Client"
+        )
+
+    link = f"{settings.SITE_URL}/invoices/public/{invoice.public_token}/"
+    subject = f"Payment request — Invoice INV-{invoice.id}"
+    text_body = (
+        f"Hi {recipient_name},\n\n"
+        f"Your The Daily Market invoice INV-{invoice.id} has an outstanding balance of "
+        f"R{invoice.amount_due:.2f}.\n\n"
+        f"Please view the invoice and make payment here:\n{link}\n\n"
+        f"Thank you,\nThe Daily Market"
+    )
+
+    html_body = (
+        f"<p>Hi {recipient_name},</p>"
+        f"<p>Your The Daily Market invoice <strong>INV-{invoice.id}</strong> has an "
+        f"outstanding balance of <strong>R{invoice.amount_due:.2f}</strong>.</p>"
+        f"<p><a href=\"{link}\">View invoice and make payment</a></p>"
+        f"<p>Thank you,<br>The Daily Market</p>"
+    )
+
+    try:
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=text_body,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            to=[email_to],
+        )
+        email.attach_alternative(html_body, "text/html")
+        email.send()
+    except Exception as exc:
+        logger.exception("Invoice payment request email failed for invoice %s", invoice.pk)
+        CommunicationLog.objects.create(
+            channel=CommunicationLog.CHANNEL_EMAIL,
+            status=CommunicationLog.STATUS_FAILED,
+            recipient_name=recipient_name,
+            recipient_contact=email_to,
+            subject=subject,
+            message=text_body,
+            related_model="Invoice",
+            related_object_id=invoice.id,
+            provider="Django Email",
+            error_message=str(exc),
+            sent_by=request.user,
+        )
+        return JsonResponse({"success": False, "error": "Email failed to send."}, status=400)
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_EMAIL,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=recipient_name,
+        recipient_contact=email_to,
+        subject=subject,
+        message=text_body,
+        related_model="Invoice",
+        related_object_id=invoice.id,
+        provider="Django Email",
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+
+    return JsonResponse({"success": True, "message": "Payment request email sent successfully."})
+
+
+@login_required
+@require_POST
+def send_invoice_payment_request_whatsapp(request, pk):
+    """Send an invoice payment request by WhatsApp."""
+    invoice = get_object_or_404(Invoice.objects.select_related("client", "order"), pk=pk)
+
+    if invoice.is_fully_paid():
+        return JsonResponse({"success": False, "error": "Invoice is already fully paid."}, status=400)
+
+    phone = (request.POST.get("phone") or "").strip()
+    if not phone:
+        phone = (
+            getattr(invoice.client, "whatsapp", "")
+            or getattr(invoice.client, "phone", "")
+            or ""
+        ).strip()
+
+    if not phone:
+        return JsonResponse({"success": False, "error": "No WhatsApp number provided."}, status=400)
+
+    phone = phone.replace("+", "").replace(" ", "").replace("-", "")
+    client_name = (
+        getattr(invoice.client, "organization", None)
+        or getattr(invoice.client, "name", None)
+        or "Client"
+    )
+    link = f"{settings.SITE_URL}/invoices/public/{invoice.public_token}/"
+
+    result = send_invoice_whatsapp(
+        to=phone,
+        client_name=client_name,
+        invoice_number=f"INV-{invoice.id}",
+        amount=invoice.amount_due,
+        link=link,
+        invoice=invoice,
+    )
+
+    if not result.get("messages"):
+        return JsonResponse({
+            "success": False,
+            "error": result.get("error", {}).get("message", "WhatsApp failed to send."),
+            "result": result,
+        }, status=400)
+
+    return JsonResponse({
+        "success": True,
+        "message": "Payment request sent successfully via WhatsApp.",
+        "result": result,
+    })
+
+
+@login_required
+@require_POST
+def send_invoice_payment_request_sms(request, pk):
+    """Send an invoice payment request by SMS."""
+    invoice = get_object_or_404(Invoice.objects.select_related("client", "order"), pk=pk)
+
+    if invoice.is_fully_paid():
+        return JsonResponse({"success": False, "error": "Invoice is already fully paid."}, status=400)
+
+    phone = (request.POST.get("phone") or "").strip()
+    if not phone:
+        phone = (
+            getattr(invoice.client, "phone", "")
+            or getattr(invoice.client, "whatsapp", "")
+            or ""
+        ).strip()
+
+    if not phone:
+        return JsonResponse({"success": False, "error": "No mobile number provided."}, status=400)
+
+    client_name = (
+        getattr(invoice.client, "organization", None)
+        or getattr(invoice.client, "name", None)
+        or "Client"
+    )
+    link = f"{settings.SITE_URL}/invoices/public/{invoice.public_token}/"
+    message = (
+        f"Hi {client_name}, your The Daily Market invoice INV-{invoice.id} "
+        f"has an outstanding balance of R{invoice.amount_due:.2f}. "
+        f"View/pay: {link}"
+    )
+
+    result = send_sms(to=phone, message=message)
+    if not result.get("success"):
+        return JsonResponse({"success": False, "error": "SMS failed to send.", "result": result}, status=400)
+
+    return JsonResponse({"success": True, "message": "Payment request sent successfully via SMS.", "result": result})
+
+
+# =========================================================
+# FUNERAL CONSULTANT — INVOICE ACTIONS
+# =========================================================
+
+@login_required
+@require_POST
+def funeral_confirm_payment(request, pk):
+    """Record a payment against a funeral invoice within consultant scope."""
+    profile, funeral_client, invoices = _funeral_invoice_scope(request)
+
+    if profile is None or funeral_client is None:
+        return JsonResponse({"success": False, "error": "Access denied."}, status=403)
+
+    invoice = get_object_or_404(invoices, pk=pk)
+
+    kind = (request.POST.get("kind") or "deposit").strip().lower()
+    if kind not in {"deposit", "credit"}:
+        messages.error(request, "Invalid payment type.")
+        return redirect("sales:funeral-invoice-detail", pk=invoice.pk)
+
+    raw_amount = (request.POST.get("amount") or "").replace(",", "").strip()
+    reference = (request.POST.get("reference") or "").strip() or f"INV-{invoice.id}: {kind}"
+
+    try:
+        amount = Decimal(raw_amount)
+    except (InvalidOperation, TypeError):
+        messages.error(request, "Invalid amount entered.")
+        return redirect("sales:funeral-invoice-detail", pk=invoice.pk)
+
+    if amount <= 0:
+        messages.error(request, "Amount must be greater than zero.")
+        return redirect("sales:funeral-invoice-detail", pk=invoice.pk)
+
+    note = f"Manual {kind} payment captured from funeral consultant invoice screen."
+
+    if kind == "credit":
+        try:
+            invoice.record_credit_repayment(
+                amount=amount,
+                reference=reference,
+                note=note,
+            )
+        except Exception as exc:
+            logger.exception("Funeral credit repayment failed for invoice %s", invoice.pk)
+            messages.error(request, f"Payment failed: {exc}")
+            return redirect("sales:funeral-invoice-detail", pk=invoice.pk)
+
+        messages.success(request, f"Credit repayment of R{amount:.2f} recorded successfully.")
+        return redirect("sales:funeral-invoice-detail", pk=invoice.pk)
+
+    provider = (request.POST.get("provider") or "").strip()
+    if provider not in {"eft", "cash_deposit"}:
+        messages.error(request, "Please select a valid payment provider.")
+        return redirect("sales:funeral-invoice-detail", pk=invoice.pk)
+
+    try:
+        invoice.record_payment(
+            amount=amount,
+            reference=reference,
+            note=note,
+        )
+
+        from online_payments.models import Payment
+
+        payment_reference = reference
+        if Payment.objects.filter(reference=payment_reference).exists():
+            payment_reference = f"{reference}-PAY-{uuid.uuid4().hex[:6]}"
+
+        payment = Payment.objects.create(
+            reference=payment_reference,
+            amount=amount,
+            client=funeral_client,
+            invoice=invoice,
+            created_by=request.user,
+            provider=provider,
+            status="pending",
+        )
+        payment.status = "success"
+        if hasattr(payment, "paid_at"):
+            payment.paid_at = timezone.now()
+        payment.save()
+
+    except Exception as exc:
+        logger.exception("Funeral invoice payment failed for invoice %s", invoice.pk)
+        messages.error(request, f"Payment failed: {exc}")
+        return redirect("sales:funeral-invoice-detail", pk=invoice.pk)
+
+    messages.success(request, f"Payment of R{amount:.2f} recorded successfully.")
+    return redirect("sales:funeral-invoice-detail", pk=invoice.pk)
+
+
+@login_required
+def funeral_invoice_download(request, pk):
+    """Render a funeral invoice using the same invoice PDF template."""
+    profile, funeral_client, invoices = _funeral_invoice_scope(request)
+
+    if profile is None or funeral_client is None:
+        return redirect("sales:funeral-consultant-dashboard")
+
+    invoice = get_object_or_404(invoices, pk=pk)
+    order = invoice.order
+    items = list(
+        order.items.all()
+        .select_related("product", "category")
+        .order_by("id")
+    )
+
+    for item in items:
+        unit_price_excl = item.unit_price_excl or Decimal("0.00")
+        vat_percent = item.vat_percent or Decimal("0.00")
+        line_total_excl = item.line_total_excl or Decimal("0.00")
+        line_vat_amount = item.line_vat_amount or Decimal("0.00")
+        item.display_unit_price_inc = unit_price_excl + (
+            unit_price_excl * vat_percent / Decimal("100")
+        )
+        item.display_line_total_inc = line_total_excl + line_vat_amount
+
+    return render(
+        request,
+        "invoices/invoice_pdf.html",
+        {
+            "invoice": invoice,
+            "order": order,
+            "client": funeral_client,
+            "funeral_client": funeral_client,
+            "end_user": invoice.end_user,
+            "items": items,
+        },
+    )
+
+
+@login_required
+@require_POST
+def funeral_send_invoice_email(request, pk):
+    """Send a funeral invoice email after enforcing consultant scope."""
+    profile, funeral_client, invoices = _funeral_invoice_scope(request)
+    if profile is None or funeral_client is None:
+        return JsonResponse({"success": False, "error": "Access denied."}, status=403)
+
+    invoice = get_object_or_404(invoices, pk=pk)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        data = {}
+
+    # Default the recipient to the funeral beneficiary when available.
+    end_user = invoice.end_user
+    email_to = (data.get("email") or getattr(end_user, "email", "") or "").strip()
+    recipient_name = (data.get("recipient_name") or "").strip()
+    if not recipient_name and end_user:
+        recipient_name = f"{getattr(end_user, 'first_name', '')} {getattr(end_user, 'surname', '')}".strip()
+
+    if not email_to:
+        return JsonResponse({"success": False, "error": "No beneficiary email address provided."}, status=400)
+
+    payload = json.dumps({"email": email_to, "recipient_name": recipient_name})
+    request._body = payload.encode("utf-8")
+    return send_invoice_email_internal(request, pk)
+
+
+@login_required
+@require_POST
+def funeral_send_invoice_whatsapp(request, pk):
+    """Send a funeral invoice by WhatsApp after enforcing consultant scope."""
+    profile, funeral_client, invoices = _funeral_invoice_scope(request)
+    if profile is None or funeral_client is None:
+        return JsonResponse({"success": False, "error": "Access denied."}, status=403)
+
+    invoice = get_object_or_404(invoices, pk=pk)
+    end_user = invoice.end_user
+    phone = (
+        request.POST.get("phone")
+        or getattr(end_user, "whatsapp", "")
+        or getattr(end_user, "phone", "")
+        or ""
+    ).strip()
+
+    if not phone:
+        return JsonResponse({"success": False, "error": "No beneficiary WhatsApp number provided."}, status=400)
+
+    # Use the existing WhatsApp implementation, but force the beneficiary number.
+    request.POST = request.POST.copy()
+    request.POST["phone"] = phone
+    return send_invoice_whatsapp_view(request, pk)
+
+
+@login_required
+@require_POST
+def funeral_send_invoice_sms(request, pk):
+    """Send a funeral invoice by SMS after enforcing consultant scope."""
+    profile, funeral_client, invoices = _funeral_invoice_scope(request)
+    if profile is None or funeral_client is None:
+        return JsonResponse({"success": False, "error": "Access denied."}, status=403)
+
+    invoice = get_object_or_404(invoices, pk=pk)
+    end_user = invoice.end_user
+    phone = (
+        request.POST.get("phone")
+        or getattr(end_user, "phone", "")
+        or getattr(end_user, "whatsapp", "")
+        or ""
+    ).strip()
+
+    if not phone:
+        return JsonResponse({"success": False, "error": "No beneficiary mobile number provided."}, status=400)
+
+    request.POST = request.POST.copy()
+    request.POST["phone"] = phone
+    return send_invoice_sms_view(request, pk)
+
+
+@login_required
+@require_POST
+def funeral_send_payment_request(request, pk):
+    """Return payment-request information for a scoped funeral invoice."""
+    profile, funeral_client, invoices = _funeral_invoice_scope(request)
+    if profile is None or funeral_client is None:
+        return JsonResponse({"success": False, "error": "Access denied."}, status=403)
+
+    invoice = get_object_or_404(invoices, pk=pk)
+    if invoice.is_fully_paid():
+        return JsonResponse({"success": False, "error": "Invoice is already fully paid."}, status=400)
+
+    return JsonResponse({
+        "success": True,
+        "invoice_id": invoice.id,
+        "invoice_number": f"INV-{invoice.id}",
+        "amount": str(invoice.amount_due),
+        "payment_url": f"{settings.SITE_URL}/invoices/public/{invoice.public_token}/",
+    })
+
+
+@login_required
+@require_POST
+def funeral_send_payment_request_email(request, pk):
+    """Send a funeral invoice payment request to the beneficiary by email."""
+    profile, funeral_client, invoices = _funeral_invoice_scope(request)
+    if profile is None or funeral_client is None:
+        return JsonResponse({"success": False, "error": "Access denied."}, status=403)
+
+    invoice = get_object_or_404(invoices, pk=pk)
+    end_user = invoice.end_user
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        data = {}
+
+    email_to = (data.get("email") or getattr(end_user, "email", "") or "").strip()
+    recipient_name = (data.get("recipient_name") or "").strip()
+    if not recipient_name and end_user:
+        recipient_name = f"{getattr(end_user, 'first_name', '')} {getattr(end_user, 'surname', '')}".strip()
+
+    if not email_to:
+        return JsonResponse({"success": False, "error": "No beneficiary email address provided."}, status=400)
+
+    request._body = json.dumps({
+        "email": email_to,
+        "recipient_name": recipient_name,
+    }).encode("utf-8")
+    return send_invoice_payment_request_email(request, pk)
+
+
+@login_required
+@require_POST
+def funeral_send_payment_request_whatsapp(request, pk):
+    """Send a funeral invoice payment request by WhatsApp."""
+    profile, funeral_client, invoices = _funeral_invoice_scope(request)
+    if profile is None or funeral_client is None:
+        return JsonResponse({"success": False, "error": "Access denied."}, status=403)
+
+    invoice = get_object_or_404(invoices, pk=pk)
+    end_user = invoice.end_user
+    phone = (
+        request.POST.get("phone")
+        or getattr(end_user, "whatsapp", "")
+        or getattr(end_user, "phone", "")
+        or ""
+    ).strip()
+    if not phone:
+        return JsonResponse({"success": False, "error": "No beneficiary WhatsApp number provided."}, status=400)
+
+    request.POST = request.POST.copy()
+    request.POST["phone"] = phone
+    return send_invoice_payment_request_whatsapp(request, pk)
+
+
+@login_required
+@require_POST
+def funeral_send_payment_request_sms(request, pk):
+    """Send a funeral invoice payment request by SMS."""
+    profile, funeral_client, invoices = _funeral_invoice_scope(request)
+    if profile is None or funeral_client is None:
+        return JsonResponse({"success": False, "error": "Access denied."}, status=403)
+
+    invoice = get_object_or_404(invoices, pk=pk)
+    end_user = invoice.end_user
+    phone = (
+        request.POST.get("phone")
+        or getattr(end_user, "phone", "")
+        or getattr(end_user, "whatsapp", "")
+        or ""
+    ).strip()
+    if not phone:
+        return JsonResponse({"success": False, "error": "No beneficiary mobile number provided."}, status=400)
+
+    request.POST = request.POST.copy()
+    request.POST["phone"] = phone
+    return send_invoice_payment_request_sms(request, pk)
 
 def prev_year_month(year, month, offset=1):
     """
@@ -10430,6 +11529,8 @@ def commission_rep_detail(request, user_id):
         context,
     )
 
+
+
 @login_required
 def create_ticket(request):
 
@@ -10806,4 +11907,3136 @@ def sales_knowledge_compare(request):
     )
 
 
+# ---------------------------------------------------------
+# Funeral Consultant - Customers
+# ---------------------------------------------------------
+
+def _funeral_consultant_profile(request):
+    """
+    Return the logged-in user's funeral consultant profile.
+
+    Funeral consultant access is deliberately kept separate from the
+    normal sales/client views. Every funeral customer view uses this
+    helper so a consultant can only work with customers belonging to
+    funeral parlours assigned to them.
+    """
+    try:
+        profile = (
+            SalesRepProfile.objects
+            .prefetch_related("funeral_parlours")
+            .get(user=request.user)
+        )
+    except SalesRepProfile.DoesNotExist:
+        messages.error(
+            request,
+            "Your sales profile could not be found."
+        )
+        return None
+
+    if not profile.is_funeral_consultant:
+        messages.error(
+            request,
+            "You do not have access to the Funeral Consultant portal."
+        )
+        return None
+
+    return profile
+
+
+@login_required
+def funeral_customers(request):
+    """
+    Funeral Consultant customer list.
+
+    Underlying model: EndUser.
+    Portal terminology: Customer.
+
+    The logged-in Funeral Consultant is assigned to one Client.
+    That Client is determined by Client.account_manager.
+
+    Only funeral beneficiaries belonging to that Client are returned.
+    """
+
+    # ---------------------------------------------------------
+    # VERIFY FUNERAL CONSULTANT
+    # ---------------------------------------------------------
+
+    profile = _funeral_consultant_profile(request)
+
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+
+    # ---------------------------------------------------------
+    # GET THE LOGGED-IN CONSULTANT'S CLIENT
+    # ---------------------------------------------------------
+    #
+    # A Funeral Consultant has one Client.
+    #
+    # Client.account_manager = logged-in user
+    #
+    # We do NOT use profile.funeral_parlours anymore.
+    #
+
+    funeral_client = (
+        Client.objects
+        .filter(
+            account_manager=request.user,
+            status="ACTIVE",
+        )
+        .first()
+    )
+
+    if funeral_client is None:
+        messages.error(
+            request,
+            "You are not currently assigned to an active client."
+        )
+
+        return redirect(
+            "sales:funeral-consultant-dashboard"
+        )
+
+
+    # ---------------------------------------------------------
+    # CUSTOMERS
+    # ---------------------------------------------------------
+    #
+    # Only customers belonging to THIS consultant's Client.
+    #
+
+    customers = (
+        EndUser.objects
+        .filter(
+            client=funeral_client,
+            end_user_type="FUNERAL_BENEFICIARY",
+        )
+        .select_related(
+            "client",
+            "account_manager",
+        )
+        .order_by(
+            "surname",
+            "first_name",
+        )
+    )
+
+
+    # ---------------------------------------------------------
+    # SEARCH
+    # ---------------------------------------------------------
+
+    q = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "").strip()
+    city = request.GET.get("city", "").strip()
+
+
+    if q:
+        customers = customers.filter(
+            Q(end_user_number__icontains=q)
+            | Q(first_name__icontains=q)
+            | Q(surname__icontains=q)
+            | Q(phone__icontains=q)
+            | Q(whatsapp__icontains=q)
+            | Q(email__icontains=q)
+            | Q(client__name__icontains=q)
+            | Q(client__client_number__icontains=q)
+        )
+
+
+    # ---------------------------------------------------------
+    # STATUS FILTER
+    # ---------------------------------------------------------
+
+    if status:
+        customers = customers.filter(
+            status=status
+        )
+
+
+    # ---------------------------------------------------------
+    # CITY FILTER
+    # ---------------------------------------------------------
+
+    if city:
+        customers = customers.filter(
+            city=city
+        )
+
+
+    # ---------------------------------------------------------
+    # BASE CUSTOMER QUERY
+    # ---------------------------------------------------------
+    #
+    # Used for statistics and city options.
+    # This is deliberately restricted to the logged-in
+    # consultant's Client.
+    #
+
+    base_customers = EndUser.objects.filter(
+        client=funeral_client,
+        end_user_type="FUNERAL_BENEFICIARY",
+    )
+
+
+    # ---------------------------------------------------------
+    # STATISTICS
+    # ---------------------------------------------------------
+
+    stats = {
+        "total": base_customers.count(),
+
+        "active": base_customers.filter(
+            status="ACTIVE"
+        ).count(),
+
+        "inactive": base_customers.filter(
+            status="INACTIVE"
+        ).count(),
+    }
+
+
+    # ---------------------------------------------------------
+    # PAGINATION
+    # ---------------------------------------------------------
+
+    paginator = Paginator(
+        customers,
+        25,
+    )
+
+    page_obj = paginator.get_page(
+        request.GET.get("page")
+    )
+
+
+    # ---------------------------------------------------------
+    # AVAILABLE CITIES
+    # ---------------------------------------------------------
+
+    cities = (
+        base_customers
+        .exclude(city="")
+        .values_list(
+            "city",
+            flat=True,
+        )
+        .distinct()
+        .order_by("city")
+    )
+
+
+    # ---------------------------------------------------------
+    # CONTEXT
+    # ---------------------------------------------------------
+
+    context = {
+        "profile": profile,
+
+        # Single assigned Client
+        "funeral_client": funeral_client,
+
+        "customers": page_obj.object_list,
+
+        "object_list": page_obj.object_list,
+
+        "page_obj": page_obj,
+
+        "stats": stats,
+
+        "cities": cities,
+
+        "filters": {
+            "q": q,
+            "status": status,
+            "city": city,
+        },
+
+        "status_choices": EndUser.STATUS_CHOICES,
+    }
+
+
+    return render(
+        request,
+        "clients/funeral_customers.html",
+        context,
+    )
+
+
+
+def _get_funeral_consultant_client(request):
+    """
+    Return the single active Client assigned to the logged-in
+    Funeral Consultant.
+
+    The Client is determined by Client.account_manager.
+    """
+
+    profile = _funeral_consultant_profile(request)
+
+    if profile is None:
+        return None, None
+
+    client = (
+        Client.objects
+        .filter(
+            account_manager=request.user,
+            status="ACTIVE",
+        )
+        .first()
+    )
+
+    if client is None:
+        messages.error(
+            request,
+            "You are not currently assigned to an active client."
+        )
+        return profile, None
+
+    return profile, client
+
+
+
+@login_required
+def funeral_customer_create(request):
+    """
+    Create a new funeral customer.
+
+    The logged-in Funeral Consultant's assigned Client is
+    automatically used. The consultant cannot select or
+    change the Client.
+    """
+
+    profile, funeral_client = _get_funeral_consultant_client(request)
+
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+    if funeral_client is None:
+        return redirect("sales:funeral-consultant-dashboard")
+
+    if request.method == "POST":
+
+        form = EndUserForm(
+            request.POST,
+            client=funeral_client,
+        )
+
+        if form.is_valid():
+
+            customer = form.save(commit=False)
+
+            # ---------------------------------------------
+            # FUNERAL PORTAL OWNERSHIP
+            # ---------------------------------------------
+
+            # Always use the consultant's assigned Client.
+            customer.client = funeral_client
+
+            # Funeral portal customers are beneficiaries.
+            customer.end_user_type = "FUNERAL_BENEFICIARY"
+
+            # Automatically assign the logged-in Sales Rep.
+            customer.account_manager = request.user
+
+            # New customers are automatically Active.
+            customer.status = "ACTIVE"
+
+            customer.save()
+
+            messages.success(
+                request,
+                f"Customer {customer.full_name} "
+                f"({customer.end_user_number}) was successfully created."
+            )
+
+            return redirect(
+                "sales:funeral-customer-detail",
+                pk=customer.pk,
+            )
+
+        messages.error(
+            request,
+            "Please correct the errors below."
+        )
+
+    else:
+
+        form = EndUserForm(
+            client=funeral_client,
+        )
+
+    context = {
+        "profile": profile,
+        "funeral_client": funeral_client,
+        "form": form,
+        "page_title": "Add Customer",
+    }
+
+    return render(
+        request,
+        "clients/funeral_customer_form.html",
+        context,
+    )
+
+
+
+@login_required
+def funeral_customer_detail(request, pk):
+    """
+    Funeral customer detail / edit page.
+
+    The logged-in Funeral Consultant can only access customers
+    belonging to their single assigned Client.
+
+    The assigned Client is determined by:
+        Client.account_manager = request.user
+    """
+
+    profile, funeral_client = _get_funeral_consultant_client(request)
+
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+    if funeral_client is None:
+        return redirect("sales:funeral-consultant-dashboard")
+
+    # ---------------------------------------------------------
+    # GET CUSTOMER
+    # ---------------------------------------------------------
+    #
+    # IMPORTANT:
+    # The customer must belong to THIS consultant's Client.
+    # We do not use profile.funeral_parlours anymore.
+    #
+
+    customer = get_object_or_404(
+        EndUser.objects
+        .select_related("client", "account_manager")
+        .filter(
+            client=funeral_client,
+            end_user_type="FUNERAL_BENEFICIARY",
+        ),
+        pk=pk,
+    )
+
+    # ---------------------------------------------------------
+    # EDIT CUSTOMER
+    # ---------------------------------------------------------
+
+    if request.method == "POST":
+
+        form = EndUserForm(
+            request.POST,
+            instance=customer,
+            client=funeral_client,
+        )
+
+        if form.is_valid():
+
+            customer = form.save(commit=False)
+
+            # -------------------------------------------------
+            # SECURITY / OWNERSHIP
+            # -------------------------------------------------
+            # Never allow the consultant to change these values.
+            # -------------------------------------------------
+
+            customer.client = funeral_client
+            customer.end_user_type = "FUNERAL_BENEFICIARY"
+            customer.account_manager = request.user
+
+            customer.save()
+
+            messages.success(
+                request,
+                f"Customer {customer.full_name} was updated successfully."
+            )
+
+            return redirect(
+                "sales:funeral-customer-detail",
+                pk=customer.pk,
+            )
+
+        messages.error(
+            request,
+            "Please correct the errors below."
+        )
+
+    else:
+
+        form = EndUserForm(
+            instance=customer,
+            client=funeral_client,
+        )
+
+    context = {
+        "profile": profile,
+        "funeral_client": funeral_client,
+        "customer": customer,
+        "form": form,
+        "page_title": "Customer Details",
+    }
+
+    return render(
+        request,
+        "clients/funeral_customer_detail.html",
+        context,
+    )
+
+
+
+# ---------------------------------------------------------
+# Funeral Consultant — Quotations
+# ---------------------------------------------------------
+
+class FuneralQuotationForm(forms.ModelForm):
+    class Meta:
+        model = Quotation
+        fields = ["end_user", "customer_notes"]
+        widgets = {
+            "end_user": forms.Select(
+                attrs={
+                    "class": "form-select",
+                }
+            ),
+            "customer_notes": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 4,
+                }
+            ),
+        }
+
+    def __init__(self, *args, end_users=None, funeral_client=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.funeral_client = funeral_client
+
+        # IMPORTANT:
+        # Assign the client before ModelForm validation runs.
+        if funeral_client is not None:
+            self.instance.client = funeral_client
+
+        if end_users is not None:
+            self.fields["end_user"].queryset = end_users
+        else:
+            self.fields["end_user"].queryset = EndUser.objects.none()
+
+        self.fields["end_user"].label = "Customer / Beneficiary"
+        self.fields["end_user"].required = True
+
+    def clean_end_user(self):
+        end_user = self.cleaned_data.get("end_user")
+
+        if not end_user:
+            raise forms.ValidationError(
+                "Please select a customer."
+            )
+
+        # Security check — the selected beneficiary must belong
+        # to the funeral client's customers.
+        if self.funeral_client is not None:
+            if end_user.client_id != self.funeral_client.id:
+                raise forms.ValidationError(
+                    "This customer does not belong to your assigned funeral parlour."
+                )
+
+        return end_user
+
+
+def _funeral_quotation_scope(request):
+    profile = _funeral_consultant_profile(request)
+
+    if profile is None:
+        return None, None, EndUser.objects.none()
+
+    funeral_client = (
+        Client.objects
+        .filter(
+            account_manager=request.user,
+            status="ACTIVE",
+        )
+        .first()
+    )
+
+    if funeral_client is None:
+        messages.error(
+            request,
+            "You are not currently assigned to an active funeral client."
+        )
+        return profile, None, EndUser.objects.none()
+
+    end_users = (
+        EndUser.objects
+        .filter(
+            client=funeral_client,
+            end_user_type="FUNERAL_BENEFICIARY",
+            status="ACTIVE",
+        )
+        .select_related(
+            "client",
+            "account_manager",
+        )
+        .order_by(
+            "surname",
+            "first_name",
+        )
+    )
+
+    return profile, funeral_client, end_users
+
+
+
+@login_required
+def funeral_quotations(request):
+    """
+    List quotations created through the funeral consultant portal.
+
+    The logged-in funeral consultant is linked to one Client through
+    Client.account_manager. Only quotations belonging to that Client
+    and its funeral beneficiaries are shown.
+    """
+
+    # =========================================================
+    # GET CONSULTANT + ASSIGNED CLIENT + CUSTOMERS
+    # =========================================================
+
+    profile, funeral_client, end_users = _funeral_quotation_scope(request)
+
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+    if funeral_client is None:
+        return redirect(
+            "sales:funeral-consultant-dashboard"
+        )
+
+
+    # =========================================================
+    # BASE QUERYSET
+    # =========================================================
+
+    qs = (
+        Quotation.objects
+        .filter(
+            client=funeral_client,
+            end_user__isnull=False,
+            end_user__end_user_type="FUNERAL_BENEFICIARY",
+        )
+        .select_related(
+            "client",
+            "end_user",
+            "created_by",
+            "accepted_by",
+            "converted_order",
+        )
+        .prefetch_related(
+            "items",
+        )
+        .order_by(
+            "-created_at",
+        )
+    )
+
+
+    # =========================================================
+    # SEARCH
+    # =========================================================
+
+    search = (
+        request.GET.get("search") or ""
+    ).strip()
+
+
+    if search:
+
+        qs = qs.filter(
+            Q(
+                end_user__end_user_number__icontains=search
+            )
+            | Q(
+                end_user__first_name__icontains=search
+            )
+            | Q(
+                end_user__surname__icontains=search
+            )
+            | Q(
+                end_user__phone__icontains=search
+            )
+            | Q(
+                end_user__whatsapp__icontains=search
+            )
+            | Q(
+                client__name__icontains=search
+            )
+            | Q(
+                pk__icontains=search
+            )
+        )
+
+
+    # =========================================================
+    # STATUS FILTER
+    # =========================================================
+
+    status = (
+        request.GET.get("status") or ""
+    ).strip()
+
+
+    if status:
+        qs = qs.filter(
+            status=status
+        )
+
+
+    # =========================================================
+    # STATUS OPTIONS
+    # =========================================================
+
+    statuses = Quotation.STATUS_CHOICES
+
+
+    # =========================================================
+    # STATISTICS
+    # =========================================================
+
+    stats_qs = qs
+
+    stats = {
+        "total": stats_qs.count(),
+
+        "draft": stats_qs.filter(
+            status="draft"
+        ).count(),
+
+        "sent": stats_qs.filter(
+            status="sent"
+        ).count(),
+
+        "accepted": stats_qs.filter(
+            status="accepted"
+        ).count(),
+
+        "rejected": stats_qs.filter(
+            status="rejected"
+        ).count(),
+    }
+
+
+    # =========================================================
+    # PAGINATION
+    # =========================================================
+
+    paginator = Paginator(
+        qs,
+        25,
+    )
+
+    page_obj = paginator.get_page(
+        request.GET.get("page")
+    )
+
+
+    # =========================================================
+    # RENDER
+    # =========================================================
+
+    return render(
+        request,
+        "quotations/funeral_quotations.html",
+        {
+            "profile": profile,
+
+            # The consultant's assigned funeral parlour.
+            "funeral_client": funeral_client,
+
+            # Customers belonging to that client.
+            "customers": end_users,
+
+            # Paginated quotations.
+            "quotations": page_obj.object_list,
+
+            "page_obj": page_obj,
+
+            "statuses": statuses,
+
+            "stats": stats,
+
+            "search": search,
+
+            "selected_status": status,
+
+            "page_title": "Quotations",
+        },
+    )
+
+
+
+
+@login_required
+def funeral_quotation_create(request):
+    """
+    Create a quotation through the funeral consultant portal.
+
+    The logged-in funeral consultant is assigned to one Client through
+    Client.account_manager. The Client is automatically determined by
+    the system and cannot be selected by the consultant.
+
+    Customers / beneficiaries are restricted to that Client.
+    """
+
+    # =========================================================
+    # GET CONSULTANT + ASSIGNED CLIENT + CUSTOMERS
+    # =========================================================
+
+    profile, funeral_client, end_users = _funeral_quotation_scope(request)
+
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+    if funeral_client is None:
+        return redirect(
+            "sales:funeral-consultant-dashboard"
+        )
+
+    # =========================================================
+    # POST
+    # =========================================================
+
+    if request.method == "POST":
+
+        form = FuneralQuotationForm(
+            request.POST,
+            funeral_client=funeral_client,
+            end_users=end_users,
+        )
+
+        formset = QuotationItemFormSet(
+            request.POST,
+            prefix="items",
+        )
+
+        # -----------------------------------------------------
+        # VALIDATE
+        # -----------------------------------------------------
+
+        if form.is_valid() and formset.is_valid():
+
+            end_user = form.cleaned_data["end_user"]
+
+            # -------------------------------------------------
+            # SECURITY CHECK
+            # -------------------------------------------------
+
+            if end_user.client_id != funeral_client.id:
+                messages.error(
+                    request,
+                    "The selected customer does not belong to your assigned funeral parlour."
+                )
+
+                return redirect(
+                    "sales:funeral-quotation-create"
+                )
+
+            # -------------------------------------------------
+            # CREATE QUOTATION
+            # -------------------------------------------------
+
+            quotation = form.save(commit=False)
+
+            # The Client is ALWAYS the consultant's assigned
+            # funeral client.
+            quotation.client = funeral_client
+
+            # The selected beneficiary/customer belongs to
+            # that Client.
+            quotation.end_user = end_user
+
+            # Audit information.
+            quotation.created_by = request.user
+
+            # Funeral quotations start as drafts.
+            quotation.status = "draft"
+
+            # Dates.
+            quotation.quotation_date = timezone.now()
+
+            quotation.valid_until = (
+                timezone.now() + timedelta(hours=72)
+            ).date()
+
+            # -------------------------------------------------
+            # SAVE QUOTATION
+            # -------------------------------------------------
+
+            quotation.save()
+
+            # -------------------------------------------------
+            # SAVE ITEMS
+            # -------------------------------------------------
+
+            formset.instance = quotation
+            formset.save()
+
+            # -------------------------------------------------
+            # RECALCULATE TOTALS
+            # -------------------------------------------------
+
+            quotation.recalc_totals()
+
+            # -------------------------------------------------
+            # SUCCESS
+            # -------------------------------------------------
+
+            messages.success(
+                request,
+                "Quotation created successfully."
+            )
+
+            return redirect(
+                "sales:funeral-quotation-detail",
+                pk=quotation.pk,
+            )
+
+    # =========================================================
+    # GET
+    # =========================================================
+
+    else:
+
+        form = FuneralQuotationForm(
+            funeral_client=funeral_client,
+            end_users=end_users,
+        )
+
+        formset = QuotationItemFormSet(
+            prefix="items",
+        )
+
+    # =========================================================
+    # RENDER
+    # =========================================================
+
+    return render(
+        request,
+        "quotations/funeral_quotation_form.html",
+        {
+            "profile": profile,
+            "form": form,
+            "formset": formset,
+            "funeral_client": funeral_client,
+            "now": timezone.now(),
+        },
+    )
+
+
+
+@login_required
+def funeral_quotation_detail(request, pk):
+    """
+    View a funeral quotation belonging to the logged-in funeral consultant's
+    assigned funeral client.
+
+    The funeral consultant is linked to one Client through
+    Client.account_manager. The consultant cannot access quotations belonging
+    to another Client.
+    """
+
+    # =========================================================
+    # GET CONSULTANT + ASSIGNED CLIENT + CUSTOMERS
+    # =========================================================
+
+    profile, funeral_client, end_users = _funeral_quotation_scope(request)
+
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+    if funeral_client is None:
+        return redirect(
+            "sales:funeral-consultant-dashboard"
+        )
+
+    # =========================================================
+    # GET QUOTATION
+    # =========================================================
+
+    quotation = get_object_or_404(
+        Quotation.objects
+        .filter(
+            client=funeral_client,
+            end_user__isnull=False,
+            end_user__end_user_type="FUNERAL_BENEFICIARY",
+        )
+        .select_related(
+            "client",
+            "end_user",
+            "created_by",
+            "accepted_by",
+            "converted_order",
+        )
+        .prefetch_related(
+            "items__product",
+            "items__category",
+        ),
+        pk=pk,
+    )
+
+    # =========================================================
+    # QUOTATION ITEMS
+    # =========================================================
+
+    item_rows = list(
+        quotation.items.all()
+    )
+
+    # =========================================================
+    # RENDER
+    # =========================================================
+
+    return render(
+        request,
+        "quotations/funeral_quotation_detail.html",
+        {
+            "profile": profile,
+            "funeral_client": funeral_client,
+            "quotation": quotation,
+            "item_rows": item_rows,
+        },
+    )
+
+
+@login_required
+def funeral_quotation_edit(request, pk):
+    """
+    Edit an existing funeral quotation.
+
+    The logged-in funeral consultant is automatically restricted to:
+    - Their assigned funeral client
+    - Funeral beneficiary EndUsers belonging to that client
+    - Quotations belonging to that client and beneficiary
+
+    The funeral client is NEVER selected by the consultant.
+
+    Editable:
+    - Customer / beneficiary
+    - Customer notes
+    - Quotation items
+    - Quantities
+    - Discounts
+
+    Not editable:
+    - Funeral client
+    - Quotation status
+    - Quotation date
+    - Valid-until date
+    """
+
+    # =========================================================
+    # 1. GET CONSULTANT SCOPE
+    # =========================================================
+
+    profile, funeral_client, end_users = _funeral_quotation_scope(request)
+
+    if profile is None or funeral_client is None:
+        return redirect(
+            "sales:funeral-consultant-dashboard"
+        )
+
+    # =========================================================
+    # 2. GET QUOTATION
+    #
+    # IMPORTANT:
+    # Scope directly to the consultant's assigned client.
+    # =========================================================
+
+    quotation = get_object_or_404(
+        Quotation.objects
+        .filter(
+            client=funeral_client,
+            end_user__isnull=False,
+            end_user__end_user_type="FUNERAL_BENEFICIARY",
+        )
+        .select_related(
+            "client",
+            "end_user",
+            "created_by",
+            "accepted_by",
+            "converted_order",
+        )
+        .prefetch_related(
+            "items__product",
+            "items__category",
+        ),
+        pk=pk,
+    )
+
+    # =========================================================
+    # 3. LOCKED QUOTATION STATUSES
+    # =========================================================
+
+    locked_statuses = [
+        "accepted",
+        "rejected",
+        "expired",
+    ]
+
+    if quotation.status in locked_statuses:
+
+        messages.warning(
+            request,
+            "This quotation can no longer be edited.",
+        )
+
+        return redirect(
+            "sales:funeral-quotation-detail",
+            pk=quotation.pk,
+        )
+
+    # =========================================================
+    # 4. POST
+    # =========================================================
+
+    if request.method == "POST":
+
+        # -----------------------------------------------------
+        # HEADER FORM
+        # -----------------------------------------------------
+
+        form = FuneralQuotationForm(
+            request.POST,
+            instance=quotation,
+            funeral_client=funeral_client,
+            end_users=end_users,
+        )
+
+        # -----------------------------------------------------
+        # ITEM FORMSET
+        #
+        # instance=quotation is essential.
+        # -----------------------------------------------------
+
+        formset = QuotationItemFormSet(
+            request.POST,
+            instance=quotation,
+            prefix="items",
+        )
+
+        # -----------------------------------------------------
+        # VALIDATE
+        # -----------------------------------------------------
+
+        if form.is_valid() and formset.is_valid():
+
+            try:
+
+                with transaction.atomic():
+
+                    # =================================================
+                    # CUSTOMER
+                    # =================================================
+
+                    end_user = form.cleaned_data.get(
+                        "end_user"
+                    )
+
+                    if not end_user:
+                        raise forms.ValidationError(
+                            "Please select a customer."
+                        )
+
+                    # -------------------------------------------------
+                    # SECURITY CHECK
+                    # -------------------------------------------------
+
+                    if not end_users.filter(
+                        pk=end_user.pk
+                    ).exists():
+
+                        raise forms.ValidationError(
+                            "The selected customer does not belong "
+                            "to your assigned funeral parlour."
+                        )
+
+                    # =================================================
+                    # SAVE QUOTATION HEADER
+                    # =================================================
+
+                    quotation = form.save(
+                        commit=False
+                    )
+
+                    # -------------------------------------------------
+                    # NEVER TRUST CLIENT FROM THE FORM
+                    # -------------------------------------------------
+
+                    quotation.client = funeral_client
+
+                    # -------------------------------------------------
+                    # NEVER ALLOW CUSTOMER TO ESCAPE THE SCOPE
+                    # -------------------------------------------------
+
+                    quotation.end_user = end_user
+
+                    # -------------------------------------------------
+                    # Preserve existing quotation status
+                    # -------------------------------------------------
+
+                    quotation.status = quotation.status
+
+                    quotation.save()
+
+                    # =================================================
+                    # SAVE ITEMS
+                    # =================================================
+
+                    items = formset.save(
+                        commit=False
+                    )
+
+                    # -------------------------------------------------
+                    # Save / update existing items
+                    # -------------------------------------------------
+
+                    for item in items:
+
+                        item.quotation = quotation
+
+                        item.save()
+
+                    # -------------------------------------------------
+                    # Delete items marked for deletion
+                    # -------------------------------------------------
+
+                    for deleted in formset.deleted_objects:
+
+                        deleted.delete()
+
+                    # =================================================
+                    # RECALCULATE TOTALS
+                    # =================================================
+
+                    quotation.recalc_totals(
+                        save=True
+                    )
+
+                # =====================================================
+                # SUCCESS
+                # =====================================================
+
+                messages.success(
+                    request,
+                    (
+                        f"Quotation #{quotation.pk} "
+                        f"updated successfully."
+                    ),
+                )
+
+                return redirect(
+                    "sales:funeral-quotation-detail",
+                    pk=quotation.pk,
+                )
+
+            except forms.ValidationError as exc:
+
+                messages.error(
+                    request,
+                    str(exc),
+                )
+
+            except Exception as exc:
+
+                messages.error(
+                    request,
+                    (
+                        "Quotation could not be updated: "
+                        f"{exc}"
+                    ),
+                )
+
+        else:
+
+            messages.error(
+                request,
+                "Please correct the errors below.",
+            )
+
+    # =========================================================
+    # 5. GET
+    # =========================================================
+
+    else:
+
+        # -----------------------------------------------------
+        # Header form
+        # -----------------------------------------------------
+
+        form = FuneralQuotationForm(
+            instance=quotation,
+            funeral_client=funeral_client,
+            end_users=end_users,
+        )
+
+        # -----------------------------------------------------
+        # Existing quotation items
+        #
+        # This MUST be bound to quotation.
+        # -----------------------------------------------------
+
+        formset = QuotationItemFormSet(
+            instance=quotation,
+            prefix="items",
+        )
+
+    # =========================================================
+    # 6. BUILD EXISTING ITEM DATA FOR JAVASCRIPT
+    #
+    # This is important.
+    #
+    # We explicitly expose the existing product/category,
+    # price, VAT and discount values so that JavaScript can
+    # rebuild the product dropdown without losing the saved
+    # quotation data.
+    # =========================================================
+
+    existing_items = []
+
+    for item in quotation.items.all().order_by("id"):
+
+        discount_percent = Decimal("0.00")
+
+        if (
+            item.unit_price_excl
+            and item.unit_price_excl > Decimal("0.00")
+            and item.discount_excl
+        ):
+            discount_percent = (
+                item.discount_excl
+                / item.unit_price_excl
+                * Decimal("100.00")
+            )
+
+        existing_items.append(
+            {
+                "id": item.pk,
+                "category_id": item.category_id,
+                "category_name": (
+                    item.category.name
+                    if item.category
+                    else ""
+                ),
+                "product_id": item.product_id,
+                "product_name": (
+                    item.product_name
+                    or (
+                        item.product.name
+                        if item.product
+                        else ""
+                    )
+                ),
+                "sku": item.sku or "",
+                "quantity": item.quantity,
+                "unit_price_excl": (
+                    item.unit_price_excl
+                    or Decimal("0.00")
+                ),
+                "unit_price_inc": (
+                    item.unit_price_inc
+                    or Decimal("0.00")
+                ),
+                "discount_excl": (
+                    item.discount_excl
+                    or Decimal("0.00")
+                ),
+                "discount_percent": discount_percent,
+                "vat_percent": (
+                    item.vat_percent
+                    or Decimal("0.00")
+                ),
+            }
+        )
+
+    # =========================================================
+    # 7. RENDER
+    # =========================================================
+
+    return render(
+        request,
+        "quotations/funeral_quotation_edit.html",
+        {
+            "profile": profile,
+            "funeral_client": funeral_client,
+
+            "quotation": quotation,
+            "form": form,
+            "formset": formset,
+
+            "end_users": end_users,
+
+            # Existing items for JavaScript
+            "existing_items": existing_items,
+
+            "locked_statuses": locked_statuses,
+        },
+    )
+
+      
+class FuneralOrderForm(forms.ModelForm):
+    """Order header form used exclusively by funeral consultants."""
+
+    class Meta:
+        model = Order
+        fields = [
+            "end_user",
+            "order_date",
+            "channel",
+            "status",
+            "customer_notes",
+            "discount_total_excl",
+            "delivery_fee_excl",
+            "delivery_fee_vat_percent",
+            "notes",
+        ]
+        widgets = {
+            "end_user": widgets.Select(attrs={"class": "form-select"}),
+            "order_date": widgets.DateTimeInput(
+                attrs={"class": "form-control", "type": "datetime-local"}
+            ),
+            "channel": widgets.Select(attrs={"class": "form-select"}),
+            "status": widgets.Select(attrs={"class": "form-select"}),
+            "customer_notes": widgets.Textarea(
+                attrs={"class": "form-control", "rows": 3}
+            ),
+            "discount_total_excl": widgets.NumberInput(
+                attrs={"class": "form-control", "step": "0.01", "min": "0"}
+            ),
+            "delivery_fee_excl": widgets.NumberInput(
+                attrs={"class": "form-control", "step": "0.01", "min": "0"}
+            ),
+            "delivery_fee_vat_percent": widgets.NumberInput(
+                attrs={"class": "form-control", "step": "0.01", "min": "0", "max": "100"}
+            ),
+            "notes": widgets.Textarea(
+                attrs={"class": "form-control", "rows": 3}
+            ),
+        }
+
+    def __init__(self, *args, end_users=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if end_users is not None:
+            self.fields["end_user"].queryset = end_users
+        else:
+            self.fields["end_user"].queryset = EndUser.objects.none()
+
+        self.fields["end_user"].label = "Customer"
+        self.fields["end_user"].required = True
+
+    def clean_end_user(self):
+        end_user = self.cleaned_data.get("end_user")
+        if not end_user:
+            raise forms.ValidationError("Please select a customer.")
+        return end_user
+
+
+@login_required
+def funeral_orders(request):
+    """
+    List orders belonging to customers served through the
+    logged-in funeral consultant's assigned funeral client.
+    """
+
+    # ---------------------------------------------------------
+    # 1. Get consultant profile, assigned client and customers
+    # ---------------------------------------------------------
+    profile, funeral_client, end_users = _funeral_quotation_scope(request)
+
+    if profile is None or funeral_client is None:
+        return redirect("sales:funeral-consultant-dashboard")
+
+    # ---------------------------------------------------------
+    # 2. Get funeral orders for this consultant's client
+    #
+    # The consultant does NOT choose a client.
+    # The assigned funeral_client is the source of truth.
+    # ---------------------------------------------------------
+    qs = (
+        Order.objects
+        .filter(
+            client=funeral_client,
+            end_user__isnull=False,
+            end_user__end_user_type="FUNERAL_BENEFICIARY",
+        )
+        .select_related(
+            "client",
+            "end_user",
+            "created_by",
+        )
+        .prefetch_related(
+            "items",
+        )
+        .order_by("-submitted_at", "-id")
+    )
+
+    # ---------------------------------------------------------
+    # 3. Search
+    # ---------------------------------------------------------
+    search = (request.GET.get("search") or "").strip()
+
+    if search:
+        qs = qs.filter(
+            Q(end_user__end_user_number__icontains=search)
+            | Q(end_user__first_name__icontains=search)
+            | Q(end_user__surname__icontains=search)
+            | Q(end_user__phone__icontains=search)
+            | Q(end_user__whatsapp__icontains=search)
+            | Q(client__name__icontains=search)
+            | Q(pk__icontains=search)
+        )
+
+    # ---------------------------------------------------------
+    # 4. Status filter
+    # ---------------------------------------------------------
+    status = (request.GET.get("status") or "").strip()
+
+    if status:
+        qs = qs.filter(status=status)
+
+    # ---------------------------------------------------------
+    # 5. Status and channel choices
+    # ---------------------------------------------------------
+    status_choices = Order._meta.get_field("status").choices
+    channel_choices = Order._meta.get_field("channel").choices
+
+    # ---------------------------------------------------------
+    # 6. Statistics
+    #
+    # Keep statistics restricted to the same funeral client.
+    # ---------------------------------------------------------
+    stats_qs = Order.objects.filter(
+        client=funeral_client,
+        end_user__isnull=False,
+        end_user__end_user_type="FUNERAL_BENEFICIARY",
+    )
+
+    stats = {
+        "total": stats_qs.count(),
+        "draft": stats_qs.filter(status="draft").count(),
+        "submitted": stats_qs.filter(status="submitted").count(),
+        "processing": stats_qs.filter(status="processing").count(),
+        "completed": stats_qs.filter(status="completed").count(),
+        "cancelled": stats_qs.filter(status="cancelled").count(),
+    }
+
+    # ---------------------------------------------------------
+    # 7. Pagination
+    # ---------------------------------------------------------
+    paginator = Paginator(qs, 25)
+
+    page_obj = paginator.get_page(
+        request.GET.get("page")
+    )
+
+    # ---------------------------------------------------------
+    # 8. Render
+    # ---------------------------------------------------------
+    return render(
+        request,
+        "orders/funeral_orders.html",
+        {
+            "profile": profile,
+            "funeral_client": funeral_client,
+            "orders": page_obj.object_list,
+            "page_obj": page_obj,
+            "status_choices": status_choices,
+            "channel_choices": channel_choices,
+            "customers": end_users,
+            "stats": stats,
+            "search": search,
+            "selected_status": status,
+        },
+    )
+
+
+
+@login_required
+def funeral_order_create(request):
+    """Create an order for an assigned funeral customer."""
+    profile, end_users = _funeral_quotation_scope(request)
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+    if request.method == "POST":
+        form = FuneralOrderForm(request.POST, end_users=end_users)
+        dummy_parent = Order()
+        formset = OrderItemFormSet(
+            request.POST,
+            instance=dummy_parent,
+            prefix="items",
+        )
+
+        if form.is_valid() and formset.is_valid():
+            try:
+                with transaction.atomic():
+                    end_user = form.cleaned_data["end_user"]
+
+                    if not end_users.filter(pk=end_user.pk).exists():
+                        raise forms.ValidationError(
+                            "You can only create orders for customers belonging to your assigned funeral parlours."
+                        )
+
+                    order = form.save(commit=False)
+                    order.client = end_user.client
+                    order.end_user = end_user
+                    order.created_by = request.user
+                    order.save()
+
+                    formset.instance = order
+                    formset.save()
+                    order.recalc_totals(save=True)
+
+                messages.success(
+                    request,
+                    f"Order #{order.id} created successfully."
+                )
+                return redirect(
+                    "sales:funeral-order-detail",
+                    pk=order.pk,
+                )
+
+            except Exception as exc:
+                messages.error(
+                    request,
+                    f"Order could not be created: {exc}"
+                )
+        else:
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = FuneralOrderForm(end_users=end_users)
+        formset = OrderItemFormSet(
+            instance=Order(),
+            prefix="items",
+        )
+
+    return render(
+        request,
+        "orders/funeral_order_form.html",
+        {
+            "profile": profile,
+            "form": form,
+            "formset": formset,
+            "prefix": "items",
+            "page_title": "Create Order",
+        },
+    )
+
+
+@login_required
+def funeral_order_detail(request, pk):
+    """
+    Dedicated order detail view for Funeral Parlour Consultants.
+
+    The consultant can only view orders belonging to their assigned
+    funeral client.
+
+    Available actions:
+        - Approve Order
+        - Cancel Order
+
+    Locked statuses:
+        - Complete
+        - Returned
+        - Cancelled
+        - Credit Blocked
+
+    Once an order reaches a locked status, the Funeral Consultant
+    cannot approve or cancel it.
+
+    The consultant cannot edit:
+        - Client
+        - End User
+        - Products
+        - Quantities
+        - Prices
+        - Discounts
+        - VAT
+        - Delivery fees
+        - Totals
+        - Order creator
+    """
+
+    # ---------------------------------------------------------
+    # 1. Get consultant profile, assigned funeral client
+    #    and customers
+    # ---------------------------------------------------------
+    profile, funeral_client, end_users = _funeral_quotation_scope(request)
+
+    if profile is None or funeral_client is None:
+        return redirect(
+            "sales:funeral-consultant-dashboard"
+        )
+
+    # ---------------------------------------------------------
+    # 2. Get the order
+    #
+    # The order is scoped directly to the consultant's assigned
+    # funeral client.
+    #
+    # This prevents access to another funeral client's order
+    # by manually changing the order ID in the URL.
+    # ---------------------------------------------------------
+    order = get_object_or_404(
+        Order.objects
+        .filter(
+            client=funeral_client,
+            end_user__isnull=False,
+            end_user__end_user_type="FUNERAL_BENEFICIARY",
+        )
+        .select_related(
+            "client",
+            "end_user",
+            "created_by",
+            "reviewed_by",
+            "approved_by",
+        )
+        .prefetch_related(
+            "items__product",
+            "items__category",
+        ),
+        pk=pk,
+    )
+
+    # ---------------------------------------------------------
+    # 3. Locked statuses
+    #
+    # Once an order reaches any of these statuses, the Funeral
+    # Consultant cannot approve or cancel the order.
+    # ---------------------------------------------------------
+    locked_statuses = {
+        "complete",
+        "returned",
+        "cancelled",
+        "credit_blocked",
+    }
+
+    # ---------------------------------------------------------
+    # 4. Handle consultant actions
+    #
+    # Only APPROVE and CANCEL are accepted.
+    # ---------------------------------------------------------
+    if request.method == "POST":
+
+        action = (
+            request.POST.get("action") or ""
+        ).strip().lower()
+
+        # =====================================================
+        # APPROVE
+        # =====================================================
+        if action == "approve":
+
+            # -------------------------------------------------
+            # Locked orders cannot be approved.
+            # -------------------------------------------------
+            if order.status in locked_statuses:
+
+                messages.error(
+                    request,
+                    (
+                        f"This order cannot be approved because "
+                        f"its current status is "
+                        f"“{order.get_status_display()}”."
+                    ),
+                )
+
+                return redirect(
+                    "sales:funeral-order-detail",
+                    pk=order.pk,
+                )
+
+            # -------------------------------------------------
+            # Only pending orders can be approved.
+            #
+            # This prevents approving an order that has already
+            # progressed further through the workflow.
+            # -------------------------------------------------
+            if order.status != "pending":
+
+                messages.info(
+                    request,
+                    (
+                        f"This order cannot be approved because "
+                        f"it is currently "
+                        f"“{order.get_status_display()}”."
+                    ),
+                )
+
+                return redirect(
+                    "sales:funeral-order-detail",
+                    pk=order.pk,
+                )
+
+            # -------------------------------------------------
+            # Store old status for the message.
+            # -------------------------------------------------
+            old_status = order.get_status_display()
+
+            # -------------------------------------------------
+            # Set approved.
+            #
+            # IMPORTANT:
+            # Do NOT use update_fields here.
+            #
+            # The existing Order.save() method contains the
+            # approval workflow and must be allowed to execute.
+            # -------------------------------------------------
+            order.status = "approved"
+            order.save()
+
+            messages.success(
+                request,
+                (
+                    f"Order #{order.pk} was approved "
+                    f"from “{old_status}”."
+                ),
+            )
+
+            return redirect(
+                "sales:funeral-order-detail",
+                pk=order.pk,
+            )
+
+        # =====================================================
+        # CANCEL
+        # =====================================================
+        elif action == "cancel":
+
+            # -------------------------------------------------
+            # Locked orders cannot be cancelled.
+            # -------------------------------------------------
+            if order.status in locked_statuses:
+
+                messages.error(
+                    request,
+                    (
+                        f"This order cannot be cancelled because "
+                        f"its current status is "
+                        f"“{order.get_status_display()}”."
+                    ),
+                )
+
+                return redirect(
+                    "sales:funeral-order-detail",
+                    pk=order.pk,
+                )
+
+            # -------------------------------------------------
+            # Store old status.
+            # -------------------------------------------------
+            old_status = order.get_status_display()
+
+            # -------------------------------------------------
+            # Cancel order.
+            #
+            # Use normal save() so the existing Order.save()
+            # status and audit logic remains active.
+            # -------------------------------------------------
+            order.status = "cancelled"
+            order.save()
+
+            messages.success(
+                request,
+                (
+                    f"Order #{order.pk} was cancelled "
+                    f"from “{old_status}”."
+                ),
+            )
+
+            return redirect(
+                "sales:funeral-order-detail",
+                pk=order.pk,
+            )
+
+        # =====================================================
+        # INVALID ACTION
+        # =====================================================
+        else:
+
+            messages.error(
+                request,
+                "Invalid order action.",
+            )
+
+            return redirect(
+                "sales:funeral-order-detail",
+                pk=order.pk,
+            )
+
+    # ---------------------------------------------------------
+    # 5. Recalculate totals for display only
+    #
+    # save=False ensures opening the page does not modify
+    # the order.
+    # ---------------------------------------------------------
+    try:
+        order.recalc_totals(
+            save=False
+        )
+    except Exception:
+        pass
+
+    # ---------------------------------------------------------
+    # 6. Get related invoice, if one exists
+    # ---------------------------------------------------------
+    invoice = None
+
+    try:
+        invoice = order.invoice
+    except Exception:
+        invoice = None
+
+    # ---------------------------------------------------------
+    # 7. Get order items
+    # ---------------------------------------------------------
+    items = (
+        order.items
+        .all()
+        .order_by("id")
+    )
+
+    # ---------------------------------------------------------
+    # 8. Determine whether consultant actions are available
+    #
+    # Approve:
+    #   Only available while the order is pending.
+    #
+    # Cancel:
+    #   Available until the order reaches a locked status.
+    # ---------------------------------------------------------
+    can_approve = (
+        order.status == "pending"
+        and order.status not in locked_statuses
+    )
+
+    can_cancel = (
+        order.status not in locked_statuses
+    )
+
+    # ---------------------------------------------------------
+    # 9. Render detail page
+    # ---------------------------------------------------------
+    return render(
+        request,
+        "orders/funeral_order_detail.html",
+        {
+            "profile": profile,
+            "funeral_client": funeral_client,
+            "end_users": end_users,
+
+            "order": order,
+            "items": items,
+            "invoice": invoice,
+
+            "can_approve": can_approve,
+            "can_cancel": can_cancel,
+
+            "locked_statuses": locked_statuses,
+        },
+    )
+
+
+
+
+      
+
+@login_required
+def funeral_order_edit(request, pk):
+    """Edit an order belonging to an assigned funeral parlour customer."""
+    profile, end_users = _funeral_quotation_scope(request)
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+    assigned_parlour_ids = profile.funeral_parlours.values_list("pk", flat=True)
+
+    order = get_object_or_404(
+        Order.objects
+        .filter(
+            client_id__in=assigned_parlour_ids,
+            end_user__isnull=False,
+            end_user__end_user_type="FUNERAL_BENEFICIARY",
+        )
+        .select_related("client", "end_user")
+        .prefetch_related("items"),
+        pk=pk,
+    )
+
+    if request.method == "POST":
+        form = FuneralOrderForm(
+            request.POST,
+            instance=order,
+            end_users=end_users,
+        )
+        formset = OrderItemFormSet(
+            request.POST,
+            instance=order,
+            prefix="items",
+        )
+
+        if form.is_valid() and formset.is_valid():
+            try:
+                with transaction.atomic():
+                    end_user = form.cleaned_data["end_user"]
+
+                    if not end_users.filter(pk=end_user.pk).exists():
+                        raise forms.ValidationError(
+                            "You can only use customers belonging to your assigned funeral parlours."
+                        )
+
+                    order = form.save(commit=False)
+                    order.client = end_user.client
+                    order.end_user = end_user
+                    order.save()
+
+                    formset.save()
+                    order.recalc_totals(save=True)
+
+                messages.success(
+                    request,
+                    f"Order #{order.id} updated successfully."
+                )
+                return redirect(
+                    "sales:funeral-order-detail",
+                    pk=order.pk,
+                )
+
+            except Exception as exc:
+                messages.error(
+                    request,
+                    f"Order could not be updated: {exc}"
+                )
+        else:
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = FuneralOrderForm(
+            instance=order,
+            end_users=end_users,
+        )
+        formset = OrderItemFormSet(
+            instance=order,
+            prefix="items",
+        )
+
+    return render(
+        request,
+        "orders/funeral_order_form.html",
+        {
+            "profile": profile,
+            "order": order,
+            "form": form,
+            "formset": formset,
+            "prefix": "items",
+            "page_title": f"Edit Order #{order.id}",
+        },
+    )
+
+# ---------------------------------------------------------
+# Funeral
+# ---------------------------------------------------------
+
+@login_required
+def funeral_consultant_dashboard(request):
+    """
+    Dashboard specifically for Funeral Parlour Consultants.
+
+    A user must have a SalesRepProfile with
+    is_funeral_consultant=True to access this dashboard.
+    """
+
+    try:
+        profile = (
+            SalesRepProfile.objects
+            .prefetch_related("funeral_parlours")
+            .get(user=request.user)
+        )
+    except SalesRepProfile.DoesNotExist:
+        messages.error(
+            request,
+            "Your sales profile could not be found."
+        )
+        return redirect("sales:sales-dashboard")
+
+    # ---------------------------------------------------------
+    # ACCESS CHECK
+    # ---------------------------------------------------------
+    if not profile.is_funeral_consultant:
+        messages.error(
+            request,
+            "You do not have access to the Funeral Consultant dashboard."
+        )
+        return redirect("sales:sales-dashboard")
+
+    # ---------------------------------------------------------
+    # ASSIGNED FUNERAL PARLOURS
+    # ---------------------------------------------------------
+    funeral_parlours = (
+        profile.funeral_parlours
+        .filter(status="ACTIVE")
+        .order_by("name")
+    )
+
+    context = {
+        "profile": profile,
+        "funeral_parlours": funeral_parlours,
+        "funeral_parlour_count": funeral_parlours.count(),
+        "today": timezone.localdate(),
+    }
+
+    return render(
+        request,
+        "sales/funeral_consultant_dashboard.html",
+        context,
+    )
+# =========================================================
+# FUNERAL CONSULTANT — INVOICES
+# =========================================================
+
+def _funeral_invoice_scope(request):
+    """
+    Return (profile, funeral_client, invoices) for the logged-in
+    Funeral Parlour Consultant.
+
+    The consultant is assigned to one funeral Client through the
+    Client.account_manager field. The consultant cannot choose the
+    client manually.
+    """
+    profile = _funeral_consultant_profile(request)
+
+    if profile is None:
+        return None, None, Invoice.objects.none()
+
+    funeral_client = (
+        Client.objects
+        .filter(
+            account_manager=request.user,
+            status="ACTIVE",
+        )
+        .order_by("name")
+        .first()
+    )
+
+    if funeral_client is None:
+        messages.error(
+            request,
+            "You are not currently assigned to an active funeral client.",
+        )
+        return profile, None, Invoice.objects.none()
+
+    invoices = (
+        Invoice.objects
+        .filter(
+            client=funeral_client,
+            end_user__isnull=False,
+            end_user__end_user_type="FUNERAL_BENEFICIARY",
+        )
+        .select_related(
+            "client",
+            "end_user",
+            "order",
+            "order__created_by",
+        )
+        .prefetch_related(
+            "order__items",
+            "order__items__product",
+            "order__items__category",
+        )
+    )
+
+    return profile, funeral_client, invoices
+
+
+@login_required
+def funeral_invoices(request):
+    """
+    Dedicated invoice list for Funeral Parlour Consultants.
+
+    The logged-in consultant can only see invoices belonging to their
+    assigned funeral Client and its funeral beneficiaries.
+    """
+    profile, funeral_client, invoices = _funeral_invoice_scope(request)
+
+    if profile is None or funeral_client is None:
+        return redirect("sales:funeral-consultant-dashboard")
+
+    search = (request.GET.get("q") or "").strip()
+    filter_status = (request.GET.get("status") or "").strip()
+
+    # ---------------------------------------------------------
+    # SEARCH
+    # ---------------------------------------------------------
+    if search:
+        invoices = invoices.filter(
+            Q(id__icontains=search)
+            | Q(end_user__end_user_number__icontains=search)
+            | Q(end_user__first_name__icontains=search)
+            | Q(end_user__surname__icontains=search)
+            | Q(end_user__phone__icontains=search)
+            | Q(end_user__whatsapp__icontains=search)
+            | Q(client__name__icontains=search)
+            | Q(client__organization__icontains=search)
+        )
+
+    # ---------------------------------------------------------
+    # STATUS FILTER
+    # ---------------------------------------------------------
+    if filter_status:
+        invoices = invoices.filter(
+            status=filter_status
+        )
+
+    # ---------------------------------------------------------
+    # ORDERING
+    # ---------------------------------------------------------
+    invoices = invoices.order_by(
+        "-invoice_date",
+        "-id",
+    )
+
+    # ---------------------------------------------------------
+    # SUMMARY / STATISTICS
+    # ---------------------------------------------------------
+    today = timezone.localdate()
+
+    total_count = invoices.count()
+
+    total_value = (
+        invoices.aggregate(
+            total=Sum("order_total_inc")
+        )["total"]
+        or Decimal("0.00")
+    )
+
+    outstanding_value = (
+        invoices
+        .exclude(status="paid")
+        .aggregate(
+            total=Sum("amount_due")
+        )["total"]
+        or Decimal("0.00")
+    )
+
+    paid_count = invoices.filter(
+        status="paid"
+    ).count()
+
+    unpaid_count = invoices.filter(
+        status__in=[
+            "unpaid",
+            "partial",
+            "overdue",
+        ]
+    ).count()
+
+    # Do not modify the invoice in the database simply because
+    # it is past its due date. Overdue is calculated for display.
+    overdue_count = invoices.filter(
+        status__in=[
+            "unpaid",
+            "partial",
+        ],
+        due_date__lt=today,
+    ).count()
+
+    # ---------------------------------------------------------
+    # PAGINATION
+    # ---------------------------------------------------------
+    paginator = Paginator(
+        invoices,
+        25,
+    )
+
+    page = request.GET.get(
+        "page",
+        1,
+    )
+
+    try:
+        invoices_page = paginator.page(page)
+
+    except PageNotAnInteger:
+        invoices_page = paginator.page(1)
+
+    except EmptyPage:
+        invoices_page = paginator.page(
+            paginator.num_pages or 1
+        )
+
+    # ---------------------------------------------------------
+    # CONTEXT
+    # ---------------------------------------------------------
+    context = {
+        "profile": profile,
+
+        # The assigned funeral client is explicitly available
+        # to the template so the portal can display the parlour.
+        "funeral_client": funeral_client,
+
+        "invoices": invoices_page,
+        "page_obj": invoices_page,
+        "paginator": paginator,
+
+        "search": search,
+        "filter_status": filter_status,
+
+        "status_choices": Invoice.STATUS_CHOICES,
+
+        "today": today,
+
+        "total_count": total_count,
+        "total_value": total_value,
+        "outstanding_value": outstanding_value,
+        "paid_count": paid_count,
+        "unpaid_count": unpaid_count,
+        "overdue_count": overdue_count,
+    }
+
+    return render(
+        request,
+        "invoices/funeral_invoices.html",
+        context,
+    )
+
+
+@login_required
+def funeral_invoice_detail(request, pk):
+    """
+    Dedicated invoice detail view for Funeral Parlour Consultants.
+
+    Security scope:
+
+        Logged-in Funeral Consultant
+                ↓
+        Assigned Funeral Client
+                ↓
+        Funeral Beneficiary / End User
+                ↓
+        Invoice
+
+    The consultant cannot select a client manually and cannot access
+    invoices belonging to another funeral client.
+    """
+
+    # =========================================================
+    # FUNERAL CONSULTANT SCOPE
+    # =========================================================
+    profile, funeral_client, invoices = _funeral_invoice_scope(request)
+
+    if profile is None or funeral_client is None:
+        return redirect(
+            "sales:funeral-consultant-dashboard"
+        )
+
+    # =========================================================
+    # GET INVOICE
+    # IMPORTANT:
+    # The invoice is retrieved FROM THE ALREADY-SCOPED queryset.
+    # This prevents access to another funeral client's invoice.
+    # =========================================================
+    invoice = get_object_or_404(
+        invoices,
+        pk=pk,
+    )
+
+    # =========================================================
+    # RELATED ORDER
+    # =========================================================
+    order = getattr(invoice, "order", None)
+
+    # =========================================================
+    # ORDER ITEMS
+    # =========================================================
+    items = []
+
+    if order is not None:
+        items = list(
+            order.items
+            .all()
+            .select_related(
+                "product",
+                "category",
+            )
+            .order_by("id")
+        )
+
+        # -----------------------------------------------------
+        # DISPLAY VALUES
+        # Keep the stored invoice/order values unchanged.
+        # These are only display helpers for the template.
+        # -----------------------------------------------------
+        for item in items:
+            unit_price_excl = (
+                item.unit_price_excl
+                or Decimal("0.00")
+            )
+
+            vat_percent = (
+                item.vat_percent
+                or Decimal("0.00")
+            )
+
+            line_total_excl = (
+                item.line_total_excl
+                or Decimal("0.00")
+            )
+
+            line_vat_amount = (
+                item.line_vat_amount
+                or Decimal("0.00")
+            )
+
+            item.display_unit_price_inc = (
+                unit_price_excl
+                + (
+                    unit_price_excl
+                    * vat_percent
+                    / Decimal("100")
+                )
+            )
+
+            item.display_line_total_inc = (
+                line_total_excl
+                + line_vat_amount
+            )
+
+    # =========================================================
+    # CUSTOMER / FUNERAL BENEFICIARY
+    # =========================================================
+    end_user = invoice.end_user
+
+    # =========================================================
+    # DATE / OVERDUE STATUS
+    # =========================================================
+    today = timezone.localdate()
+
+    is_overdue = (
+        invoice.status != "paid"
+        and invoice.due_date is not None
+        and invoice.due_date < today
+    )
+
+    # =========================================================
+    # DEPOSIT BALANCE
+    # Same calculation used by the standard invoice detail view.
+    # =========================================================
+    deposit_paid = (
+        invoice.deposit_paid
+        or Decimal("0.00")
+    )
+
+    deposit_required = (
+        invoice.deposit_required
+        or Decimal("0.00")
+    )
+
+    deposit_outstanding = max(
+        deposit_required - deposit_paid,
+        Decimal("0.00"),
+    )
+
+    # =========================================================
+    # CREDIT OUTSTANDING
+    #
+    # Keep this compatible with the existing invoice system.
+    # Funeral consultants do not get to choose the client;
+    # everything remains scoped to funeral_client.
+    # =========================================================
+    from credit.models import CreditEntry
+    from django.db.models import Sum
+
+    credit_repaid = (
+        CreditEntry.objects
+        .filter(
+            invoice=invoice,
+            kind=CreditEntry.REPAYMENT,
+            credit_account__client=funeral_client,
+        )
+        .aggregate(
+            total=Sum("amount")
+        )["total"]
+        or Decimal("0.00")
+    )
+
+    credit_used = (
+        invoice.credit_used
+        or Decimal("0.00")
+    )
+
+    credit_outstanding = (
+        credit_used - credit_repaid
+    )
+
+    if credit_outstanding < 0:
+        credit_outstanding = Decimal("0.00")
+
+    # =========================================================
+    # CUSTOMER CONTACT DETAILS
+    #
+    # For funeral invoices, communication should primarily go
+    # to the End User / Beneficiary.
+    #
+    # The funeral client remains the commercial client/parlour.
+    # =========================================================
+    default_email = ""
+
+    if end_user is not None:
+        default_email = (
+            getattr(end_user, "email", "")
+            or ""
+        ).strip()
+
+    # =========================================================
+    # CUSTOMER DISPLAY NAME
+    # =========================================================
+    if end_user is not None:
+        end_user_name = (
+            f"{end_user.first_name} "
+            f"{end_user.surname}"
+        ).strip()
+    else:
+        end_user_name = ""
+
+    # =========================================================
+    # MERCHANT INFORMATION
+    #
+    # The commercial merchant/client is the funeral parlour.
+    # The beneficiary is the End User.
+    # =========================================================
+    merchant_id = funeral_client.id
+    merchant_name = funeral_client.name
+
+    # =========================================================
+    # CONTEXT
+    # =========================================================
+    context = {
+        # -----------------------------------------------------
+        # Funeral portal
+        # -----------------------------------------------------
+        "profile": profile,
+        "funeral_client": funeral_client,
+
+        # -----------------------------------------------------
+        # Compatibility / commercial client
+        #
+        # This allows portions of the merged invoice template
+        # to continue using `client` where appropriate.
+        # -----------------------------------------------------
+        "client": funeral_client,
+
+        # -----------------------------------------------------
+        # Invoice
+        # -----------------------------------------------------
+        "invoice": invoice,
+        "order": order,
+        "items": items,
+
+        # -----------------------------------------------------
+        # Funeral beneficiary / customer
+        # -----------------------------------------------------
+        "end_user": end_user,
+        "end_user_name": end_user_name,
+
+        # -----------------------------------------------------
+        # Dates / status
+        # -----------------------------------------------------
+        "today": today,
+        "is_overdue": is_overdue,
+
+        # -----------------------------------------------------
+        # Payment information
+        # -----------------------------------------------------
+        "deposit_required": deposit_required,
+        "deposit_paid": deposit_paid,
+        "deposit_outstanding": deposit_outstanding,
+
+        # -----------------------------------------------------
+        # Credit information
+        # -----------------------------------------------------
+        "credit_used": credit_used,
+        "credit_repaid": credit_repaid,
+        "credit_outstanding": credit_outstanding,
+
+        # -----------------------------------------------------
+        # Communication
+        # -----------------------------------------------------
+        "default_email": default_email,
+
+        # -----------------------------------------------------
+        # Merchant / payment modal
+        #
+        # Merchant = Funeral Parlour / TDM Client
+        # -----------------------------------------------------
+        "merchant_id": merchant_id,
+        "merchant_name": merchant_name,
+    }
+
+    # =========================================================
+    # RENDER
+    # =========================================================
+    return render(
+        request,
+        "invoices/funeral_invoice_detail.html",
+        context,
+    )
+
     
+
+
+# =========================================================
+# FUNERAL CONSULTANT — COMMISSION
+# =========================================================
+
+def _funeral_commission_period(today=None):
+    """Return the current 15th-to-15th commission period."""
+    today = today or timezone.localdate()
+
+    if today.day >= 15:
+        start = today.replace(day=15)
+        if today.month == 12:
+            end = today.replace(year=today.year + 1, month=1, day=15)
+        else:
+            end = today.replace(month=today.month + 1, day=15)
+    else:
+        if today.month == 1:
+            start = today.replace(year=today.year - 1, month=12, day=15)
+        else:
+            start = today.replace(month=today.month - 1, day=15)
+        end = today.replace(day=15)
+
+    return start, end
+
+
+@login_required
+def funeral_consultant_commission(request):
+    """Dedicated commission centre for the logged-in funeral consultant."""
+    profile = _funeral_consultant_profile(request)
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+    period_start, period_end = _funeral_commission_period()
+    parlour_ids = profile.funeral_parlours.filter(
+        status="ACTIVE"
+    ).values_list("id", flat=True)
+
+    entries = (
+        CommissionEntry.objects
+        .select_related(
+            "consultant",
+            "client",
+            "end_user",
+            "invoice",
+            "order",
+        )
+        .filter(
+            consultant=request.user,
+            client_id__in=parlour_ids,
+            paid_date__gte=period_start,
+            paid_date__lt=period_end,
+        )
+        .order_by("-paid_date", "-created_at")
+    )
+
+    search = (request.GET.get("search") or "").strip()
+    if search:
+        entries = entries.filter(
+            Q(client__name__icontains=search)
+            | Q(client__organization__icontains=search)
+            | Q(end_user__end_user_number__icontains=search)
+            | Q(end_user__first_name__icontains=search)
+            | Q(end_user__surname__icontains=search)
+            | Q(invoice__id__icontains=search)
+        )
+
+    totals = entries.aggregate(
+        commission=Coalesce(
+            Sum("commission_amount"),
+            Value(Decimal("0.00")),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        ),
+        cost=Coalesce(
+            Sum("cost_total"),
+            Value(Decimal("0.00")),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        ),
+        invoices=Count("id"),
+    )
+
+    new_business = entries.filter(is_new_business=True).aggregate(
+        commission=Coalesce(
+            Sum("commission_amount"),
+            Value(Decimal("0.00")),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        ),
+        cost=Coalesce(
+            Sum("cost_total"),
+            Value(Decimal("0.00")),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        ),
+        invoices=Count("id"),
+    )
+
+    repeat_business = entries.filter(is_new_business=False).aggregate(
+        commission=Coalesce(
+            Sum("commission_amount"),
+            Value(Decimal("0.00")),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        ),
+        cost=Coalesce(
+            Sum("cost_total"),
+            Value(Decimal("0.00")),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        ),
+        invoices=Count("id"),
+    )
+
+    page_obj = Paginator(entries, 25).get_page(request.GET.get("page"))
+
+    return render(
+        request,
+        "sales/funeral_consultant_commission.html",
+        {
+            "profile": profile,
+            "entries": page_obj,
+            "page_obj": page_obj,
+            "period_start": period_start,
+            "period_end": period_end,
+            "selected_period": (
+                f"{period_start.strftime('%d %b %Y')} - "
+                f"{(period_end - timedelta(days=1)).strftime('%d %b %Y')}"
+            ),
+            "total_commission": totals["commission"],
+            "total_cost": totals["cost"],
+            "invoice_count": totals["invoices"] or 0,
+            "new_business": new_business,
+            "repeat_business": repeat_business,
+            "search": search,
+        },
+    )
+
+
+@login_required
+def funeral_consultant_commission_detail(request, pk):
+    """Show one funeral consultant commission entry."""
+    profile = _funeral_consultant_profile(request)
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+    parlour_ids = profile.funeral_parlours.filter(
+        status="ACTIVE"
+    ).values_list("id", flat=True)
+
+    entry = get_object_or_404(
+        CommissionEntry.objects.select_related(
+            "consultant",
+            "client",
+            "end_user",
+            "invoice",
+            "order",
+        ),
+        pk=pk,
+        consultant=request.user,
+        client_id__in=parlour_ids,
+    )
+
+    return render(
+        request,
+        "sales/funeral_consultant_commission_detail.html",
+        {
+            "profile": profile,
+            "entry": entry,
+        },
+    )
+
+
+# =========================================================
+# FUNERAL CONSULTANT — TICKETS
+# =========================================================
+
+def _funeral_ticket_scope(request):
+    """Return the consultant profile and tickets for assigned parlours."""
+    profile = _funeral_consultant_profile(request)
+    if profile is None:
+        return None, Ticket.objects.none()
+
+    parlour_ids = profile.funeral_parlours.filter(
+        status="ACTIVE"
+    ).values_list("id", flat=True)
+
+    tickets_qs = (
+        Ticket.objects
+        .filter(client_id__in=parlour_ids)
+        .select_related("client", "created_by", "closed_by", "content_type")
+        .order_by("-created_at")
+    )
+
+    return profile, tickets_qs
+
+
+@login_required
+def funeral_tickets(request):
+    """Dedicated ticket list for the Funeral Consultant portal."""
+    profile, qs = _funeral_ticket_scope(request)
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+    q = (request.GET.get("q") or "").strip()
+    status = (request.GET.get("status") or "").strip()
+    priority = (request.GET.get("priority") or "").strip()
+    department = (request.GET.get("department") or "").strip()
+    ticket_type = (request.GET.get("ticket_type") or "").strip()
+    parlour = (request.GET.get("parlour") or "").strip()
+
+    if q:
+        qs = qs.filter(
+            Q(title__icontains=q)
+            | Q(description__icontains=q)
+            | Q(requester_name__icontains=q)
+            | Q(requester_email__icontains=q)
+            | Q(requester_phone__icontains=q)
+            | Q(client__name__icontains=q)
+            | Q(client__organization__icontains=q)
+        )
+
+    if status:
+        qs = qs.filter(status=status)
+    if priority:
+        qs = qs.filter(priority=priority)
+    if department:
+        qs = qs.filter(department=department)
+    if ticket_type:
+        qs = qs.filter(ticket_type=ticket_type)
+    if parlour:
+        try:
+            qs = qs.filter(client_id=int(parlour))
+        except (TypeError, ValueError):
+            parlour = ""
+
+    base_stats_qs = Ticket.objects.filter(
+        client_id__in=profile.funeral_parlours.filter(
+            status="ACTIVE"
+        ).values_list("id", flat=True)
+    )
+
+    stats = {
+        "total": base_stats_qs.count(),
+        "new": base_stats_qs.filter(status=Ticket.Status.NEW).count(),
+        "open": base_stats_qs.filter(status=Ticket.Status.OPEN).count(),
+        "pending": base_stats_qs.filter(status=Ticket.Status.PENDING).count(),
+        "resolved": base_stats_qs.filter(status=Ticket.Status.RESOLVED).count(),
+        "closed": base_stats_qs.filter(status=Ticket.Status.CLOSED).count(),
+    }
+
+    page_obj = Paginator(qs, 25).get_page(request.GET.get("page"))
+    funeral_parlours = profile.funeral_parlours.filter(
+        status="ACTIVE"
+    ).order_by("name")
+
+    return render(
+        request,
+        "tickets/funeral_tickets.html",
+        {
+            "profile": profile,
+            "object_list": page_obj.object_list,
+            "tickets": page_obj.object_list,
+            "page_obj": page_obj,
+            "stats": stats,
+            "filters": {
+                "q": q,
+                "status": status,
+                "priority": priority,
+                "department": department,
+                "ticket_type": ticket_type,
+                "parlour": parlour,
+            },
+            "choices": {
+                "status": Ticket.Status.choices,
+                "priority": Ticket.Priority.choices,
+                "department": Ticket._meta.get_field("department").choices,
+                "ticket_type": Ticket.TicketType.choices,
+            },
+            "funeral_parlours": funeral_parlours,
+        },
+    )
+
+
+@login_required
+def funeral_ticket_create(request):
+    """Create a ticket for one of the consultant's assigned funeral parlours."""
+    profile = _funeral_consultant_profile(request)
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+    funeral_parlours = profile.funeral_parlours.filter(
+        status="ACTIVE"
+    ).order_by("name")
+
+    if request.method == "POST":
+        form = TicketCreateForm(request.POST)
+
+        # Restrict the client field if the current TicketCreateForm exposes it.
+        if "client" in form.fields:
+            form.fields["client"].queryset = funeral_parlours
+
+        if form.is_valid():
+            ticket = form.save(commit=False)
+            ticket.created_by = request.user
+            ticket.source = Ticket.Source.INTERNAL
+            ticket.status = Ticket.Status.NEW
+            ticket.save()
+
+            messages.success(request, "Ticket created successfully.")
+            return redirect(
+                "sales:funeral-ticket-detail",
+                pk=ticket.pk,
+            )
+
+        messages.error(request, "Please correct the errors below.")
+    else:
+        initial = {
+            "requester_name": (
+                request.user.get_full_name() or request.user.username
+            ),
+            "requester_email": request.user.email,
+        }
+        form = TicketCreateForm(initial=initial)
+        if "client" in form.fields:
+            form.fields["client"].queryset = funeral_parlours
+
+    return render(
+        request,
+        "sales/funeral_ticket_form.html",
+        {
+            "profile": profile,
+            "form": form,
+            "funeral_parlours": funeral_parlours,
+            "page_title": "Create Funeral Ticket",
+        },
+    )
+
+
+@login_required
+def funeral_ticket_detail(request, pk):
+    """View and manage a ticket belonging to an assigned funeral parlour."""
+    profile, qs = _funeral_ticket_scope(request)
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+    ticket = get_object_or_404(qs, pk=pk)
+
+    try:
+        comments_qs = ticket.comments.select_related("author").order_by("-created_at")
+    except Exception:
+        comments_qs = []
+
+    try:
+        linked_tasks = ticket.tasks.select_related("assigned_to").order_by("-created_at")
+    except Exception:
+        linked_tasks = []
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+
+        if action == "open":
+            ticket.mark_open()
+            messages.success(request, "Ticket marked as open.")
+            return redirect(request.path)
+
+        if action == "pending":
+            ticket.status = Ticket.Status.PENDING
+            ticket.save(update_fields=["status", "updated_at"])
+            messages.success(request, "Ticket marked as pending.")
+            return redirect(request.path)
+
+        if action == "resolve":
+            ticket.mark_resolved(by=request.user)
+            messages.success(request, "Ticket resolved.")
+            return redirect(request.path)
+
+        if action == "close":
+            ticket.mark_closed(by=request.user)
+            messages.success(request, "Ticket closed.")
+            return redirect(request.path)
+
+        if action == "reopen":
+            ticket.reopen()
+            messages.success(request, "Ticket reopened.")
+            return redirect(request.path)
+
+        if action == "add_comment":
+            body = (request.POST.get("comment") or "").strip()
+            is_internal = request.POST.get("is_internal") == "on"
+
+            if not body:
+                messages.error(request, "Comment cannot be empty.")
+                return redirect(request.path)
+
+            try:
+                from tasks.models import TicketComment
+                TicketComment.objects.create(
+                    ticket=ticket,
+                    author=request.user,
+                    body=body,
+                    is_internal=is_internal,
+                )
+                messages.success(request, "Comment added.")
+            except Exception:
+                messages.error(request, "Comments are not enabled.")
+
+            return redirect(request.path)
+
+        messages.error(request, "Unknown action.")
+        return redirect(request.path)
+
+    return render(
+        request,
+        "sales/funeral_ticket_detail.html",
+        {
+            "profile": profile,
+            "ticket": ticket,
+            "comments": comments_qs,
+            "linked_tasks": linked_tasks,
+        },
+    )
+
+
+
+
+@login_required
+@require_POST
+def funeral_quotation_change_status(request, pk):
+    """
+    Change the status of a funeral quotation.
+
+    The quotation must belong to the logged-in funeral
+    consultant's assigned funeral client.
+    """
+
+    profile, funeral_client, end_users = _funeral_quotation_scope(request)
+
+    if profile is None:
+        return redirect("sales:sales-dashboard")
+
+    if funeral_client is None:
+        return redirect(
+            "sales:funeral-consultant-dashboard"
+        )
+
+    quotation = get_object_or_404(
+        Quotation,
+        pk=pk,
+        client=funeral_client,
+        end_user__isnull=False,
+        end_user__end_user_type="FUNERAL_BENEFICIARY",
+    )
+
+    new_status = (
+        request.POST.get("status") or ""
+    ).strip().lower()
+
+    allowed_statuses = {
+        "draft",
+        "sent",
+        "accepted",
+        "rejected",
+        "expired",
+    }
+
+    if new_status not in allowed_statuses:
+        messages.error(
+            request,
+            "Invalid quotation status.",
+        )
+        return redirect(
+            "sales:funeral-quotation-detail",
+            pk=quotation.pk,
+        )
+
+    # =========================================================
+    # LOCKED STATUSES
+    # =========================================================
+
+    locked_statuses = {
+        "accepted",
+        "rejected",
+        "expired",
+    }
+
+    if quotation.status in locked_statuses:
+        messages.warning(
+            request,
+            "This quotation is locked and its status cannot be changed.",
+        )
+        return redirect(
+            "sales:funeral-quotation-detail",
+            pk=quotation.pk,
+        )
+
+    # =========================================================
+    # VALID TRANSITIONS
+    # =========================================================
+
+    valid_transitions = {
+        "draft": {
+            "sent",
+            "accepted",
+            "rejected",
+        },
+        "sent": {
+            "accepted",
+            "rejected",
+        },
+    }
+
+    current_status = quotation.status
+
+    if new_status not in valid_transitions.get(
+        current_status,
+        set(),
+    ):
+        messages.error(
+            request,
+            f"You cannot change a quotation from "
+            f"{quotation.get_status_display()} to "
+            f"{dict(Quotation.STATUS_CHOICES).get(new_status, new_status)}.",
+        )
+
+        return redirect(
+            "sales:funeral-quotation-detail",
+            pk=quotation.pk,
+        )
+
+    # =========================================================
+    # UPDATE
+    # =========================================================
+
+    old_status = quotation.status
+
+    quotation.status = new_status
+
+    if new_status == "accepted":
+        quotation.accepted_by = request.user
+        quotation.accepted_at = timezone.now()
+
+    quotation.save()
+
+    messages.success(
+        request,
+        f"Quotation status changed from "
+        f"{dict(Quotation.STATUS_CHOICES).get(old_status, old_status)} "
+        f"to "
+        f"{quotation.get_status_display()}.",
+    )
+
+    return redirect(
+        "sales:funeral-quotation-detail",
+        pk=quotation.pk,
+    )

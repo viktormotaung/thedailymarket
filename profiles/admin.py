@@ -341,6 +341,8 @@ class SalesRepProfileAdminForm(SalesRepProfileForm):
             "status",
             "base_commission_pct",
             "bonus_commission_pct",
+            "is_funeral_consultant",
+            "funeral_parlours",
         )
 
     def clean(self):
@@ -389,6 +391,7 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
         "supervisor",
         "base_commission_pct",
         "bonus_commission_pct",
+        "is_funeral_consultant",
         "status",
         "updated_at",
         "online_now",
@@ -402,6 +405,7 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
         "region",
         "territory",
         "sales_operator",
+        "is_funeral_consultant",
     )
 
     search_fields = (
@@ -422,7 +426,7 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
         "sales_operator",
     )
 
-    filter_horizontal = ("roles",)
+    filter_horizontal = ("roles", "funeral_parlours")
 
     fieldsets = (
         (
@@ -437,6 +441,8 @@ class SalesRepProfileAdmin(admin.ModelAdmin):
                     "supervisor",
                     "department",
                     "roles",
+                    "is_funeral_consultant",
+                    "funeral_parlours",
                     "notes",
                     "status",
                 )
@@ -556,6 +562,8 @@ class SalesRepProfileInline(admin.StackedInline):
         "base_commission_pct",
         "bonus_commission_pct",
         "roles",
+        "is_funeral_consultant",
+        "funeral_parlours",
         "supervisor",
         "department",
         "status",
@@ -575,7 +583,7 @@ class SalesRepProfileInline(admin.StackedInline):
         "sales_operator",
     )
 
-    filter_horizontal = ("roles",)
+    filter_horizontal = ("roles", "funeral_parlours")
 
 
 # Re-register User with the inlines

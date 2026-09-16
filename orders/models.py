@@ -53,6 +53,15 @@ class Quotation(models.Model):
         blank=True,
     )
 
+    end_user = models.ForeignKey(
+        "clients.EndUser",
+        on_delete=models.SET_NULL,
+        related_name="quotations",
+        null=True,
+        blank=True,
+        help_text="End user receiving or benefiting from this quotation.",
+    )
+
     prospect = models.ForeignKey(
         "clients.Prospect",
         on_delete=models.CASCADE,
@@ -67,7 +76,7 @@ class Quotation(models.Model):
         null=True,
         blank=True,
         related_name="source_quotation",
-        help_text="Order created from this quotation."
+        help_text="Order created from this quotation.",
     )
 
     # =========================================================
@@ -80,7 +89,7 @@ class Quotation(models.Model):
         null=True,
         blank=True,
         related_name="quotations_created",
-        help_text="Logged-in user who created this quotation."
+        help_text="Logged-in user who created this quotation.",
     )
 
     accepted_by = models.ForeignKey(
@@ -91,9 +100,15 @@ class Quotation(models.Model):
         related_name="quotations_accepted",
     )
 
-    accepted_at = models.DateTimeField(null=True, blank=True)
+    accepted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
 
-    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejected_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
 
     rejection_reason = models.TextField(
         blank=True,
@@ -114,14 +129,20 @@ class Quotation(models.Model):
     # CORE
     # =========================================================
 
-    quotation_date = models.DateTimeField(default=now)
+    quotation_date = models.DateTimeField(
+        default=now,
+    )
 
     public_token = models.UUIDField(
         default=uuid.uuid4,
         unique=True,
         editable=False,
     )
-    valid_until = models.DateField(null=True, blank=True)
+
+    valid_until = models.DateField(
+        null=True,
+        blank=True,
+    )
 
     status = models.CharField(
         max_length=20,
@@ -130,8 +151,13 @@ class Quotation(models.Model):
         db_index=True,
     )
 
-    customer_notes = models.TextField(blank=True)
-    notes = models.TextField(blank=True)
+    customer_notes = models.TextField(
+        blank=True,
+    )
+
+    notes = models.TextField(
+        blank=True,
+    )
 
     # =========================================================
     # FINANCIALS
@@ -140,45 +166,50 @@ class Quotation(models.Model):
     discount_total_excl = models.DecimalField(
         max_digits=12,
         decimal_places=2,
-        default=Decimal("0.00")
+        default=Decimal("0.00"),
     )
 
     delivery_fee_excl = models.DecimalField(
         max_digits=12,
         decimal_places=2,
-        default=Decimal("0.00")
+        default=Decimal("0.00"),
     )
 
     delivery_fee_vat_percent = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=Decimal("0.00")
+        default=Decimal("0.00"),
     )
 
     subtotal_excl = models.DecimalField(
         max_digits=12,
         decimal_places=2,
-        default=Decimal("0.00")
+        default=Decimal("0.00"),
     )
 
     vat_total = models.DecimalField(
         max_digits=12,
         decimal_places=2,
-        default=Decimal("0.00")
+        default=Decimal("0.00"),
     )
 
     grand_total_inc = models.DecimalField(
         max_digits=12,
         decimal_places=2,
-        default=Decimal("0.00")
+        default=Decimal("0.00"),
     )
 
     # =========================================================
     # TIMESTAMPS
     # =========================================================
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
 
     # =========================================================
     # META
@@ -189,6 +220,7 @@ class Quotation(models.Model):
 
         indexes = [
             models.Index(fields=["client", "status"]),
+            models.Index(fields=["end_user", "status"]),
             models.Index(fields=["prospect", "status"]),
             models.Index(fields=["quotation_date"]),
             models.Index(fields=["valid_until"]),
@@ -205,7 +237,18 @@ class Quotation(models.Model):
         return self.client or self.prospect
 
     def __str__(self):
-        return f"Quotation #{self.pk or '—'} · {self.target} · {self.status}"
+        target = self.target
+
+        if self.end_user:
+            return (
+                f"Quotation #{self.pk or '—'} · "
+                f"{target} · {self.end_user.full_name} · {self.status}"
+            )
+
+        return (
+            f"Quotation #{self.pk or '—'} · "
+            f"{target} · {self.status}"
+        )
 
     # =========================================================
     # VALIDATION
@@ -214,16 +257,44 @@ class Quotation(models.Model):
     def clean(self):
         super().clean()
 
-        # Must belong to ONE target
+        # -------------------------------------------------
+        # Must belong to a Client or Prospect
+        # -------------------------------------------------
+
         if not self.client and not self.prospect:
             raise ValidationError(
                 "Quotation must be linked to either a client or a prospect."
             )
 
-        # Cannot belong to both
+        # -------------------------------------------------
+        # Cannot belong to both Client and Prospect
+        # -------------------------------------------------
+
         if self.client and self.prospect:
             raise ValidationError(
                 "Quotation cannot be linked to both a client and a prospect."
+            )
+
+        # -------------------------------------------------
+        # End User requires a Client
+        # -------------------------------------------------
+
+        if self.end_user and not self.client:
+            raise ValidationError(
+                "An end user can only be linked to a client quotation."
+            )
+
+        # -------------------------------------------------
+        # End User must belong to selected Client
+        # -------------------------------------------------
+
+        if (
+            self.end_user
+            and self.client
+            and self.end_user.client_id != self.client_id
+        ):
+            raise ValidationError(
+                "The selected end user does not belong to the selected client."
             )
 
     # =========================================================
@@ -249,32 +320,36 @@ class Quotation(models.Model):
         )
 
         delivery_vat = r2(
-            (self.delivery_fee_excl or Decimal("0.00")) *
-            (
+            (self.delivery_fee_excl or Decimal("0.00"))
+            * (
                 (self.delivery_fee_vat_percent or Decimal("0.00"))
                 / Decimal("100")
             )
         )
 
-        self.subtotal_excl = r2(sub_after_discount)
+        self.subtotal_excl = r2(
+            sub_after_discount
+        )
 
         self.vat_total = r2(
             vat_items + delivery_vat
         )
 
         self.grand_total_inc = r2(
-            self.subtotal_excl +
-            self.vat_total +
-            (self.delivery_fee_excl or Decimal("0.00"))
+            self.subtotal_excl
+            + self.vat_total
+            + (self.delivery_fee_excl or Decimal("0.00"))
         )
 
         if save:
-            super().save(update_fields=[
-                "subtotal_excl",
-                "vat_total",
-                "grand_total_inc",
-                "updated_at",
-            ])
+            super().save(
+                update_fields=[
+                    "subtotal_excl",
+                    "vat_total",
+                    "grand_total_inc",
+                    "updated_at",
+                ]
+            )
 
     # =========================================================
     # HELPERS
@@ -294,10 +369,13 @@ class Quotation(models.Model):
             self.status == "accepted"
             and self.converted_order_id is None
         )
-    
 
+    # =========================================================
+    # SAVE
+    # =========================================================
 
     def save(self, *args, **kwargs):
+
         old_status = None
 
         if self.pk:
@@ -315,16 +393,19 @@ class Quotation(models.Model):
             and old_status != "accepted"
             and not self.converted_order_id
         ):
-            print("========== QUOTATION ACCEPTED: START CONVERSION ==========")
+            print(
+                "========== QUOTATION ACCEPTED: "
+                "START CONVERSION =========="
+            )
+
             self.convert_to_order(
                 user=self.accepted_by or self.created_by
             )
-            print("========== QUOTATION ACCEPTED: CONVERSION COMPLETE ==========")
-    
 
-
-
-
+            print(
+                "========== QUOTATION ACCEPTED: "
+                "CONVERSION COMPLETE =========="
+            )
 
     # =========================================================
     # CONVERSION
@@ -333,64 +414,119 @@ class Quotation(models.Model):
     @transaction.atomic
     def convert_to_order(self, user=None):
 
+        # -------------------------------------------------
         # Already converted
+        # -------------------------------------------------
+
         if self.converted_order_id:
             return self.converted_order
 
+        # -------------------------------------------------
         # Must be accepted
+        # -------------------------------------------------
+
         if self.status != "accepted":
             raise ValidationError(
                 "Only accepted quotations can be converted to orders."
             )
 
+        # -------------------------------------------------
         # Must have items
+        # -------------------------------------------------
+
         if not self.items.exists():
             raise ValidationError(
                 "Quotation must have at least one item before conversion."
             )
 
-        # =====================================================
+        # =================================================
         # IF QUOTATION HAS PROSPECT BUT NO CLIENT
         # Convert prospect into client first
-        # =====================================================
+        # =================================================
+
         if not self.client and self.prospect:
 
             prospect = self.prospect
 
+            # -------------------------------------------------
             # Mark prospect as WON
+            # -------------------------------------------------
+
             if prospect.stage != "WON":
                 prospect.stage = "WON"
-                prospect.save(update_fields=["stage", "updated_at"])
+                prospect.save(
+                    update_fields=[
+                        "stage",
+                        "updated_at",
+                    ]
+                )
 
-            # This creates client if missing, or returns existing client
+            # -------------------------------------------------
+            # This creates client if missing,
+            # or returns existing client
+            # -------------------------------------------------
+
             client = prospect.convert_to_client()
 
+            # -------------------------------------------------
             # Ensure client is active
+            # -------------------------------------------------
+
             if client.status != "ACTIVE":
                 client.status = "ACTIVE"
-                client.save(update_fields=["status", "updated_at"])
+                client.save(
+                    update_fields=[
+                        "status",
+                        "updated_at",
+                    ]
+                )
 
+            # -------------------------------------------------
             # Link quotation to client
-            # Clear prospect because your clean() does not allow both
+            # Clear prospect because clean() does not
+            # allow both.
+            # -------------------------------------------------
+
             self.client = client
             self.prospect = None
-            super().save(update_fields=[
-                "client",
-                "prospect",
-                "updated_at",
-            ])
 
-        # Final safety check
-        if not self.client:
-            raise ValidationError(
-                "Quotation must be linked to a client before conversion to an order."
+            super().save(
+                update_fields=[
+                    "client",
+                    "prospect",
+                    "updated_at",
+                ]
             )
 
-        # =====================================================
+        # =================================================
+        # FINAL SAFETY CHECK
+        # =================================================
+
+        if not self.client:
+            raise ValidationError(
+                "Quotation must be linked to a client "
+                "before conversion to an order."
+            )
+
+        # =================================================
+        # END USER SAFETY CHECK
+        # =================================================
+
+        if self.end_user:
+
+            if self.end_user.client_id != self.client_id:
+                raise ValidationError(
+                    "The selected end user does not belong "
+                    "to the quotation client."
+                )
+
+        # =================================================
         # CREATE ORDER
-        # =====================================================
+        # =================================================
+
         order = Order.objects.create(
             client=self.client,
+            end_user=self.end_user,
             created_by=user or self.created_by,
             channel="STAFF",
             order_date=now(),
@@ -408,9 +544,10 @@ class Quotation(models.Model):
             delivery_fee_vat_percent=self.delivery_fee_vat_percent,
         )
 
-        # =====================================================
+        # =================================================
         # COPY ITEMS
-        # =====================================================
+        # =================================================
+
         for q_item in self.items.all():
 
             OrderItem.objects.create(
@@ -432,30 +569,32 @@ class Quotation(models.Model):
                 vat_percent=q_item.vat_percent,
             )
 
-        # =====================================================
+        # =================================================
         # RECALCULATE ORDER
-        # =====================================================
+        # =================================================
+
         order.recalc_totals(save=True)
 
-        
         from tasks.services import create_order_verification_task
 
         transaction.on_commit(
             lambda: create_order_verification_task(order)
         )
-        
 
-        # =====================================================
+        # =================================================
         # LINK QUOTATION
-        # =====================================================
-        self.converted_order = order
-        super().save(update_fields=[
-            "converted_order",
-            "updated_at",
-        ])
+        # =================================================
 
-        return order
-    
+        self.converted_order = order
+
+        super().save(
+            update_fields=[
+                "converted_order",
+                "updated_at",
+            ]
+        )
+
+        return order  
     
 # ====================================================================
 # Quotation Item
@@ -640,91 +779,276 @@ class Order(models.Model):
         ("API", "API"),
     ]
 
-    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="orders")
+    # =========================================================
+    # RELATIONS
+    # =========================================================
+
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name="orders",
+    )
+
+    end_user = models.ForeignKey(
+        "clients.EndUser",
+        on_delete=models.SET_NULL,
+        related_name="orders",
+        null=True,
+        blank=True,
+        help_text="End user receiving or benefiting from this order.",
+    )
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="orders_created",
     )
 
-    channel = models.CharField(max_length=16, choices=CHANNELS, default="WEB")
-    order_date = models.DateTimeField(default=now, editable=True)
-    status = models.CharField(max_length=25, choices=STATUS_CHOICES, default="pending")
+    # =========================================================
+    # ORDER INFORMATION
+    # =========================================================
 
-    submitted_at = models.DateTimeField(auto_now_add=True)
+    channel = models.CharField(
+        max_length=16,
+        choices=CHANNELS,
+        default="WEB",
+    )
+
+    order_date = models.DateTimeField(
+        default=now,
+        editable=True,
+    )
+
+    status = models.CharField(
+        max_length=25,
+        choices=STATUS_CHOICES,
+        default="pending",
+    )
+
+    submitted_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    # =========================================================
+    # REVIEW / APPROVAL
+    # =========================================================
 
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="orders_reviewed",
     )
-    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
 
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="orders_approved",
     )
-    approved_at = models.DateTimeField(null=True, blank=True)
 
-    customer_notes = models.TextField(blank=True)
-    notes = models.TextField(blank=True)
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
 
-    discount_total_excl = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
-    delivery_fee_excl = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
-    delivery_fee_vat_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    # =========================================================
+    # NOTES
+    # =========================================================
 
-    subtotal_excl = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
-    vat_total = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
-    grand_total_inc = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    customer_notes = models.TextField(
+        blank=True,
+    )
 
-    updated_at = models.DateTimeField(auto_now=True)
+    notes = models.TextField(
+        blank=True,
+    )
+
+    # =========================================================
+    # FINANCIALS
+    # =========================================================
+
+    discount_total_excl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    delivery_fee_excl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    delivery_fee_vat_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    subtotal_excl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    vat_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    grand_total_inc = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    # =========================================================
+    # META
+    # =========================================================
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
 
     class Meta:
         ordering = ["-submitted_at"]
 
     def __str__(self):
-        return f"Order #{self.pk or '—'} · {self.client} · {self.status}"
+        if self.end_user:
+            return (
+                f"Order #{self.pk or '—'} · "
+                f"{self.client} · "
+                f"{self.end_user.full_name} · "
+                f"{self.status}"
+            )
 
-    # -------------------------------------------------
-    # Totals
-    # -------------------------------------------------
+        return (
+            f"Order #{self.pk or '—'} · "
+            f"{self.client} · "
+            f"{self.status}"
+        )
+
+    # =========================================================
+    # TOTALS
+    # =========================================================
+
     def recalc_totals(self, save=False):
-        items = list(self.items.all())
-        sub_excl = sum((i.line_total_excl or Decimal("0.00")) for i in items)
-        vat_items = sum((i.line_vat_amount or Decimal("0.00")) for i in items)
 
-        sub_after_discount = r2(sub_excl - (self.discount_total_excl or Decimal("0.00")))
-        deliv_vat = r2(self.delivery_fee_excl * (self.delivery_fee_vat_percent / Decimal("100")))
-        deliv_inc = r2(self.delivery_fee_excl + deliv_vat)
+        items = list(self.items.all())
+
+        sub_excl = sum(
+            (
+                i.line_total_excl
+                or Decimal("0.00")
+            )
+            for i in items
+        )
+
+        vat_items = sum(
+            (
+                i.line_vat_amount
+                or Decimal("0.00")
+            )
+            for i in items
+        )
+
+        sub_after_discount = r2(
+            sub_excl
+            - (
+                self.discount_total_excl
+                or Decimal("0.00")
+            )
+        )
+
+        deliv_vat = r2(
+            self.delivery_fee_excl
+            * (
+                self.delivery_fee_vat_percent
+                / Decimal("100")
+            )
+        )
+
+        deliv_inc = r2(
+            self.delivery_fee_excl
+            + deliv_vat
+        )
 
         self.subtotal_excl = sub_after_discount
-        self.vat_total = r2(vat_items + deliv_vat)
-        self.grand_total_inc = r2(self.subtotal_excl + self.vat_total + deliv_inc)
+
+        self.vat_total = r2(
+            vat_items
+            + deliv_vat
+        )
+
+        self.grand_total_inc = r2(
+            self.subtotal_excl
+            + self.vat_total
+            + deliv_inc
+        )
 
         if save:
-            super().save(update_fields=["subtotal_excl", "vat_total", "grand_total_inc", "updated_at"])
+            super().save(
+                update_fields=[
+                    "subtotal_excl",
+                    "vat_total",
+                    "grand_total_inc",
+                    "updated_at",
+                ]
+            )
 
-    # -------------------------------------------------
-    # Snapshot
-    # -------------------------------------------------
+    # =========================================================
+    # AUDIT SNAPSHOT
+    # =========================================================
+
     def _audit_snapshot(self):
+
         return {
             "id": self.pk,
             "client": str(self.client),
+
+            "end_user": (
+                str(self.end_user)
+                if self.end_user
+                else None
+            ),
+
+            "end_user_number": (
+                self.end_user.end_user_number
+                if self.end_user
+                else None
+            ),
+
             "status": self.status,
-            "grand_total_inc": str(self.grand_total_inc),
-            "invoice_id": getattr(getattr(self, "invoice", None), "id", None),
+
+            "grand_total_inc": str(
+                self.grand_total_inc
+            ),
+
+            "invoice_id": getattr(
+                getattr(self, "invoice", None),
+                "id",
+                None,
+            ),
         }
 
-    # -------------------------------------------------
+    # =========================================================
     # SAVE
-    # -------------------------------------------------
+    # =========================================================
+
     @transaction.atomic
     def save(self, *args, **kwargs):
+
         from invoices.models import Invoice
         from decimal import Decimal
         from django.core.exceptions import ValidationError
@@ -732,159 +1056,363 @@ class Order(models.Model):
         import threading
         import time
 
-        print("\n================ ORDER SAVE START ================")
+        print(
+            "\n================ ORDER SAVE START ================"
+        )
 
         creating = self.pk is None
         old_status = None
         before_snapshot = None
 
+        # =====================================================
+        # EXISTING ORDER SNAPSHOT
+        # =====================================================
+
         if not creating:
+
             try:
-                old = Order.objects.using(self._state.db).get(pk=self.pk)
+
+                old = (
+                    Order.objects
+                    .using(self._state.db)
+                    .get(pk=self.pk)
+                )
+
                 old_status = old.status
+
                 before_snapshot = old._audit_snapshot()
+
             except Order.DoesNotExist:
                 pass
 
-        print(f"[DEBUG] Creating: {creating}")
-        print(f"[DEBUG] Old status: {old_status}")
-        print(f"[DEBUG] New status (before save): {self.status}")
+        print(
+            f"[DEBUG] Creating: {creating}"
+        )
+
+        print(
+            f"[DEBUG] Old status: {old_status}"
+        )
+
+        print(
+            f"[DEBUG] New status (before save): {self.status}"
+        )
+
+        # =====================================================
+        # VALIDATE END USER
+        # =====================================================
+
+        if self.end_user:
+
+            if self.end_user.client_id != self.client_id:
+
+                raise ValidationError(
+                    "The selected end user does not belong "
+                    "to the selected client."
+                )
+
+        # =====================================================
+        # SAVE ORDER
+        # =====================================================
 
         super().save(*args, **kwargs)
 
-        
-        print(f"[DEBUG] Order {self.pk} saved with status: {self.status}")
+        print(
+            f"[DEBUG] Order {self.pk} saved "
+            f"with status: {self.status}"
+        )
 
-        
+        # =====================================================
+        # DETERMINE AUDIT ACTION
+        # =====================================================
 
-        action = OrderAudit.CREATED if creating else OrderAudit.UPDATED
+        action = (
+            OrderAudit.CREATED
+            if creating
+            else OrderAudit.UPDATED
+        )
+
         if old_status != self.status:
+
             action = OrderAudit.STATUS_CHANGED
 
-        # =================================================
-        # WEB AUTO-APPROVAL (Delayed 2 seconds)
-        # =================================================
-        if creating and self.channel == "WEB" and self.status == "pending":
+        # =====================================================
+        # WEB AUTO-APPROVAL
+        # Delayed 2 seconds
+        # =====================================================
 
-            print("[DEBUG] Scheduling WEB auto-approval in 2 seconds")
+        if (
+            creating
+            and self.channel == "WEB"
+            and self.status == "pending"
+        ):
 
-    
-            def delayed_auto_approve(order_id, db):
+            print(
+                "[DEBUG] Scheduling WEB auto-approval "
+                "in 2 seconds"
+            )
+
+            def delayed_auto_approve(
+                order_id,
+                db,
+            ):
+
                 time.sleep(2)
+
                 try:
-                    order = Order.objects.using(db).get(pk=order_id)
+
+                    order = (
+                        Order.objects
+                        .using(db)
+                        .get(pk=order_id)
+                    )
 
                     if (
                         order.channel == "WEB"
                         and order.status == "pending"
                         and order.items.exists()
                     ):
-                        print(f"[AUTO] Auto-approving Order {order.pk}")
+
+                        print(
+                            f"[AUTO] Auto-approving "
+                            f"Order {order.pk}"
+                        )
+
                         order.status = "approved"
-                        order.save(update_fields=["status", "updated_at"])
+
+                        order.save(
+                            update_fields=[
+                                "status",
+                                "updated_at",
+                            ]
+                        )
+
                     else:
-                        print(f"[AUTO] Conditions not met for Order {order.pk}")
+
+                        print(
+                            f"[AUTO] Conditions not met "
+                            f"for Order {order.pk}"
+                        )
 
                 except Exception as e:
-                    print(f"[AUTO] Auto-approval failed: {e}")
+
+                    print(
+                        f"[AUTO] Auto-approval failed: {e}"
+                    )
 
             transaction.on_commit(
                 lambda: threading.Thread(
                     target=delayed_auto_approve,
-                    args=(self.pk, self._state.db),  # ✅ comma added
-                    daemon=True
+                    args=(
+                        self.pk,
+                        self._state.db,
+                    ),
+                    daemon=True,
                 ).start()
             )
 
-        # -------------------------------------------------
-        # APPROVED → trigger second save (ONLY IF ITEMS EXIST)
-        # -------------------------------------------------
-        if old_status != "approved" and self.status == "approved":
+        # =====================================================
+        # APPROVED
+        # Trigger second save
+        # =====================================================
 
-            print(f"[DEBUG] APPROVAL TRIGGERED for Order {self.pk}")
+        if (
+            old_status != "approved"
+            and self.status == "approved"
+        ):
 
-            # 🚨 Enforce items exist
+            print(
+                f"[DEBUG] APPROVAL TRIGGERED "
+                f"for Order {self.pk}"
+            )
+
+            # -------------------------------------------------
+            # Enforce items exist
+            # -------------------------------------------------
+
             if not self.items.exists():
-                print("[DEBUG] APPROVAL BLOCKED — NO ITEMS FOUND")
-                raise ValidationError("Order must contain at least one item before approval.")
 
+                print(
+                    "[DEBUG] APPROVAL BLOCKED "
+                    "— NO ITEMS FOUND"
+                )
+
+                raise ValidationError(
+                    "Order must contain at least one "
+                    "item before approval."
+                )
+
+            # -------------------------------------------------
             # Log approval FIRST
-            OrderAudit.objects.using(self._state.db).create(
+            # -------------------------------------------------
+
+            OrderAudit.objects.using(
+                self._state.db
+            ).create(
                 order=self,
+
                 action=OrderAudit.APPROVED,
-                performed_by=self.approved_by or self.created_by,
-                status_before=old_status or "",
-                status_after="approved",
-                amount_before=(
-                    Decimal(before_snapshot.get("grand_total_inc", "0.00"))
-                    if before_snapshot else None
+
+                performed_by=(
+                    self.approved_by
+                    or self.created_by
                 ),
+
+                status_before=(
+                    old_status
+                    or ""
+                ),
+
+                status_after="approved",
+
+                amount_before=(
+                    Decimal(
+                        before_snapshot.get(
+                            "grand_total_inc",
+                            "0.00",
+                        )
+                    )
+                    if before_snapshot
+                    else None
+                ),
+
                 amount_after=self.grand_total_inc,
+
                 snapshot_before=before_snapshot,
+
                 snapshot_after=self._audit_snapshot(),
+
                 description="Order approved",
             )
 
-            print(f"[DEBUG] Moving Order {self.pk} to awaiting_payment")
+            print(
+                f"[DEBUG] Moving Order {self.pk} "
+                f"to awaiting_payment"
+            )
 
             self.status = "awaiting_payment"
-            self.save(update_fields=["status", "updated_at"])
-            print(f"[DEBUG] Second save complete → status now: {self.status}")
-            print("================ ORDER SAVE END (APPROVAL) ================\n")
+
+            self.save(
+                update_fields=[
+                    "status",
+                    "updated_at",
+                ]
+            )
+
+            print(
+                "[DEBUG] Second save complete "
+                f"→ status now: {self.status}"
+            )
+
+            print(
+                "================ ORDER SAVE END "
+                "(APPROVAL) ================\n"
+            )
+
             return
 
-        
-        # -------------------------------------------------
-        # FINANCIAL GATE (STATE-BASED + BULLETPROOF)
-        # -------------------------------------------------
-        if self.status in ["awaiting_payment"]:
+        # =====================================================
+        # FINANCIAL GATE
+        # STATE-BASED + BULLETPROOF
+        # =====================================================
 
-            print(f"[DEBUG] ENTERING FINANCIAL GATE for Order {self.pk}")
+        if self.status in [
+            "awaiting_payment"
+        ]:
 
-            db = self._state.db or "default"
+            print(
+                f"[DEBUG] ENTERING FINANCIAL GATE "
+                f"for Order {self.pk}"
+            )
 
-            # ✅ Always recalc totals safely
-            self.recalc_totals(save=True)
+            db = (
+                self._state.db
+                or "default"
+            )
 
-            print(f"[DEBUG] Totals recalculated → Grand Total: {self.grand_total_inc}")
+            # -------------------------------------------------
+            # Always recalc totals safely
+            # -------------------------------------------------
+
+            self.recalc_totals(
+                save=True
+            )
+
+            print(
+                "[DEBUG] Totals recalculated "
+                f"→ Grand Total: "
+                f"{self.grand_total_inc}"
+            )
 
             client = self.client
-            credit_status = (getattr(client, "credit_status", "") or "").upper()
-            credit_account = getattr(client, "credit_account", None)
 
-            print(f"[DEBUG] Credit status: {credit_status}")
+            credit_status = (
+                getattr(
+                    client,
+                    "credit_status",
+                    ""
+                )
+                or ""
+            ).upper()
+
+            credit_account = getattr(
+                client,
+                "credit_account",
+                None,
+            )
+
+            print(
+                f"[DEBUG] Credit status: "
+                f"{credit_status}"
+            )
 
             # =================================================
             # CREDIT CHECK
             # =================================================
+
             if (
                 self.status == "awaiting_payment"
                 and credit_status == "ACTIVE"
                 and credit_account
             ):
 
-                total = self.grand_total_inc or Decimal("0.00")
+                total = (
+                    self.grand_total_inc
+                    or Decimal("0.00")
+                )
 
                 # -------------------------------------------------
-                # FIXED: DO NOT CONVERT 0% TO 100%
+                # Deposit percentage
                 # -------------------------------------------------
+
                 raw_deposit_pct = getattr(
                     credit_account,
                     "credit_deposit_pct",
-                    None
+                    None,
                 )
 
                 if raw_deposit_pct is None:
-                    deposit_pct = Decimal("100.00")
+
+                    deposit_pct = Decimal(
+                        "100.00"
+                    )
+
                 else:
-                    deposit_pct = Decimal(str(raw_deposit_pct))
+
+                    deposit_pct = Decimal(
+                        str(raw_deposit_pct)
+                    )
 
                 deposit_required = r2(
-                    total * (deposit_pct / Decimal("100"))
+                    total
+                    * (
+                        deposit_pct
+                        / Decimal("100")
+                    )
                 )
 
                 credit_required = r2(
-                    total - deposit_required
+                    total
+                    - deposit_required
                 )
 
                 credit_available = (
@@ -892,19 +1420,42 @@ class Order(models.Model):
                     or Decimal("0.00")
                 )
 
-                print(f"[DEBUG] Deposit %: {deposit_pct}")
-                print(f"[DEBUG] Deposit Required: {deposit_required}")
-                print(f"[DEBUG] Credit Required: {credit_required}")
-                print(f"[DEBUG] Credit Available: {credit_available}")
+                print(
+                    f"[DEBUG] Deposit %: "
+                    f"{deposit_pct}"
+                )
+
+                print(
+                    f"[DEBUG] Deposit Required: "
+                    f"{deposit_required}"
+                )
+
+                print(
+                    f"[DEBUG] Credit Required: "
+                    f"{credit_required}"
+                )
+
+                print(
+                    f"[DEBUG] Credit Available: "
+                    f"{credit_available}"
+                )
 
                 # -------------------------------------------------
                 # BLOCK IF CREDIT EXCEEDED
                 # -------------------------------------------------
-                if credit_required > credit_available:
 
-                    print("[DEBUG] CREDIT BLOCKED")
+                if (
+                    credit_required
+                    > credit_available
+                ):
 
-                    self.status = "credit_blocked"
+                    print(
+                        "[DEBUG] CREDIT BLOCKED"
+                    )
+
+                    self.status = (
+                        "credit_blocked"
+                    )
 
                     super().save(
                         update_fields=[
@@ -913,58 +1464,104 @@ class Order(models.Model):
                         ]
                     )
 
-                    OrderAudit.objects.using(db).create(
+                    OrderAudit.objects.using(
+                        db
+                    ).create(
                         order=self,
-                        action=OrderAudit.CREDIT_BLOCKED,
+
+                        action=(
+                            OrderAudit.CREDIT_BLOCKED
+                        ),
+
                         performed_by=(
                             self.approved_by
                             or self.created_by
                         ),
-                        status_before="awaiting_payment",
-                        status_after="credit_blocked",
-                        amount_before=self.grand_total_inc,
-                        amount_after=self.grand_total_inc,
-                        snapshot_before=before_snapshot,
-                        snapshot_after=self._audit_snapshot(),
+
+                        status_before=(
+                            "awaiting_payment"
+                        ),
+
+                        status_after=(
+                            "credit_blocked"
+                        ),
+
+                        amount_before=(
+                            self.grand_total_inc
+                        ),
+
+                        amount_after=(
+                            self.grand_total_inc
+                        ),
+
+                        snapshot_before=(
+                            before_snapshot
+                        ),
+
+                        snapshot_after=(
+                            self._audit_snapshot()
+                        ),
+
                         description=(
                             f"Credit insufficient. "
-                            f"Required: {credit_required}, "
-                            f"Available: {credit_available}"
+                            f"Required: "
+                            f"{credit_required}, "
+                            f"Available: "
+                            f"{credit_available}"
                         ),
                     )
 
                     print(
-                        "================ ORDER SAVE END (BLOCKED) ================\n"
+                        "================ ORDER SAVE END "
+                        "(BLOCKED) ================\n"
                     )
 
-                    return  # 🚨 STOP EXECUTION
+                    return
 
             # =================================================
-            # 🔥 BULLETPROOF INVOICE CREATION
+            # BULLETPROOF INVOICE CREATION
             # =================================================
+
             from invoices.models import Invoice
 
             invoice_exists = (
-                Invoice.objects.using(db)
+                Invoice.objects
+                .using(db)
                 .filter(order=self)
                 .exists()
             )
 
-            print(f"[DEBUG] Invoice exists? {invoice_exists}")
+            print(
+                f"[DEBUG] Invoice exists? "
+                f"{invoice_exists}"
+            )
 
             if not invoice_exists:
 
-                print("[DEBUG] Creating invoice now...")
+                print(
+                    "[DEBUG] Creating invoice now..."
+                )
 
-                Invoice.create_for_order(self)
+                Invoice.create_for_order(
+                    self
+                )
 
-                print("[DEBUG] Invoice created.")
+                print(
+                    "[DEBUG] Invoice created."
+                )
 
             else:
 
-                print("[DEBUG] Invoice already exists — updating invoice...")
+                print(
+                    "[DEBUG] Invoice already exists "
+                    "— updating invoice..."
+                )
 
-                invoice = Invoice.objects.using(db).get(order=self)
+                invoice = (
+                    Invoice.objects
+                    .using(db)
+                    .get(order=self)
+                )
 
                 invoice.calculate_totals()
 
@@ -981,67 +1578,93 @@ class Order(models.Model):
                 )
 
                 invoice.ensure_invoice_out_txn()
+
                 invoice.ensure_credit_after_deposit()
 
-                print("[DEBUG] Invoice updated.")
+                print(
+                    "[DEBUG] Invoice updated."
+                )
 
-            # -------------------------------------------------
+            # =================================================
             # FINAL AUDIT
-            # -------------------------------------------------
-            print(f"[DEBUG] Final audit action: {action}")
+            # =================================================
 
-            OrderAudit.objects.using(db).create(
+            print(
+                f"[DEBUG] Final audit action: "
+                f"{action}"
+            )
+
+            OrderAudit.objects.using(
+                db
+            ).create(
                 order=self,
+
                 action=action,
+
                 performed_by=(
                     self.approved_by
                     or self.reviewed_by
                     or self.created_by
                 ),
-                status_before=old_status or "",
+
+                status_before=(
+                    old_status
+                    or ""
+                ),
+
                 status_after=self.status,
+
                 amount_before=(
                     Decimal(
                         before_snapshot.get(
                             "grand_total_inc",
-                            "0.00"
+                            "0.00",
                         )
                     )
                     if before_snapshot
                     else None
                 ),
+
                 amount_after=self.grand_total_inc,
+
                 snapshot_before=before_snapshot,
+
                 snapshot_after=self._audit_snapshot(),
-                description="Automatic system audit entry",
+
+                description=(
+                    "Automatic system audit entry"
+                ),
             )
 
-            print("================ ORDER SAVE END ================\n")
+            print(
+                "================ ORDER SAVE END "
+                "================\n"
+            )
 
-            
-            
-        
+
 class OrderAudit(models.Model):
 
-    # -------------------------------------------------
+    # =========================================================
     # RELATION
-    # -------------------------------------------------
+    # =========================================================
+
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,
-        related_name="audits"
+        related_name="audits",
     )
 
-    # -------------------------------------------------
+    # =========================================================
     # ACTION TYPE
-    # -------------------------------------------------
-    CREATED         = "created"
-    UPDATED         = "updated"
-    STATUS_CHANGED  = "status_changed"
-    CREDIT_BLOCKED  = "credit_blocked"
-    APPROVED        = "approved"
-    CANCELLED       = "cancelled"
-    DELETED         = "deleted"
+    # =========================================================
+
+    CREATED = "created"
+    UPDATED = "updated"
+    STATUS_CHANGED = "status_changed"
+    CREDIT_BLOCKED = "credit_blocked"
+    APPROVED = "approved"
+    CANCELLED = "cancelled"
+    DELETED = "deleted"
 
     ACTION_CHOICES = [
         (CREATED, "Created"),
@@ -1058,9 +1681,10 @@ class OrderAudit(models.Model):
         choices=ACTION_CHOICES,
     )
 
-    # -------------------------------------------------
+    # =========================================================
     # USER + TIMESTAMP
-    # -------------------------------------------------
+    # =========================================================
+
     performed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -1069,15 +1693,19 @@ class OrderAudit(models.Model):
         related_name="order_audit_actions",
     )
 
-    performed_at = models.DateTimeField(auto_now_add=True)
+    performed_at = models.DateTimeField(
+        auto_now_add=True,
+    )
 
-    # -------------------------------------------------
+    # =========================================================
     # SNAPSHOTS
-    # -------------------------------------------------
+    # =========================================================
+
     status_before = models.CharField(
         max_length=32,
         blank=True,
     )
+
     status_after = models.CharField(
         max_length=32,
         blank=True,
@@ -1089,6 +1717,7 @@ class OrderAudit(models.Model):
         null=True,
         blank=True,
     )
+
     amount_after = models.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -1097,34 +1726,58 @@ class OrderAudit(models.Model):
     )
 
     # Optional structured state capture
+
     snapshot_before = models.JSONField(
         null=True,
         blank=True,
     )
+
     snapshot_after = models.JSONField(
         null=True,
         blank=True,
     )
 
-    # -------------------------------------------------
+    # =========================================================
     # DESCRIPTION
-    # -------------------------------------------------
-    description = models.TextField(blank=True)
+    # =========================================================
 
-    # -------------------------------------------------
+    description = models.TextField(
+        blank=True,
+    )
+
+    # =========================================================
     # META
-    # -------------------------------------------------
+    # =========================================================
+
     class Meta:
-        ordering = ["-performed_at", "-id"]
+        ordering = [
+            "-performed_at",
+            "-id",
+        ]
+
         indexes = [
-            models.Index(fields=["order", "performed_at"]),
-            models.Index(fields=["action"]),
+            models.Index(
+                fields=[
+                    "order",
+                    "performed_at",
+                ]
+            ),
+
+            models.Index(
+                fields=[
+                    "action",
+                ]
+            ),
         ]
 
     def __str__(self):
-        return f"Order #{self.order_id} · {self.action} · {self.performed_at}"
+        return (
+            f"Order #{self.order_id} · "
+            f"{self.action} · "
+            f"{self.performed_at}"
+        )
 
-
+    
 # ====================================================================
 # OrderItem
 # ====================================================================

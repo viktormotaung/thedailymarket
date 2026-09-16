@@ -1039,6 +1039,21 @@
                             SMS
                         </button>
 
+                        {% if quotation.status == "draft" or quotation.status == "sent" %}
+                            <form method="post" action="{% url 'sales:funeral-quotation-accept' quotation.id %}" class="d-inline" onsubmit="return confirm('Are you sure you want to accept this quotation?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success" title="Accept quotation">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    Accept
+                                </button>
+                            </form>
+                        {% else %}
+                            <button type="button" class="btn btn-secondary" disabled title="Only draft or sent quotations can be accepted">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Accept
+                            </button>
+                        {% endif %}
+
                         {% if quotation.can_edit %}
 
                             <a
@@ -2531,4 +2546,6 @@
     
 </body>
 </html>
+
+
 
