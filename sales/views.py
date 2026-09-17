@@ -1200,7 +1200,7 @@ def leads(request):
     # Territories
     # ----------------------------------------------------------
 
-    filter_territories = (
+    filter_territories = list(
         Territory.objects
         .filter(
             status="ACTIVE"
@@ -1209,8 +1209,17 @@ def leads(request):
             "region"
         )
         .order_by(
-            "region__name",
             "name",
+        )
+    )
+
+    filter_territories.sort(
+        key=lambda territory: (
+            territory.region.name
+            if territory.region
+            else "",
+            territory.name
+            or "",
         )
     )
 
@@ -1218,7 +1227,7 @@ def leads(request):
     # Areas
     # ----------------------------------------------------------
 
-    filter_areas = (
+    filter_areas = list(
         Area.objects
         .filter(
             status="ACTIVE"
@@ -1227,8 +1236,17 @@ def leads(request):
             "territory"
         )
         .order_by(
-            "territory__name",
             "name",
+        )
+    )
+
+    filter_areas.sort(
+        key=lambda area: (
+            area.territory.name
+            if area.territory
+            else "",
+            area.name
+            or "",
         )
     )
 
@@ -1262,14 +1280,10 @@ def leads(request):
 
     else:
 
-        filter_sales_reps = (
+        filter_sales_reps = list(
             SalesRepProfile.objects
             .filter(
                 user__is_active=True,
-                roles__name__in=[
-                    "Representative",
-                    "Supervisor",
-                ],
             )
             .select_related(
                 "user",
@@ -1277,11 +1291,28 @@ def leads(request):
             .prefetch_related(
                 "roles",
             )
-            .distinct()
-            .order_by(
-                "user__first_name",
-                "user__last_name",
-                "user__username",
+        )
+
+        filter_sales_reps = [
+            profile
+            for profile in filter_sales_reps
+            if any(
+                role.name in {
+                    "Representative",
+                    "Supervisor",
+                }
+                for role in profile.roles.all()
+            )
+        ]
+
+        filter_sales_reps.sort(
+            key=lambda profile: (
+                profile.user.first_name
+                or "",
+                profile.user.last_name
+                or "",
+                profile.user.username
+                or "",
             )
         )
 
@@ -1841,7 +1872,6 @@ def prospects(request):
     map_qs = (
         base_qs
         .order_by("-created_at")
-        .distinct()
     )
 
     # ==========================================================
@@ -2000,7 +2030,6 @@ def prospects(request):
     prospects_qs = (
         qs
         .order_by("-created_at")
-        .distinct()
     )
 
     # ==========================================================
@@ -3000,7 +3029,7 @@ def clients(request):
     if area_id.isdigit():
         qs = qs.filter(area_id=int(area_id))
 
-    clients = qs.distinct()
+    clients = qs
 
     return render(
         request,
@@ -3593,7 +3622,7 @@ def quotations(request):
     # FINAL DISTINCT
     # -------------------------------------------------
 
-    quotations = qs.distinct()
+    quotations = qs
 
     # -------------------------------------------------
     # RENDER
@@ -4526,7 +4555,21 @@ def orders(request):
     # -------------------------------------------------
     # BASE QUERYSET
     # -------------------------------------------------
-
+    #
+    # IMPORTANT:
+    # Do NOT aggregate OrderItems here.
+    #
+    # Sum("items__quantity") and Count("items", distinct=True)
+    # turn this into a GROUP BY query against OrderItem. On the
+    # current MariaDB environment that can force MariaDB to create
+    # an on-disk temporary table and produce:
+    #
+    #     1021 - Disk got full writing '.(temporary)'
+    #
+    # We already have the OrderItems available through prefetching,
+    # so the small per-order calculations are safely done in Python.
+    # This keeps the main Order query simple and avoids the temporary
+    # table operation.
     qs = (
         Order.objects
         .select_related(
@@ -4639,71 +4682,96 @@ def orders(request):
     )
 
     # -------------------------------------------------
-    # SAFE DECIMAL FALLBACKS
+    # ORDERING
     # -------------------------------------------------
 
-    ZERO_DEC = Value(
-        Decimal("0.00"),
-        output_field=DecimalField(
-            max_digits=12,
-            decimal_places=2,
-        ),
-    )
-
-    ZERO_INT = Value(
-        0,
-        output_field=IntegerField(),
-    )
-
-    # -------------------------------------------------
-    # COMPUTED TOTAL FALLBACK
-    # -------------------------------------------------
-
-    computed_total_fallback = ExpressionWrapper(
-        Coalesce(F("subtotal_excl"), ZERO_DEC)
-        + Coalesce(F("vat_total"), ZERO_DEC)
-        + Coalesce(F("delivery_fee_excl"), ZERO_DEC),
-        output_field=DecimalField(
-            max_digits=12,
-            decimal_places=2,
-        ),
-    )
-
-    # -------------------------------------------------
-    # ANNOTATIONS
-    # -------------------------------------------------
-
-    qs = qs.annotate(
-        total_quantity=Coalesce(
-            Sum("items__quantity"),
-            ZERO_DEC,
-            output_field=DecimalField(
-                max_digits=12,
-                decimal_places=2,
-            ),
-        ),
-
-        item_count=Coalesce(
-            Count(
-                "items",
-                distinct=True,
-            ),
-            ZERO_INT,
-            output_field=IntegerField(),
-        ),
-
-        total_amount=Coalesce(
-            F("grand_total_inc"),
-            computed_total_fallback,
-            output_field=DecimalField(
-                max_digits=12,
-                decimal_places=2,
-            ),
-        ),
-
-    ).order_by(
+    qs = qs.order_by(
         "-submitted_at"
-    ).distinct()
+    )
+
+    # -------------------------------------------------
+    # LOAD ORDERS
+    # -------------------------------------------------
+    #
+    # Force one simple Order query plus one prefetch query for
+    # OrderItems. Do not use annotate()/GROUP BY/DISTINCT here.
+    #
+    # The existing template expects:
+    #     order.item_count
+    #     order.total_amount
+    #
+    # We calculate those values in Python after the items have
+    # been prefetched.
+    # -------------------------------------------------
+
+    orders_list = list(qs)
+
+    for order in orders_list:
+
+        # Because "items" was prefetched above, this does NOT issue
+        # one database query per order.
+        order_items = list(order.items.all())
+
+        # Number of line items.
+        order.item_count = len(order_items)
+
+        # Total quantity across the order items.
+        total_quantity = Decimal("0.00")
+
+        for item in order_items:
+            quantity = getattr(item, "quantity", None)
+
+            if quantity is not None:
+                try:
+                    total_quantity += Decimal(str(quantity))
+                except (InvalidOperation, TypeError, ValueError):
+                    pass
+
+        order.total_quantity = total_quantity
+
+        # -------------------------------------------------
+        # TOTAL AMOUNT
+        # -------------------------------------------------
+        #
+        # Preserve the previous logic:
+        #
+        # 1. Use grand_total_inc when it exists.
+        # 2. Otherwise calculate:
+        #       subtotal_excl
+        #       + vat_total
+        #       + delivery_fee_excl
+        #
+        # No database annotation is required.
+        # -------------------------------------------------
+
+        grand_total = getattr(order, "grand_total_inc", None)
+
+        if grand_total is not None:
+            order.total_amount = grand_total
+        else:
+            subtotal_excl = (
+                getattr(order, "subtotal_excl", None)
+                or Decimal("0.00")
+            )
+
+            vat_total = (
+                getattr(order, "vat_total", None)
+                or Decimal("0.00")
+            )
+
+            delivery_fee_excl = (
+                getattr(order, "delivery_fee_excl", None)
+                or Decimal("0.00")
+            )
+
+            try:
+                order.total_amount = (
+                    Decimal(str(subtotal_excl))
+                    + Decimal(str(vat_total))
+                    + Decimal(str(delivery_fee_excl))
+                )
+            except (InvalidOperation, TypeError, ValueError):
+                order.total_amount = Decimal("0.00")
 
     # -------------------------------------------------
     # RENDER
@@ -4713,7 +4781,7 @@ def orders(request):
         request,
         "orders/orders.html",
         {
-            "orders": qs,
+            "orders": orders_list,
 
             "filter_status": status,
             "filter_channel": channel,
@@ -4727,7 +4795,6 @@ def orders(request):
             "rep_only": rep_only,
         },
     )
-
 
 
 class OrderForm(ModelForm):
@@ -11728,7 +11795,22 @@ def sales_knowledge_list(request):
     # Include both parent categories and sub-categories so the template
     # can populate the category and sub-category filters.
     # -------------------------------------------------------------------------
-    categories = (
+    # Fetch categories without ordering by a related-table column.
+    #
+    # The MariaDB server is currently failing when it needs to create
+    # an on-disk temporary result for this query.  Ordering by
+    # "parent__name" requires MariaDB to include the related Category
+    # table in the sort operation, which is unnecessary for only the
+    # small category list used by this filter.
+    #
+    # We therefore:
+    #   1. Fetch the active categories with their parent in one query.
+    #   2. Order by local Category fields in SQL.
+    #   3. Perform the final parent/name ordering in Python.
+    #
+    # This preserves the existing display order without asking MariaDB
+    # to build the problematic temporary sorted result.
+    categories = list(
         Category.objects
         .filter(
             is_active=True
@@ -11737,9 +11819,21 @@ def sales_knowledge_list(request):
             "parent"
         )
         .order_by(
-            "parent__name",
             "sort_order",
             "name",
+        )
+    )
+
+    categories.sort(
+        key=lambda category: (
+            category.parent.name
+            if category.parent
+            else "",
+            category.sort_order
+            if category.sort_order is not None
+            else 0,
+            category.name
+            or "",
         )
     )
 

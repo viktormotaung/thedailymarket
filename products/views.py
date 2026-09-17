@@ -170,10 +170,21 @@ def product_list(request):
             "min_retail_inc": min_retail_inc,
         })
 
-    price_list_subcategories = Category.objects.filter(
-        is_active=True,
-        parent__isnull=False
-    ).select_related("parent").order_by("parent__name", "name")
+    price_list_subcategories = list(
+        Category.objects.filter(
+            is_active=True,
+            parent__isnull=False,
+        )
+        .select_related("parent")
+        .order_by("name")
+    )
+
+    price_list_subcategories.sort(
+        key=lambda category: (
+            category.parent.name if category.parent else "",
+            category.name or "",
+        )
+    )
 
     return render(
         request,
@@ -209,10 +220,7 @@ def product_knowledge_list(request):
             "product",
             "product__category",
         )
-        .order_by(
-            "product__product_no",
-            "product__name",
-        )
+        .order_by("id")
     )
 
     # -----------------------------------------------------
@@ -270,16 +278,34 @@ def product_knowledge_list(request):
             is_approved=False
         )
 
+    # Keep the existing display order without asking MariaDB to
+    # sort ProductKnowledge by fields on the related Product table.
+    qs = list(qs)
+
+    qs.sort(
+        key=lambda knowledge: (
+            knowledge.product.product_no
+            if knowledge.product and knowledge.product.product_no
+            else "",
+            knowledge.product.name
+            if knowledge.product and knowledge.product.name
+            else "",
+        )
+    )
+
     # -----------------------------------------------------
     # Categories
     # -----------------------------------------------------
 
+    categories_with_products = Product.objects.filter(
+        category_id=OuterRef("pk")
+    )
+
     categories = (
         Category.objects
         .filter(
-            products__isnull=False
+            Exists(categories_with_products)
         )
-        .distinct()
         .order_by("name")
     )
 
@@ -366,7 +392,7 @@ def product_knowledge_manual(request):
 
     from xml.sax.saxutils import escape
 
-    knowledge_records = (
+    knowledge_records = list(
         ProductKnowledge.objects
         .select_related(
             "product",
@@ -381,9 +407,17 @@ def product_knowledge_manual(request):
             "customer_questions",
             "product_objections",
         )
-        .order_by(
-            "product__product_no",
-            "product__name",
+        .order_by("id")
+    )
+
+    knowledge_records.sort(
+        key=lambda knowledge: (
+            knowledge.product.product_no
+            if knowledge.product and knowledge.product.product_no
+            else "",
+            knowledge.product.name
+            if knowledge.product and knowledge.product.name
+            else "",
         )
     )
 
@@ -1186,14 +1220,23 @@ def download_price_list(request):
             category__parent__isnull=False,
             visible="YES",
         )
-        .order_by(
-            "category__parent__name",
-            "product_no",
-        )
+        .order_by("product_no")
     )
 
     if subcategory_ids:
         qs = qs.filter(category_id__in=subcategory_ids)
+
+    # Sort the small price-list result in Python rather than asking
+    # MariaDB to sort by fields on the related Category tables.
+    qs = list(qs)
+    qs.sort(
+        key=lambda product: (
+            product.category.parent.name
+            if product.category and product.category.parent
+            else "",
+            product.product_no or "",
+        )
+    )
 
     # =====================================================
     # WEEKLY PRICE LIST PERIOD
@@ -2124,11 +2167,19 @@ def product_view(request, pk):
     # -----------------------------------------------------
     # Pricing rows
     # -----------------------------------------------------
-    pricing_rows = (
+    pricing_rows = list(
         ProductPricing.objects
         .filter(product=product)
         .select_related("supplier")
-        .order_by("supplier__name")
+        .order_by("id")
+    )
+
+    pricing_rows.sort(
+        key=lambda row: (
+            row.supplier.name
+            if row.supplier and row.supplier.name
+            else "",
+        )
     )
 
     # -----------------------------------------------------
@@ -2286,6 +2337,15 @@ def product_dashboard(request):
     category_id = request.GET.get("category") or ""
     pricing_status = request.GET.get("pricing_status") or ""
 
+    # =====================================================
+    # PRODUCTS
+    # =====================================================
+    #
+    # Keep the main product query free of reverse-relation joins.
+    # The previous pricing/variant filters used joins followed by
+    # DISTINCT, which can force MariaDB to create an on-disk
+    # temporary result.  We use EXISTS instead.
+    #
     products_qs = (
         Product.objects
         .select_related("category", "category__parent")
@@ -2295,48 +2355,101 @@ def product_dashboard(request):
 
     if q:
         products_qs = products_qs.filter(
-            Q(name__icontains=q) |
-            Q(sku__icontains=q) |
-            Q(product_no__icontains=q) |
-            Q(category__name__icontains=q) |
-            Q(category__parent__name__icontains=q)
+            Q(name__icontains=q)
+            | Q(sku__icontains=q)
+            | Q(product_no__icontains=q)
+            | Q(category__name__icontains=q)
+            | Q(category__parent__name__icontains=q)
         )
 
     if category_id:
         products_qs = products_qs.filter(category_id=category_id)
 
+    pricing_exists = ProductPricing.objects.filter(
+        product_id=OuterRef("pk")
+    )
+
     if pricing_status == "missing":
-        products_qs = products_qs.filter(pricing_rows__isnull=True)
+        products_qs = products_qs.filter(
+            ~Exists(pricing_exists)
+        )
 
     elif pricing_status == "has_pricing":
-        products_qs = products_qs.filter(pricing_rows__isnull=False)
+        products_qs = products_qs.filter(
+            Exists(pricing_exists)
+        )
 
-    products_qs = products_qs.distinct()
+    # Evaluate once.  Counts for the dashboard rows are calculated
+    # from the already-prefetched pricing/variant rows rather than
+    # through reverse-relation GROUP BY / DISTINCT queries.
+    filtered_product_list = list(
+        products_qs.order_by("name")
+    )
+
+    # =====================================================
+    # BASIC PRODUCT COUNTS
+    # =====================================================
 
     total_products = Product.objects.count()
+
     products_with_pricing = (
         Product.objects
-        .filter(pricing_rows__isnull=False)
-        .distinct()
+        .filter(
+            Exists(
+                ProductPricing.objects.filter(
+                    product_id=OuterRef("pk")
+                )
+            )
+        )
         .count()
     )
+
     products_without_pricing = (
         Product.objects
-        .filter(pricing_rows__isnull=True)
-        .distinct()
+        .filter(
+            ~Exists(
+                ProductPricing.objects.filter(
+                    product_id=OuterRef("pk")
+                )
+            )
+        )
         .count()
     )
+
     products_without_images = (
         Product.objects
-        .filter(Q(image__isnull=True) | Q(image=""))
+        .filter(
+            Q(image__isnull=True)
+            | Q(image="")
+        )
         .count()
     )
 
-    total_categories = Category.objects.count()
-    top_level_categories = Category.objects.filter(parent__isnull=True).count()
-    subcategories = Category.objects.filter(parent__isnull=False).count()
+    # =====================================================
+    # CATEGORY COUNTS
+    # =====================================================
 
-    active_pricing_rows = ProductPricing.objects.filter(is_active=True)
+    total_categories = Category.objects.count()
+
+    top_level_categories = (
+        Category.objects
+        .filter(parent__isnull=True)
+        .count()
+    )
+
+    subcategories = (
+        Category.objects
+        .filter(parent__isnull=False)
+        .count()
+    )
+
+    # =====================================================
+    # PRICING SUMMARY
+    # =====================================================
+
+    active_pricing_rows = ProductPricing.objects.filter(
+        is_active=True
+    )
 
     avg_supplier_price = active_pricing_rows.aggregate(
         avg_supplier_price=Avg("supplier_price_excl")
@@ -2346,65 +2459,229 @@ def product_dashboard(request):
         avg_wholesale_margin=Avg("wholesale_margin_percent")
     )["avg_wholesale_margin"]
 
-    avg_wholesale_margin = active_pricing_rows.aggregate(
-        avg_wholesale_margin=Avg("wholesale_margin_percent")
-    )["avg_wholesale_margin"]
+    # =====================================================
+    # VARIANT COUNTS
+    # =====================================================
 
     products_with_variants = (
         Product.objects
-        .filter(variants__isnull=False)
-        .distinct()
+        .filter(
+            Exists(
+                ProductVariant.objects.filter(
+                    product_id=OuterRef("pk")
+                )
+            )
+        )
         .count()
     )
 
     products_without_variants = (
         Product.objects
-        .filter(variants__isnull=True)
-        .distinct()
+        .filter(
+            ~Exists(
+                ProductVariant.objects.filter(
+                    product_id=OuterRef("pk")
+                )
+            )
+        )
         .count()
     )
 
-    products_with_multiple_suppliers = (
+    # =====================================================
+    # PRODUCTS WITH MULTIPLE SUPPLIERS
+    # =====================================================
+    #
+    # Calculate from prefetched pricing rows rather than using
+    # GROUP BY + COUNT(DISTINCT supplier).
+    #
+
+    supplier_products = list(
         Product.objects
-        .annotate(supplier_count=Count("pricing_rows__supplier", distinct=True))
-        .filter(supplier_count__gt=1)
-        .count()
+        .prefetch_related("pricing_rows")
+        .only("id", "name")
     )
 
-    category_breakdown = (
+    products_with_multiple_suppliers = 0
+
+    for product in supplier_products:
+        supplier_ids = {
+            row.supplier_id
+            for row in product.pricing_rows.all()
+            if row.supplier_id is not None
+        }
+
+        if len(supplier_ids) > 1:
+            products_with_multiple_suppliers += 1
+
+    # =====================================================
+    # CATEGORY BREAKDOWN
+    # =====================================================
+    #
+    # Avoid multiple COUNT(DISTINCT ...) joins.  Categories and
+    # their related products are loaded separately and the small
+    # dashboard counts are calculated in Python.
+    #
+
+    category_breakdown = list(
         Category.objects
-        .annotate(
-            product_count=Count("products", distinct=True),
-            pricing_count=Count("products__pricing_rows", distinct=True),
-            variant_count=Count("products__variants", distinct=True),
+        .select_related("parent")
+        .prefetch_related(
+            "products__pricing_rows",
+            "products__variants",
         )
-        .order_by("parent__name", "name")
+        .all()
     )
 
-    pricing_alerts = (
+    for category in category_breakdown:
+        category_products = list(
+            category.products.all()
+        )
+
+        category.product_count = len(
+            category_products
+        )
+
+        category.pricing_count = sum(
+            1
+            for product in category_products
+            for row in product.pricing_rows.all()
+            if row is not None
+        )
+
+        category.variant_count = sum(
+            1
+            for product in category_products
+            for variant in product.variants.all()
+            if variant is not None
+        )
+
+    category_breakdown.sort(
+        key=lambda category: (
+            category.parent.name
+            if category.parent
+            else "",
+            category.name or "",
+        )
+    )
+
+    # =====================================================
+    # PRICING ALERTS
+    # =====================================================
+
+    pricing_alerts = list(
         Product.objects
         .select_related("category", "category__parent")
-        .filter(pricing_rows__isnull=True)
-        .order_by("category__parent__name", "category__name", "name")[:20]
+        .filter(
+            ~Exists(
+                ProductPricing.objects.filter(
+                    product_id=OuterRef("pk")
+                )
+            )
+        )
+        .order_by("name")
     )
 
-    image_alerts = (
+    pricing_alerts.sort(
+        key=lambda product: (
+            product.category.parent.name
+            if product.category and product.category.parent
+            else "",
+            product.category.name
+            if product.category
+            else "",
+            product.name or "",
+        )
+    )
+
+    pricing_alerts = pricing_alerts[:20]
+
+    # =====================================================
+    # IMAGE ALERTS
+    # =====================================================
+
+    image_alerts = list(
         Product.objects
         .select_related("category", "category__parent")
-        .filter(Q(image__isnull=True) | Q(image=""))
-        .order_by("category__parent__name", "category__name", "name")[:20]
+        .filter(
+            Q(image__isnull=True)
+            | Q(image="")
+        )
+        .order_by("name")
     )
 
-    supplier_comparison = (
-        Product.objects
-        .annotate(
-            supplier_count=Count("pricing_rows__supplier", distinct=True),
-            min_supplier_price=Min("pricing_rows__supplier_price_excl"),
-            max_supplier_price=Max("pricing_rows__supplier_price_excl"),
+    image_alerts.sort(
+        key=lambda product: (
+            product.category.parent.name
+            if product.category and product.category.parent
+            else "",
+            product.category.name
+            if product.category
+            else "",
+            product.name or "",
         )
-        .filter(supplier_count__gt=1)
-        .order_by("-supplier_count", "name")[:20]
     )
+
+    image_alerts = image_alerts[:20]
+
+    # =====================================================
+    # SUPPLIER COMPARISON
+    # =====================================================
+    #
+    # Avoid COUNT(DISTINCT), MIN and MAX over the reverse
+    # pricing relationship in one grouped query.
+    #
+
+    comparison_products = list(
+        Product.objects
+        .prefetch_related("pricing_rows")
+        .only("id", "name")
+    )
+
+    supplier_comparison = []
+
+    for product in comparison_products:
+        pricing_rows = [
+            row
+            for row in product.pricing_rows.all()
+            if row.supplier_id is not None
+        ]
+
+        supplier_ids = {
+            row.supplier_id
+            for row in pricing_rows
+        }
+
+        if len(supplier_ids) <= 1:
+            continue
+
+        prices = [
+            row.supplier_price_excl
+            for row in pricing_rows
+            if row.supplier_price_excl is not None
+        ]
+
+        product.supplier_count = len(supplier_ids)
+        product.min_supplier_price = (
+            min(prices) if prices else None
+        )
+        product.max_supplier_price = (
+            max(prices) if prices else None
+        )
+
+        supplier_comparison.append(product)
+
+    supplier_comparison.sort(
+        key=lambda product: (
+            -(product.supplier_count or 0),
+            product.name or "",
+        )
+    )
+
+    supplier_comparison = supplier_comparison[:20]
+
+    # =====================================================
+    # RECENT PRODUCTS
+    # =====================================================
 
     recent_products = (
         Product.objects
@@ -2412,27 +2689,86 @@ def product_dashboard(request):
         .order_by("-created_at")[:10]
     )
 
+    # =====================================================
+    # RECENT PRICING UPDATES
+    # =====================================================
+
     recent_pricing_updates = (
         ProductPricing.objects
-        .select_related("product", "supplier", "product__category")
+        .select_related(
+            "product",
+            "supplier",
+            "product__category",
+        )
         .order_by("-updated_at")[:10]
     )
 
-    filtered_products = (
-        products_qs
-        .annotate(
-            pricing_count=Count("pricing_rows", distinct=True),
-            variant_count=Count("variants", distinct=True),
-            supplier_count=Count("pricing_rows__supplier", distinct=True),
+    # =====================================================
+    # FILTERED PRODUCTS
+    # =====================================================
+    #
+    # The queryset is already evaluated above and has pricing_rows
+    # and variants prefetched.  Add the dashboard counts in Python.
+    #
+
+    filtered_products = filtered_product_list
+
+    for product in filtered_products:
+        pricing_rows = list(
+            product.pricing_rows.all()
         )
-        .order_by("category__parent__name", "category__name", "name")[:100]
+
+        product.pricing_count = len(
+            pricing_rows
+        )
+
+        product.variant_count = len(
+            product.variants.all()
+        )
+
+        product.supplier_count = len({
+            row.supplier_id
+            for row in pricing_rows
+            if row.supplier_id is not None
+        })
+
+    filtered_products.sort(
+        key=lambda product: (
+            product.category.parent.name
+            if product.category and product.category.parent
+            else "",
+            product.category.name
+            if product.category
+            else "",
+            product.name or "",
+        )
     )
 
-    categories = (
+    filtered_products = filtered_products[:100]
+
+    # =====================================================
+    # CATEGORY FILTER OPTIONS
+    # =====================================================
+
+    categories = list(
         Category.objects
         .filter(parent__isnull=False)
-        .order_by("parent__name", "name")
+        .select_related("parent")
+        .order_by("name")
     )
+
+    categories.sort(
+        key=lambda category: (
+            category.parent.name
+            if category.parent
+            else "",
+            category.name or "",
+        )
+    )
+
+    # =====================================================
+    # CONTEXT
+    # =====================================================
 
     ctx = {
         "q": q,
@@ -2452,7 +2788,6 @@ def product_dashboard(request):
 
         "avg_supplier_price": avg_supplier_price,
         "avg_wholesale_margin": avg_wholesale_margin,
-        "avg_wholesale_margin": avg_wholesale_margin,
 
         "category_breakdown": category_breakdown,
         "pricing_alerts": pricing_alerts,
@@ -2469,5 +2804,3 @@ def product_dashboard(request):
         "products/product_dashboard.html",
         ctx
     )
-
-
