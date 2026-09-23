@@ -5,75 +5,51 @@ from django.utils import timezone
 from sales.models import DailyTaskSchedule
 from sales.tasks import (
     send_daily_supervisor_sales_reports,
-    send_daily_rep_sales_reports,
+    send_daily_manager_sales_reports,
 )
 
 
 TASK_FUNCTIONS = {
     "send_daily_supervisor_sales_reports": send_daily_supervisor_sales_reports,
-    "send_daily_rep_sales_reports": send_daily_rep_sales_reports,
+    "send_daily_manager_sales_reports": send_daily_manager_sales_reports,
 }
 
 
 class Command(BaseCommand):
-    help = "Process pending Daily Market database queue tasks."
+    help = "Process pending daily tasks from the database queue."
 
     def handle(self, *args, **options):
-
         now = timezone.now()
-
-        self.stdout.write(
-            f"Checking task queue at {timezone.localtime(now)}"
-        )
-
-        # ---------------------------------------------------------
-        # Find tasks that are due.
-        # ---------------------------------------------------------
-
-        pending_tasks = DailyTaskSchedule.objects.filter(
-            status=DailyTaskSchedule.STATUS_PENDING,
-            run_at__lte=now,
-        ).order_by(
-            "run_at",
-            "id",
-        )
 
         processed = 0
         completed = 0
         failed = 0
 
-        for schedule_id in pending_tasks.values_list(
-            "id",
-            flat=True,
-        ):
-
-            # -----------------------------------------------------
-            # Lock this queue record before processing it.
-            # -----------------------------------------------------
+        while True:
+            task = None
 
             with transaction.atomic():
-
-                try:
-                    schedule = (
-                        DailyTaskSchedule.objects
-                        .select_for_update()
-                        .get(
-                            id=schedule_id,
-                            status=DailyTaskSchedule.STATUS_PENDING,
-                        )
+                # Find the next pending task that is due.
+                task = (
+                    DailyTaskSchedule.objects
+                    .select_for_update(skip_locked=True)
+                    .filter(
+                        status=DailyTaskSchedule.STATUS_PENDING,
+                        run_at__lte=now,
                     )
-                except DailyTaskSchedule.DoesNotExist:
-                    continue
-
-                schedule.status = (
-                    DailyTaskSchedule.STATUS_RUNNING
+                    .order_by("run_at", "id")
+                    .first()
                 )
 
-                schedule.attempts += 1
-                schedule.started_at = timezone.now()
-                schedule.error_message = None
+                if not task:
+                    break
 
-                schedule.save(
+                # Mark the task as running before executing it.
+                task.status = DailyTaskSchedule.STATUS_RUNNING
+                task.attempts += 1
+                task.started_at = timezone.now()
+                task.error_message = ""
+                task.save(
                     update_fields=[
                         "status",
                         "attempts",
@@ -82,107 +58,90 @@ class Command(BaseCommand):
                     ]
                 )
 
-            # -----------------------------------------------------
-            # Find the actual Python function.
-            # -----------------------------------------------------
+            processed += 1
 
-            task_function = TASK_FUNCTIONS.get(
-                schedule.task_name
+            self.stdout.write(
+                f"Running task: {task.task_name} "
+                f"(ID: {task.id})"
             )
 
-            if task_function is None:
+            # Resolve the actual Python function for this task.
+            task_function = TASK_FUNCTIONS.get(task.task_name)
 
+            if not task_function:
                 error_message = (
-                    f"Unknown queue task: "
-                    f"{schedule.task_name}"
+                    f"Unknown task: {task.task_name}"
                 )
 
                 DailyTaskSchedule.objects.filter(
-                    id=schedule.id
+                    pk=task.pk
                 ).update(
                     status=DailyTaskSchedule.STATUS_FAILED,
                     failed_at=timezone.now(),
                     error_message=error_message,
                 )
 
+                failed += 1
+
                 self.stdout.write(
                     self.style.ERROR(
-                        error_message
+                        f"FAILED: {error_message}"
                     )
                 )
 
-                failed += 1
-                processed += 1
                 continue
 
-            # -----------------------------------------------------
-            # Execute the task.
-            # -----------------------------------------------------
-
-            self.stdout.write(
-                f"Running: {schedule.task_name}"
-            )
-
             try:
-
+                # Execute the task.
                 task_function()
 
-                # -------------------------------------------------
-                # Mark as completed.
-                # -------------------------------------------------
-
+                # Mark the task as completed.
                 DailyTaskSchedule.objects.filter(
-                    id=schedule.id
+                    pk=task.pk
                 ).update(
                     status=DailyTaskSchedule.STATUS_COMPLETED,
                     executed_at=timezone.now(),
-                    error_message=None,
-                )
-
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"Completed: {schedule.task_name}"
-                    )
+                    error_message="",
                 )
 
                 completed += 1
 
-            except Exception as exc:
-
-                error_message = (
-                    f"{type(exc).__name__}: {exc}"
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"COMPLETED: {task.task_name}"
+                    )
                 )
 
+            except Exception as exc:
+                error_message = str(exc)
+
                 DailyTaskSchedule.objects.filter(
-                    id=schedule.id
+                    pk=task.pk
                 ).update(
                     status=DailyTaskSchedule.STATUS_FAILED,
                     failed_at=timezone.now(),
                     error_message=error_message,
                 )
 
-                self.stdout.write(
-                    self.style.ERROR(
-                        f"FAILED: {schedule.task_name}"
-                    )
-                )
-
-                self.stdout.write(
-                    self.style.ERROR(
-                        error_message
-                    )
-                )
-
                 failed += 1
 
-            processed += 1
-
-        # ---------------------------------------------------------
-        # Summary
-        # ---------------------------------------------------------
+                self.stdout.write(
+                    self.style.ERROR(
+                        f"FAILED: {task.task_name} - {error_message}"
+                    )
+                )
 
         self.stdout.write("")
-        self.stdout.write("Task queue processing complete.")
-        self.stdout.write(f"Processed: {processed}")
-        self.stdout.write(f"Completed: {completed}")
-        self.stdout.write(f"Failed: {failed}")
+        self.stdout.write(
+            f"Processed: {processed}"
+        )
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Completed: {completed}"
+            )
+        )
+        self.stdout.write(
+            self.style.ERROR(
+                f"Failed: {failed}"
+            )
+        )

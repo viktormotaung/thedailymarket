@@ -1,4 +1,3 @@
-
 from django.contrib import admin, messages
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -256,15 +255,15 @@ class DailyTaskScheduleAdmin(admin.ModelAdmin):
 
         from sales.tasks import (
             send_daily_supervisor_sales_reports,
-            send_daily_rep_sales_reports,
+            send_daily_manager_sales_reports,
         )
 
         task_functions = {
             "send_daily_supervisor_sales_reports":
                 send_daily_supervisor_sales_reports,
 
-            "send_daily_rep_sales_reports":
-                send_daily_rep_sales_reports,
+            "send_daily_manager_sales_reports":
+                send_daily_manager_sales_reports,
         }
 
         processed = 0
