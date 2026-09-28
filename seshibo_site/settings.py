@@ -75,6 +75,8 @@ INSTALLED_APPS = [
     "django_extensions",
     "payments",
     "online_payments",
+    'supply_chain',
+    'warehouse',
     
     "membership",
 

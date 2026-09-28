@@ -34,7 +34,8 @@ urlpatterns = [
     path("invoices/public/<uuid:token>/", invoice_views.public_invoice_view, name="public-invoice-view",),
     path("communications/", include("communications.urls"),),
     path("membership/", include("membership.urls")),
-
+    path("portal/staff/supply-chain/", include("supply_chain.urls")),
+    path("portal/staff/warehouse/", include("warehouse.urls")),
     
 
 

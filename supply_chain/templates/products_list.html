@@ -1,0 +1,578 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supply Chain Dashboard - The Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    /* --- Desktop: fixed (non-movable) sidebar --- */
+    @media (min-width: 992px) {
+      html, body { height: 100%; }
+      body { min-height: 100vh; overflow-x: hidden; }
+
+      .sidebar-desktop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 220px;
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: visible !important; /* allow dropdown to show */
+      }
+
+      /* ✅ Let Bootstrap control dropdown positioning */
+      .sidebar-desktop .dropdown {
+        position: relative;
+      }
+
+      
+
+      .sidebar-desktop .dropdown-menu {
+        margin-top: 8px;
+      }
+
+      main.content {
+        margin-left: 220px;
+        min-height: 100vh;
+      }
+    }
+
+    /* Shared styles */
+    .sidebar-skin {
+      background-color: #0b5c39;
+      color: #fff;
+      padding: 1rem;
+    }
+
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: .25rem 0;
+      display: block;
+    }
+
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+
+    .logo-img {
+      max-height: 80px;
+      width: auto;
+    }
+
+    .product-row {
+      transition: background-color .15s ease;
+    }
+
+    .product-row:hover,
+    .product-row:focus {
+      background-color: rgba(11, 92, 57, 0.06);
+      outline: none;
+    }
+
+    .product-row:focus-visible {
+      box-shadow: inset 0 0 0 2px rgba(11, 92, 57, 0.35);
+    }
+
+    .content {
+      background: #f8f9fa;
+      padding: 20px;
+    }
+
+    .sidebar-skin .nav-link.ps-4 {
+      font-size: .95rem;
+      opacity: .95;
+    }
+
+    /* --- Compact chart height --- */
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 220px;
+    }
+
+    @media (max-width: 991.98px) {
+      .chart-wrap { height: 180px; }
+    }
+
+    @media (max-width: 575.98px) {
+      .chart-wrap { height: 150px; }
+    }
+
+    .chart-wrap canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MOBILE HEADER -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="{% url 'supply_chain:supply-chain-dashboard' %}">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  <!-- MOBILE SIDEBAR -->
+  <div class="offcanvas offcanvas-start d-lg-none sidebar-skin" tabindex="-1" id="mobileMenu">
+    <div class="offcanvas-header">
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" class="logo-img" alt="The Daily Market">
+      </div>
+      <h6 class="text-uppercase fw-semibold mb-2 text-center small">Supply Chain Platform</h6>
+      <hr class="border-light">
+      {% with current=request.resolver_match.url_name %}
+        <a href="{% url 'supply_chain:supply-chain-dashboard' %}" class="nav-link {% if current == 'supply-chain-dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="{% url 'supply_chain:supply-chain-suppliers' %}" class="nav-link {% if current == 'supply-chain-suppliers' %}active{% endif %}">Suppliers</a>
+        <a href="{% url 'supply_chain:supply-chain-products' %}" class="nav-link {% if current == 'supply-chain-products' %}active{% endif %}">Products</a>
+        <a href="{% url 'supply_chain:supply-chain-procurement' %}" class="nav-link {% if current == 'supply-chain-procurement' %}active{% endif %}">Procurement</a>
+        <a href="{% url 'supply_chain:supply-chain-purchase-orders' %}" class="nav-link {% if current == 'supply-chain-purchase-orders' %}active{% endif %}">Purchase Orders</a>
+        <hr class="border-light">
+        <button type="button" class="btn btn-outline-light w-100 mb-2" data-bs-toggle="modal" data-bs-target="#switchPlatformModal">Switch Platform</button>
+        <form action="{% url 'logout' %}" method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-light w-100">Sign out</button>
+        </form>
+      {% endwith %}
+    </div>
+  </div>
+
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin" id="desktopAccordion">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+    <h6 class="text-uppercase fw-semibold mb-2 text-center small">Supply Chain Platform</h6>
+    <hr class="border-light">
+    {% with current=request.resolver_match.url_name %}
+      <a href="{% url 'supply_chain:supply-chain-dashboard' %}" class="nav-link {% if current == 'supply-chain-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'supply_chain:supply-chain-suppliers' %}" class="nav-link {% if current == 'supply-chain-suppliers' %}active{% endif %}">Suppliers</a>
+      <a href="{% url 'supply_chain:supply-chain-products' %}" class="nav-link {% if current == 'supply-chain-products' %}active{% endif %}">Products</a>
+      <a href="{% url 'supply_chain:supply-chain-procurement' %}" class="nav-link {% if current == 'supply-chain-procurement' %}active{% endif %}">Procurement</a>
+      <a href="{% url 'supply_chain:supply-chain-purchase-orders' %}" class="nav-link {% if current == 'supply-chain-purchase-orders' %}active{% endif %}">Purchase Orders</a>
+      <hr class="border-light">
+      <div class="mb-2">
+        <button type="button" class="btn btn-outline-light btn-sm w-100 text-center py-1" data-bs-toggle="modal" data-bs-target="#switchPlatformModal">Switch Platform</button>
+      </div>
+      <div class="mt-2 mb-2">
+        <form action="{% url 'logout' %}" method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-light btn-sm w-100 py-1">Sign out</button>
+        </form>
+      </div>
+    {% endwith %}
+  </aside>
+
+  <main class="content">
+
+    {% if messages %}
+      <div class="mb-3">
+        {% for message in messages %}
+          <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert">
+            {% if message.tags == 'success' %}
+              <i class="bi bi-check-circle me-2"></i>
+            {% elif message.tags == 'error' %}
+              <i class="bi bi-exclamation-triangle me-2"></i>
+            {% else %}
+              <i class="bi bi-info-circle me-2"></i>
+            {% endif %}
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- PAGE HEADER -->
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+      <div>
+        <h1 class="h3 fw-bold mb-1">Products</h1>
+        <div class="text-muted">
+          Product register and product data management
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2">
+        <button
+          type="button"
+          class="btn btn-success"
+          data-bs-toggle="modal"
+          data-bs-target="#importProductsModal"
+        >
+          <i class="bi bi-upload me-1"></i>
+          Import Products
+        </button>
+
+        <a
+          href="{% url 'supply_chain:supply-chain-products-price-list' %}"
+          class="btn btn-outline-success"
+        >
+          <i class="bi bi-file-earmark-pdf me-1"></i>
+          Download Price List
+        </a>
+      </div>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <form method="get" action="{% url 'supply_chain:supply-chain-products' %}">
+          <div class="row g-2">
+            <div class="col-md-10">
+              <div class="input-group">
+                <span class="input-group-text bg-white">
+                  <i class="bi bi-search text-muted"></i>
+                </span>
+                <input
+                  type="text"
+                  name="search"
+                  value="{{ search }}"
+                  class="form-control"
+                  placeholder="Search by product name, product number or SKU..."
+                  autocomplete="off"
+                >
+              </div>
+            </div>
+
+            <div class="col-md-2">
+              <button type="submit" class="btn btn-success w-100">
+                Search
+              </button>
+            </div>
+          </div>
+
+          {% if search %}
+            <div class="mt-2">
+              <a
+                href="{% url 'supply_chain:supply-chain-products' %}"
+                class="small text-decoration-none"
+              >
+                <i class="bi bi-x-circle me-1"></i>
+                Clear search
+              </a>
+            </div>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+
+    <!-- PRODUCT REGISTER -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+        <div class="fw-semibold">
+          <i class="bi bi-box-seam me-2"></i>
+          Product Register
+        </div>
+
+        <span class="text-muted small">
+          {{ products|length }} product{{ products|length|pluralize }}
+        </span>
+      </div>
+
+      {% if products %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="px-3">Product No.</th>
+                <th>Product</th>
+                <th>SKU</th>
+                <th>Category</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {% for product in products %}
+                <tr
+                  class="product-row"
+                  role="link"
+                  tabindex="0"
+                  onclick="window.location.href='{% url 'supply_chain:supply-chain-product-detail' product.pk %}'"
+                  onkeydown="if(event.key === 'Enter' || event.key === ' '){event.preventDefault(); window.location.href='{% url 'supply_chain:supply-chain-product-detail' product.pk %}';}"
+                  style="cursor:pointer;"
+                >
+                  <td class="px-3">
+                    <span class="fw-bold text-success">
+                      {{ product.product_no }}
+                    </span>
+                  </td>
+
+                  <td>
+                    <div class="fw-semibold">
+                      {{ product.name }}
+                    </div>
+                  </td>
+
+                  <td>
+                    {% if product.sku %}
+                      <span class="font-monospace text-muted small">
+                        {{ product.sku }}
+                      </span>
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {% if product.category %}
+                      <span class="badge rounded-pill text-bg-light border">
+                        {% if product.category.parent %}
+                          {{ product.category.parent.name }} /
+                        {% endif %}
+                        {{ product.category.name }}
+                      </span>
+                    {% else %}
+                      <span class="text-muted">
+                        Uncategorised
+                      </span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-5 px-3 text-muted">
+          <i class="bi bi-box-seam display-5 d-block mb-3"></i>
+
+          {% if search %}
+            <h5 class="text-dark">No products found</h5>
+            <p class="mb-3">
+              No products matched
+              <strong>{{ search }}</strong>.
+            </p>
+
+            <a
+              href="{% url 'supply_chain:supply-chain-products' %}"
+              class="btn btn-outline-success"
+            >
+              Clear Search
+            </a>
+          {% else %}
+            <h5 class="text-dark">No products available</h5>
+            <p class="mb-3">
+              There are currently no products in the product register.
+            </p>
+
+            <button
+              type="button"
+              class="btn btn-success"
+              data-bs-toggle="modal"
+              data-bs-target="#importProductsModal"
+            >
+              <i class="bi bi-upload me-1"></i>
+              Import Products
+            </button>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+  </main>
+
+
+  <!-- IMPORT PRODUCTS MODAL -->
+  <div
+    class="modal fade"
+    id="importProductsModal"
+    tabindex="-1"
+    aria-labelledby="importProductsModalLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title" id="importProductsModalLabel">
+            <i class="bi bi-upload me-2"></i>
+            Import Products
+          </h5>
+
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+        </div>
+
+        <form
+          method="post"
+          enctype="multipart/form-data"
+          action="{% url 'supply_chain:supply-chain-products-import' %}"
+        >
+          {% csrf_token %}
+
+          <div class="modal-body">
+
+            <div class="alert alert-light border mb-3">
+              <div class="fw-semibold mb-1">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i>
+                Excel import
+              </div>
+              <div class="small text-muted">
+                Upload the product Excel workbook using the Supply Chain
+                product import.
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="productExcelFile" class="form-label fw-semibold">
+                Excel file
+              </label>
+
+              <input
+                type="file"
+                class="form-control"
+                id="productExcelFile"
+                name="excel_file"
+                accept=".xlsx"
+                required
+              >
+
+              <div class="form-text">
+                Excel workbook (.xlsx), maximum 5 MB.
+                The product import expects the Product sheet.
+              </div>
+            </div>
+
+            <div class="alert alert-warning mb-0">
+              <i class="bi bi-exclamation-triangle me-2"></i>
+              <strong>Please check the file before importing.</strong>
+              <div class="small mt-1">
+                Product numbers are permanent identifiers and should be
+                handled carefully.
+              </div>
+            </div>
+
+          </div>
+
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-light"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+
+            <button type="submit" class="btn btn-success">
+              <i class="bi bi-upload me-1"></i>
+              Import Products
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- SWITCH PLATFORM MODAL -->
+<div class="modal fade"
+     id="switchPlatformModal"
+     tabindex="-1"
+     aria-labelledby="switchPlatformModalLabel"
+     aria-hidden="true">
+
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header justify-content-center position-relative">
+
+        <h5 class="modal-title w-100 text-center"
+            id="switchPlatformModalLabel">
+          Switch Platform
+        </h5>
+
+        <button type="button"
+                class="btn-close position-absolute"
+                style="right:1rem; top:1rem;"
+                data-bs-dismiss="modal"
+                aria-label="Close"></button>
+
+      </div>
+
+      <div class="modal-body text-center">
+
+        <p class="mb-3 text-muted">
+          Choose a platform to continue:
+        </p>
+
+        <div class="d-grid gap-2">
+
+          <!-- MAIN STAFF PORTAL -->
+          <a href="{% url 'staff-dashboard' %}"
+             class="btn {% if current == 'staff_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_staff_portal %} disabled{% endif %}"
+             {% if not can_staff_portal %}tabindex="-1" aria-disabled="true"{% endif %}>
+            Main Staff Portal
+          </a>
+
+          <!-- FUNDER PORTAL -->
+          <a href="{% url 'funder-dashboard' %}"
+             class="btn {% if current == 'funder_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_lender_portal %} disabled{% endif %}"
+             {% if not can_lender_portal %}tabindex="-1" aria-disabled="true"{% endif %}>
+            Funder Portal
+          </a>
+
+          <!-- SALES PORTAL -->
+          <a href="{% url 'sales:sales-dashboard' %}"
+             class="btn {% if current == 'sales_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_sales_portal %} disabled{% endif %}"
+             {% if not can_sales_portal %}tabindex="-1" aria-disabled="true"{% endif %}>
+            Sales Portal
+          </a>
+
+          <!-- LOGISTICS PORTAL -->
+          <a href="{% url 'logistics:logistics-dashboard' %}"
+             class="btn {% if current == 'logistics_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_logistics_portal %} disabled{% endif %}"
+             {% if not can_logistics_portal %}tabindex="-1" aria-disabled="true"{% endif %}>
+            Logistics Portal
+          </a>
+
+          <!-- SUPPLY CHAIN PORTAL -->
+          <a href="{% url 'supply_chain:supply-chain-dashboard' %}"
+             class="btn {% if current == 'supply_chain_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_supply_chain_portal %} disabled{% endif %}"
+             {% if not can_supply_chain_portal %}tabindex="-1" aria-disabled="true"{% endif %}>
+            Supply Chain Portal
+          </a>
+
+          <!-- WAREHOUSE PORTAL -->
+          <a href="{% url 'warehouse:warehouse-dashboard' %}"
+             class="btn {% if current == 'warehouse_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_warehouse_portal %} disabled{% endif %}"
+             {% if not can_warehouse_portal %}tabindex="-1" aria-disabled="true"{% endif %}>
+            Warehouse Portal
+          </a>
+
+        </div>
+      </div>
+
+      <div class="modal-footer justify-content-center border-0">
+
+        <small class="text-muted">
+          Platforms you don’t have access to are disabled.
+        </small>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

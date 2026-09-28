@@ -1,0 +1,1219 @@
+
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supply Chain Dashboard - The Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    /* --- Desktop: fixed (non-movable) sidebar --- */
+    @media (min-width: 992px) {
+      html, body { height: 100%; }
+      body { min-height: 100vh; overflow-x: hidden; }
+
+      .sidebar-desktop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 220px;
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: visible !important; /* allow dropdown to show */
+      }
+
+      /* ✅ Let Bootstrap control dropdown positioning */
+      .sidebar-desktop .dropdown {
+        position: relative;
+      }
+
+      
+
+      .sidebar-desktop .dropdown-menu {
+        margin-top: 8px;
+      }
+
+      main.content {
+        margin-left: 220px;
+        min-height: 100vh;
+      }
+    }
+
+    /* Shared styles */
+    .sidebar-skin {
+      background-color: #0b5c39;
+      color: #fff;
+      padding: 1rem;
+    }
+
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: .25rem 0;
+      display: block;
+    }
+
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+
+    .logo-img {
+      max-height: 80px;
+      width: auto;
+    }
+
+    .content {
+      background: #f8f9fa;
+      padding: 20px;
+    }
+
+    .sidebar-skin .nav-link.ps-4 {
+      font-size: .95rem;
+      opacity: .95;
+    }
+
+    /* --- Compact chart height --- */
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 220px;
+    }
+
+    @media (max-width: 991.98px) {
+      .chart-wrap { height: 180px; }
+    }
+
+    @media (max-width: 575.98px) {
+      .chart-wrap { height: 150px; }
+    }
+
+    .chart-wrap canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    .section-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 15px;
+      margin-bottom: 12px;
+    }
+
+    .metric-card,
+    .pulse-card,
+    .dashboard-card,
+    .attention-card {
+      background: #fff;
+      border: 1px solid #e8ecea;
+      border-radius: 10px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.03);
+    }
+
+    .metric-card {
+      min-height: 145px;
+      padding: 18px;
+      position: relative;
+    }
+
+    .metric-icon {
+      width: 38px;
+      height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9px;
+      background: rgba(11,92,57,.09);
+      color: #0b5c39;
+      margin-bottom: 12px;
+    }
+
+    .metric-icon.success {
+      background: rgba(25,135,84,.10);
+      color: #198754;
+    }
+
+    .metric-icon.warning {
+      background: rgba(255,193,7,.13);
+      color: #9a6b00;
+    }
+
+    .metric-label {
+      color: #6c757d;
+      font-size: .82rem;
+      margin-bottom: 3px;
+    }
+
+    .metric-value {
+      font-size: 1.55rem;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .metric-warning {
+      border-color: rgba(255,193,7,.45);
+    }
+
+    .pulse-card {
+      padding: 18px;
+      min-height: 155px;
+    }
+
+    .pulse-value {
+      font-size: 1.65rem;
+      font-weight: 700;
+      margin-top: 13px;
+    }
+
+    .dashboard-card {
+      overflow: hidden;
+    }
+
+    .dashboard-card .card-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid #edf0ee;
+    }
+
+    .dashboard-card .card-body {
+      padding: 16px;
+    }
+
+    .wave-row .progress {
+      height: 9px;
+      background: #edf0ee;
+    }
+
+    .coverage-number {
+      font-size: 1.65rem;
+      font-weight: 700;
+    }
+
+    .anticipation-item,
+    .status-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      padding: 12px 0;
+      border-bottom: 1px solid #edf0ee;
+    }
+
+    .anticipation-item:last-child,
+    .status-line:last-child {
+      border-bottom: 0;
+    }
+
+    .attention-card {
+      padding: 17px;
+      min-height: 145px;
+    }
+
+    .attention-card i {
+      color: #6c757d;
+    }
+
+    .attention-warning {
+      border-color: rgba(255,193,7,.5);
+      background: #fffdf5;
+    }
+
+    .attention-warning i {
+      color: #9a6b00;
+    }
+
+    .attention-danger {
+      border-color: rgba(220,53,69,.35);
+      background: #fff8f8;
+    }
+
+    .attention-danger i {
+      color: #dc3545;
+    }
+
+    .workflow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .workflow-number {
+      flex: 0 0 30px;
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: #0b5c39;
+      color: #fff;
+      font-size: .82rem;
+      font-weight: 700;
+    }
+
+    .workflow-arrow {
+      color: #adb5bd;
+      margin: 4px 0 4px 8px;
+      line-height: 1;
+    }
+
+    .empty-state {
+      min-height: 180px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      color: #6c757d;
+    }
+
+    .category-chart-wrap {
+      height: 280px;
+    }
+
+    .table > :not(caption) > * > * {
+      padding-top: .7rem;
+      padding-bottom: .7rem;
+    }
+
+    @media (max-width: 767.98px) {
+      .dashboard-header {
+        flex-direction: column;
+      }
+
+      .section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .metric-card {
+        min-height: 130px;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- MOBILE HEADER -->
+  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand ms-2" href="{% url 'supply_chain:supply-chain-dashboard' %}">
+        <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
+      </a>
+    </div>
+  </nav>
+
+  <!-- MOBILE SIDEBAR -->
+  <div class="offcanvas offcanvas-start d-lg-none sidebar-skin" tabindex="-1" id="mobileMenu">
+    <div class="offcanvas-header">
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="text-center mb-3">
+        <img src="{% static 'images/logo.png' %}" class="logo-img" alt="The Daily Market">
+      </div>
+      <h6 class="text-uppercase fw-semibold mb-2 text-center small">Supply Chain Platform</h6>
+      <hr class="border-light">
+      {% with current=request.resolver_match.url_name %}
+        <a href="{% url 'supply_chain:supply-chain-dashboard' %}" class="nav-link {% if current == 'supply-chain-dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="{% url 'supply_chain:supply-chain-suppliers' %}" class="nav-link {% if current == 'supply-chain-suppliers' %}active{% endif %}">Suppliers</a>
+        <a href="{% url 'supply_chain:supply-chain-products' %}" class="nav-link {% if current == 'supply-chain-products' %}active{% endif %}">Products</a>
+        <a href="{% url 'supply_chain:supply-chain-procurement' %}" class="nav-link {% if current == 'supply-chain-procurement' %}active{% endif %}">Procurement</a>
+        <a href="{% url 'supply_chain:supply-chain-purchase-orders' %}" class="nav-link {% if current == 'supply-chain-purchase-orders' %}active{% endif %}">Purchase Orders</a>
+        <hr class="border-light">
+        <button type="button" class="btn btn-outline-light w-100 mb-2" data-bs-toggle="modal" data-bs-target="#switchPlatformModal">Switch Platform</button>
+        <form action="{% url 'logout' %}" method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-light w-100">Sign out</button>
+        </form>
+      {% endwith %}
+    </div>
+  </div>
+
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="sidebar-desktop d-none d-lg-block sidebar-skin" id="desktopAccordion">
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" class="logo-img">
+    </div>
+    <h6 class="text-uppercase fw-semibold mb-2 text-center small">Supply Chain Platform</h6>
+    <hr class="border-light">
+    {% with current=request.resolver_match.url_name %}
+      <a href="{% url 'supply_chain:supply-chain-dashboard' %}" class="nav-link {% if current == 'supply-chain-dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{% url 'supply_chain:supply-chain-suppliers' %}" class="nav-link {% if current == 'supply-chain-suppliers' %}active{% endif %}">Suppliers</a>
+      <a href="{% url 'supply_chain:supply-chain-products' %}" class="nav-link {% if current == 'supply-chain-products' %}active{% endif %}">Products</a>
+      <a href="{% url 'supply_chain:supply-chain-procurement' %}" class="nav-link {% if current == 'supply-chain-procurement' %}active{% endif %}">Procurement</a>
+      <a href="{% url 'supply_chain:supply-chain-purchase-orders' %}" class="nav-link {% if current == 'supply-chain-purchase-orders' %}active{% endif %}">Purchase Orders</a>
+      <hr class="border-light">
+      <div class="mb-2">
+        <button type="button" class="btn btn-outline-light btn-sm w-100 text-center py-1" data-bs-toggle="modal" data-bs-target="#switchPlatformModal">Switch Platform</button>
+      </div>
+      <div class="mt-2 mb-2">
+        <form action="{% url 'logout' %}" method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-light btn-sm w-100 py-1">Sign out</button>
+        </form>
+      </div>
+    {% endwith %}
+  </aside>
+
+  <main class="content">
+    <div class="container-fluid">
+
+      <!-- ================= HEADER ================= -->
+      <div class="dashboard-header mb-4">
+        <div>
+          <div class="text-uppercase text-success fw-semibold small mb-1">
+            Supply Chain Control Centre
+          </div>
+          <h2 class="m-0">Supply Chain Dashboard</h2>
+          <p class="text-muted mb-0 mt-1">
+            Catalogue readiness, procurement requirements, purchase orders and supplier commitments.
+          </p>
+        </div>
+
+        <div class="text-md-end mt-3 mt-md-0">
+          <div class="small text-muted">Today</div>
+          <div class="fw-semibold">{{ dashboard_today|date:"D, d M Y" }}</div>
+          <div class="small text-muted mt-1">
+            Current week: {{ week_start|date:"d M" }} – {{ dashboard_today|date:"d M" }}
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================= PRODUCT CONTROL ================= -->
+      <div class="section-heading">
+        <div>
+          <h5 class="mb-1">Product Control</h5>
+          <div class="text-muted small">Is the catalogue ready to support procurement and selling?</div>
+        </div>
+        <a href="{% url 'supply_chain:supply-chain-products' %}" class="btn btn-sm btn-outline-success">
+          <i class="bi bi-box-seam me-1"></i> Products
+        </a>
+      </div>
+
+      <div class="row g-3 mb-4">
+
+        <div class="col-6 col-xl">
+          <div class="metric-card">
+            <div class="metric-icon"><i class="bi bi-box-seam"></i></div>
+            <div class="metric-label">Total Products</div>
+            <div class="metric-value">{{ total_products|intcomma }}</div>
+          </div>
+        </div>
+
+        <div class="col-6 col-xl">
+          <div class="metric-card">
+            <div class="metric-icon success"><i class="bi bi-check-circle"></i></div>
+            <div class="metric-label">With Pricing</div>
+            <div class="metric-value">{{ products_with_pricing|intcomma }}</div>
+          </div>
+        </div>
+
+        <div class="col-6 col-xl">
+          <div class="metric-card {% if missing_pricing %}metric-warning{% endif %}">
+            <div class="metric-icon {% if missing_pricing %}warning{% else %}success{% endif %}">
+              <i class="bi bi-currency-exchange"></i>
+            </div>
+            <div class="metric-label">Missing Pricing</div>
+            <div class="metric-value">{{ missing_pricing|intcomma }}</div>
+          </div>
+        </div>
+
+        <div class="col-6 col-xl">
+          <div class="metric-card {% if missing_images %}metric-warning{% endif %}">
+            <div class="metric-icon {% if missing_images %}warning{% else %}success{% endif %}">
+              <i class="bi bi-image"></i>
+            </div>
+            <div class="metric-label">Missing Images</div>
+            <div class="metric-value">{{ missing_images|intcomma }}</div>
+          </div>
+        </div>
+
+        <div class="col-12 col-xl">
+          <div class="metric-card">
+            <div class="metric-icon"><i class="bi bi-percent"></i></div>
+            <div class="metric-label">Avg Wholesale Margin</div>
+            <div class="metric-value">
+              {% if avg_wholesale_margin is not None %}
+                {{ avg_wholesale_margin|floatformat:2 }}%
+              {% else %}
+                —
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ================= PROCUREMENT PULSE ================= -->
+      <div class="section-heading">
+        <div>
+          <h5 class="mb-1">Procurement Pulse</h5>
+          <div class="text-muted small">
+            Current week-to-date compared with the same number of elapsed days last week.
+          </div>
+        </div>
+        <a href="{% url 'supply_chain:supply-chain-procurement' %}" class="btn btn-sm btn-outline-success">
+          <i class="bi bi-cart-check me-1"></i> Procurement
+        </a>
+      </div>
+
+      <div class="row g-3 mb-4">
+
+        <div class="col-md-6 col-xl-3">
+          <div class="pulse-card">
+            <div class="d-flex justify-content-between align-items-start">
+              <span class="small text-muted">PO Value</span>
+              <i class="bi bi-cash-stack text-success"></i>
+            </div>
+            <div class="pulse-value">R {{ current_po_value|floatformat:2|intcomma }}</div>
+            <div class="small mt-2">
+              {% if po_value_change_pct is not None %}
+                <span class="{% if po_value_change_pct >= 0 %}text-success{% else %}text-danger{% endif %} fw-semibold">
+                  {% if po_value_change_pct >= 0 %}+{% endif %}{{ po_value_change_pct|floatformat:1 }}%
+                </span>
+                <span class="text-muted">vs previous period</span>
+              {% else %}
+                <span class="text-muted">No previous PO value</span>
+              {% endif %}
+            </div>
+            <div class="small text-muted mt-1">
+              Previous: R {{ previous_po_value|floatformat:2|intcomma }}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+          <div class="pulse-card">
+            <div class="d-flex justify-content-between align-items-start">
+              <span class="small text-muted">Purchase Orders</span>
+              <i class="bi bi-file-earmark-text text-success"></i>
+            </div>
+            <div class="pulse-value">{{ current_po_count|intcomma }}</div>
+            <div class="small text-muted mt-2">
+              Previous period: {{ previous_po_count|intcomma }}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+          <div class="pulse-card">
+            <div class="d-flex justify-content-between align-items-start">
+              <span class="small text-muted">Procurement Cycles</span>
+              <i class="bi bi-arrow-repeat text-success"></i>
+            </div>
+            <div class="pulse-value">{{ current_procurement_count|intcomma }}</div>
+            <div class="small text-muted mt-2">
+              Previous period: {{ previous_procurement_count|intcomma }}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+          <div class="pulse-card">
+            <div class="d-flex justify-content-between align-items-start">
+              <span class="small text-muted">Requirement Lines</span>
+              <i class="bi bi-list-check text-success"></i>
+            </div>
+            <div class="pulse-value">{{ current_procurement_item_count|intcomma }}</div>
+            <div class="small text-muted mt-2">
+              Previous period: {{ previous_procurement_item_count|intcomma }}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ================= AM / PM ================= -->
+      <div class="row g-3 mb-4">
+
+        <div class="col-lg-5">
+          <div class="card dashboard-card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">AM vs PM Procurement</div>
+                <div class="small text-muted">Expected PO value this week</div>
+              </div>
+              <span class="badge bg-light text-dark border">WTD</span>
+            </div>
+
+            <div class="card-body">
+
+              <div class="wave-row">
+                <div class="d-flex justify-content-between mb-1">
+                  <span class="fw-semibold">AM</span>
+                  <span>R {{ am_po_value|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="progress">
+                  <div class="progress-bar bg-success" style="width: {{ am_share_pct|floatformat:0 }}%;"></div>
+                </div>
+                <div class="small text-muted mt-1">{{ am_share_pct|floatformat:1 }}% of PO value</div>
+              </div>
+
+              <div class="wave-row mt-4">
+                <div class="d-flex justify-content-between mb-1">
+                  <span class="fw-semibold">PM</span>
+                  <span>R {{ pm_po_value|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="progress">
+                  <div class="progress-bar bg-dark" style="width: {{ pm_share_pct|floatformat:0 }}%;"></div>
+                </div>
+                <div class="small text-muted mt-1">{{ pm_share_pct|floatformat:1 }}% of PO value</div>
+              </div>
+
+              <div class="border-top mt-4 pt-3 d-flex justify-content-between">
+                <span class="text-muted">Total expected PO value</span>
+                <strong>R {{ current_po_value|floatformat:2|intcomma }}</strong>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-7">
+          <div class="card dashboard-card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">PO Value Trend</div>
+                <div class="small text-muted">Last 14 days · AM and PM cycles</div>
+              </div>
+              <a href="{% url 'supply_chain:supply-chain-purchase-orders' %}" class="small text-success text-decoration-none">
+                View POs <i class="bi bi-arrow-right"></i>
+              </a>
+            </div>
+            <div class="card-body">
+              <div class="chart-wrap">
+                <canvas id="poTrendChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ================= COVERAGE + ANTICIPATION ================= -->
+      <div class="row g-3 mb-4">
+
+        <div class="col-lg-7">
+          <div class="card dashboard-card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">Procurement Coverage</div>
+                <div class="small text-muted">What TDM required vs what has been ordered</div>
+              </div>
+              <span class="fw-semibold text-success">{{ coverage_pct|floatformat:1 }}%</span>
+            </div>
+
+            <div class="card-body">
+
+              <div class="coverage-progress mb-4">
+                <div class="progress" style="height:10px;">
+                  <div class="progress-bar bg-success" style="width: {{ coverage_pct|floatformat:0 }}%;"></div>
+                </div>
+              </div>
+
+              <div class="row g-3 text-center">
+
+                <div class="col-4">
+                  <div class="coverage-number">{{ coverage_fully|intcomma }}</div>
+                  <div class="small text-muted">Fully covered</div>
+                </div>
+
+                <div class="col-4">
+                  <div class="coverage-number text-warning">{{ coverage_partial|intcomma }}</div>
+                  <div class="small text-muted">Partially covered</div>
+                </div>
+
+                <div class="col-4">
+                  <div class="coverage-number text-danger">{{ coverage_uncovered|intcomma }}</div>
+                  <div class="small text-muted">Not covered</div>
+                </div>
+
+              </div>
+
+              <div class="small text-muted mt-4">
+                {{ coverage_total|intcomma }} procurement requirement lines in the current period.
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="card dashboard-card h-100">
+            <div class="card-header bg-white">
+              <div class="fw-semibold">What to Anticipate</div>
+              <div class="small text-muted">Reference indicators, not a forecast</div>
+            </div>
+
+            <div class="card-body">
+
+              <div class="anticipation-item">
+                <div>
+                  <div class="fw-semibold">4-week average</div>
+                  <div class="small text-muted">Average weekly PO value</div>
+                </div>
+                <strong>R {{ average_weekly_po_value|floatformat:2|intcomma }}</strong>
+              </div>
+
+              <div class="anticipation-item">
+                <div>
+                  <div class="fw-semibold">Current run rate</div>
+                  <div class="small text-muted">Compared with 4-week average</div>
+                </div>
+                <strong>
+                  {% if current_vs_4_week_avg_pct is not None %}
+                    {% if current_vs_4_week_avg_pct >= 0 %}+{% endif %}{{ current_vs_4_week_avg_pct|floatformat:1 }}%
+                  {% else %}
+                    —
+                  {% endif %}
+                </strong>
+              </div>
+
+              <div class="anticipation-item">
+                <div>
+                  <div class="fw-semibold">Next procurement</div>
+                  {% if next_procurement %}
+                    <div class="small text-muted">
+                      {{ next_procurement.procurement_date|date:"D, d M" }} · {{ next_procurement.get_wave_display }}
+                    </div>
+                  {% else %}
+                    <div class="small text-muted">No future procurement scheduled</div>
+                  {% endif %}
+                </div>
+                <strong>
+                  {% if next_procurement %}
+                    {{ next_procurement_item_count }}
+                    <span class="small fw-normal text-muted">lines</span>
+                  {% else %}
+                    —
+                  {% endif %}
+                </strong>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ================= CATEGORY + TOP PRODUCTS ================= -->
+      <div class="row g-3 mb-4">
+
+        <div class="col-lg-6">
+          <div class="card dashboard-card h-100">
+            <div class="card-header bg-white">
+              <div class="fw-semibold">PO Value by Category</div>
+              <div class="small text-muted">Where procurement value is going this week</div>
+            </div>
+            <div class="card-body">
+              {% if category_data %}
+                <div class="chart-wrap category-chart-wrap">
+                  <canvas id="categoryChart"></canvas>
+                </div>
+              {% else %}
+                <div class="empty-state">
+                  <i class="bi bi-bar-chart fs-2"></i>
+                  <div class="mt-2 fw-semibold">No procurement data yet</div>
+                  <div class="small text-muted">Category analysis will appear once POs are recorded.</div>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="card dashboard-card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">Top Products by PO Value</div>
+                <div class="small text-muted">Current week-to-date</div>
+              </div>
+              <a href="{% url 'supply_chain:supply-chain-products' %}" class="small text-success text-decoration-none">
+                Products <i class="bi bi-arrow-right"></i>
+              </a>
+            </div>
+
+            <div class="card-body p-0">
+              {% if top_products %}
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th class="ps-3">Product</th>
+                        <th>Category</th>
+                        <th class="text-end">Qty</th>
+                        <th class="text-end pe-3">PO Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for item in top_products %}
+                        <tr>
+                          <td class="ps-3">
+                            <div class="fw-semibold">{{ item.name }}</div>
+                            <div class="small text-muted">{{ item.product_no }}</div>
+                          </td>
+                          <td class="small">{{ item.category }}</td>
+                          <td class="text-end">{{ item.quantity|floatformat:2|intcomma }}</td>
+                          <td class="text-end pe-3 fw-semibold">
+                            R {{ item.value|floatformat:2|intcomma }}
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <div class="empty-state">
+                  <i class="bi bi-box-seam fs-2"></i>
+                  <div class="mt-2 fw-semibold">No PO data yet</div>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ================= ATTENTION ================= -->
+      <div class="section-heading">
+        <div>
+          <h5 class="mb-1">Needs Attention</h5>
+          <div class="text-muted small">Items that may require Supply Chain action.</div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+
+        <div class="col-md-4">
+          <div class="attention-card {% if missing_pricing %}attention-warning{% endif %}">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="small text-muted">Missing pricing</div>
+                <div class="fs-4 fw-semibold">{{ missing_pricing|intcomma }}</div>
+              </div>
+              <i class="bi bi-currency-exchange fs-4"></i>
+            </div>
+            {% if missing_pricing %}
+              <div class="small mt-2">Products need active primary pricing.</div>
+            {% else %}
+              <div class="small text-success mt-2">All products have primary pricing.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="attention-card {% if coverage_uncovered %}attention-danger{% endif %}">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="small text-muted">Uncovered requirements</div>
+                <div class="fs-4 fw-semibold">{{ coverage_uncovered|intcomma }}</div>
+              </div>
+              <i class="bi bi-exclamation-circle fs-4"></i>
+            </div>
+            {% if coverage_uncovered %}
+              <div class="small mt-2">Requirement lines have no matching ordered quantity.</div>
+            {% else %}
+              <div class="small text-success mt-2">No uncovered requirement lines.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="attention-card {% if overdue_delivery_count %}attention-danger{% endif %}">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="small text-muted">Overdue deliveries</div>
+                <div class="fs-4 fw-semibold">{{ overdue_delivery_count|intcomma }}</div>
+              </div>
+              <i class="bi bi-truck fs-4"></i>
+            </div>
+            {% if overdue_delivery_count %}
+              <div class="small mt-2">Open POs have passed their expected delivery date.</div>
+            {% else %}
+              <div class="small text-success mt-2">No overdue open POs.</div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ================= PO STATUS ================= -->
+      <div class="row g-3 mb-4">
+
+        <div class="col-lg-6">
+          <div class="card dashboard-card h-100">
+            <div class="card-header bg-white fw-semibold">Purchase Order Pipeline</div>
+            <div class="card-body">
+
+              <div class="status-line">
+                <span><i class="bi bi-hourglass-split me-2 text-warning"></i>Awaiting approval</span>
+                <strong>{{ pending_approval_count|intcomma }}</strong>
+              </div>
+
+              <div class="status-line">
+                <span><i class="bi bi-send me-2 text-primary"></i>Approved, not sent</span>
+                <strong>{{ not_sent_count|intcomma }}</strong>
+              </div>
+
+              <div class="status-line">
+                <span><i class="bi bi-truck me-2 text-success"></i>Overdue expected delivery</span>
+                <strong>{{ overdue_delivery_count|intcomma }}</strong>
+              </div>
+
+              <div class="mt-3">
+                <a href="{% url 'supply_chain:supply-chain-purchase-orders' %}" class="btn btn-outline-success btn-sm">
+                  Manage Purchase Orders
+                </a>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="card dashboard-card h-100">
+            <div class="card-header bg-white fw-semibold">Supply Chain Workflow</div>
+            <div class="card-body">
+
+              <div class="workflow-step">
+                <span class="workflow-number">1</span>
+                <div>
+                  <div class="fw-semibold">Procurement</div>
+                  <div class="small text-muted">What TDM needs in the AM or PM cycle.</div>
+                </div>
+              </div>
+
+              <div class="workflow-arrow"><i class="bi bi-arrow-down"></i></div>
+
+              <div class="workflow-step">
+                <span class="workflow-number">2</span>
+                <div>
+                  <div class="fw-semibold">Procurement Items</div>
+                  <div class="small text-muted">Products and required quantities.</div>
+                </div>
+              </div>
+
+              <div class="workflow-arrow"><i class="bi bi-arrow-down"></i></div>
+
+              <div class="workflow-step">
+                <span class="workflow-number">3</span>
+                <div>
+                  <div class="fw-semibold">Purchase Orders</div>
+                  <div class="small text-muted">Supplier-specific allocation and expected cost.</div>
+                </div>
+              </div>
+
+              <div class="workflow-arrow"><i class="bi bi-arrow-down"></i></div>
+
+              <div class="workflow-step">
+                <span class="workflow-number">4</span>
+                <div>
+                  <div class="fw-semibold">Inbound</div>
+                  <div class="small text-muted">Track what is sent, received and overdue.</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ================= QUICK ACTIONS ================= -->
+      <div class="card dashboard-card mb-4">
+        <div class="card-body">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+              <div class="fw-semibold">Quick Access</div>
+              <div class="small text-muted">Jump directly into the Supply Chain modules.</div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+              <a href="{% url 'supply_chain:supply-chain-suppliers' %}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-building me-1"></i> Suppliers
+              </a>
+              <a href="{% url 'supply_chain:supply-chain-products' %}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-box-seam me-1"></i> Products
+              </a>
+              <a href="{% url 'supply_chain:supply-chain-procurement' %}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-cart-check me-1"></i> Procurement
+              </a>
+              <a href="{% url 'supply_chain:supply-chain-purchase-orders' %}" class="btn btn-success btn-sm">
+                <i class="bi bi-file-earmark-text me-1"></i> Purchase Orders
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- SWITCH PLATFORM MODAL -->
+  <div class="modal fade"
+      id="switchPlatformModal"
+      tabindex="-1"
+      aria-labelledby="switchPlatformModalLabel"
+      aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+
+        <div class="modal-header justify-content-center position-relative">
+
+          <h5 class="modal-title w-100 text-center"
+              id="switchPlatformModalLabel">
+            Switch Platform
+          </h5>
+
+          <button type="button"
+                  class="btn-close position-absolute"
+                  style="right:1rem; top:1rem;"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"></button>
+
+        </div>
+
+        <div class="modal-body text-center">
+
+          <p class="mb-3 text-muted">
+            Choose a platform to continue:
+          </p>
+
+          <div class="d-grid gap-2">
+
+            <!-- MAIN STAFF PORTAL -->
+            <a href="{% url 'staff-dashboard' %}"
+              class="btn {% if current == 'staff_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_staff_portal %} disabled{% endif %}"
+              {% if not can_staff_portal %}tabindex="-1" aria-disabled="true"{% endif %}>
+              Main Staff Portal
+            </a>
+
+            <!-- FUNDER PORTAL -->
+            <a href="{% url 'funder-dashboard' %}"
+              class="btn {% if current == 'funder_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_lender_portal %} disabled{% endif %}"
+              {% if not can_lender_portal %}tabindex="-1" aria-disabled="true"{% endif %}>
+              Funder Portal
+            </a>
+
+            <!-- SALES PORTAL -->
+            <a href="{% url 'sales:sales-dashboard' %}"
+              class="btn {% if current == 'sales_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_sales_portal %} disabled{% endif %}"
+              {% if not can_sales_portal %}tabindex="-1" aria-disabled="true"{% endif %}>
+              Sales Portal
+            </a>
+
+            <!-- LOGISTICS PORTAL -->
+            <a href="{% url 'logistics:logistics-dashboard' %}"
+              class="btn {% if current == 'logistics_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_logistics_portal %} disabled{% endif %}"
+              {% if not can_logistics_portal %}tabindex="-1" aria-disabled="true"{% endif %}>
+              Logistics Portal
+            </a>
+
+            <!-- SUPPLY CHAIN PORTAL -->
+            <a href="{% url 'supply_chain:supply-chain-dashboard' %}"
+              class="btn {% if current == 'supply_chain_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_supply_chain_portal %} disabled{% endif %}"
+              {% if not can_supply_chain_portal %}tabindex="-1" aria-disabled="true"{% endif %}>
+              Supply Chain Portal
+            </a>
+
+            <!-- WAREHOUSE PORTAL -->
+            <a href="{% url 'warehouse:warehouse-dashboard' %}"
+              class="btn {% if current == 'warehouse_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_warehouse_portal %} disabled{% endif %}"
+              {% if not can_warehouse_portal %}tabindex="-1" aria-disabled="true"{% endif %}>
+              Warehouse Portal
+            </a>
+
+          </div>
+        </div>
+
+        <div class="modal-footer justify-content-center border-0">
+
+          <small class="text-muted">
+            Platforms you don’t have access to are disabled.
+          </small>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  {{ trend_data_json|json_script:"trend-data" }}
+  {{ category_data_json|json_script:"category-data" }}
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const trendElement = document.getElementById("trend-data");
+      const categoryElement = document.getElementById("category-data");
+
+      const trendData = trendElement ? JSON.parse(trendElement.textContent) : [];
+      const categoryData = categoryElement ? JSON.parse(categoryElement.textContent) : [];
+
+      const gridColor = "rgba(0,0,0,0.06)";
+      const textColor = "#6c757d";
+
+      const trendCanvas = document.getElementById("poTrendChart");
+
+      if (trendCanvas) {
+        new Chart(trendCanvas, {
+          type: "line",
+          data: {
+            labels: trendData.map(item => item.label),
+            datasets: [
+              {
+                label: "AM",
+                data: trendData.map(item => item.AM),
+                borderColor: "#0b5c39",
+                backgroundColor: "rgba(11,92,57,0.08)",
+                borderWidth: 2,
+                tension: 0.3,
+                fill: false,
+                pointRadius: 2,
+                pointHoverRadius: 4
+              },
+              {
+                label: "PM",
+                data: trendData.map(item => item.PM),
+                borderColor: "#343a40",
+                backgroundColor: "rgba(52,58,64,0.08)",
+                borderWidth: 2,
+                tension: 0.3,
+                fill: false,
+                pointRadius: 2,
+                pointHoverRadius: 4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: "index",
+              intersect: false
+            },
+            plugins: {
+              legend: {
+                position: "bottom"
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return context.dataset.label + ": R " +
+                      Number(context.parsed.y || 0).toLocaleString("en-ZA", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      });
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { color: textColor }
+              },
+              y: {
+                beginAtZero: true,
+                grid: { color: gridColor },
+                ticks: {
+                  color: textColor,
+                  callback: function(value) {
+                    return "R " + Number(value).toLocaleString("en-ZA");
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      const categoryCanvas = document.getElementById("categoryChart");
+
+      if (categoryCanvas && categoryData.length) {
+        new Chart(categoryCanvas, {
+          type: "bar",
+          data: {
+            labels: categoryData.map(item => item.name),
+            datasets: [
+              {
+                label: "PO Value",
+                data: categoryData.map(item => item.value),
+                backgroundColor: "#0b5c39",
+                borderRadius: 5,
+                maxBarThickness: 32
+              }
+            ]
+          },
+          options: {
+            indexAxis: "y",
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return "R " +
+                      Number(context.parsed.x || 0).toLocaleString("en-ZA", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      });
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                grid: { color: gridColor },
+                ticks: {
+                  color: textColor,
+                  callback: function(value) {
+                    return "R " + Number(value).toLocaleString("en-ZA");
+                  }
+                }
+              },
+              y: {
+                grid: { display: false },
+                ticks: { color: textColor }
+              }
+            }
+          }
+        });
+      }
+    });
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -366,20 +366,20 @@
       <!-- Warehouse -->
       <div class="mb-2">
 
-        <a class="nav-link d-flex justify-content-between {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}"
+        <a class="nav-link d-flex justify-content-between {% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'warehouse-inventory' or current == 'warehouse-receiving' or current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#warehouseMenuMobile"
           aria-controls="warehouseMenuMobile"
-          aria-expanded="{% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}true{% else %}false{% endif %}">
+          aria-expanded="{% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'warehouse-inventory' or current == 'warehouse-receiving' or current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}true{% else %}false{% endif %}">
           <span>Warehouse</span>
         </a>
 
-        <div class="collapse {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}show{% endif %}"
+        <div class="collapse {% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'warehouse-inventory' or current == 'warehouse-receiving' or current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}show{% endif %}"
           id="warehouseMenuMobile"
           data-bs-parent="#mobileAccordion">
 
-          <a href="{% url 'warehouse-dashboard' %}" class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">Dashboard</a>
-          <a href="{% url 'warehouse-inventory' %}" class="nav-link ps-4">Inventory</a>
+          <a href="{% url 'warehouse-dashboard' %}" class="nav-link ps-4">Dashboard</a>
+          <a href="{% url 'warehouse-inventory' %}" class="nav-link ps-4 {% if current == 'warehouse-inventory' %}active{% endif %}">Inventory</a>
           <a href="{% url 'warehouse-receiving' %}" class="nav-link ps-4">Receiving</a>
           <a href="{% url 'warehouse-fulfilment' %}" class="nav-link ps-4 {% if current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}">Fulfilment</a>
 
@@ -418,16 +418,6 @@
           <a href="{% url 'staff-products' %}"
             class="nav-link ps-4 {% if current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}active{% endif %}">
             Products
-          </a>
-
-          <a href="{% url 'procurement-list' %}"
-            class="nav-link ps-4 {% if current == 'procurement-list' or current == 'procurement-create' or current == 'procurement-view' %}active{% endif %}">
-            Procurement
-          </a>
-
-          <a href="{% url 'purchase-order-list' %}"
-            class="nav-link ps-4 {% if current == 'purchase-order-list' or current == 'purchase-order-create' or current == 'purchase-order-view' %}active{% endif %}">
-            Purchase Orders
           </a>
 
         </div>
@@ -784,20 +774,20 @@
     <!-- Warehouse -->
       <div class="mb-2">
 
-        <a class="nav-link d-flex justify-content-between {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}"
+        <a class="nav-link d-flex justify-content-between {% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'warehouse-inventory' or current == 'warehouse-receiving' or current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#warehouseMenuDesktop"
           aria-controls="warehouseMenuDesktop"
-          aria-expanded="{% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}true{% else %}false{% endif %}">
+          aria-expanded="{% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'warehouse-inventory' or current == 'warehouse-receiving' or current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}true{% else %}false{% endif %}">
           <span>Warehouse</span>
         </a>
 
-        <div class="collapse {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}show{% endif %}"
+        <div class="collapse {% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'warehouse-inventory' or current == 'warehouse-receiving' or current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}show{% endif %}"
           id="warehouseMenuDesktop"
           data-bs-parent="#desktopAccordion">
 
-          <a href="{% url 'warehouse-dashboard' %}" class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">Dashboard</a>
-          <a href="{% url 'warehouse-inventory' %}" class="nav-link ps-4">Inventory</a>
+          <a href="{% url 'warehouse-dashboard' %}" class="nav-link ps-4">Dashboard</a>
+          <a href="{% url 'warehouse-inventory' %}" class="nav-link ps-4 {% if current == 'warehouse-inventory' %}active{% endif %}">Inventory</a>
           <a href="{% url 'warehouse-receiving' %}" class="nav-link ps-4">Receiving</a>
           <a href="{% url 'warehouse-fulfilment' %}" class="nav-link ps-4 {% if current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}">Fulfilment</a>
 
@@ -836,16 +826,6 @@
         <a href="{% url 'staff-products' %}"
           class="nav-link ps-4 {% if current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}active{% endif %}">
           Products
-        </a>
-
-        <a href="{% url 'procurement-list' %}"
-          class="nav-link ps-4 {% if current == 'procurement-list' or current == 'procurement-create' or current == 'procurement-view' %}active{% endif %}">
-          Procurement
-        </a>
-
-        <a href="{% url 'purchase-order-list' %}"
-          class="nav-link ps-4 {% if current == 'purchase-order-list' or current == 'purchase-order-create' or current == 'purchase-order-view' %}active{% endif %}">
-          Purchase Orders
         </a>
 
       </div>
@@ -973,154 +953,205 @@
     <div class="container-fluid">
 
       <!-- ================= HEADER ================= -->
-      <div class="d-flex flex-column align-items-center text-center gap-2 mb-4">
-        <h2 class="m-0">Dashboard</h2>
-        <div class="btn-group">
-          <a class="btn {% if range == 'today' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=today">
-            Today
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+          <h2 class="m-0">Inventory</h2>
+          <div class="text-muted small mt-1">
+            Current warehouse stock position
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <a href="{% url 'warehouse-dashboard' %}" class="btn btn-outline-success">
+            <i class="bi bi-grid-1x2 me-1"></i>
+            Dashboard
           </a>
-          <a class="btn {% if range == '7d' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=7d">
-            Last 7 days
+          <a href="{% url 'warehouse-receiving' %}" class="btn btn-outline-success">
+            <i class="bi bi-box-arrow-in-down me-1"></i>
+            Receiving
+          </a>
+          <a href="{% url 'warehouse-fulfilment' %}" class="btn btn-outline-success">
+            <i class="bi bi-list-check me-1"></i>
+            Fulfilment
           </a>
         </div>
       </div>
 
-      <!-- ================= KPI STRIP ================= -->
-      <div class="row g-3 mb-4">
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Orders</div>
-            <div class="fs-5 fw-semibold">{{ kpi_orders }}</div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Revenue</div>
-            <div class="fs-5 fw-semibold">
-              R{{ kpi_revenue|floatformat:2|intcomma }}
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Active Deliveries</div>
-            <div class="fs-5 fw-semibold">{{ kpi_deliveries }}</div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Credit Used</div>
-            <div class="fs-5 fw-semibold text-warning">
-              R{{ kpi_credit_used|floatformat:2|intcomma }}
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Open Tasks</div>
-            <div class="fs-5 fw-semibold">{{ kpi_open_tasks }}</div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">New Clients</div>
-            <div class="fs-5 fw-semibold">{{ kpi_new_clients }}</div>
-          </div>
-        </div>
-
-      </div>
-
-
-      <!-- ================= SALES TREND ================= -->
-      <div class="card mb-4">
-        <div class="card-header bg-white fw-semibold">
-          Sales Trend · Orders per Day
-        </div>
+      <!-- ================= SEARCH / FILTER ================= -->
+      <div class="card shadow-sm mb-4">
         <div class="card-body">
-          <div class="chart-wrap">
-            <canvas id="salesChart"></canvas>
+          <div class="row g-3 align-items-end">
+
+            <div class="col-12 col-lg-5">
+              <label for="inventorySearch" class="form-label fw-semibold">Search inventory</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="search"
+                       id="inventorySearch"
+                       class="form-control"
+                       placeholder="Product number, name, SKU or category..."
+                       autocomplete="off">
+              </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-lg-3">
+              <label for="inventoryStatus" class="form-label fw-semibold">Stock status</label>
+              <select id="inventoryStatus" class="form-select">
+                <option value="">All stock</option>
+                <option value="available" {% if filter_status == 'available' %}selected{% endif %}>Available</option>
+                <option value="reserved" {% if filter_status == 'reserved' %}selected{% endif %}>Reserved</option>
+                <option value="out" {% if filter_status == 'out' %}selected{% endif %}>Out of stock</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-sm-6 col-lg-2">
+              <label for="inventoryUom" class="form-label fw-semibold">Unit</label>
+              <select id="inventoryUom" class="form-select">
+                <option value="">All units</option>
+                <option value="EA">Each</option>
+                <option value="KG">Kilogram</option>
+                <option value="L">Litre</option>
+                <option value="PK">Pack</option>
+                <option value="BOX">Box</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-lg-2">
+              <button type="button" id="clearInventoryFilters" class="btn btn-outline-secondary w-100">
+                <i class="bi bi-x-circle me-1"></i>
+                Clear
+              </button>
+            </div>
+
           </div>
         </div>
       </div>
 
-      <!-- ================= NEEDS ATTENTION ================= -->
-      <div class="row g-3 mb-4">
-
-        <div class="col-md-6">
-          <div class="card h-100">
-            <div class="card-header bg-white fw-semibold">
-              Needs Attention
-            </div>
-            <ul class="list-group list-group-flush small">
-
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Overdue Deliveries</span>
-                <span class="badge bg-danger">{{ alert_overdue_deliveries }}</span>
-              </li>
-
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Clients Over Credit Limit</span>
-                <span class="badge bg-danger">{{ alert_credit_over }}</span>
-              </li>
-
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Unverified Compliance Docs</span>
-                <span class="badge bg-warning">{{ alert_compliance_docs }}</span>
-              </li>
-
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Overdue Tasks</span>
-                <span class="badge bg-warning">{{ alert_tasks }}</span>
-              </li>
-
-            </ul>
-          </div>
+      <!-- ================= RESULTS SUMMARY ================= -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+        <div>
+          <span class="fw-semibold">Inventory list</span>
+          <span class="text-muted small ms-2" id="inventoryResultCount">0 items</span>
         </div>
-
-        <!-- ================= OPERATIONAL SNAPSHOT ================= -->
-        <div class="col-md-6">
-          <div class="card h-100">
-            <div class="card-header bg-white fw-semibold">
-              Operational Snapshot
-            </div>
-            <div class="card-body small">
-
-              <div class="mb-2">
-                <strong>Orders:</strong>
-                {{ ops_orders_total }} total ·
-                {{ ops_orders_pending }} pending ·
-                {{ ops_orders_completed }} completed
-              </div>
-
-              <div class="mb-2">
-                <strong>Deliveries:</strong>
-                {{ ops_runs_total }} runs ·
-                {{ ops_runs_active }} active ·
-                {{ ops_runs_failed }} failed
-              </div>
-
-              <div>
-                <strong>Warehouse:</strong>
-                {{ ops_picklists_pending }} picklists pending
-              </div>
-
-            </div>
-          </div>
+        <div class="text-muted small">
+          Search and filters update the list immediately.
         </div>
-
       </div>
 
-      
+      <!-- ================= INVENTORY TABLE ================= -->
+      <div class="card shadow-sm">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="inventoryTable">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">Product No.</th>
+                  <th>Product</th>
+                  <th>Category</th>
+                  <th>Unit</th>
+                  <th class="text-end">On Hand</th>
+                  <th class="text-end">Reserved</th>
+                  <th class="text-end">Available</th>
+                  <th>Last Received</th>
+                  <th>Last Supplier</th>
+                  <th class="text-center pe-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in inventory %}
+                <tr class="inventory-row"
+                    role="link"
+                    tabindex="0"
+                    data-url="{% url 'warehouse-inventory-detail' item.pk %}"
+                    style="cursor:pointer;"
+                    data-search="{{ item.product.product_no|default:'' }} {{ item.product.name|default:'' }} {{ item.product.sku|default:'' }} {{ item.product.category|default:'' }}"
+                    data-uom="{{ item.product.uom|default:'' }}"
+                    data-status="{% if item.quantity_available > 0 %}available{% elif item.quantity_reserved > 0 %}reserved{% else %}out{% endif %}">
+
+                  <td class="ps-3 fw-semibold text-nowrap">
+                    {{ item.product.product_no }}
+                  </td>
+
+                  <td>
+                    <div class="fw-semibold">{{ item.product.name }}</div>
+                    {% if item.product.sku %}
+                      <div class="small text-muted">SKU: {{ item.product.sku }}</div>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    <span class="text-muted">{{ item.product.category }}</span>
+                  </td>
+
+                  <td class="text-nowrap">
+                    {{ item.product.get_uom_display }}
+                  </td>
+
+                  <td class="text-end fw-semibold">
+                    {{ item.quantity_on_hand|floatformat:2 }}
+                  </td>
+
+                  <td class="text-end">
+                    {{ item.quantity_reserved|floatformat:2 }}
+                  </td>
+
+                  <td class="text-end fw-semibold">
+                    {{ item.quantity_available|floatformat:2 }}
+                  </td>
+
+                  <td class="text-nowrap">
+                    {% if item.last_received_at %}
+                      {{ item.last_received_at|date:"d M Y" }}
+                    {% else %}
+                      <span class="text-muted">Never</span>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {% if item.last_supplier %}
+                      {{ item.last_supplier.name }}
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+
+                  <td class="text-center pe-3">
+                    {% if item.quantity_available > 0 %}
+                      <span class="badge bg-success-subtle text-success border border-success-subtle">Available</span>
+                    {% elif item.quantity_reserved > 0 %}
+                      <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Reserved</span>
+                    {% else %}
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Out of stock</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="10" class="text-center py-5">
+                    <div class="text-muted">
+                      <i class="bi bi-box-seam fs-2 d-block mb-2"></i>
+                      No inventory records found.
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+
+                <tr id="inventoryNoResults" class="d-none">
+                  <td colspan="10" class="text-center py-5">
+                    <div class="text-muted">
+                      <i class="bi bi-search fs-2 d-block mb-2"></i>
+                      No inventory items match your search or filters.
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
     </div>
   </main>
-
 
   <!-- SWITCH PLATFORM MODAL -->
   <div class="modal fade"
@@ -1338,6 +1369,70 @@
         const collapse = bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false });
         collapse.hide();
       }
+    });
+  </script>
+
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('.inventory-row[data-url]').forEach(function (row) {
+        row.addEventListener('click', function (event) {
+          if (event.target.closest('a, button, input, select, textarea')) return;
+          window.location.href = row.dataset.url;
+        });
+
+        row.addEventListener('keydown', function (event) {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            window.location.href = row.dataset.url;
+          }
+        });
+      });
+
+      const searchInput = document.getElementById('inventorySearch');
+      const statusSelect = document.getElementById('inventoryStatus');
+      const uomSelect = document.getElementById('inventoryUom');
+      const clearButton = document.getElementById('clearInventoryFilters');
+      const resultCount = document.getElementById('inventoryResultCount');
+      const noResults = document.getElementById('inventoryNoResults');
+      const rows = Array.from(document.querySelectorAll('.inventory-row'));
+
+      function applyFilters() {
+        const search = (searchInput.value || '').trim().toLowerCase();
+        const status = (statusSelect.value || '').toLowerCase();
+        const uom = (uomSelect.value || '').toLowerCase();
+        let visible = 0;
+
+        rows.forEach(function (row) {
+          const text = (row.dataset.search || '').toLowerCase();
+          const rowStatus = (row.dataset.status || '').toLowerCase();
+          const rowUom = (row.dataset.uom || '').toLowerCase();
+
+          const matchesSearch = !search || text.includes(search);
+          const matchesStatus = !status || rowStatus === status;
+          const matchesUom = !uom || rowUom === uom;
+          const show = matchesSearch && matchesStatus && matchesUom;
+
+          row.classList.toggle('d-none', !show);
+          if (show) visible += 1;
+        });
+
+        resultCount.textContent = visible + (visible === 1 ? ' item' : ' items');
+        noResults.classList.toggle('d-none', visible !== 0 || rows.length === 0);
+      }
+
+      searchInput.addEventListener('input', applyFilters);
+      statusSelect.addEventListener('change', applyFilters);
+      uomSelect.addEventListener('change', applyFilters);
+
+      clearButton.addEventListener('click', function () {
+        searchInput.value = '';
+        statusSelect.value = '';
+        uomSelect.value = '';
+        applyFilters();
+      });
+
+      applyFilters();
     });
   </script>
 </body>

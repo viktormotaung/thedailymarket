@@ -366,22 +366,22 @@
       <!-- Warehouse -->
       <div class="mb-2">
 
-        <a class="nav-link d-flex justify-content-between {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}"
+        <a class="nav-link d-flex justify-content-between {% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'warehouse-inventory' or current == 'warehouse-receiving' or current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#warehouseMenuMobile"
           aria-controls="warehouseMenuMobile"
-          aria-expanded="{% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}true{% else %}false{% endif %}">
+          aria-expanded="{% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'warehouse-inventory' or current == 'warehouse-receiving' or current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}true{% else %}false{% endif %}">
           <span>Warehouse</span>
         </a>
 
-        <div class="collapse {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}show{% endif %}"
+        <div class="collapse {% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'warehouse-inventory' or current == 'warehouse-receiving' or current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}show{% endif %}"
           id="warehouseMenuMobile"
           data-bs-parent="#mobileAccordion">
 
-          <a href="{% url 'warehouse-dashboard' %}" class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">Dashboard</a>
-          <a href="{% url 'warehouse-inventory' %}" class="nav-link ps-4">Inventory</a>
-          <a href="{% url 'warehouse-receiving' %}" class="nav-link ps-4">Receiving</a>
-          <a href="{% url 'warehouse-fulfilment' %}" class="nav-link ps-4 {% if current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}">Fulfilment</a>
+          <a href="{% url 'warehouse-dashboard' %}" class="nav-link ps-4 {% if current == 'warehouse' or current == 'warehouse-dashboard' %}active{% endif %}">Dashboard</a>
+          <a href="{% url 'warehouse-inventory' %}" class="nav-link ps-4 {% if current == 'warehouse-inventory' %}active{% endif %}">Inventory</a>
+          <a href="{% url 'warehouse-receiving' %}" class="nav-link ps-4 {% if current == 'warehouse-receiving' %}active{% endif %}">Receiving</a>
+          <a href="{% url 'warehouse-fulfilment' %}" class="nav-link ps-4 {% if current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}">Fulfilment</a>
 
         </div>
 
@@ -418,16 +418,6 @@
           <a href="{% url 'staff-products' %}"
             class="nav-link ps-4 {% if current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}active{% endif %}">
             Products
-          </a>
-
-          <a href="{% url 'procurement-list' %}"
-            class="nav-link ps-4 {% if current == 'procurement-list' or current == 'procurement-create' or current == 'procurement-view' %}active{% endif %}">
-            Procurement
-          </a>
-
-          <a href="{% url 'purchase-order-list' %}"
-            class="nav-link ps-4 {% if current == 'purchase-order-list' or current == 'purchase-order-create' or current == 'purchase-order-view' %}active{% endif %}">
-            Purchase Orders
           </a>
 
         </div>
@@ -784,22 +774,22 @@
     <!-- Warehouse -->
       <div class="mb-2">
 
-        <a class="nav-link d-flex justify-content-between {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}"
+        <a class="nav-link d-flex justify-content-between {% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'warehouse-inventory' or current == 'warehouse-receiving' or current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#warehouseMenuDesktop"
           aria-controls="warehouseMenuDesktop"
-          aria-expanded="{% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}true{% else %}false{% endif %}">
+          aria-expanded="{% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'warehouse-inventory' or current == 'warehouse-receiving' or current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}true{% else %}false{% endif %}">
           <span>Warehouse</span>
         </a>
 
-        <div class="collapse {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}show{% endif %}"
+        <div class="collapse {% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'warehouse-inventory' or current == 'warehouse-receiving' or current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}show{% endif %}"
           id="warehouseMenuDesktop"
           data-bs-parent="#desktopAccordion">
 
-          <a href="{% url 'warehouse-dashboard' %}" class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">Dashboard</a>
-          <a href="{% url 'warehouse-inventory' %}" class="nav-link ps-4">Inventory</a>
-          <a href="{% url 'warehouse-receiving' %}" class="nav-link ps-4">Receiving</a>
-          <a href="{% url 'warehouse-fulfilment' %}" class="nav-link ps-4 {% if current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}">Fulfilment</a>
+          <a href="{% url 'warehouse-dashboard' %}" class="nav-link ps-4 {% if current == 'warehouse' or current == 'warehouse-dashboard' %}active{% endif %}">Dashboard</a>
+          <a href="{% url 'warehouse-inventory' %}" class="nav-link ps-4 {% if current == 'warehouse-inventory' %}active{% endif %}">Inventory</a>
+          <a href="{% url 'warehouse-receiving' %}" class="nav-link ps-4 {% if current == 'warehouse-receiving' %}active{% endif %}">Receiving</a>
+          <a href="{% url 'warehouse-fulfilment' %}" class="nav-link ps-4 {% if current == 'warehouse-fulfilment' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}">Fulfilment</a>
 
         </div>
 
@@ -836,16 +826,6 @@
         <a href="{% url 'staff-products' %}"
           class="nav-link ps-4 {% if current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}active{% endif %}">
           Products
-        </a>
-
-        <a href="{% url 'procurement-list' %}"
-          class="nav-link ps-4 {% if current == 'procurement-list' or current == 'procurement-create' or current == 'procurement-view' %}active{% endif %}">
-          Procurement
-        </a>
-
-        <a href="{% url 'purchase-order-list' %}"
-          class="nav-link ps-4 {% if current == 'purchase-order-list' or current == 'purchase-order-create' or current == 'purchase-order-view' %}active{% endif %}">
-          Purchase Orders
         </a>
 
       </div>
@@ -973,150 +953,265 @@
     <div class="container-fluid">
 
       <!-- ================= HEADER ================= -->
-      <div class="d-flex flex-column align-items-center text-center gap-2 mb-4">
-        <h2 class="m-0">Dashboard</h2>
-        <div class="btn-group">
-          <a class="btn {% if range == 'today' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=today">
-            Today
-          </a>
-          <a class="btn {% if range == '7d' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=7d">
-            Last 7 days
+      <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+        <div>
+          <h2 class="m-0">Receiving</h2>
+          <div class="text-muted small mt-1">
+            Receive supplier stock into the warehouse
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a href="{% url 'warehouse-dashboard' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            Warehouse Dashboard
           </a>
         </div>
       </div>
 
-      <!-- ================= KPI STRIP ================= -->
+      <!-- ================= PROCESS SUMMARY ================= -->
       <div class="row g-3 mb-4">
 
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Orders</div>
-            <div class="fs-5 fw-semibold">{{ kpi_orders }}</div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Revenue</div>
-            <div class="fs-5 fw-semibold">
-              R{{ kpi_revenue|floatformat:2|intcomma }}
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <div class="text-muted small">Pending Receipts</div>
+              <div class="fs-3 fw-semibold mt-1">
+                {{ pending_receipts|length }}
+              </div>
+              <div class="text-muted small mt-1">
+                Draft or currently being received
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Active Deliveries</div>
-            <div class="fs-5 fw-semibold">{{ kpi_deliveries }}</div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Credit Used</div>
-            <div class="fs-5 fw-semibold text-warning">
-              R{{ kpi_credit_used|floatformat:2|intcomma }}
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <div class="text-muted small">Recent Receipts</div>
+              <div class="fs-3 fw-semibold mt-1">
+                {{ recent_receipts|length }}
+              </div>
+              <div class="text-muted small mt-1">
+                Latest receiving records
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Open Tasks</div>
-            <div class="fs-5 fw-semibold">{{ kpi_open_tasks }}</div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">New Clients</div>
-            <div class="fs-5 fw-semibold">{{ kpi_new_clients }}</div>
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <div class="text-muted small">Receiving Control</div>
+              <div class="fw-semibold mt-2">
+                Check → Receive → Complete
+              </div>
+              <div class="text-muted small mt-1">
+                Record actual quantities and variances before stock is accepted.
+              </div>
+            </div>
           </div>
         </div>
 
       </div>
 
-
-      <!-- ================= SALES TREND ================= -->
+      <!-- ================= PENDING RECEIVING ================= -->
       <div class="card mb-4">
-        <div class="card-header bg-white fw-semibold">
-          Sales Trend · Orders per Day
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">Pending Receiving</span>
+          <span class="text-muted small">
+            Draft / Receiving
+          </span>
         </div>
-        <div class="card-body">
-          <div class="chart-wrap">
-            <canvas id="salesChart"></canvas>
-          </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Receipt</th>
+                <th>Supplier</th>
+                <th>Status</th>
+                <th>Supplier Invoice</th>
+                <th>Created</th>
+                <th>Receiving Staff</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {% for receipt in pending_receipts %}
+                <tr>
+                  <td class="fw-semibold">
+                    {{ receipt.receipt_number }}
+                  </td>
+
+                  <td>
+                    {{ receipt.supplier.name }}
+                  </td>
+
+                  <td>
+                    {% if receipt.status == "draft" %}
+                      <span class="badge bg-secondary">Draft</span>
+                    {% elif receipt.status == "receiving" %}
+                      <span class="badge bg-warning text-dark">Receiving</span>
+                    {% else %}
+                      <span class="badge bg-secondary">
+                        {{ receipt.get_status_display }}
+                      </span>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {% if receipt.supplier_invoice_number %}
+                      {{ receipt.supplier_invoice_number }}
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {{ receipt.created_at|date:"d M Y H:i" }}
+                  </td>
+
+                  <td>
+                    {% if receipt.received_by %}
+                      {{ receipt.received_by.get_full_name|default:receipt.received_by.username }}
+                    {% elif receipt.created_by %}
+                      <span class="text-muted">
+                        Created by {{ receipt.created_by.get_full_name|default:receipt.created_by.username }}
+                      </span>
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+
+              {% empty %}
+                <tr>
+                  <td colspan="6" class="text-center py-5">
+                    <div class="text-muted mb-2">
+                      <i class="bi bi-box-seam fs-2"></i>
+                    </div>
+                    <div class="fw-semibold">No pending receipts</div>
+                    <div class="text-muted small mt-1">
+                      There are currently no draft or in-progress stock receipts.
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <!-- ================= NEEDS ATTENTION ================= -->
-      <div class="row g-3 mb-4">
-
-        <div class="col-md-6">
-          <div class="card h-100">
-            <div class="card-header bg-white fw-semibold">
-              Needs Attention
-            </div>
-            <ul class="list-group list-group-flush small">
-
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Overdue Deliveries</span>
-                <span class="badge bg-danger">{{ alert_overdue_deliveries }}</span>
-              </li>
-
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Clients Over Credit Limit</span>
-                <span class="badge bg-danger">{{ alert_credit_over }}</span>
-              </li>
-
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Unverified Compliance Docs</span>
-                <span class="badge bg-warning">{{ alert_compliance_docs }}</span>
-              </li>
-
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Overdue Tasks</span>
-                <span class="badge bg-warning">{{ alert_tasks }}</span>
-              </li>
-
-            </ul>
-          </div>
+      <!-- ================= RECENT RECEIVING ================= -->
+      <div class="card mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">Recent Receiving</span>
+          <span class="text-muted small">
+            Latest 25 receipts
+          </span>
         </div>
 
-        <!-- ================= OPERATIONAL SNAPSHOT ================= -->
-        <div class="col-md-6">
-          <div class="card h-100">
-            <div class="card-header bg-white fw-semibold">
-              Operational Snapshot
-            </div>
-            <div class="card-body small">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Receipt</th>
+                <th>Supplier</th>
+                <th>Status</th>
+                <th>Received At</th>
+                <th>Received By</th>
+                <th>Checked By</th>
+                <th>Completed By</th>
+              </tr>
+            </thead>
 
-              <div class="mb-2">
-                <strong>Orders:</strong>
-                {{ ops_orders_total }} total ·
-                {{ ops_orders_pending }} pending ·
-                {{ ops_orders_completed }} completed
-              </div>
+            <tbody>
+              {% for receipt in recent_receipts %}
+                <tr>
+                  <td class="fw-semibold">
+                    {{ receipt.receipt_number }}
+                  </td>
 
-              <div class="mb-2">
-                <strong>Deliveries:</strong>
-                {{ ops_runs_total }} runs ·
-                {{ ops_runs_active }} active ·
-                {{ ops_runs_failed }} failed
-              </div>
+                  <td>
+                    {{ receipt.supplier.name }}
+                  </td>
 
-              <div>
-                <strong>Warehouse:</strong>
-                {{ ops_picklists_pending }} picklists pending
-              </div>
+                  <td>
+                    {% if receipt.status == "received" %}
+                      <span class="badge bg-success">Received</span>
+                    {% elif receipt.status == "cancelled" %}
+                      <span class="badge bg-danger">Cancelled</span>
+                    {% elif receipt.status == "receiving" %}
+                      <span class="badge bg-warning text-dark">Receiving</span>
+                    {% else %}
+                      <span class="badge bg-secondary">
+                        {{ receipt.get_status_display }}
+                      </span>
+                    {% endif %}
+                  </td>
 
-            </div>
-          </div>
+                  <td>
+                    {% if receipt.received_at %}
+                      {{ receipt.received_at|date:"d M Y H:i" }}
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {% if receipt.received_by %}
+                      {{ receipt.received_by.get_full_name|default:receipt.received_by.username }}
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {% if receipt.checked_by %}
+                      {{ receipt.checked_by.get_full_name|default:receipt.checked_by.username }}
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {% if receipt.completed_by %}
+                      {{ receipt.completed_by.get_full_name|default:receipt.completed_by.username }}
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+
+              {% empty %}
+                <tr>
+                  <td colspan="7" class="text-center py-5">
+                    <div class="text-muted mb-2">
+                      <i class="bi bi-inbox fs-2"></i>
+                    </div>
+                    <div class="fw-semibold">No receiving history</div>
+                    <div class="text-muted small mt-1">
+                      Completed receiving records will appear here.
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-
       </div>
 
-      
+      <!-- ================= RECEIVING RULE ================= -->
+      <div class="card border-0">
+        <div class="card-body small text-muted">
+          <strong>Receiving rule:</strong>
+          The receipt records what physically arrived from the supplier.
+          Expected quantities can be compared with actual received quantities,
+          and the variance is retained as part of the receiving record.
+        </div>
+      </div>
 
     </div>
   </main>

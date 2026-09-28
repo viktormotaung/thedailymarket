@@ -140,16 +140,26 @@
   <div class="modal fade" id="portalChoiceModal" tabindex="-1" aria-labelledby="portalChoiceModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
+
         <div class="modal-header justify-content-center position-relative">
           <h5 class="modal-title w-100 text-center" id="portalChoiceModalLabel">
             Your profile has access to the following portal/s
           </h5>
-          <button type="button" class="btn-close position-absolute" style="right:1rem; top:1rem;" data-bs-dismiss="modal" aria-label="Close"></button>
+
+          <button
+            type="button"
+            class="btn-close position-absolute"
+            style="right:1rem; top:1rem;"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
         </div>
+
         <div class="modal-body text-center">
           <p class="mb-3 text-muted">Please choose one to continue:</p>
 
           <div class="d-grid gap-2">
+
             <!-- Main (Staff) portal -->
             <a
               href="{% url 'staff-dashboard' %}"
@@ -185,13 +195,34 @@
             >
               Logistics Portal
             </a>
+
+            <!-- Supply Chain portal -->
+            <a
+              href="{% url 'supply_chain:supply-chain-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_supply_chain_portal %} disabled{% endif %}"
+              {% if not can_supply_chain_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Supply Chain Portal
+            </a>
+
+            <!-- Warehouse portal -->
+            <a
+              href="{% url 'warehouse:warehouse-dashboard' %}"
+              class="btn btn-outline-primary{% if not can_warehouse_portal %} disabled{% endif %}"
+              {% if not can_warehouse_portal %}tabindex="-1" aria-disabled="true"{% endif %}
+            >
+              Warehouse Portal
+            </a>
+
           </div>
         </div>
+
         <div class="modal-footer justify-content-center border-0">
           <small class="text-muted">
             Portals you don't have access to are greyed out.
           </small>
         </div>
+
       </div>
     </div>
   </div>
@@ -218,17 +249,26 @@
       if (!payloadEl) return;
 
       let data = {};
-      try { data = JSON.parse(payloadEl.textContent || "{}"); } catch (e) { return; }
+      try {
+        data = JSON.parse(payloadEl.textContent || "{}");
+      } catch (e) {
+        return;
+      }
 
       const titleEl = document.getElementById('loginFeedbackModalLabel');
       const bodyEl  = document.getElementById('loginFeedbackModalBody');
+
       if (titleEl) titleEl.textContent = data.title || "";
       if (bodyEl)  bodyEl.textContent  = data.message || "";
 
       const modalEl = document.getElementById('loginFeedbackModal');
       if (!modalEl) return;
 
-      const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: true });
+      const modal = new bootstrap.Modal(modalEl, {
+        backdrop: 'static',
+        keyboard: true
+      });
+
       modal.show();
     })();
   </script>
@@ -238,10 +278,16 @@
       (function () {
         const modalEl = document.getElementById('portalChoiceModal');
         if (!modalEl) return;
-        const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: true });
+
+        const modal = new bootstrap.Modal(modalEl, {
+          backdrop: 'static',
+          keyboard: true
+        });
+
         modal.show();
       })();
     </script>
   {% endif %}
+
 </body>
 </html>

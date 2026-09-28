@@ -6,7 +6,11 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from .models import PickingBatch, PickingItem, Vehicle, DriverLocation, DeliveryStop, _delivery_date_for, DeliveryRun
+from .models import (
+    PickingBatch, PickingItem, Vehicle, DriverLocation, DeliveryStop,
+    _delivery_date_for, DeliveryRun, Inventory, StockReceipt, StockReceiptItem,
+    StockReservation, StockMovement,
+)
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.db.models import Sum, Count, Q
@@ -26,6 +30,146 @@ def staff_check(user):
 staff_required = user_passes_test(staff_check, login_url="/portal/client/login/")
 
 DAY_OPTIONS = [7, 14, 30, 60, 90]
+
+
+@login_required
+@staff_required
+def warehouse_dashboard(request):
+    """Warehouse / Supply Chain dashboard."""
+    today = timezone.localdate()
+
+    inventory_qs = Inventory.objects.select_related("product")
+    total_stock_items = inventory_qs.count()
+    out_of_stock = inventory_qs.filter(quantity_on_hand__lte=0).count()
+    reserved_units = inventory_qs.aggregate(total=Sum("quantity_reserved"))["total"] or 0
+    on_hand_units = inventory_qs.aggregate(total=Sum("quantity_on_hand"))["total"] or 0
+
+    pending_receipts = StockReceipt.objects.filter(
+        status__in=("draft", "receiving")
+    ).count()
+    reservations_today = StockReservation.objects.filter(
+        reserved_at__date=today
+    ).count()
+    picking_queue = PickingBatch.objects.filter(
+        status__in=("draft", "in_progress")
+    ).count()
+    completed_picking_today = PickingBatch.objects.filter(
+        status="complete", completed_at__date=today
+    ).count()
+
+    recent_movements = (
+        StockMovement.objects
+        .select_related("performed_by", "receipt_item__receipt", "reservation")
+        .order_by("-performed_at", "-id")[:10]
+    )
+
+    context = {
+        "total_stock_items": total_stock_items,
+        "out_of_stock": out_of_stock,
+        "on_hand_units": on_hand_units,
+        "reserved_units": reserved_units,
+        "pending_receipts": pending_receipts,
+        "reservations_today": reservations_today,
+        "picking_queue": picking_queue,
+        "completed_picking_today": completed_picking_today,
+        "recent_movements": recent_movements,
+    }
+    return render(request, "deliveries/warehouse_dashboard.html", context)
+
+
+@login_required
+@staff_required
+def inventory(request):
+    """Current warehouse inventory; stock quantities come from Inventory."""
+    qs = Inventory.objects.select_related("product").order_by("product__product_no")
+
+    status = (request.GET.get("status") or "").lower()
+    if status == "out":
+        qs = qs.filter(quantity_on_hand__lte=0)
+    elif status == "reserved":
+        qs = qs.filter(quantity_reserved__gt=0)
+    elif status == "available":
+        qs = qs.filter(quantity_on_hand__gt=0)
+
+    context = {
+        "inventory": qs,
+        "filter_status": status,
+    }
+    return render(request, "deliveries/inventory.html", context)
+
+
+@login_required
+@staff_required
+def inventory_detail(request, pk):
+    """Detailed warehouse inventory view for one product stock record."""
+    inventory_item = get_object_or_404(
+        Inventory.objects.select_related(
+            "product",
+            "product__category",
+            "last_supplier",
+            "last_stock_receipt",
+        ),
+        pk=pk,
+    )
+
+    movements = (
+        StockMovement.objects
+        .filter(inventory=inventory_item)
+        .select_related("performed_by", "receipt_item__receipt__supplier", "reservation")
+        .order_by("-performed_at", "-id")[:25]
+    )
+
+    reservations = (
+        StockReservation.objects
+        .filter(inventory=inventory_item)
+        .select_related("order", "order_item", "reserved_by", "released_by", "picked_by")
+        .order_by("-reserved_at", "-id")[:25]
+    )
+
+    receipts = (
+        StockReceiptItem.objects
+        .filter(product=inventory_item.product)
+        .select_related("receipt", "receipt__supplier")
+        .order_by("-receipt__received_at", "-id")[:25]
+    )
+
+    context = {
+        "inventory_item": inventory_item,
+        "movements": movements,
+        "reservations": reservations,
+        "receipts": receipts,
+    }
+    return render(request, "deliveries/inventory_detail.html", context)
+
+
+@login_required
+@staff_required
+def receiving(request):
+    """Stock receiving queue and recent receiving activity."""
+    pending = (
+        StockReceipt.objects
+        .filter(status__in=("draft", "receiving"))
+        .select_related("supplier", "created_by", "received_by")
+        .order_by("-created_at")
+    )
+    recent = (
+        StockReceipt.objects
+        .select_related("supplier", "created_by", "received_by")
+        .order_by("-received_at", "-created_at")[:25]
+    )
+
+    context = {
+        "pending_receipts": pending,
+        "recent_receipts": recent,
+    }
+    return render(request, "deliveries/receiving.html", context)
+
+
+@login_required
+@staff_required
+def fulfilment(request):
+    """Warehouse order fulfilment: reservations and picking batches."""
+    return warehouse(request)
 
 
 @login_required
@@ -1074,6 +1218,11 @@ def download_supplier_batch_info(request, batch_id):
         "deliveries/supplier_batch_info.html",
         context,
     )
+
+
+
+
+
 
 
 

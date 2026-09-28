@@ -4,7 +4,18 @@ from django.utils.timezone import localtime
 from django.urls import path
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from decimal import Decimal
 from .models import (
+    Inventory,
+    StockReceipt,
+    StockReceiptItem,
+    StockReservation,
+    StockMovement,
+    StockCount,
+    StockCountItem,
     Vehicle,
     PickingBatch,
     PickingItem,
@@ -203,6 +214,356 @@ class ExternalDeliveryRateAdmin(admin.ModelAdmin):
 
 
 # =====================================
+# INVENTORY / STOCK CONTROL
+# =====================================
+
+
+class StockReceiptItemInline(admin.TabularInline):
+    model = StockReceiptItem
+    extra = 0
+    fields = (
+        "product",
+        "expected_qty",
+        "received_qty",
+        "quantity_variance_display",
+        "unit_cost_excl",
+        "vat_percent",
+        "unit_cost_incl",
+        "batch_reference",
+    )
+    readonly_fields = ("quantity_variance_display",)
+
+    @admin.display(description="Variance")
+    def quantity_variance_display(self, obj):
+        if not obj.pk:
+            return "—"
+        variance = obj.quantity_variance
+        if variance > 0:
+            return format_html('<strong style="color:green;">+{}</strong>', variance)
+        if variance < 0:
+            return format_html('<strong style="color:red;">{}</strong>', variance)
+        return "0"
+
+
+@admin.register(Inventory)
+class InventoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "product",
+        "product_sku",
+        "quantity_on_hand",
+        "quantity_reserved",
+        "quantity_available_display",
+        "minimum_units",
+        "maximum_units",
+        "last_supplier",
+        "last_received_at",
+        "is_active",
+        "updated_at",
+    )
+    list_filter = ("is_active", "product__uom", "product__category")
+    search_fields = (
+        "product__name",
+        "product__product_no",
+        "product__sku",
+        "last_supplier__name",
+    )
+    ordering = ("product__name",)
+    readonly_fields = (
+        "quantity_available_display",
+        "last_received_at",
+        "last_supplier",
+        "last_stock_receipt",
+        "created_at",
+        "updated_at",
+    )
+    fieldsets = (
+        ("Product", {
+            "fields": ("product", "is_active")
+        }),
+        ("Current Stock", {
+            "fields": (
+                "quantity_on_hand",
+                "quantity_reserved",
+                "quantity_available_display",
+                "minimum_units",
+                "maximum_units",
+            ),
+            "description": (
+                "Available stock is calculated as quantity on hand minus quantity reserved. "
+                "Do not manually change stock to correct a historical movement; use the stock movement/count process."
+            ),
+        }),
+        ("Last Receipt", {
+            "fields": (
+                "last_received_at",
+                "last_supplier",
+                "last_stock_receipt",
+            )
+        }),
+        ("System", {
+            "fields": ("created_at", "updated_at")
+        }),
+    )
+
+    @admin.display(description="SKU", ordering="product__sku")
+    def product_sku(self, obj):
+        return obj.product.sku or "—"
+
+    @admin.display(description="Available", ordering="quantity_on_hand")
+    def quantity_available_display(self, obj):
+        value = obj.quantity_available
+        if value <= 0:
+            return format_html('<strong style="color:red;">{}</strong>', value)
+        return format_html('<strong style="color:green;">{}</strong>', value)
+
+
+@admin.register(StockReceipt)
+class StockReceiptAdmin(admin.ModelAdmin):
+    list_display = (
+        "receipt_number",
+        "supplier",
+        "status",
+        "supplier_invoice_number",
+        "received_at",
+        "received_by",
+        "checked_by",
+        "completed_by",
+    )
+    list_filter = ("status", "received_at", "supplier")
+    search_fields = (
+        "receipt_number",
+        "supplier__name",
+        "supplier_invoice_number",
+    )
+    date_hierarchy = "received_at"
+    ordering = ("-received_at", "-id")
+    inlines = [StockReceiptItemInline]
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        ("Receipt", {
+            "fields": (
+                "receipt_number",
+                "supplier",
+                "status",
+                "supplier_invoice_number",
+                "received_at",
+            )
+        }),
+        ("Responsibility & Verification", {
+            "fields": (
+                "created_by",
+                "received_by",
+                "checked_by",
+                "completed_by",
+            ),
+            "description": "These fields identify who created, received, checked and completed the stock receipt.",
+        }),
+        ("Notes", {"fields": ("notes",)}),
+        ("System", {"fields": ("created_at", "updated_at")}),
+    )
+
+
+@admin.register(StockReservation)
+class StockReservationAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "inventory_product",
+        "order",
+        "order_item",
+        "quantity",
+        "status",
+        "reserved_by",
+        "reserved_at",
+        "released_by",
+        "picked_by",
+    )
+    list_filter = ("status", "reserved_at", "released_at", "picked_at")
+    search_fields = (
+        "order__id",
+        "order_item__product_name",
+        "inventory__product__name",
+        "inventory__product__sku",
+    )
+    readonly_fields = (
+        "reserved_at",
+        "released_at",
+        "picked_at",
+        "updated_at",
+    )
+    fieldsets = (
+        ("Reservation", {
+            "fields": (
+                "inventory",
+                "order",
+                "order_item",
+                "quantity",
+                "status",
+            )
+        }),
+        ("Task Ownership", {
+            "fields": (
+                "reserved_by",
+                "reserved_at",
+                "released_by",
+                "released_at",
+                "picked_by",
+                "picked_at",
+            )
+        }),
+        ("Notes", {"fields": ("notes",)}),
+        ("System", {"fields": ("updated_at",)}),
+    )
+
+    @admin.display(description="Product")
+    def inventory_product(self, obj):
+        return obj.inventory.product
+
+
+@admin.register(StockMovement)
+class StockMovementAdmin(admin.ModelAdmin):
+    list_display = (
+        "performed_at",
+        "movement_type",
+        "product",
+        "quantity",
+        "quantity_before",
+        "quantity_after",
+        "performed_by",
+        "reference_display",
+        "reason",
+    )
+    list_filter = ("movement_type", "performed_at", "performed_by")
+    search_fields = (
+        "product__name",
+        "product__sku",
+        "performed_by__username",
+        "reason",
+        "notes",
+    )
+    date_hierarchy = "performed_at"
+    ordering = ("-performed_at", "-id")
+    readonly_fields = (
+        "inventory",
+        "product",
+        "movement_type",
+        "quantity",
+        "quantity_before",
+        "quantity_after",
+        "performed_by",
+        "performed_at",
+        "receipt_item",
+        "reservation",
+        "picking_item",
+        "delivery_stop_item",
+        "created_at",
+    )
+    fieldsets = (
+        ("Stock Change", {
+            "fields": (
+                "inventory",
+                "product",
+                "movement_type",
+                "quantity",
+                "quantity_before",
+                "quantity_after",
+            )
+        }),
+        ("Audit", {
+            "fields": (
+                "performed_by",
+                "performed_at",
+                "reason",
+                "notes",
+            )
+        }),
+        ("References", {
+            "fields": (
+                "receipt_item",
+                "reservation",
+                "picking_item",
+                "delivery_stop_item",
+            )
+        }),
+        ("System", {"fields": ("created_at",)}),
+    )
+
+    @admin.display(description="Reference")
+    def reference_display(self, obj):
+        if obj.receipt_item_id:
+            return f"Receipt item #{obj.receipt_item_id}"
+        if obj.reservation_id:
+            return f"Reservation #{obj.reservation_id}"
+        if obj.picking_item_id:
+            return f"Picking item #{obj.picking_item_id}"
+        if obj.delivery_stop_item_id:
+            return f"Delivery item #{obj.delivery_stop_item_id}"
+        return "—"
+
+
+class StockCountItemInline(admin.TabularInline):
+    model = StockCountItem
+    extra = 0
+    fields = (
+        "product",
+        "inventory",
+        "system_qty",
+        "counted_qty",
+        "variance_display",
+        "counted_by",
+        "counted_at",
+        "notes",
+    )
+    readonly_fields = ("system_qty", "variance_display")
+
+    @admin.display(description="Variance")
+    def variance_display(self, obj):
+        if not obj.pk or obj.counted_qty is None:
+            return "—"
+        variance = obj.variance
+        if variance > 0:
+            return format_html('<strong style="color:green;">+{}</strong>', variance)
+        if variance < 0:
+            return format_html('<strong style="color:red;">{}</strong>', variance)
+        return "0"
+
+
+@admin.register(StockCount)
+class StockCountAdmin(admin.ModelAdmin):
+    list_display = (
+        "reference",
+        "status",
+        "started_by",
+        "started_at",
+        "completed_by",
+        "completed_at",
+        "approved_by",
+        "approved_at",
+    )
+    list_filter = ("status", "started_at", "completed_at", "approved_at")
+    search_fields = ("reference", "notes")
+    date_hierarchy = "created_at"
+    ordering = ("-created_at", "-id")
+    inlines = [StockCountItemInline]
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        ("Count", {
+            "fields": ("reference", "status", "notes")
+        }),
+        ("Audit", {
+            "fields": (
+                "started_by",
+                "started_at",
+                "completed_by",
+                "completed_at",
+                "approved_by",
+                "approved_at",
+            )
+        }),
+        ("System", {"fields": ("created_at", "updated_at")}),
+    )
+
+
+# =====================================
 # PICKING (WAREHOUSE)
 # =====================================
 
@@ -218,6 +579,8 @@ class PickingItemInline(admin.TabularInline):
         "uom",
         "expected_qty",
         "expected_supplier_price",
+        "picked_by",
+        "picked_at",
         "created_at",
     )
     fields = (
@@ -226,6 +589,8 @@ class PickingItemInline(admin.TabularInline):
         "expected_qty",
         "picked_qty",
         "is_picked",
+        "picked_by",
+        "picked_at",
         "supplier",
     )
 
@@ -239,7 +604,9 @@ class PickingBatchAdmin(admin.ModelAdmin):
         "status",
         "order_count",
         "item_count",
+        "started_by",
         "started_at",
+        "completed_by",
         "completed_at",
     )
     list_filter = ("status", "service_date")
@@ -252,6 +619,8 @@ class PickingBatchAdmin(admin.ModelAdmin):
         "updated_at",
         "started_at",
         "completed_at",
+        "started_by",
+        "completed_by",
         "order_count",
         "item_count",
     )
@@ -307,6 +676,9 @@ class DeliveryRunAdmin(admin.ModelAdmin):
         "driver",
         "vehicle",
         "status",
+        "created_by",
+        "dispatched_by",
+        "completed_by",
         "stop_count",
         "total_distance_km",
         "overall_total_cost_display",
@@ -331,6 +703,11 @@ class DeliveryRunAdmin(admin.ModelAdmin):
     readonly_fields = (
         "created_at",
         "updated_at",
+
+        # Audit actors
+        "created_by",
+        "dispatched_by",
+        "completed_by",
 
         "stop_count",
         "total_distance_km",
@@ -419,6 +796,14 @@ class DeliveryRunAdmin(admin.ModelAdmin):
         ("Notes", {
             "fields": ("notes",)
         }),
+        ("Audit", {
+            "fields": (
+                "created_by",
+                "dispatched_by",
+                "completed_by",
+            ),
+            "description": "Records who created, dispatched and completed the delivery run.",
+        }),
         ("System", {
             "fields": ("created_at", "updated_at")
         }),
@@ -504,6 +889,8 @@ class DeliveryStopAdmin(admin.ModelAdmin):
         "sequence",
         "customer_name",
         "end_user_name",
+        "stop_type",
+        "supplier",
         "status",
         "drive_min",
         "distance_km",
@@ -537,6 +924,8 @@ class DeliveryStopAdmin(admin.ModelAdmin):
         "run",
         "order",
         "end_user",
+        "stop_type",
+        "supplier",
         "sequence",
         "customer_name",
         "phone",
@@ -554,6 +943,8 @@ class DeliveryStopAdmin(admin.ModelAdmin):
         "drive_min",
         "started_at",
         "ended_at",
+        "created_by",
+        "updated_by",
         "created_at",
         "updated_at",
     )

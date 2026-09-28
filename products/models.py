@@ -6,6 +6,7 @@ from typing import Optional
 import re
 from contextvars import ContextVar
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models, transaction, IntegrityError
@@ -487,6 +488,11 @@ class Product(models.Model):
 
             super().save(*args, **kwargs)
 
+        # Ensure every Product has exactly one Inventory record.
+        # Inventory owns stock quantities; Product.save() must never change stock.
+        from deliveries.models import Inventory
+        Inventory.objects.get_or_create(product=self)
+
     def __str__(self) -> str:
         # Try get primary pricing
         pr = self.pricing_rows.filter(is_primary=True, is_active=True).first()
@@ -694,6 +700,18 @@ class ProductKnowledge(models.Model):
             "key_takeaways": self._answered(
                 self.key_takeaways
             ),
+
+            # 13
+            # Unit Economics is optional. If it is not applicable,
+            # the section is considered complete.
+            "unit_economics": (
+                not hasattr(self, "unit_economics")
+                or not self.unit_economics.is_applicable
+                or (
+                    self.unit_economics.minimum_units > D0
+                    and self.unit_economics.maximum_units > D0
+                )
+            ),
         }
 
     # =========================================================================
@@ -731,10 +749,13 @@ class ProductKnowledge(models.Model):
 
         Example:
 
-            12 questions
-            9 completed
+            13 questions
+            10 completed
 
-            9 / 12 = 75%
+            10 / 13 = 77%
+
+        Unit Economics is optional. When it is not applicable,
+        that section is automatically treated as complete.
 
         Multiple records inside a section do NOT increase
         the percentage.
@@ -783,6 +804,157 @@ class ProductKnowledge(models.Model):
     def is_complete(self):
         return self.completion_percentage == 100
     
+# =============================================================================
+# UNIT ECONOMICS
+# =============================================================================
+
+
+class ProductKnowledgeUnitEconomics(models.Model):
+    """
+    Optional unit-economics knowledge for products where the sales team
+    needs to understand the approximate cost of an individual unit/piece.
+
+    Example:
+        Product price: R70.00 per KG
+        Approximate yield: 11-13 wings per KG
+
+        Cost per wing:
+            13 wings -> R5.38 each
+            11 wings -> R6.36 each
+
+    The product price is NOT stored here. Calculations always use the
+    product's current wholesale price INCLUDING VAT.
+    """
+
+    UOM_CHOICES = Product.UOM_CHOICES
+
+    knowledge = models.OneToOneField(
+        ProductKnowledge,
+        on_delete=models.CASCADE,
+        related_name="unit_economics",
+        help_text="Product Knowledge profile this unit-economics information belongs to.",
+    )
+
+    is_applicable = models.BooleanField(
+        default=False,
+        help_text=(
+            "Tick this when it is useful to calculate the approximate cost "
+            "of an individual unit, piece or item from this product."
+        ),
+    )
+
+    base_quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        default=Decimal("1.000"),
+        validators=[MinValueValidator(Decimal("0.001"))],
+        help_text="Quantity of the product used as the calculation base, e.g. 1 KG or 1 BOX.",
+    )
+
+    base_uom = models.CharField(
+        max_length=8,
+        choices=UOM_CHOICES,
+        default="KG",
+        help_text="Unit of measure for the calculation base.",
+    )
+
+    unit_name = models.CharField(
+        max_length=100,
+        help_text="What individual unit is being costed, e.g. Wing, Russian, Burger Patty.",
+    )
+
+    minimum_units = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+        help_text="Minimum number of individual units expected from the base quantity.",
+    )
+
+    maximum_units = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+        help_text="Maximum number of individual units expected from the base quantity. Use the same value for an exact count.",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Product Knowledge Unit Economics"
+        verbose_name_plural = "Product Knowledge Unit Economics"
+
+    def __str__(self):
+        return f"Unit Economics · {self.knowledge.product.name}"
+
+    def clean(self):
+        if self.maximum_units < self.minimum_units:
+            raise ValidationError({
+                "maximum_units": "Maximum units cannot be less than minimum units."
+            })
+
+        if self.base_quantity <= D0:
+            raise ValidationError({
+                "base_quantity": "Base quantity must be greater than zero."
+            })
+
+    @property
+    def current_wholesale_price(self) -> Decimal:
+        """Current product wholesale price INCLUDING VAT."""
+        return r2(self.knowledge.product.wholesale_price_inc)
+
+    @property
+    def cost_per_unit_low(self) -> Decimal:
+        """Lowest cost per unit when the maximum yield is achieved."""
+        if self.maximum_units <= D0 or self.base_quantity <= D0:
+            return D0
+
+        return r2(
+            self.current_wholesale_price
+            * self.base_quantity
+            / self.maximum_units
+        )
+
+    @property
+    def cost_per_unit_high(self) -> Decimal:
+        """Highest cost per unit when the minimum yield is achieved."""
+        if self.minimum_units <= D0 or self.base_quantity <= D0:
+            return D0
+
+        return r2(
+            self.current_wholesale_price
+            * self.base_quantity
+            / self.minimum_units
+        )
+
+    @property
+    def cost_per_unit(self) -> Decimal:
+        """
+        Exact cost per unit when minimum and maximum yield are the same.
+        Returns zero when the yield is a range.
+        """
+        if self.minimum_units != self.maximum_units:
+            return D0
+
+        return self.cost_per_unit_low
+
+    @property
+    def is_exact(self) -> bool:
+        return self.minimum_units == self.maximum_units
+
+    @property
+    def cost_display(self) -> str:
+        """Human-readable cost-per-unit value for sales UI/manuals."""
+        if self.is_exact:
+            return f"R{self.cost_per_unit:,.2f} per {self.unit_name}"
+
+        return (
+            f"R{self.cost_per_unit_low:,.2f}–"
+            f"R{self.cost_per_unit_high:,.2f} per {self.unit_name}"
+        )
+
+
+
 # =============================================================================
 # CUSTOMER / BUSINESS TYPES
 # =============================================================================
@@ -1724,3 +1896,339 @@ def pricing_post_save_update_product_and_variants(sender, instance: ProductPrici
         )
         if cheapest:
             _apply_primary_pricing_to_product(cheapest)
+
+
+
+
+# =============================================================================
+# PROCUREMENT
+# =============================================================================
+# Procurement is the internal TDM requirement for a specific procurement
+# cycle. TDM allows exactly two procurement cycles per calendar day:
+# one AM and one PM.
+#
+# Procurement answers:
+#     "What does TDM need to procure in this cycle?"
+#
+# Supplier allocation belongs to PurchaseOrder.
+# =============================================================================
+
+class Procurement(models.Model):
+    WAVE_CHOICES = [
+        ("AM", "AM"),
+        ("PM", "PM"),
+    ]
+
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("open", "Open"),
+        ("submitted", "Submitted"),
+        ("approved", "Approved"),
+        ("closed", "Closed"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    procurement_number = models.CharField(
+        max_length=40,
+        unique=True,
+        db_index=True,
+        help_text="Unique TDM procurement reference.",
+    )
+
+    procurement_date = models.DateField(db_index=True)
+
+    wave = models.CharField(
+        max_length=2,
+        choices=WAVE_CHOICES,
+        db_index=True,
+        help_text="Procurement cycle: AM or PM.",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="draft",
+        db_index=True,
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="procurements_created",
+    )
+
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="procurements_approved",
+    )
+
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-procurement_date", "-wave", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["procurement_date", "wave"],
+                name="unique_procurement_per_day_wave",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["procurement_date", "wave", "status"],
+                name="procurement_date_wave_status",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.procurement_number} · "
+            f"{self.procurement_date:%Y-%m-%d} · {self.wave}"
+        )
+
+
+class ProcurementItem(models.Model):
+    """
+    Product requirement within a procurement cycle.
+
+    This records what TDM needs before supplier allocation or purchase
+    orders are created.
+    """
+
+    procurement = models.ForeignKey(
+        Procurement,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="procurement_items",
+    )
+
+    required_quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["product__name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["procurement", "product"],
+                name="unique_product_per_procurement",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["procurement", "product"],
+                name="procurement_item_product_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.procurement.procurement_number} · "
+            f"{self.product} · {self.required_quantity}"
+        )
+
+
+# =============================================================================
+# PURCHASE ORDERS
+# =============================================================================
+# A Procurement may produce multiple supplier-specific Purchase Orders.
+#
+# Example:
+#     Procurement: 500 kg Chicken required
+#
+#     PO-001 -> Supplier A -> 300 kg
+#     PO-002 -> Supplier B -> 200 kg
+#
+# PurchaseOrder therefore identifies the supplier, while PurchaseOrderItem
+# records the actual quantity being ordered from that supplier.
+# =============================================================================
+
+class PurchaseOrder(models.Model):
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("pending_approval", "Pending Approval"),
+        ("approved", "Approved"),
+        ("sent", "Sent to Supplier"),
+        ("partially_received", "Partially Received"),
+        ("received", "Received"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    po_number = models.CharField(
+        max_length=50,
+        unique=True,
+        db_index=True,
+    )
+
+    procurement = models.ForeignKey(
+        Procurement,
+        on_delete=models.PROTECT,
+        related_name="purchase_orders",
+    )
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="purchase_orders",
+    )
+
+    order_date = models.DateField(db_index=True)
+
+    expected_delivery_date = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+
+    status = models.CharField(
+        max_length=25,
+        choices=STATUS_CHOICES,
+        default="draft",
+        db_index=True,
+    )
+
+    supplier_reference = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Supplier's own reference, if provided.",
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchase_orders_created",
+    )
+
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchase_orders_approved",
+    )
+
+    approved_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-order_date", "-id"]
+        indexes = [
+            models.Index(
+                fields=["procurement", "supplier"],
+                name="po_procurement_supplier_idx",
+            ),
+            models.Index(
+                fields=["supplier", "status"],
+                name="po_supplier_status_idx",
+            ),
+            models.Index(
+                fields=["order_date", "status"],
+                name="po_order_date_status_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.po_number} · {self.supplier}"
+
+
+class PurchaseOrderItem(models.Model):
+    """
+    Supplier-specific purchase quantity and expected cost.
+
+    procurement_item is optional because a single procurement requirement
+    may be split across multiple suppliers.
+    """
+
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+
+    procurement_item = models.ForeignKey(
+        ProcurementItem,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="purchase_order_items",
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="purchase_order_items",
+    )
+
+    ordered_quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+
+    expected_unit_cost_excl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Expected supplier cost excluding VAT.",
+    )
+
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["product__name", "id"]
+        indexes = [
+            models.Index(
+                fields=["purchase_order", "product"],
+                name="po_item_order_product_idx",
+            ),
+            models.Index(
+                fields=["procurement_item"],
+                name="po_item_procurement_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.purchase_order.po_number} · "
+            f"{self.product} · {self.ordered_quantity}"
+        )
+
+    @property
+    def expected_total_excl(self) -> Decimal:
+        if self.expected_unit_cost_excl is None:
+            return Decimal("0.00")
+        return self.ordered_quantity * self.expected_unit_cost_excl
+

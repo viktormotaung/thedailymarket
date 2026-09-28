@@ -366,19 +366,19 @@
       <!-- Warehouse -->
       <div class="mb-2">
 
-        <a class="nav-link d-flex justify-content-between {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}"
+        <a class="nav-link d-flex justify-content-between {% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#warehouseMenuMobile"
           aria-controls="warehouseMenuMobile"
-          aria-expanded="{% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}true{% else %}false{% endif %}">
+          aria-expanded="{% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}true{% else %}false{% endif %}">
           <span>Warehouse</span>
         </a>
 
-        <div class="collapse {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}show{% endif %}"
+        <div class="collapse {% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}show{% endif %}"
           id="warehouseMenuMobile"
           data-bs-parent="#mobileAccordion">
 
-          <a href="{% url 'warehouse-dashboard' %}" class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">Dashboard</a>
+          <a href="{% url 'warehouse-dashboard' %}" class="nav-link ps-4 active">Dashboard</a>
           <a href="{% url 'warehouse-inventory' %}" class="nav-link ps-4">Inventory</a>
           <a href="{% url 'warehouse-receiving' %}" class="nav-link ps-4">Receiving</a>
           <a href="{% url 'warehouse-fulfilment' %}" class="nav-link ps-4 {% if current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}">Fulfilment</a>
@@ -418,16 +418,6 @@
           <a href="{% url 'staff-products' %}"
             class="nav-link ps-4 {% if current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}active{% endif %}">
             Products
-          </a>
-
-          <a href="{% url 'procurement-list' %}"
-            class="nav-link ps-4 {% if current == 'procurement-list' or current == 'procurement-create' or current == 'procurement-view' %}active{% endif %}">
-            Procurement
-          </a>
-
-          <a href="{% url 'purchase-order-list' %}"
-            class="nav-link ps-4 {% if current == 'purchase-order-list' or current == 'purchase-order-create' or current == 'purchase-order-view' %}active{% endif %}">
-            Purchase Orders
           </a>
 
         </div>
@@ -784,19 +774,19 @@
     <!-- Warehouse -->
       <div class="mb-2">
 
-        <a class="nav-link d-flex justify-content-between {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}"
+        <a class="nav-link d-flex justify-content-between {% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}"
           data-bs-toggle="collapse"
           href="#warehouseMenuDesktop"
           aria-controls="warehouseMenuDesktop"
-          aria-expanded="{% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}true{% else %}false{% endif %}">
+          aria-expanded="{% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}true{% else %}false{% endif %}">
           <span>Warehouse</span>
         </a>
 
-        <div class="collapse {% if current == 'warehouse' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}show{% endif %}"
+        <div class="collapse {% if current == 'warehouse' or current == 'warehouse-dashboard' or current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}show{% endif %}"
           id="warehouseMenuDesktop"
           data-bs-parent="#desktopAccordion">
 
-          <a href="{% url 'warehouse-dashboard' %}" class="nav-link ps-4 {% if current == 'warehouse' %}active{% endif %}">Dashboard</a>
+          <a href="{% url 'warehouse-dashboard' %}" class="nav-link ps-4 active">Dashboard</a>
           <a href="{% url 'warehouse-inventory' %}" class="nav-link ps-4">Inventory</a>
           <a href="{% url 'warehouse-receiving' %}" class="nav-link ps-4">Receiving</a>
           <a href="{% url 'warehouse-fulfilment' %}" class="nav-link ps-4 {% if current == 'picking-create-wave' or current == 'picking-view' or current == 'picking-start' or current == 'picking-complete' or current == 'warehouse-batch-detail' or current == 'warehouse-batch-consolidation' or current == 'batch-supplier-consolidation' %}active{% endif %}">Fulfilment</a>
@@ -836,16 +826,6 @@
         <a href="{% url 'staff-products' %}"
           class="nav-link ps-4 {% if current == 'staff-products' or current == 'product-create' or current == 'product-view' or current == 'product-edit' or current == 'product-pricing-list' or current == 'product-pricing-create' or current == 'product-pricing-edit' or current == 'variant-create' or current == 'variant-edit' or current == 'product-import' or current == 'download-price-list' %}active{% endif %}">
           Products
-        </a>
-
-        <a href="{% url 'procurement-list' %}"
-          class="nav-link ps-4 {% if current == 'procurement-list' or current == 'procurement-create' or current == 'procurement-view' %}active{% endif %}">
-          Procurement
-        </a>
-
-        <a href="{% url 'purchase-order-list' %}"
-          class="nav-link ps-4 {% if current == 'purchase-order-list' or current == 'purchase-order-create' or current == 'purchase-order-view' %}active{% endif %}">
-          Purchase Orders
         </a>
 
       </div>
@@ -973,141 +953,150 @@
     <div class="container-fluid">
 
       <!-- ================= HEADER ================= -->
-      <div class="d-flex flex-column align-items-center text-center gap-2 mb-4">
-        <h2 class="m-0">Dashboard</h2>
-        <div class="btn-group">
-          <a class="btn {% if range == 'today' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=today">
-            Today
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+          <h2 class="m-0">Warehouse Dashboard</h2>
+          <div class="text-muted small mt-1">
+            Inventory, receiving and fulfilment only
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <a href="{% url 'warehouse-inventory' %}" class="btn btn-outline-success">
+            <i class="bi bi-box-seam me-1"></i>
+            Inventory
           </a>
-          <a class="btn {% if range == '7d' %}btn-success{% else %}btn-outline-success{% endif %}" href="?range=7d">
-            Last 7 days
+          <a href="{% url 'warehouse-receiving' %}" class="btn btn-outline-success">
+            <i class="bi bi-box-arrow-in-down me-1"></i>
+            Receiving
+          </a>
+          <a href="{% url 'warehouse-fulfilment' %}" class="btn btn-success">
+            <i class="bi bi-list-check me-1"></i>
+            Fulfilment
           </a>
         </div>
       </div>
+
 
       <!-- ================= KPI STRIP ================= -->
       <div class="row g-3 mb-4">
 
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Orders</div>
-            <div class="fs-5 fw-semibold">{{ kpi_orders }}</div>
+        <div class="col-6 col-xl-3">
+          <div class="card h-100 p-3">
+            <div class="text-muted small">Stock Items</div>
+            <div class="fs-3 fw-semibold">{{ total_stock_items|default:0|intcomma }}</div>
+            <div class="small text-muted mt-1">Active inventory records</div>
           </div>
         </div>
 
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Revenue</div>
-            <div class="fs-5 fw-semibold">
-              R{{ kpi_revenue|floatformat:2|intcomma }}
+        <div class="col-6 col-xl-3">
+          <div class="card h-100 p-3">
+            <div class="text-muted small">Available Stock</div>
+            <div class="fs-3 fw-semibold">{{ total_available|default:0|floatformat:2|intcomma }}</div>
+            <div class="small text-muted mt-1">On hand less reserved</div>
+          </div>
+        </div>
+
+        <div class="col-6 col-xl-3">
+          <div class="card h-100 p-3">
+            <div class="text-muted small">Pending Receiving</div>
+            <div class="fs-3 fw-semibold {% if pending_receipts_count %}text-warning{% endif %}">
+              {{ pending_receipts_count|default:0|intcomma }}
             </div>
+            <div class="small text-muted mt-1">Draft or receiving</div>
           </div>
         </div>
 
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Active Deliveries</div>
-            <div class="fs-5 fw-semibold">{{ kpi_deliveries }}</div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Credit Used</div>
-            <div class="fs-5 fw-semibold text-warning">
-              R{{ kpi_credit_used|floatformat:2|intcomma }}
+        <div class="col-6 col-xl-3">
+          <div class="card h-100 p-3">
+            <div class="text-muted small">Items Pending Pick</div>
+            <div class="fs-3 fw-semibold {% if items_pending_pick %}text-primary{% endif %}">
+              {{ items_pending_pick|default:0|intcomma }}
             </div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">Open Tasks</div>
-            <div class="fs-5 fw-semibold">{{ kpi_open_tasks }}</div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <div class="card p-3 text-center">
-            <div class="text-muted small">New Clients</div>
-            <div class="fs-5 fw-semibold">{{ kpi_new_clients }}</div>
+            <div class="small text-muted mt-1">Awaiting fulfilment</div>
           </div>
         </div>
 
       </div>
 
 
-      <!-- ================= SALES TREND ================= -->
-      <div class="card mb-4">
-        <div class="card-header bg-white fw-semibold">
-          Sales Trend · Orders per Day
-        </div>
-        <div class="card-body">
-          <div class="chart-wrap">
-            <canvas id="salesChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- ================= NEEDS ATTENTION ================= -->
+      <!-- ================= STOCK POSITION ================= -->
       <div class="row g-3 mb-4">
 
-        <div class="col-md-6">
+        <div class="col-md-4">
           <div class="card h-100">
             <div class="card-header bg-white fw-semibold">
-              Needs Attention
+              Stock Position
             </div>
-            <ul class="list-group list-group-flush small">
+            <div class="card-body">
 
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Overdue Deliveries</span>
-                <span class="badge bg-danger">{{ alert_overdue_deliveries }}</span>
-              </li>
+              <div class="d-flex justify-content-between mb-3">
+                <span class="text-muted">On hand</span>
+                <strong>{{ on_hand_units|default:0|floatformat:2|intcomma }}</strong>
+              </div>
 
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Clients Over Credit Limit</span>
-                <span class="badge bg-danger">{{ alert_credit_over }}</span>
-              </li>
+              <div class="d-flex justify-content-between mb-3">
+                <span class="text-muted">Reserved</span>
+                <strong>{{ reserved_units|default:0|floatformat:2|intcomma }}</strong>
+              </div>
 
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Unverified Compliance Docs</span>
-                <span class="badge bg-warning">{{ alert_compliance_docs }}</span>
-              </li>
+              <div class="d-flex justify-content-between border-top pt-3">
+                <span class="fw-semibold">Available</span>
+                <strong class="text-success">
+                  {{ on_hand_units|default:0|floatformat:2|intcomma }} − {{ reserved_units|default:0|floatformat:2|intcomma }}
+                </strong>
+              </div>
 
-              <li class="list-group-item d-flex justify-content-between">
-                <span>Overdue Tasks</span>
-                <span class="badge bg-warning">{{ alert_tasks }}</span>
-              </li>
-
-            </ul>
+            </div>
           </div>
         </div>
 
-        <!-- ================= OPERATIONAL SNAPSHOT ================= -->
-        <div class="col-md-6">
+        <div class="col-md-4">
           <div class="card h-100">
             <div class="card-header bg-white fw-semibold">
-              Operational Snapshot
+              Today's Activity
             </div>
-            <div class="card-body small">
+            <div class="card-body">
 
-              <div class="mb-2">
-                <strong>Orders:</strong>
-                {{ ops_orders_total }} total ·
-                {{ ops_orders_pending }} pending ·
-                {{ ops_orders_completed }} completed
+              <div class="d-flex justify-content-between mb-3">
+                <span class="text-muted">Pending receipts</span>
+                <strong>{{ pending_receipts|default:0|intcomma }}</strong>
               </div>
 
-              <div class="mb-2">
-                <strong>Deliveries:</strong>
-                {{ ops_runs_total }} runs ·
-                {{ ops_runs_active }} active ·
-                {{ ops_runs_failed }} failed
+              <div class="d-flex justify-content-between mb-3">
+                <span class="text-muted">Reservations</span>
+                <strong>{{ reservations_today|default:0|intcomma }}</strong>
               </div>
 
-              <div>
-                <strong>Warehouse:</strong>
-                {{ ops_picklists_pending }} picklists pending
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">Stock movements</span>
+                <strong>{{ recent_movements|length|intcomma }}</strong>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-header bg-white fw-semibold">
+              Fulfilment
+            </div>
+            <div class="card-body">
+
+              <div class="d-flex justify-content-between mb-3">
+                <span class="text-muted">Picking queue</span>
+                <strong>{{ picking_queue|default:0|intcomma }}</strong>
+              </div>
+
+              <div class="d-flex justify-content-between mb-3">
+                <span class="text-muted">Items pending pick</span>
+                <strong>{{ items_pending_pick|default:0|intcomma }}</strong>
+              </div>
+
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">Completed today</span>
+                <strong class="text-success">{{ batches_completed_today|default:0|intcomma }}</strong>
               </div>
 
             </div>
@@ -1116,11 +1105,199 @@
 
       </div>
 
-      
+
+      <!-- ================= NEEDS ATTENTION ================= -->
+      <div class="card mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">Needs Attention</span>
+          <span class="small text-muted">Current warehouse exceptions</span>
+        </div>
+
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush">
+
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">Out of Stock</div>
+                <div class="small text-muted">Products with no stock on hand</div>
+              </div>
+              <span class="badge bg-danger">{{ out_of_stock|default:0|intcomma }}</span>
+            </div>
+
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">Pending Receiving</div>
+                <div class="small text-muted">Receipts still in draft or receiving</div>
+              </div>
+              <span class="badge bg-warning text-dark">{{ pending_receipts|default:0|intcomma }}</span>
+            </div>
+
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">Picking Queue</div>
+                <div class="small text-muted">Picking batches waiting for fulfilment</div>
+              </div>
+              <span class="badge bg-primary">{{ picking_queue|default:0|intcomma }}</span>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================= RECEIVING + FULFILMENT ================= -->
+      <div class="row g-3 mb-4">
+
+        <div class="col-xl-6">
+          <div class="card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <span class="fw-semibold">Receiving</span>
+              <a href="{% url 'warehouse-receiving' %}" class="btn btn-sm btn-outline-success">
+                Open receiving
+              </a>
+            </div>
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="text-muted small">Pending stock receipts</div>
+                  <div class="fs-2 fw-semibold">{{ pending_receipts|default:0|intcomma }}</div>
+                </div>
+                <i class="bi bi-box-arrow-in-down fs-1 text-success"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-xl-6">
+          <div class="card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <span class="fw-semibold">Fulfilment</span>
+              <a href="{% url 'warehouse-fulfilment' %}" class="btn btn-sm btn-outline-success">
+                Open fulfilment
+              </a>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-6">
+                  <div class="border rounded p-3 h-100">
+                    <div class="text-muted small">Picking queue</div>
+                    <div class="fs-3 fw-semibold">{{ picking_queue|default:0|intcomma }}</div>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="border rounded p-3 h-100">
+                    <div class="text-muted small">Completed today</div>
+                    <div class="fs-3 fw-semibold text-success">
+                      {{ completed_picking_today|default:0|intcomma }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ================= RECENT ACTIVITY ================= -->
+      <div class="row g-3 mb-4">
+
+        <div class="col-xl-6">
+          <div class="card h-100">
+            <div class="card-header bg-white fw-semibold">
+              Warehouse Activity Today
+            </div>
+            <div class="card-body">
+
+              <div class="d-flex justify-content-between border-bottom pb-3 mb-3">
+                <span class="text-muted">Stock movements</span>
+                <strong>{{ recent_movements|length|intcomma }}</strong>
+              </div>
+
+              <div class="d-flex justify-content-between border-bottom pb-3 mb-3">
+                <span class="text-muted">Reservations</span>
+                <strong>{{ reservations_today|default:0|intcomma }}</strong>
+              </div>
+
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">Completed picking batches</span>
+                <strong class="text-success">
+                  {{ completed_picking_today|default:0|intcomma }}
+                </strong>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="col-xl-6">
+          <div class="card h-100">
+            <div class="card-header bg-white fw-semibold">
+              Stock Control
+            </div>
+            <div class="card-body">
+
+              <div class="d-flex justify-content-between border-bottom pb-3 mb-3">
+                <span class="text-muted">Stock items</span>
+                <strong>{{ total_stock_items|default:0|intcomma }}</strong>
+              </div>
+
+              <div class="d-flex justify-content-between border-bottom pb-3 mb-3">
+                <span class="text-muted">Reserved units</span>
+                <strong>{{ reserved_units|default:0|floatformat:2|intcomma }}</strong>
+              </div>
+
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">On-hand units</span>
+                <strong>{{ on_hand_units|default:0|floatformat:2|intcomma }}</strong>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ================= QUICK ACTIONS ================= -->
+      <div class="card mb-4">
+        <div class="card-header bg-white fw-semibold">
+          Warehouse
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+
+            <div class="col-md-4">
+              <a href="{% url 'warehouse-inventory' %}"
+                 class="btn btn-outline-success w-100 py-3">
+                <i class="bi bi-box-seam d-block fs-4 mb-1"></i>
+                Inventory
+              </a>
+            </div>
+
+            <div class="col-md-4">
+              <a href="{% url 'warehouse-receiving' %}"
+                 class="btn btn-outline-success w-100 py-3">
+                <i class="bi bi-box-arrow-in-down d-block fs-4 mb-1"></i>
+                Receiving
+              </a>
+            </div>
+
+            <div class="col-md-4">
+              <a href="{% url 'warehouse-fulfilment' %}"
+                 class="btn btn-success w-100 py-3">
+                <i class="bi bi-list-check d-block fs-4 mb-1"></i>
+                Fulfilment
+              </a>
+            </div>
+
+          </div>
+        </div>
+      </div>
 
     </div>
   </main>
-
 
   <!-- SWITCH PLATFORM MODAL -->
   <div class="modal fade"

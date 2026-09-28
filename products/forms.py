@@ -2,7 +2,13 @@
 from decimal import Decimal
 from django import forms
 from django.forms import inlineformset_factory
-from products.models import ProductPricing, Product, ProductVariant, ProductKnowledge
+from products.models import (
+    ProductPricing,
+    Product,
+    ProductVariant,
+    ProductKnowledge,
+    ProductKnowledgeUnitEconomics,
+)
 from suppliers.models import Supplier
 
 
@@ -356,3 +362,103 @@ class ProductKnowledgeForm(forms.ModelForm):
                 "must remember about this product."
             ),
         }
+
+class ProductKnowledgeUnitEconomicsForm(forms.ModelForm):
+    class Meta:
+        model = ProductKnowledgeUnitEconomics
+        fields = [
+            "is_applicable",
+            "base_quantity",
+            "base_uom",
+            "unit_name",
+            "minimum_units",
+            "maximum_units",
+        ]
+        widgets = {
+            "is_applicable": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "base_quantity": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.001", "min": "0.001"}
+            ),
+            "base_uom": forms.Select(attrs={"class": "form-select"}),
+            "unit_name": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "e.g. Wing, Russian, Burger Patty",
+                }
+            ),
+            "minimum_units": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.01", "min": "0.01"}
+            ),
+            "maximum_units": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.01", "min": "0.01"}
+            ),
+        }
+
+        labels = {
+            "is_applicable": "Unit Economics Applies",
+            "base_quantity": "Base Quantity",
+            "base_uom": "Base UOM",
+            "unit_name": "Individual Unit",
+            "minimum_units": "Minimum Units",
+            "maximum_units": "Maximum Units",
+        }
+
+        help_texts = {
+            "is_applicable": (
+                "Tick this when it is useful to calculate the approximate cost "
+                "of an individual unit or piece."
+            ),
+            "base_quantity": (
+                "Quantity used as the calculation base, e.g. 1 KG or 1 BOX."
+            ),
+            "base_uom": "Unit of measure for the calculation base.",
+            "unit_name": (
+                "What individual unit is being costed, e.g. Wing or Russian."
+            ),
+            "minimum_units": (
+                "Minimum number of individual units expected from the base quantity."
+            ),
+            "maximum_units": (
+                "Maximum number of individual units expected. Use the same value "
+                "for an exact count."
+            ),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        minimum = cleaned_data.get("minimum_units")
+        maximum = cleaned_data.get("maximum_units")
+        applicable = cleaned_data.get("is_applicable")
+
+        if applicable:
+            if minimum is None:
+                self.add_error(
+                    "minimum_units",
+                    "Enter the minimum number of units when Unit Economics applies.",
+                )
+
+            if maximum is None:
+                self.add_error(
+                    "maximum_units",
+                    "Enter the maximum number of units when Unit Economics applies.",
+                )
+
+            if minimum is not None and maximum is not None and maximum < minimum:
+                self.add_error(
+                    "maximum_units",
+                    "Maximum units cannot be less than minimum units.",
+                )
+
+        return cleaned_data
+
+
+# One Unit Economics record belongs to each Product Knowledge profile.
+ProductKnowledgeUnitEconomicsFormSet = inlineformset_factory(
+    parent_model=ProductKnowledge,
+    model=ProductKnowledgeUnitEconomics,
+    form=ProductKnowledgeUnitEconomicsForm,
+    extra=1,
+    max_num=1,
+    can_delete=True,
+)

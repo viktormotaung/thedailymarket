@@ -1,6 +1,12 @@
 # portal/utils/access.py
 
-from profiles.models import StaffProfile, SalesRepProfile, DriverProfile
+from profiles.models import (
+    StaffProfile,
+    SalesRepProfile,
+    DriverProfile,
+    SupplyChainStaff,
+    WarehouseStaff,
+)
 from credit.models import FunderMember
 
 def get_user_portal_access(user):
@@ -23,6 +29,14 @@ def get_user_portal_access(user):
         user=user, is_active=True
     ).exists()
 
+    has_active_supply_chain_staff = SupplyChainStaff.objects.filter(
+        user=user, is_active=True
+    ).exists()
+
+    has_active_warehouse_staff = WarehouseStaff.objects.filter(
+        user=user, is_active=True
+    ).exists()
+
     can_staff_portal = bool(
         is_staff_user and staff_profile and staff_status == "ACTIVE"
     )
@@ -35,10 +49,14 @@ def get_user_portal_access(user):
 
     can_lender_portal = bool(has_active_funder_membership)
     can_logistics_portal = bool(has_active_driver)
+    can_supply_chain_portal = bool(has_active_supply_chain_staff)
+    can_warehouse_portal = bool(has_active_warehouse_staff)
 
     return {
         "can_staff_portal": can_staff_portal,
         "can_sales_portal": can_sales_portal,
         "can_lender_portal": can_lender_portal,
         "can_logistics_portal": can_logistics_portal,
+        "can_supply_chain_portal": can_supply_chain_portal,
+        "can_warehouse_portal": can_warehouse_portal,
     }

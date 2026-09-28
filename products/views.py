@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from suppliers.models import Supplier
 from .models import Product, Category, ProductPricing
+from .models import Procurement, ProcurementItem, PurchaseOrder, PurchaseOrderItem
 from .forms import ProductForm, ProductVariantFormSet, ProductPricingForm, ProductKnowledgeForm
 from django.db import transaction
 from .forms import ProductForm, ProductVariantForm
@@ -26,6 +27,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.forms import inlineformset_factory
+from django.forms import modelform_factory
 from django.forms.models import BaseInlineFormSet
 from django.shortcuts import get_object_or_404, redirect, render
 from .forms import ProductExcelUploadForm
@@ -2803,4 +2805,294 @@ def product_dashboard(request):
         request,
         "products/product_dashboard.html",
         ctx
+    )
+
+
+# =============================================================
+# PROCUREMENT
+# =============================================================
+
+@login_required
+@staff_required
+def procurement_list(request):
+    qs = (
+        Procurement.objects
+        .select_related("created_by", "approved_by")
+        .prefetch_related("items__product", "purchase_orders")
+        .order_by("-procurement_date", "-id")
+    )
+
+    status = (request.GET.get("status") or "").strip()
+    wave = (request.GET.get("wave") or "").strip()
+    search = (request.GET.get("search") or "").strip()
+
+    if status:
+        qs = qs.filter(status=status)
+    if wave:
+        qs = qs.filter(wave=wave)
+    if search:
+        qs = qs.filter(
+            Q(procurement_number__icontains=search)
+            | Q(notes__icontains=search)
+        )
+
+    return render(
+        request,
+        "products/procurement_list.html",
+        {
+            "procurements": qs,
+            "status_choices": Procurement.STATUS_CHOICES,
+            "wave_choices": Procurement.WAVE_CHOICES,
+            "selected_status": status,
+            "selected_wave": wave,
+            "search": search,
+            "current": "procurement-list",
+        },
+    )
+
+
+@login_required
+@staff_required
+@transaction.atomic
+def procurement_create(request):
+    ProcurementForm = modelform_factory(
+        Procurement,
+        fields=[
+            "procurement_number",
+            "procurement_date",
+            "wave",
+            "status",
+            "created_by",
+            "notes",
+        ],
+    )
+    ProcurementItemFormSet = inlineformset_factory(
+        Procurement,
+        ProcurementItem,
+        fields=["product", "required_quantity", "notes"],
+        extra=5,
+        can_delete=True,
+    )
+
+    if request.method == "POST":
+        form = ProcurementForm(request.POST)
+        formset = ProcurementItemFormSet(request.POST)
+
+        if form.is_valid() and formset.is_valid():
+            procurement = form.save(commit=False)
+
+            if not procurement.procurement_number:
+                procurement.procurement_number = (
+                    f"PROC-{procurement.procurement_date:%Y%m%d}-"
+                    f"{procurement.wave.upper()}"
+                )
+
+            if not procurement.created_by_id:
+                procurement.created_by = request.user
+
+            procurement.save()
+            formset.instance = procurement
+            formset.save()
+
+            messages.success(
+                request,
+                f"Procurement {procurement.procurement_number} created successfully.",
+            )
+            return redirect("procurement-view", pk=procurement.pk)
+
+        messages.error(request, "Please fix the errors below.")
+
+    else:
+        form = ProcurementForm(
+            initial={
+                "procurement_date": timezone.localdate(),
+                "wave": "AM",
+                "status": "draft",
+                "created_by": request.user,
+            }
+        )
+        formset = ProcurementItemFormSet()
+
+    return render(
+        request,
+        "products/procurement_form.html",
+        {"form": form, "formset": formset, "current": "procurement-create"},
+    )
+
+
+@login_required
+@staff_required
+def procurement_view(request, pk):
+    procurement = get_object_or_404(
+        Procurement.objects
+        .select_related("created_by", "approved_by")
+        .prefetch_related("items__product", "purchase_orders__supplier"),
+        pk=pk,
+    )
+    return render(
+        request,
+        "products/procurement_view.html",
+        {"procurement": procurement, "current": "procurement-view"},
+    )
+
+
+# =============================================================
+# PURCHASE ORDERS
+# =============================================================
+
+@login_required
+@staff_required
+def purchase_order_list(request):
+    qs = (
+        PurchaseOrder.objects
+        .select_related(
+            "procurement",
+            "supplier",
+            "created_by",
+            "approved_by",
+        )
+        .prefetch_related("items__product")
+        .order_by("-order_date", "-id")
+    )
+
+    status = (request.GET.get("status") or "").strip()
+    supplier_id = (request.GET.get("supplier") or "").strip()
+    search = (request.GET.get("search") or "").strip()
+
+    if status:
+        qs = qs.filter(status=status)
+    if supplier_id:
+        qs = qs.filter(supplier_id=supplier_id)
+    if search:
+        qs = qs.filter(
+            Q(po_number__icontains=search)
+            | Q(supplier_reference__icontains=search)
+            | Q(procurement__procurement_number__icontains=search)
+            | Q(supplier__name__icontains=search)
+        )
+
+    return render(
+        request,
+        "products/purchase_order_list.html",
+        {
+            "purchase_orders": qs,
+            "status_choices": PurchaseOrder.STATUS_CHOICES,
+            "suppliers": Supplier.objects.order_by("name"),
+            "selected_status": status,
+            "selected_supplier": supplier_id,
+            "search": search,
+            "current": "purchase-order-list",
+        },
+    )
+
+
+@login_required
+@staff_required
+@transaction.atomic
+def purchase_order_create(request):
+    PurchaseOrderForm = modelform_factory(
+        PurchaseOrder,
+        fields=[
+            "po_number",
+            "procurement",
+            "supplier",
+            "order_date",
+            "expected_delivery_date",
+            "status",
+            "supplier_reference",
+            "created_by",
+            "notes",
+        ],
+    )
+    PurchaseOrderItemFormSet = inlineformset_factory(
+        PurchaseOrder,
+        PurchaseOrderItem,
+        fields=[
+            "procurement_item",
+            "product",
+            "ordered_quantity",
+            "expected_unit_cost_excl",
+            "notes",
+        ],
+        extra=5,
+        can_delete=True,
+    )
+
+    procurement_id = request.GET.get("procurement")
+
+    if request.method == "POST":
+        form = PurchaseOrderForm(request.POST)
+        formset = PurchaseOrderItemFormSet(request.POST)
+
+        if form.is_valid() and formset.is_valid():
+            purchase_order = form.save(commit=False)
+
+            if not purchase_order.po_number:
+                date_part = purchase_order.order_date.strftime("%Y%m%d")
+                prefix = f"PO-{date_part}-"
+                number = (
+                    PurchaseOrder.objects
+                    .filter(po_number__startswith=prefix)
+                    .count()
+                    + 1
+                )
+                purchase_order.po_number = f"{prefix}{number:04d}"
+
+                while PurchaseOrder.objects.filter(
+                    po_number=purchase_order.po_number
+                ).exists():
+                    number += 1
+                    purchase_order.po_number = f"{prefix}{number:04d}"
+
+            if not purchase_order.created_by_id:
+                purchase_order.created_by = request.user
+
+            purchase_order.save()
+            formset.instance = purchase_order
+            formset.save()
+
+            messages.success(
+                request,
+                f"Purchase Order {purchase_order.po_number} created successfully.",
+            )
+            return redirect("purchase-order-view", pk=purchase_order.pk)
+
+        messages.error(request, "Please fix the errors below.")
+
+    else:
+        form = PurchaseOrderForm(
+            initial={
+                "procurement": procurement_id or None,
+                "order_date": timezone.localdate(),
+                "status": "draft",
+                "created_by": request.user,
+            }
+        )
+        formset = PurchaseOrderItemFormSet()
+
+    return render(
+        request,
+        "products/purchase_order_form.html",
+        {"form": form, "formset": formset, "current": "purchase-order-create"},
+    )
+
+
+@login_required
+@staff_required
+def purchase_order_view(request, pk):
+    purchase_order = get_object_or_404(
+        PurchaseOrder.objects
+        .select_related(
+            "procurement",
+            "supplier",
+            "created_by",
+            "approved_by",
+        )
+        .prefetch_related("items__product", "items__procurement_item"),
+        pk=pk,
+    )
+    return render(
+        request,
+        "products/purchase_order_view.html",
+        {"purchase_order": purchase_order, "current": "purchase-order-view"},
     )

@@ -62,6 +62,529 @@ def _delivery_date_for(service_date: date, wave: str) -> date:
 
 
 
+# -----------------------------
+# 1) INVENTORY: Stock control
+# -----------------------------
+#
+# Product remains the permanent product master in the products app.
+# Inventory records stock separately, so weekly product/price-list
+# changes do not rewrite historical stock movements or receipts.
+#
+# IMPORTANT:
+# Existing supplier/picking/delivery fields below are intentionally
+# retained for legacy data. New workflow uses these inventory models.
+#
+
+
+class Inventory(models.Model):
+    """Current stock position for one permanent Product."""
+
+    product = models.OneToOneField(
+        "products.Product",
+        on_delete=models.PROTECT,
+        related_name="inventory",
+    )
+
+    quantity_on_hand = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+
+    quantity_reserved = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+
+    minimum_units = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("1.00"),
+        validators=[MinValueValidator(Decimal("0.01"))],
+        help_text="Minimum number of individual units expected from the base quantity.",
+    )
+
+    maximum_units = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("1.00"),
+        validators=[MinValueValidator(Decimal("0.01"))],
+        help_text="Maximum number of individual units expected from the base quantity. Use the same value for an exact count.",
+    )
+
+    last_received_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    last_supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="last_received_inventory",
+        help_text="Supplier from which the most recent stock receipt for this product came.",
+    )
+    last_stock_receipt = models.ForeignKey(
+        "deliveries.StockReceipt",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="last_received_inventory_rows",
+    )
+
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["product_id"]
+        indexes = [
+            models.Index(fields=["is_active"]),
+            models.Index(fields=["last_received_at"]),
+        ]
+
+    def __str__(self):
+        return f"Inventory · {self.product} · available {self.quantity_available}"
+
+    @property
+    def quantity_available(self):
+        return max(
+            Decimal("0.00"),
+            self.quantity_on_hand - self.quantity_reserved,
+        )
+
+
+class StockReceipt(models.Model):
+    """A physical receipt/GRN of stock from one supplier."""
+
+    STATUS = [
+        ("draft", "Draft"),
+        ("receiving", "Receiving"),
+        ("received", "Received"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    receipt_number = models.CharField(max_length=50, unique=True)
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="stock_receipts",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS,
+        default="draft",
+        db_index=True,
+    )
+
+    supplier_invoice_number = models.CharField(max_length=100, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_receipts_created",
+    )
+    received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_receipts_received",
+    )
+    checked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_receipts_checked",
+    )
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_receipts_completed",
+    )
+
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-received_at", "-id"]
+        indexes = [
+            models.Index(fields=["supplier", "status"]),
+            models.Index(fields=["received_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.receipt_number} · {self.supplier} · {self.get_status_display()}"
+
+
+class StockReceiptItem(models.Model):
+    """Immutable-ish receipt line preserving what was actually received."""
+
+    receipt = models.ForeignKey(
+        "deliveries.StockReceipt",
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    product = models.ForeignKey(
+        "products.Product",
+        on_delete=models.PROTECT,
+        related_name="stock_receipt_items",
+    )
+
+    expected_qty = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    received_qty = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+
+    unit_cost_excl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    vat_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    unit_cost_incl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+
+    batch_reference = models.CharField(max_length=100, blank=True)
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["receipt_id", "id"]
+        indexes = [
+            models.Index(fields=["product", "receipt"]),
+        ]
+
+    def __str__(self):
+        return f"{self.receipt.receipt_number} · {self.product} · {self.received_qty}"
+
+    @property
+    def quantity_variance(self):
+        return self.received_qty - self.expected_qty
+
+
+class StockReservation(models.Model):
+    """Stock reserved for a specific order item before warehouse picking."""
+
+    STATUS = [
+        ("reserved", "Reserved"),
+        ("released", "Released"),
+        ("picked", "Picked"),
+        ("fulfilled", "Fulfilled"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    inventory = models.ForeignKey(
+        "deliveries.Inventory",
+        on_delete=models.PROTECT,
+        related_name="reservations",
+    )
+    order = models.ForeignKey(
+        "orders.Order",
+        on_delete=models.PROTECT,
+        related_name="stock_reservations",
+    )
+    order_item = models.ForeignKey(
+        "orders.OrderItem",
+        on_delete=models.PROTECT,
+        related_name="stock_reservations",
+    )
+
+    quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS,
+        default="reserved",
+        db_index=True,
+    )
+
+    reserved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_reservations_created",
+    )
+    released_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_reservations_released",
+    )
+    picked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_reservations_picked",
+    )
+
+    reserved_at = models.DateTimeField(auto_now_add=True)
+    released_at = models.DateTimeField(null=True, blank=True)
+    picked_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-reserved_at", "-id"]
+        indexes = [
+            models.Index(fields=["inventory", "status"]),
+            models.Index(fields=["order", "status"]),
+            models.Index(fields=["order_item", "status"]),
+        ]
+
+    def __str__(self):
+        return f"Reservation · {self.order_id} · {self.inventory.product_id} · {self.quantity}"
+
+
+class StockMovement(models.Model):
+    """Immutable audit trail of stock quantity changes."""
+
+    MOVEMENT_TYPES = [
+        ("receipt", "Receipt"),
+        ("reservation", "Reservation"),
+        ("release", "Reservation Release"),
+        ("pick", "Pick"),
+        ("unpick", "Unpick"),
+        ("delivery", "Delivery"),
+        ("return", "Return"),
+        ("adjustment", "Adjustment"),
+        ("damage", "Damage"),
+        ("count_adjustment", "Count Adjustment"),
+    ]
+
+    inventory = models.ForeignKey(
+        "deliveries.Inventory",
+        on_delete=models.PROTECT,
+        related_name="movements",
+    )
+    product = models.ForeignKey(
+        "products.Product",
+        on_delete=models.PROTECT,
+        related_name="stock_movements",
+    )
+    movement_type = models.CharField(
+        max_length=30,
+        choices=MOVEMENT_TYPES,
+        db_index=True,
+    )
+
+    # Signed quantity: positive adds physical stock; negative removes it.
+    quantity = models.DecimalField(max_digits=14, decimal_places=2)
+    quantity_before = models.DecimalField(max_digits=14, decimal_places=2)
+    quantity_after = models.DecimalField(max_digits=14, decimal_places=2)
+
+    performed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_movements_performed",
+    )
+    performed_at = models.DateTimeField(default=now, db_index=True)
+
+    receipt_item = models.ForeignKey(
+        "deliveries.StockReceiptItem",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_movements",
+    )
+    reservation = models.ForeignKey(
+        "deliveries.StockReservation",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_movements",
+    )
+    picking_item = models.ForeignKey(
+        "deliveries.PickingItem",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_movements",
+    )
+    delivery_stop_item = models.ForeignKey(
+        "deliveries.DeliveryStopItem",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_movements",
+    )
+
+    reason = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-performed_at", "-id"]
+        indexes = [
+            models.Index(fields=["inventory", "performed_at"]),
+            models.Index(fields=["product", "movement_type"]),
+            models.Index(fields=["performed_by", "performed_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_movement_type_display()} · {self.product} · {self.quantity}"
+
+
+class StockCount(models.Model):
+    """A controlled physical stock count."""
+
+    STATUS = [
+        ("draft", "Draft"),
+        ("in_progress", "In Progress"),
+        ("submitted", "Submitted"),
+        ("approved", "Approved"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    reference = models.CharField(max_length=60, unique=True)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS,
+        default="draft",
+        db_index=True,
+    )
+
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_counts_started",
+    )
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_counts_completed",
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_counts_approved",
+    )
+
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.reference} · {self.get_status_display()}"
+
+
+class StockCountItem(models.Model):
+    """One physical count line with its system quantity and variance."""
+
+    count = models.ForeignKey(
+        "deliveries.StockCount",
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    inventory = models.ForeignKey(
+        "deliveries.Inventory",
+        on_delete=models.PROTECT,
+        related_name="count_items",
+    )
+    product = models.ForeignKey(
+        "products.Product",
+        on_delete=models.PROTECT,
+        related_name="stock_count_items",
+    )
+
+    system_qty = models.DecimalField(max_digits=14, decimal_places=2)
+    counted_qty = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    counted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_count_items_counted",
+    )
+    counted_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["count_id", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["count", "product"],
+                name="unique_product_per_stock_count",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["inventory", "count"]),
+            models.Index(fields=["product", "count"]),
+        ]
+
+    def __str__(self):
+        return f"{self.count.reference} · {self.product}"
+
+    @property
+    def variance(self):
+        if self.counted_qty is None:
+            return None
+        return self.counted_qty - self.system_qty
+
+
+# -----------------------------
+# 2) WAREHOUSE: Picking
+# -----------------------------
+
+
 class PickingBatch(models.Model):
     """
     A warehouse picking batch for a single service date and wave (AM/PM).
@@ -96,6 +619,22 @@ class PickingBatch(models.Model):
         null=True,
         blank=True,
         related_name="picking_batches_created",
+    )
+
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="picking_batches_started",
+    )
+
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="picking_batches_completed",
     )
 
     started_at = models.DateTimeField(null=True, blank=True)
@@ -143,7 +682,8 @@ class PickingBatch(models.Model):
     def mark_started(self, user=None):
         self.status = "in_progress"
         self.started_at = now()
-        self.save(update_fields=["status", "started_at", "updated_at"])
+        self.started_by = user if getattr(user, "is_authenticated", False) else None
+        self.save(update_fields=["status", "started_at", "started_by", "updated_at"])
 
     def save(self, *args, **kwargs):
         old_status = None
@@ -167,7 +707,8 @@ class PickingBatch(models.Model):
         self.status = "complete"
         if not self.completed_at:
             self.completed_at = now()
-        self.save(update_fields=["status", "completed_at", "updated_at"])
+        self.completed_by = user if getattr(user, "is_authenticated", False) else None
+        self.save(update_fields=["status", "completed_at", "completed_by", "updated_at"])
 
     # -------------------------------------------------
     # IMPORTANT: used by Transactions
@@ -245,87 +786,16 @@ class PickingBatch(models.Model):
             ).delete()
 
             # =========================================================
-            # 3. SUPPLIER STOPS
+            # 3. SUPPLIER STOPS — LEGACY ONLY
             #
-            # The Picking Batch contains PickingItems.
-            #
-            # Each PickingItem has a supplier.
-            #
-            # If 10 items come from the same supplier, that supplier
-            # must still be ONE physical pickup stop.
-            #
-            # Example:
-            #
-            # Chicken → Supplier A
-            # Beef    → Supplier A
-            # Chips   → Supplier A
-            #
-            # becomes:
-            #
-            # Supplier A → ONE pickup stop
+            # Existing supplier DeliveryStop records are retained for
+            # historical data. New delivery runs no longer create or
+            # route through supplier stops. Supplier selection now
+            # belongs to procurement / StockReceipt.
             # =========================================================
 
-            supplier_ids = list(
-                self.items.using(db)
-                .filter(
-                    supplier_id__isnull=False,
-                    supplier__delivery_lat__isnull=False,
-                    supplier__delivery_lng__isnull=False,
-                )
-                .values_list(
-                    "supplier_id",
-                    flat=True,
-                )
-                .distinct()
-            )
-
-            for supplier_id in supplier_ids:
-
-                supplier_stop, created = (
-                    DeliveryStop.objects.using(db).get_or_create(
-                        run=run,
-                        supplier_id=supplier_id,
-                        stop_type="SUPPLIER",
-                        defaults={
-                            "status": "assigned",
-                            "sequence": 0,
-                            "service_min": 5,
-                        },
-                    )
-                )
-
-                # Always refresh the supplier address snapshot.
-                #
-                # DeliveryStop already has snapshot_from_supplier(),
-                # which copies the supplier address and GPS coordinates.
-                supplier_stop.snapshot_from_supplier()
-
-                supplier_stop.status = (
-                    supplier_stop.status
-                    if supplier_stop.status not in ("pending", "")
-                    else "assigned"
-                )
-
-                supplier_stop.save(
-                    using=db,
-                    update_fields=[
-                        "customer_name",
-                        "address_line1",
-                        "address_line2",
-                        "suburb",
-                        "city",
-                        "province",
-                        "postal_code",
-                        "country",
-                        "lat",
-                        "lng",
-                        "status",
-                        "updated_at",
-                    ],
-                )
-
             # =========================================================
-            # 4. GET ALL ORDERS IN THIS PICKING BATCH
+            # 3. GET ALL ORDERS IN THIS PICKING BATCH
             # =========================================================
 
             order_ids = list(
@@ -338,7 +808,7 @@ class PickingBatch(models.Model):
             )
 
             # =========================================================
-            # 5. LOAD ORDERS AND THEIR CLIENTS
+            # 4. LOAD ORDERS AND THEIR CLIENTS
             #
             # IMPORTANT:
             #
@@ -387,7 +857,7 @@ class PickingBatch(models.Model):
                 ).append(order)
 
             # =========================================================
-            # 6. CREATE / REUSE ONE CUSTOMER STOP PER DESTINATION
+            # 5. CREATE / REUSE ONE CUSTOMER STOP PER DESTINATION
             # =========================================================
             #
             # Destination = Client + End User
@@ -512,7 +982,7 @@ class PickingBatch(models.Model):
                     )
 
                 # =====================================================
-                # 7. ADD ALL ITEMS FROM ALL ORDERS FOR THIS DESTINATION
+                # 6. ADD ALL ITEMS FROM ALL ORDERS FOR THIS DESTINATION
                 #    TO THE SAME DELIVERY STOP
                 # =====================================================
 
@@ -564,7 +1034,7 @@ class PickingBatch(models.Model):
                     )
 
             # =========================================================
-            # 8. UPDATE ORDER STATUS
+            # 7. UPDATE ORDER STATUS
             #
             # All orders in the Picking Batch are moved to
             # ready_for_delivery.
@@ -584,7 +1054,7 @@ class PickingBatch(models.Model):
             )
 
             # =========================================================
-            # 9. RE-CALCULATE RUN TOTALS
+            # 8. RE-CALCULATE RUN TOTALS
             # =========================================================
 
             run.recalc_aggregates(
@@ -632,10 +1102,10 @@ class PickingItem(models.Model):
     A single pick line derived from an OrderItem.
 
     Picking semantics:
-    - Picking = supplier commitment
-    - Supplier is auto-derived from ProductPricing.is_primary
-    - Supplier & expected price are SNAPSHOTTED
-    - Actual price is captured later (consolidation)
+    - Picking is now a warehouse stock operation.
+    - Stock is supplied from Inventory / StockReservation.
+    - Supplier fields below are retained only for legacy historical rows.
+    - New PickingItems do not select suppliers from ProductPricing.
     """
 
     # --------------------------------------------------
@@ -711,8 +1181,17 @@ class PickingItem(models.Model):
 
     is_picked = models.BooleanField(
         default=False,
-        help_text="Supplier confirmed and quantity committed.",
+        help_text="Quantity physically picked from warehouse stock.",
     )
+
+    picked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="picking_items_picked",
+    )
+    picked_at = models.DateTimeField(null=True, blank=True)
 
     notes = models.TextField(blank=True)
 
@@ -783,38 +1262,23 @@ class PickingItem(models.Model):
             return
 
         # --------------------------------------------
-        # CREATE: snapshot supplier + price
+        # CREATE: snapshot product identity only
         # --------------------------------------------
         if not self.order_item_id:
             raise ValidationError("PickingItem must be linked to an OrderItem.")
 
         product = self.order_item.product
 
-        db = self._state.db or "default"
-
-        pricing_qs = (
-            product.pricing_rows
-            .using(db)
-            .filter(is_active=True)
-            .select_related("supplier")
-        )
-
-        if not pricing_qs.exists():
-            raise ValidationError(
-                f"Product '{product}' has no active supplier pricing."
-            )
-
-        primary_pricing = pricing_qs.filter(is_primary=True).first()
-        chosen_pricing = primary_pricing or pricing_qs.order_by("id").first()
-
-        self.supplier = chosen_pricing.supplier
-        self.expected_supplier_price = chosen_pricing.supplier_price_incl
-
         self.product_name = self.product_name or product.name
         self.sku = self.sku or product.sku or ""
         self.uom = self.uom or product.uom or ""
 
-        # ✅ Validation ONLY on create
+        # New picking rows are fulfilled from warehouse inventory.
+        # Supplier / supplier-price fields are deliberately left blank
+        # so a price-list change can never redirect a warehouse pick.
+        self.supplier = None
+        self.expected_supplier_price = None
+
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -840,14 +1304,18 @@ class PickingItem(models.Model):
     # --------------------------------------------------
     # Picking action
     # --------------------------------------------------
-    def mark_picked(self, qty: Optional[Decimal] = None):
+    def mark_picked(self, qty: Optional[Decimal] = None, user=None):
         self.picked_qty = qty if qty is not None else self.expected_qty
         self.is_picked = True
+        self.picked_by = user if getattr(user, "is_authenticated", False) else self.picked_by
+        self.picked_at = now()
 
         self.full_clean()
         self.save(update_fields=[
             "picked_qty",
             "is_picked",
+            "picked_by",
+            "picked_at",
             "updated_at",
         ])
 
@@ -896,6 +1364,29 @@ class DeliveryRun(models.Model):
         related_name="delivery_runs",
     )
 
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delivery_runs_created",
+    )
+    dispatched_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delivery_runs_dispatched",
+    )
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delivery_runs_completed",
+    )
+
+    # LEGACY: retained for existing runs; new routes do not start at suppliers.
     start_supplier = models.ForeignKey(
         Supplier,
         on_delete=models.SET_NULL,
@@ -1724,5 +2215,6 @@ class ExternalDeliveryRate(models.Model):
     @property
     def total_per_km(self):
         return self.driver_per_km + self.assistant_per_km
+
 
 

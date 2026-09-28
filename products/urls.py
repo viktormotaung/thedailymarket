@@ -24,4 +24,15 @@ urlpatterns = [
     path("knowledge/manual/", views.product_knowledge_manual, name="product-knowledge-manual",),
     path("products/knowledge/<int:pk>/edit/", views.product_knowledge_edit, name="product-knowledge-edit",),
 
+    # Procurement
+    path("procurement/", views.procurement_list, name="procurement-list"),
+    path("procurement/new/", views.procurement_create, name="procurement-create"),
+    path("procurement/<int:pk>/", views.procurement_view, name="procurement-view"),
+
+    # Purchase Orders
+    path("purchase-orders/", views.purchase_order_list, name="purchase-order-list"),
+    path("purchase-orders/new/", views.purchase_order_create, name="purchase-order-create"),
+    path("purchase-orders/<int:pk>/", views.purchase_order_view, name="purchase-order-view"),
 ]
+
+

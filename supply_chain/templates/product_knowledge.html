@@ -1,0 +1,643 @@
+{% load static humanize %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ product.name }} - Product - The Daily Market</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    @media (min-width: 992px) {
+      html, body { height: 100%; }
+      body { min-height: 100vh; overflow-x: hidden; }
+
+      .sidebar-desktop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 220px;
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: visible !important;
+      }
+
+      main.content {
+        margin-left: 220px;
+        min-height: 100vh;
+      }
+    }
+
+    .sidebar-skin {
+      background-color: #0b5c39;
+      color: #fff;
+      padding: 1rem;
+    }
+
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: .25rem 0;
+      display: block;
+    }
+
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+
+    .logo-img {
+      max-height: 80px;
+      width: auto;
+    }
+
+    .content {
+      background: #f8f9fa;
+      padding: 20px;
+    }
+
+    .info-card {
+      border: 0;
+      box-shadow: 0 .125rem .25rem rgba(0,0,0,.075);
+    }
+
+    .product-image {
+      width: 100%;
+      max-height: 340px;
+      object-fit: contain;
+      border-radius: 8px;
+      background: #f8f9fa;
+    }
+
+    .detail-label {
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: #6c757d;
+      font-weight: 600;
+      margin-bottom: .25rem;
+    }
+
+    .detail-value {
+      font-weight: 500;
+    }
+
+    .price-table th {
+      font-size: .75rem;
+      text-transform: uppercase;
+      color: #6c757d;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body>
+
+<nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
+  <div class="container-fluid">
+    <button class="navbar-toggler" type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#mobileMenu"
+            aria-controls="mobileMenu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <a class="navbar-brand ms-2" href="{% url 'supply_chain:supply-chain-dashboard' %}">
+      <img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="height:40px;">
+    </a>
+  </div>
+</nav>
+
+<!-- MOBILE SIDEBAR -->
+<div class="offcanvas offcanvas-start d-lg-none sidebar-skin"
+     tabindex="-1" id="mobileMenu">
+
+  <div class="offcanvas-header">
+    <button type="button" class="btn-close btn-close-white"
+            data-bs-dismiss="offcanvas"></button>
+  </div>
+
+  <div class="offcanvas-body">
+
+    <div class="text-center mb-3">
+      <img src="{% static 'images/logo.png' %}"
+           class="logo-img"
+           alt="The Daily Market">
+    </div>
+
+    <h6 class="text-uppercase fw-semibold mb-2 text-center small">
+      Supply Chain Platform
+    </h6>
+
+    <hr class="border-light">
+
+    {% with current=request.resolver_match.url_name %}
+
+      <a href="{% url 'supply_chain:supply-chain-dashboard' %}"
+         class="nav-link {% if current == 'supply-chain-dashboard' %}active{% endif %}">
+        Dashboard
+      </a>
+
+      <a href="{% url 'supply_chain:supply-chain-suppliers' %}"
+         class="nav-link {% if current == 'supply-chain-suppliers' %}active{% endif %}">
+        Suppliers
+      </a>
+
+      <a href="{% url 'supply_chain:supply-chain-products' %}"
+         class="nav-link {% if current == 'supply_chain_products' or current == 'supply-chain-product-detail' %}active{% endif %}">
+        Products
+      </a>
+
+      <a href="{% url 'supply_chain:supply-chain-procurement' %}"
+         class="nav-link {% if current == 'supply-chain-procurement' %}active{% endif %}">
+        Procurement
+      </a>
+
+      <a href="{% url 'supply_chain:supply-chain-purchase-orders' %}"
+         class="nav-link {% if current == 'supply-chain-purchase-orders' %}active{% endif %}">
+        Purchase Orders
+      </a>
+
+      <hr class="border-light">
+
+      <button type="button"
+              class="btn btn-outline-light w-100 mb-2"
+              data-bs-toggle="modal"
+              data-bs-target="#switchPlatformModal">
+        Switch Platform
+      </button>
+
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-light w-100">
+          Sign out
+        </button>
+      </form>
+
+    {% endwith %}
+  </div>
+</div>
+
+<!-- DESKTOP SIDEBAR -->
+<aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
+
+  <div class="text-center mb-3">
+    <img src="{% static 'images/logo.png' %}"
+         alt="The Daily Market"
+         class="logo-img">
+  </div>
+
+  <h6 class="text-uppercase fw-semibold mb-2 text-center small">
+    Supply Chain Platform
+  </h6>
+
+  <hr class="border-light">
+
+  {% with current=request.resolver_match.url_name %}
+
+    <a href="{% url 'supply_chain:supply-chain-dashboard' %}"
+       class="nav-link {% if current == 'supply-chain-dashboard' %}active{% endif %}">
+      Dashboard
+    </a>
+
+    <a href="{% url 'supply_chain:supply-chain-suppliers' %}"
+       class="nav-link {% if current == 'supply-chain-suppliers' %}active{% endif %}">
+      Suppliers
+    </a>
+
+    <a href="{% url 'supply_chain:supply-chain-products' %}"
+       class="nav-link {% if current == 'supply_chain_products' or current == 'supply-chain-product-detail' %}active{% endif %}">
+      Products
+    </a>
+
+    <a href="{% url 'supply_chain:supply-chain-procurement' %}"
+       class="nav-link {% if current == 'supply-chain-procurement' %}active{% endif %}">
+      Procurement
+    </a>
+
+    <a href="{% url 'supply_chain:supply-chain-purchase-orders' %}"
+       class="nav-link {% if current == 'supply-chain-purchase-orders' %}active{% endif %}">
+      Purchase Orders
+    </a>
+
+    <hr class="border-light">
+
+    <div class="mb-2">
+      <button type="button"
+              class="btn btn-outline-light btn-sm w-100 text-center py-1"
+              data-bs-toggle="modal"
+              data-bs-target="#switchPlatformModal">
+        Switch Platform
+      </button>
+    </div>
+
+    <div class="mt-2 mb-2">
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit"
+                class="btn btn-outline-light btn-sm w-100 py-1">
+          Sign out
+        </button>
+      </form>
+    </div>
+
+  {% endwith %}
+</aside>
+
+
+<main class="content">
+
+  <div class="container-fluid">
+
+    <!-- PAGE HEADER -->
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+      <div>
+        <div class="small text-muted mb-1">
+          Supply Chain / Products / Product Knowledge
+        </div>
+        <h1 class="h3 fw-bold mb-1">{{ product.name }}</h1>
+        <div class="text-muted">Sales product knowledge profile</div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'supply_chain:edit-product-knowledge' product.pk %}" class="btn btn-success">
+          <i class="bi bi-pencil me-1"></i>
+          Edit Knowledge
+        </a>
+        <a href="{% url 'supply_chain:supply-chain-product-detail' product.pk %}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left me-1"></i>
+          Back to Product
+        </a>
+      </div>
+    </div>
+
+    <!-- PRODUCT / KNOWLEDGE STATUS -->
+    <div class="row g-4 mb-4">
+      <div class="col-lg-4">
+        <div class="card info-card h-100">
+          <div class="card-body">
+            {% if product.image %}
+              <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image mb-3">
+            {% else %}
+              <div class="product-image d-flex align-items-center justify-content-center mb-3" style="min-height:260px;">
+                <div class="text-center text-muted">
+                  <i class="bi bi-box-seam display-4 d-block mb-2"></i>
+                  No product image
+                </div>
+              </div>
+            {% endif %}
+
+            <div class="detail-label">Product No.</div>
+            <div class="fs-5 fw-bold text-success mb-3">{{ product.product_no }}</div>
+
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="detail-label">SKU</div>
+                <div class="detail-value">{{ product.sku|default:"—" }}</div>
+              </div>
+              <div class="col-6">
+                <div class="detail-label">UOM</div>
+                <div class="detail-value">{{ product.get_uom_display|default:product.uom|default:"—" }}</div>
+              </div>
+              <div class="col-12">
+                <div class="detail-label">Category</div>
+                <div class="detail-value">
+                  {% if product.category.parent %}{{ product.category.parent.name }} / {% endif %}{{ product.category.name|default:"—" }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="card info-card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+              <div>
+                <h5 class="fw-bold mb-1">Knowledge Completion</h5>
+                <div class="text-muted small">Each completed knowledge section contributes to the profile.</div>
+              </div>
+              <div class="text-end">
+                <div class="fs-4 fw-bold text-success">{{ knowledge.completion_percentage }}%</div>
+                <span class="badge {% if knowledge.completion_percentage == 100 %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                  {{ knowledge.completion_status }}
+                </span>
+              </div>
+            </div>
+
+            <div class="progress mb-4" style="height:10px;">
+              <div class="progress-bar bg-success"
+                   role="progressbar"
+                   style="width: {{ knowledge.completion_percentage }}%;"
+                   aria-valuenow="{{ knowledge.completion_percentage }}"
+                   aria-valuemin="0"
+                   aria-valuemax="100"></div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="status-box">
+                  <div class="detail-label">Approval</div>
+                  {% if knowledge.is_approved %}
+                    <div class="fw-semibold text-success"><i class="bi bi-check-circle me-1"></i>Approved</div>
+                  {% else %}
+                    <div class="fw-semibold text-muted"><i class="bi bi-circle me-1"></i>Not Approved</div>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="status-box">
+                  <div class="detail-label">Last Updated</div>
+                  <div class="fw-semibold">{{ knowledge.updated_at|date:"d M Y, H:i" }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KNOWLEDGE SECTIONS -->
+    <div class="row g-4">
+
+      <div class="col-lg-6">
+
+        <div class="card info-card mb-4">
+          <div class="card-header bg-white"><h5 class="fw-bold mb-0">1. Product Description / Definition</h5></div>
+          <div class="card-body"><div class="knowledge-text">{{ knowledge.product_description|default:"N/A"|linebreaksbr }}</div></div>
+        </div>
+
+        <div class="card info-card mb-4">
+          <div class="card-header bg-white"><h5 class="fw-bold mb-0">2. Customer Business Types</h5></div>
+          <div class="card-body">
+            {% for item in knowledge.customer_business_types.all %}
+              <div class="knowledge-item">
+                <div class="fw-semibold">{{ item.business_type }}</div>
+                {% if item.notes %}<div class="text-muted small mt-1">{{ item.notes|linebreaksbr }}</div>{% endif %}
+              </div>
+            {% empty %}<div class="text-muted">No business types recorded.</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="card info-card mb-4">
+          <div class="card-header bg-white"><h5 class="fw-bold mb-0">3. Where / What It Is Used For</h5></div>
+          <div class="card-body"><div class="knowledge-text">{{ knowledge.usage_application|default:"N/A"|linebreaksbr }}</div></div>
+        </div>
+
+        <div class="card info-card mb-4">
+          <div class="card-header bg-white"><h5 class="fw-bold mb-0">4. Product Benefits</h5></div>
+          <div class="card-body">
+            {% for item in knowledge.product_benefits.all %}
+              <div class="knowledge-item">
+                <div class="fw-semibold">{{ item.benefit }}</div>
+                {% if item.explanation %}<div class="text-muted small mt-1">{{ item.explanation|linebreaksbr }}</div>{% endif %}
+              </div>
+            {% empty %}<div class="text-muted">No product benefits recorded.</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="card info-card mb-4">
+          <div class="card-header bg-white"><h5 class="fw-bold mb-0">5. Yield / Portion Information</h5></div>
+          <div class="card-body"><div class="knowledge-text">{{ knowledge.yield_portion_information|default:"N/A"|linebreaksbr }}</div></div>
+        </div>
+
+        <div class="card info-card mb-4">
+          <div class="card-header bg-white"><h5 class="fw-bold mb-0">6. Variants</h5></div>
+          <div class="card-body">
+            {% if knowledge.variants_not_applicable %}
+              <div class="text-muted">Variants are not applicable.</div>
+            {% else %}
+              {% for item in knowledge.knowledge_variants.all %}
+                <div class="knowledge-item">
+                  <div class="fw-semibold">{{ item.variant_name }}</div>
+                  <div class="small mt-1"><strong>Description:</strong> {{ item.description|linebreaksbr }}</div>
+                  <div class="small mt-1"><strong>Best suited for:</strong> {{ item.best_suited_for|linebreaksbr }}</div>
+                  <div class="small mt-1"><strong>Customer benefit:</strong> {{ item.customer_benefit|linebreaksbr }}</div>
+                </div>
+              {% empty %}<div class="text-muted">No knowledge variants recorded.</div>{% endfor %}
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="card info-card mb-4">
+          <div class="card-header bg-white"><h5 class="fw-bold mb-0">7. Customer Alternatives</h5></div>
+          <div class="card-body">
+            {% for item in knowledge.customer_alternatives.all %}
+              <div class="knowledge-item">
+                <div class="fw-semibold">{{ item.brand }}{% if item.product_name %} · {{ item.product_name }}{% endif %}</div>
+                {% if item.notes %}<div class="text-muted small mt-1">{{ item.notes|linebreaksbr }}</div>{% endif %}
+              </div>
+            {% empty %}<div class="text-muted">No customer alternatives recorded.</div>{% endfor %}
+          </div>
+        </div>
+
+      </div>
+
+      <div class="col-lg-6">
+
+        <div class="card info-card mb-4">
+          <div class="card-header bg-white"><h5 class="fw-bold mb-0">8. Competitor Comparison</h5></div>
+          <div class="card-body">
+            {% for item in knowledge.product_competitors.all %}
+              <div class="knowledge-item">
+                <div class="fw-semibold">{{ item.competitor_brand }}{% if item.competitor_product %} · {{ item.competitor_product }}{% endif %}</div>
+                <div class="small mt-2"><strong>Why customers use it:</strong><br>{{ item.why_customer_uses_it|linebreaksbr }}</div>
+                <div class="small mt-2"><strong>TDM positioning:</strong><br>{{ item.tdm_positioning|linebreaksbr }}</div>
+              </div>
+            {% empty %}<div class="text-muted">No competitor comparisons recorded.</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="card info-card mb-4">
+          <div class="card-header bg-white"><h5 class="fw-bold mb-0">9. Why Choose The Daily Market</h5></div>
+          <div class="card-body"><div class="knowledge-text">{{ knowledge.why_choose_tdm|default:"N/A"|linebreaksbr }}</div></div>
+        </div>
+
+        <div class="card info-card mb-4">
+          <div class="card-header bg-white"><h5 class="fw-bold mb-0">10. Customer Questions</h5></div>
+          <div class="card-body">
+            {% for item in knowledge.customer_questions.all %}
+              <div class="knowledge-item">
+                <div class="fw-semibold">{{ item.question|linebreaksbr }}</div>
+                {% if item.purpose %}<div class="text-muted small mt-1"><strong>Purpose:</strong> {{ item.purpose|linebreaksbr }}</div>{% endif %}
+              </div>
+            {% empty %}<div class="text-muted">No customer questions recorded.</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="card info-card mb-4">
+          <div class="card-header bg-white"><h5 class="fw-bold mb-0">11. Common Objections &amp; Responses</h5></div>
+          <div class="card-body">
+            {% for item in knowledge.product_objections.all %}
+              <div class="knowledge-item">
+                <div class="fw-semibold">Objection</div>
+                <div class="small mt-1">{{ item.objection|linebreaksbr }}</div>
+                <div class="fw-semibold mt-3">Recommended response</div>
+                <div class="small mt-1">{{ item.response|linebreaksbr }}</div>
+                {% if item.notes %}
+                  <div class="fw-semibold mt-3">Notes</div>
+                  <div class="text-muted small mt-1">{{ item.notes|linebreaksbr }}</div>
+                {% endif %}
+              </div>
+            {% empty %}<div class="text-muted">No objections recorded.</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="card info-card mb-4">
+          <div class="card-header bg-white"><h5 class="fw-bold mb-0">12. Key Takeaways</h5></div>
+          <div class="card-body"><div class="knowledge-text">{{ knowledge.key_takeaways|default:"N/A"|linebreaksbr }}</div></div>
+        </div>
+
+        <div class="card info-card mb-4">
+          <div class="card-header bg-white"><h5 class="fw-bold mb-0">13. Unit Economics</h5></div>
+          <div class="card-body">
+            {% if knowledge.unit_economics.is_applicable %}
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <div class="detail-label">Calculation Base</div>
+                  <div class="detail-value">{{ knowledge.unit_economics.base_quantity|floatformat:3 }} {{ knowledge.unit_economics.get_base_uom_display|default:knowledge.unit_economics.base_uom }}</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="detail-label">Individual Unit</div>
+                  <div class="detail-value">{{ knowledge.unit_economics.unit_name }}</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="detail-label">Expected Units</div>
+                  <div class="detail-value">{{ knowledge.unit_economics.minimum_units|floatformat:2 }} – {{ knowledge.unit_economics.maximum_units|floatformat:2 }}</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="detail-label">Current Wholesale Price</div>
+                  <div class="detail-value">R{{ knowledge.unit_economics.current_wholesale_price|floatformat:2 }}</div>
+                </div>
+              </div>
+              <div class="unit-cost-box">
+                <div class="detail-label">Cost Per Unit</div>
+                <div class="fs-4 fw-bold text-success">{{ knowledge.unit_economics.cost_display }}</div>
+                {% if not knowledge.unit_economics.is_exact %}
+                  <div class="text-muted small mt-1">The range reflects the expected minimum-to-maximum yield.</div>
+                {% endif %}
+              </div>
+            {% else %}
+              <div class="text-muted">Unit economics are not applicable for this product.</div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-2 mb-5">
+      <a href="{% url 'supply_chain:supply-chain-product-detail' product.pk %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>
+        Back to Product
+      </a>
+      <a href="{% url 'product-knowledge-edit' knowledge.pk %}" class="btn btn-success">
+        <i class="bi bi-pencil me-1"></i>
+        Edit Knowledge
+      </a>
+    </div>
+
+  </div>
+</main>
+
+<!-- SWITCH PLATFORM MODAL -->
+<div class="modal fade"
+     id="switchPlatformModal"
+     tabindex="-1"
+     aria-labelledby="switchPlatformModalLabel"
+     aria-hidden="true">
+
+  <div class="modal-dialog modal-dialog-centered">
+
+    <div class="modal-content">
+
+      <div class="modal-header justify-content-center position-relative">
+
+        <h5 class="modal-title w-100 text-center"
+            id="switchPlatformModalLabel">
+          Switch Platform
+        </h5>
+
+        <button type="button"
+                class="btn-close position-absolute"
+                style="right:1rem; top:1rem;"
+                data-bs-dismiss="modal"
+                aria-label="Close"></button>
+
+      </div>
+
+      <div class="modal-body text-center">
+
+        <p class="mb-3 text-muted">
+          Choose a platform to continue:
+        </p>
+
+        <div class="d-grid gap-2">
+
+          {% if can_staff_portal %}
+            <a href="{% url 'staff-dashboard' %}"
+               class="btn btn-outline-primary">
+              Main Staff Portal
+            </a>
+          {% endif %}
+
+          {% if can_lender_portal %}
+            <a href="{% url 'funder-dashboard' %}"
+               class="btn btn-outline-primary">
+              Funder Portal
+            </a>
+          {% endif %}
+
+          {% if can_sales_portal %}
+            <a href="{% url 'sales:sales-dashboard' %}"
+               class="btn btn-outline-primary">
+              Sales Portal
+            </a>
+          {% endif %}
+
+          {% if can_logistics_portal %}
+            <a href="{% url 'logistics:logistics-dashboard' %}"
+               class="btn btn-outline-primary">
+              Logistics Portal
+            </a>
+          {% endif %}
+
+          {% if can_supply_chain_portal %}
+            <a href="{% url 'supply_chain:supply-chain-dashboard' %}"
+               class="btn btn-outline-success">
+              Supply Chain Portal
+            </a>
+          {% endif %}
+
+          {% if can_warehouse_portal %}
+            <a href="{% url 'warehouse:warehouse-dashboard' %}"
+               class="btn btn-outline-primary">
+              Warehouse Portal
+            </a>
+          {% endif %}
+
+        </div>
+
+      </div>
+
+      <div class="modal-footer justify-content-center border-0">
+        <small class="text-muted">
+          Platforms you don't have access to are hidden.
+        </small>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

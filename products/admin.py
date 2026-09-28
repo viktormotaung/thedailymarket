@@ -7,6 +7,10 @@ from .models import (
     Product,
     ProductPricing,
     ProductVariant,
+    Procurement,
+    ProcurementItem,
+    PurchaseOrder,
+    PurchaseOrderItem,
 
     # Product Knowledge
     ProductKnowledge,
@@ -17,6 +21,7 @@ from .models import (
     ProductKnowledgeCompetitor,
     ProductKnowledgeQuestion,
     ProductKnowledgeObjection,
+    ProductKnowledgeUnitEconomics,
 )
 
 from .forms import ProductExcelUploadForm
@@ -438,6 +443,58 @@ class ProductKnowledgeQuestionInline(
     )
 
 
+class ProductKnowledgeUnitEconomicsInline(admin.StackedInline):
+    model = ProductKnowledgeUnitEconomics
+    extra = 0
+    max_num = 1
+    fields = (
+        "is_applicable",
+        "base_quantity",
+        "base_uom",
+        "unit_name",
+        "minimum_units",
+        "maximum_units",
+        "current_wholesale_price_display",
+        "cost_per_unit_low_display",
+        "cost_per_unit_high_display",
+        "cost_per_unit_display",
+        "cost_display",
+        "created_at",
+        "updated_at",
+    )
+    readonly_fields = (
+        "current_wholesale_price_display",
+        "cost_per_unit_low_display",
+        "cost_per_unit_high_display",
+        "cost_per_unit_display",
+        "cost_display",
+        "created_at",
+        "updated_at",
+    )
+
+    @admin.display(description="Current Wholesale Price (incl VAT)")
+    def current_wholesale_price_display(self, obj):
+        return f"R{obj.current_wholesale_price:,.2f}"
+
+    @admin.display(description="Lowest Cost per Unit")
+    def cost_per_unit_low_display(self, obj):
+        return f"R{obj.cost_per_unit_low:,.2f}"
+
+    @admin.display(description="Highest Cost per Unit")
+    def cost_per_unit_high_display(self, obj):
+        return f"R{obj.cost_per_unit_high:,.2f}"
+
+    @admin.display(description="Exact Cost per Unit")
+    def cost_per_unit_display(self, obj):
+        if not obj.is_exact:
+            return "— (range)"
+        return f"R{obj.cost_per_unit:,.2f}"
+
+    @admin.display(description="Sales Display")
+    def cost_display(self, obj):
+        return obj.cost_display
+
+
 class ProductKnowledgeObjectionInline(
     admin.TabularInline
 ):
@@ -590,6 +647,7 @@ class ProductKnowledgeAdmin(admin.ModelAdmin):
     )
 
     inlines = [
+        ProductKnowledgeUnitEconomicsInline,
         ProductKnowledgeBusinessTypeInline,
         ProductKnowledgeBenefitInline,
         ProductKnowledgeVariantInline,
@@ -720,3 +778,273 @@ class ProductVariantAdmin(admin.ModelAdmin):
             obj.retail_price
             or obj.retail_derived
         )
+
+# =============================================================================
+# PROCUREMENT / PURCHASE ORDER ADMIN
+# =============================================================================
+
+@admin.register(ProcurementItem)
+class ProcurementItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "procurement",
+        "product",
+        "required_quantity",
+        "created_at",
+    )
+
+    list_filter = (
+        "procurement__procurement_date",
+        "procurement__wave",
+    )
+
+    search_fields = (
+        "product__product_no",
+        "product__name",
+        "product__sku",
+        "procurement__procurement_number",
+    )
+
+    ordering = (
+        "-procurement__procurement_date",
+        "product__name",
+    )
+
+    autocomplete_fields = (
+        "procurement",
+        "product",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+    )
+
+
+class ProcurementItemInline(admin.TabularInline):
+    model = ProcurementItem
+    extra = 0
+    autocomplete_fields = ("product",)
+    fields = (
+        "product",
+        "required_quantity",
+        "notes",
+    )
+    show_change_link = True
+
+
+@admin.register(Procurement)
+class ProcurementAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "procurement_number",
+        "procurement_date",
+        "wave",
+        "status",
+        "created_by",
+        "approved_by",
+        "approved_at",
+        "created_at",
+    )
+
+    list_filter = (
+        "procurement_date",
+        "wave",
+        "status",
+        "created_at",
+    )
+
+    search_fields = (
+        "procurement_number",
+        "notes",
+        "created_by__username",
+        "approved_by__username",
+    )
+
+    ordering = (
+        "-procurement_date",
+        "-wave",
+        "-id",
+    )
+
+    autocomplete_fields = (
+        "created_by",
+        "approved_by",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "approved_at",
+    )
+
+    fieldsets = (
+        (
+            "Procurement",
+            {
+                "fields": (
+                    "procurement_number",
+                    "procurement_date",
+                    "wave",
+                    "status",
+                )
+            },
+        ),
+        (
+            "Approval",
+            {
+                "fields": (
+                    "created_by",
+                    "approved_by",
+                    "approved_at",
+                )
+            },
+        ),
+        (
+            "Notes",
+            {
+                "fields": (
+                    "notes",
+                )
+            },
+        ),
+        (
+            "System Information",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
+    )
+
+    inlines = [
+        ProcurementItemInline,
+    ]
+
+
+class PurchaseOrderItemInline(admin.TabularInline):
+    model = PurchaseOrderItem
+    extra = 0
+    autocomplete_fields = (
+        "procurement_item",
+        "product",
+    )
+    fields = (
+        "procurement_item",
+        "product",
+        "ordered_quantity",
+        "expected_unit_cost_excl",
+        "expected_total_excl_display",
+        "notes",
+    )
+    readonly_fields = (
+        "expected_total_excl_display",
+    )
+    show_change_link = True
+
+    @admin.display(description="Expected Total EXCL VAT")
+    def expected_total_excl_display(self, obj):
+        return obj.expected_total_excl
+
+
+@admin.register(PurchaseOrder)
+class PurchaseOrderAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "po_number",
+        "procurement",
+        "supplier",
+        "order_date",
+        "expected_delivery_date",
+        "status",
+        "created_by",
+        "approved_by",
+        "sent_at",
+    )
+
+    list_filter = (
+        "status",
+        "order_date",
+        "expected_delivery_date",
+        "supplier",
+        "created_at",
+    )
+
+    search_fields = (
+        "po_number",
+        "supplier__name",
+        "supplier_reference",
+        "procurement__procurement_number",
+        "created_by__username",
+        "approved_by__username",
+        "notes",
+    )
+
+    ordering = (
+        "-order_date",
+        "-id",
+    )
+
+    autocomplete_fields = (
+        "procurement",
+        "supplier",
+        "created_by",
+        "approved_by",
+    )
+
+    readonly_fields = (
+        "approved_at",
+        "sent_at",
+        "created_at",
+        "updated_at",
+    )
+
+    fieldsets = (
+        (
+            "Purchase Order",
+            {
+                "fields": (
+                    "po_number",
+                    "procurement",
+                    "supplier",
+                    "order_date",
+                    "expected_delivery_date",
+                    "status",
+                    "supplier_reference",
+                )
+            },
+        ),
+        (
+            "Approval & Sending",
+            {
+                "fields": (
+                    "created_by",
+                    "approved_by",
+                    "approved_at",
+                    "sent_at",
+                )
+            },
+        ),
+        (
+            "Notes",
+            {
+                "fields": (
+                    "notes",
+                )
+            },
+        ),
+        (
+            "System Information",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
+    )
+
+    inlines = [
+        PurchaseOrderItemInline,
+    ]

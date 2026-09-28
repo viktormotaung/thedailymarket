@@ -11,6 +11,8 @@ from .models import (
     DriverProfile,
     SalesOperator,
     Department,
+    SupplyChainStaff,
+    WarehouseStaff,
 )
 
 User = get_user_model()
@@ -807,3 +809,53 @@ class DepartmentAdmin(admin.ModelAdmin):
     filter_horizontal = (
         "members",
     )
+
+# ----------------------------
+# Supply Chain Staff admin
+# ----------------------------
+@admin.register(SupplyChainStaff)
+class SupplyChainStaffAdmin(admin.ModelAdmin):
+    list_display = ("user_full_name", "user_username", "is_active", "created_at", "updated_at")
+    list_filter = ("is_active",)
+    search_fields = ("user__username", "user__first_name", "user__last_name", "user__email")
+    autocomplete_fields = ("user",)
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        (None, {"fields": ("user", "is_active")}),
+        ("Timestamps", {"fields": ("created_at", "updated_at")}),
+    )
+
+    @admin.display(description="Name", ordering="user__first_name")
+    def user_full_name(self, obj):
+        return obj.user.get_full_name() or obj.user.get_username()
+
+    @admin.display(description="Username", ordering="user__username")
+    def user_username(self, obj):
+        return obj.user.get_username()
+
+
+# ----------------------------
+# Warehouse Staff admin
+# ----------------------------
+@admin.register(WarehouseStaff)
+class WarehouseStaffAdmin(admin.ModelAdmin):
+    list_display = ("user_full_name", "user_username", "is_active", "created_at", "updated_at")
+    list_filter = ("is_active",)
+    search_fields = ("user__username", "user__first_name", "user__last_name", "user__email")
+    autocomplete_fields = ("user",)
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        (None, {"fields": ("user", "is_active")}),
+        ("Timestamps", {"fields": ("created_at", "updated_at")}),
+    )
+
+    @admin.display(description="Name", ordering="user__first_name")
+    def user_full_name(self, obj):
+        return obj.user.get_full_name() or obj.user.get_username()
+
+    @admin.display(description="Username", ordering="user__username")
+    def user_username(self, obj):
+        return obj.user.get_username()
+

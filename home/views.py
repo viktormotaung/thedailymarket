@@ -91,6 +91,12 @@ from django.db.models import Q
 from django.conf import settings
 from django.middleware.csrf import get_token
 from profiles.models import CustomerProfile, StaffProfile, SalesRepProfile, DriverProfile  
+from profiles.models import (
+    SalesRepProfile,
+    DriverProfile,
+    SupplyChainStaff,
+    WarehouseStaff,
+)
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.contrib.auth.decorators import login_required
@@ -579,6 +585,8 @@ def staff_login(request):
     - Lender portal
     - Sales portal
     - Logistics portal
+    - Supply Chain portal
+    - Warehouse portal
 
     After successful login, always show a modal:
     "Your profile has access to the following portal/s, please choose one"
@@ -670,6 +678,18 @@ def staff_login(request):
         status="active",
     ).exists()
 
+    # --- Supply Chain ---
+    has_active_supply_chain_staff = SupplyChainStaff.objects.filter(
+        user=authed,
+        is_active=True,
+    ).exists()
+
+    # --- Warehouse ---
+    has_active_warehouse_staff = WarehouseStaff.objects.filter(
+        user=authed,
+        is_active=True,
+    ).exists()
+
     # -------------------------------------------------
     # 4) Hard deny if user has ZERO portal access
     # -------------------------------------------------
@@ -678,14 +698,16 @@ def staff_login(request):
         has_active_funder_membership,
         has_active_sales_rep,
         has_active_driver,
+        has_active_supply_chain_staff,
+        has_active_warehouse_staff,
     ]):
         ctx.update({
             "show_modal": True,
             "modal_title": "Not authorized",
             "modal_message": (
                 "Your account isn’t enabled for staff, lender, sales, "
-                "or logistics access. Please contact "
-                "support@thedailymarket.co.za."
+                "logistics, supply chain, or warehouse access. Please "
+                "contact support@thedailymarket.co.za."
             ),
         })
         return render(
@@ -841,7 +863,6 @@ def staff_login(request):
         "home/staff_login.html",
         ctx
     )
-
 
 User = get_user_model()
 
