@@ -17,6 +17,8 @@ from .models import (
     Lead,
     LeadActivity,
     EndUser,
+    SampleRequest,
+    SampleRequestItem,
 
 )
 
@@ -732,6 +734,163 @@ class ProspectUpdateAdmin(admin.ModelAdmin):
             return ""
         return obj.notes[:50] + ("…" if len(obj.notes) > 50 else "")
     
+
+
+# ============================================================
+# SAMPLE REQUESTS
+# ============================================================
+
+class SampleRequestItemInline(admin.TabularInline):
+    model = SampleRequestItem
+    extra = 0
+    autocomplete_fields = ("product",)
+    fields = (
+        "product",
+        "quantity",
+        "created_at",
+    )
+    readonly_fields = ("created_at",)
+    show_change_link = True
+
+
+@admin.register(SampleRequest)
+class SampleRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "prospect",
+        "requested_by",
+        "requested_at",
+        "status",
+        "expected_date",
+        "task",
+        "created_at",
+    )
+
+    list_filter = (
+        "status",
+        ("requested_at", admin.DateFieldListFilter),
+        ("expected_date", admin.DateFieldListFilter),
+        ("created_at", admin.DateFieldListFilter),
+    )
+
+    search_fields = (
+        "prospect__name",
+        "prospect__organization",
+        "requested_by__username",
+        "requested_by__first_name",
+        "requested_by__last_name",
+        "notes",
+    )
+
+    ordering = (
+        "-requested_at",
+        "-created_at",
+    )
+
+    list_per_page = 50
+    save_on_top = True
+
+    autocomplete_fields = (
+        "prospect",
+        "requested_by",
+        "task",
+    )
+
+    readonly_fields = (
+        "requested_at",
+        "expected_date",
+        "task",
+        "created_at",
+        "updated_at",
+    )
+
+    inlines = (
+        SampleRequestItemInline,
+    )
+
+    fieldsets = (
+        ("Sample Request", {
+            "fields": (
+                "prospect",
+                "requested_by",
+                ("status", "expected_date"),
+                "notes",
+            ),
+        }),
+
+        ("Task", {
+            "fields": (
+                "task",
+            ),
+        }),
+
+        ("Meta", {
+            "fields": (
+                "requested_at",
+                "created_at",
+                "updated_at",
+            ),
+            "classes": ("collapse",),
+        }),
+    )
+
+
+@admin.register(SampleRequestItem)
+class SampleRequestItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "sample_request",
+        "product",
+        "quantity",
+        "created_at",
+    )
+
+    list_filter = (
+        "product",
+        ("created_at", admin.DateFieldListFilter),
+    )
+
+    search_fields = (
+        "sample_request__prospect__name",
+        "sample_request__prospect__organization",
+        "product__product_no",
+        "product__name",
+        "product__sku",
+    )
+
+    ordering = (
+        "-created_at",
+        "product__name",
+    )
+
+    list_per_page = 50
+
+    autocomplete_fields = (
+        "sample_request",
+        "product",
+    )
+
+    readonly_fields = (
+        "created_at",
+    )
+
+    fieldsets = (
+        ("Sample Item", {
+            "fields": (
+                "sample_request",
+                "product",
+                "quantity",
+            ),
+        }),
+
+        ("Meta", {
+            "fields": (
+                "created_at",
+            ),
+            "classes": ("collapse",),
+        }),
+    )
+
+
 
 
 # ============================================================

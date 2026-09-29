@@ -124,6 +124,7 @@ class Task(models.Model):
         PAYMENT_FOLLOW_UP = "PAYMENT_FOLLOW_UP", "Payment Follow-up"
         INVOICE_REVIEW = "INVOICE_REVIEW", "Invoice Review"
         CREDIT_REVIEW = "CREDIT_REVIEW", "Credit Review"
+        SAMPLE_REQUEST = "SAMPLE_REQUEST", "Sample Request"
 
     class Source(models.TextChoices):
         MANUAL = "MANUAL", "Manual"

@@ -1,6 +1,6 @@
 # clients/models.py
 from decimal import Decimal
-from datetime import timedelta
+from datetime import timedelta, datetime, time
 from django.apps import apps
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -1219,6 +1219,295 @@ class Prospect(models.Model):
             new_stage=new_stage or old_stage,
         )   
         
+
+
+class SampleRequest(models.Model):
+    """
+    A request for one or more product samples for a Prospect.
+
+    The request records:
+    - who requested the samples
+    - when the request was made
+    - which Prospect the samples are for
+    - the current request status
+    - the expected date
+    - any notes
+    - the Task created while the request is PENDING
+    """
+
+    STATUS_CHOICES = [
+        ("PENDING", "Pending"),
+        ("APPROVED", "Approved"),
+        ("DECLINED", "Declined"),
+        ("RETURNED", "Returned"),
+    ]
+
+    prospect = models.ForeignKey(
+        Prospect,
+        on_delete=models.CASCADE,
+        related_name="sample_requests",
+        help_text="Prospect this sample request is for.",
+    )
+
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sample_requests_made",
+        help_text="User who made the sample request.",
+    )
+
+    requested_at = models.DateTimeField(
+        default=timezone.now,
+        db_index=True,
+        help_text="Date and time the sample request was made.",
+    )
+
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="PENDING",
+        db_index=True,
+    )
+
+    expected_date = models.DateField(
+        db_index=True,
+        help_text="Expected sample date. Defaults to the next business day.",
+    )
+
+    notes = models.TextField(
+        blank=True,
+        help_text="Additional notes about the sample request.",
+    )
+
+    task = models.OneToOneField(
+        "tasks.Task",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sample_request",
+        help_text="Task created when the sample request is submitted and remains pending.",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-requested_at", "-created_at"]
+        indexes = [
+            models.Index(fields=["prospect", "status"]),
+            models.Index(fields=["status", "expected_date"]),
+            models.Index(fields=["requested_by", "requested_at"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"Sample Request #{self.pk or 'NEW'} - "
+            f"{self.prospect}"
+        )
+
+    @staticmethod
+    def get_next_business_day(start_date=None):
+        """
+        Return the next business day after start_date.
+
+        Uses the existing tasks.BusinessDay configuration when it exists.
+        If no open business-day configuration exists, Monday-Friday is used
+        as the safe default. Public holidays are always skipped.
+
+        The bounded loop prevents a configuration problem from ever causing
+        a request to hang indefinitely.
+        """
+        from tasks.models import BusinessDay, PublicHoliday
+
+        candidate = (start_date or timezone.localdate()) + timedelta(days=1)
+
+        configured_days = set(
+            BusinessDay.objects.filter(is_open=True).values_list("day", flat=True)
+        )
+
+        # If the BusinessDay table has not been configured yet, default to
+        # the normal Monday-Friday business week rather than looping forever.
+        if not configured_days:
+            configured_days = {0, 1, 2, 3, 4}
+
+        public_holidays = set(
+            PublicHoliday.objects.filter(
+                date__gte=candidate,
+                date__lte=candidate + timedelta(days=366),
+            ).values_list("date", flat=True)
+        )
+
+        for _ in range(366):
+            if candidate.weekday() in configured_days and candidate not in public_holidays:
+                return candidate
+
+            candidate += timedelta(days=1)
+
+        raise RuntimeError(
+            "Unable to determine the next business day. "
+            "Please check the BusinessDay and PublicHoliday configuration."
+        )
+
+    def _build_task_description(self):
+        """
+        Build the Task description from the current Sample Request.
+
+        The Task is linked directly to this SampleRequest, so the full
+        product list remains available through the request's items.
+        """
+        product_lines = []
+
+        for item in self.items.select_related("product").all():
+            product_lines.append(
+                f"• {item.product.product_no} - "
+                f"{item.product.name} × {item.quantity} {item.product.uom}"
+            )
+
+        description_parts = [
+            "Pending sample request.",
+            "",
+            f"Prospect: {self.prospect}",
+            f"Requested by: {self.requested_by or 'Unknown'}",
+            f"Requested on: {timezone.localtime(self.requested_at):%d %B %Y %H:%M}",
+            f"Expected date: {self.expected_date:%d %B %Y}",
+            "",
+            "Products:",
+            "\n".join(product_lines) if product_lines else (
+                "Products are recorded on the linked Sample Request."
+            ),
+        ]
+
+        if self.notes:
+            description_parts.extend([
+                "",
+                "Notes:",
+                self.notes,
+            ])
+
+        return "\n".join(description_parts)
+
+    @transaction.atomic
+    def create_pending_task(self):
+        """
+        Create the Sample Request Task while the request is PENDING.
+
+        Safe to call more than once: if a Task already exists, it is reused.
+        """
+        from django.contrib.contenttypes.models import ContentType
+        from tasks.models import Task
+        from profiles.models import Department
+
+        if self.task_id:
+            return self.task
+
+        if self.status != "PENDING":
+            return None
+
+        department = (
+            Department.objects.filter(name__iexact="Warehouse").first()
+            or Department.objects.filter(name__iexact="Supply Chain").first()
+        )
+
+        task_type = getattr(
+            Task.TaskType,
+            "SAMPLE_REQUEST",
+            "SAMPLE_REQUEST",
+        )
+
+        task = Task.objects.create(
+            title=f"Sample Request - {self.prospect}",
+            description=self._build_task_description(),
+            department=department,
+            priority=Task.Priority.MEDIUM,
+            task_type=task_type,
+            source=Task.Source.WORKFLOW,
+            status=Task.Status.PENDING,
+            created_by=self.requested_by,
+            due_at=timezone.make_aware(
+                datetime.combine(
+                    self.expected_date,
+                    time(17, 0),
+                )
+            ),
+            expected_resolution_at=timezone.make_aware(
+                datetime.combine(
+                    self.expected_date,
+                    time(17, 0),
+                )
+            ),
+            content_type=ContentType.objects.get_for_model(self),
+            object_id=self.pk,
+        )
+
+        self.task = task
+        type(self).objects.filter(pk=self.pk).update(
+            task=task,
+            updated_at=timezone.now(),
+        )
+
+        return task
+
+    def save(self, *args, **kwargs):
+        if not self.expected_date:
+            self.expected_date = self.get_next_business_day(
+                self.requested_at.date()
+                if self.requested_at
+                else timezone.localdate()
+            )
+
+        creating = self.pk is None
+
+        super().save(*args, **kwargs)
+
+        # A new Sample Request is PENDING by default.
+        # Create its Task immediately after the request itself exists.
+        if creating and self.status == "PENDING" and not self.task_id:
+            self.create_pending_task()
+
+
+class SampleRequestItem(models.Model):
+    """
+    A specific Product and quantity included in a SampleRequest.
+    """
+
+    sample_request = models.ForeignKey(
+        SampleRequest,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+
+    product = models.ForeignKey(
+        "products.Product",
+        on_delete=models.PROTECT,
+        related_name="sample_request_items",
+        help_text="Product being requested as a sample.",
+    )
+
+    quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+        help_text="Number of product units requested as a sample.",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["product__name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["sample_request", "product"],
+                name="unique_sample_product_per_request",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.sample_request} - "
+            f"{self.product.name} × {self.quantity}"
+        )
 
 
 class Lead(models.Model):

@@ -8,7 +8,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 import calendar
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from clients.models import Prospect, ProspectUpdate, Client, Lead, EndUser
+from clients.models import Prospect, ProspectUpdate, Client, Lead, EndUser, SampleRequest, SampleRequestItem
 from clients.forms import ProspectForm, ProspectUpdateForm, LeadEditForm, EndUserForm
 from django.utils.timezone import localdate
 from invoices.models import CommissionEntry, Invoice, MonthlyTarget, MonthlyTargetAllocation, MonthlyCommission
@@ -2288,7 +2288,12 @@ def prospect_detail(request, pk: int):
     prospect = get_object_or_404(
         Prospect.objects
         .select_related("owner", "client")          # owner + linked client
-        .prefetch_related("updates__user"),         # all updates + who logged them
+        .prefetch_related(
+            "updates__user",
+            "sample_requests__requested_by",
+            "sample_requests__task",
+            "sample_requests__items__product",
+        ),
         pk=pk,
     )
 
@@ -2351,6 +2356,20 @@ def prospect_detail(request, pk: int):
     site_visit_updates = updates.filter(action_type__in=["VISIT", "SAMPLE"])
     negotiation_updates = updates.filter(action_type="NEGOTIATION")
 
+    # Sample requests belong to the Site Visit workflow.
+    sample_requests = (
+        prospect.sample_requests
+        .select_related("requested_by", "task")
+        .prefetch_related("items__product")
+        .order_by("-requested_at", "-created_at")
+    )
+
+    products_for_samples = (
+        Product.objects
+        .filter(visible="YES")
+        .order_by("name", "product_no")
+    )
+
     # -------------------------------
     # Reopen + button-enable logic
     # -------------------------------
@@ -2384,6 +2403,8 @@ def prospect_detail(request, pk: int):
         "contact_updates": contact_updates,
         "site_visit_updates": site_visit_updates,
         "negotiation_updates": negotiation_updates,
+        "sample_requests": sample_requests,
+        "products_for_samples": products_for_samples,
 
         # button flags
         "can_reopen": can_reopen,
@@ -2802,6 +2823,147 @@ def prospect_site_visit_log(request, pk: int):
 
     messages.success(request, "Site visit logged.")
     return redirect("sales:sales-prospect-detail", pk=pk)
+
+
+@login_required
+def prospect_sample_request_create(request, pk: int):
+    """
+    Create a SampleRequest for a Prospect from the Site Visit tab.
+
+    The request has its own Save button and stores one or more real Product
+    records through SampleRequestItem. The SampleRequest model creates the
+    pending Task when the request is created; after the items are saved we
+    refresh that Task description so the product list is included.
+    """
+    prospect = get_object_or_404(Prospect, pk=pk)
+
+    if request.method != "POST":
+        return redirect("sales:sales-prospect-detail", pk=pk)
+
+    product_ids = request.POST.getlist("product_id[]")
+    quantities = request.POST.getlist("quantity[]")
+    notes = (request.POST.get("sample_notes") or "").strip()
+
+    if not product_ids:
+        messages.error(request, "Please add at least one product to the sample request.")
+        return redirect("sales:sales-prospect-detail", pk=pk)
+
+    if len(product_ids) != len(quantities):
+        messages.error(request, "Please make sure every selected product has a quantity.")
+        return redirect("sales:sales-prospect-detail", pk=pk)
+
+    parsed_items = []
+    seen_product_ids = set()
+
+    for product_id, quantity_raw in zip(product_ids, quantities):
+        try:
+            product_id = int(product_id)
+        except (TypeError, ValueError):
+            messages.error(request, "One of the selected products is invalid.")
+            return redirect("sales:sales-prospect-detail", pk=pk)
+
+        if product_id in seen_product_ids:
+            messages.error(request, "A product can only be added once to a sample request.")
+            return redirect("sales:sales-prospect-detail", pk=pk)
+        seen_product_ids.add(product_id)
+
+        try:
+            quantity = Decimal(str(quantity_raw)).quantize(Decimal("0.01"))
+        except (InvalidOperation, TypeError, ValueError):
+            messages.error(request, "Please enter a valid quantity for every sample product.")
+            return redirect("sales:sales-prospect-detail", pk=pk)
+
+        if quantity <= 0:
+            messages.error(request, "Sample quantities must be greater than zero.")
+            return redirect("sales:sales-prospect-detail", pk=pk)
+
+        product = Product.objects.filter(pk=product_id, visible="YES").first()
+        if not product:
+            messages.error(request, "One of the selected products is no longer available.")
+            return redirect("sales:sales-prospect-detail", pk=pk)
+
+        parsed_items.append((product, quantity))
+
+    with transaction.atomic():
+        sample_request = SampleRequest.objects.create(
+            prospect=prospect,
+            requested_by=request.user,
+            status="PENDING",
+            notes=notes,
+        )
+
+        for product, quantity in parsed_items:
+            SampleRequestItem.objects.create(
+                sample_request=sample_request,
+                product=product,
+                quantity=quantity,
+            )
+
+        # SampleRequest creates its pending task during save. At that moment
+        # the item rows do not yet exist, so refresh the task description now.
+        task = sample_request.task
+        if task:
+            task.description = sample_request._build_task_description()
+            task.save(update_fields=["description", "updated_at"])
+
+    messages.success(
+        request,
+        f"Sample request #{sample_request.pk} saved. A sample task has been created.",
+    )
+    return redirect("sales:sales-prospect-detail", pk=pk)
+
+
+@login_required
+def prospect_sample_request_action(request, pk: int):
+    """Update the operational status of a prospect's SampleRequest."""
+    sample_request = get_object_or_404(
+        SampleRequest.objects.select_related("prospect", "task"),
+        pk=pk,
+    )
+
+    if request.method != "POST":
+        return redirect("sales:sales-prospect-detail", pk=sample_request.prospect_id)
+
+    action = (request.POST.get("sample_action") or "").strip().upper()
+    allowed = {
+        "APPROVE": "APPROVED",
+        "DECLINE": "DECLINED",
+        "RETURN": "RETURNED",
+    }
+
+    new_status = allowed.get(action)
+    if not new_status:
+        messages.error(request, "Invalid sample request action.")
+        return redirect("sales:sales-prospect-detail", pk=sample_request.prospect_id)
+
+    valid_transitions = {
+        "PENDING": {"APPROVED", "DECLINED"},
+        "APPROVED": {"RETURNED"},
+    }
+    if new_status not in valid_transitions.get(sample_request.status, set()):
+        messages.error(
+            request,
+            f"A sample request cannot move from {sample_request.get_status_display()} to {dict(SampleRequest.STATUS_CHOICES)[new_status]}.",
+        )
+        return redirect("sales:sales-prospect-detail", pk=sample_request.prospect_id)
+
+    sample_request.status = new_status
+    sample_request.save(update_fields=["status", "updated_at"])
+
+    if sample_request.task and new_status in {"DECLINED", "RETURNED"}:
+        close_task = getattr(sample_request.task, "mark_closed", None)
+        if close_task:
+            close_task(by=request.user)
+
+    if sample_request.task and new_status == "APPROVED":
+        sample_request.task.description = sample_request._build_task_description()
+        sample_request.task.save(update_fields=["description", "updated_at"])
+
+    messages.success(
+        request,
+        f"Sample request #{sample_request.pk} marked {sample_request.get_status_display().lower()}.",
+    )
+    return redirect("sales:sales-prospect-detail", pk=sample_request.prospect_id)
 
 
 @login_required
@@ -5324,6 +5486,9 @@ def view_order(request, pk):
             "locked_statuses": locked_statuses,
         },
     )
+
+
+
 
 @login_required
 def delete_order(request, pk):
@@ -11891,12 +12056,41 @@ def sales_product_knowledge_detail(request, pk):
 
     knowledge = product.knowledge
 
+    def split_points(value):
+        if not value:
+            return []
+
+        return [
+            line.strip()
+            for line in str(value).splitlines()
+            if line.strip()
+        ]
+
+    knowledge_points = {
+        "product_description": split_points(
+            knowledge.product_description
+        ),
+        "usage_application": split_points(
+            knowledge.usage_application
+        ),
+        "yield_portion_information": split_points(
+            knowledge.yield_portion_information
+        ),
+        "why_choose_tdm": split_points(
+            knowledge.why_choose_tdm
+        ),
+        "key_takeaways": split_points(
+            knowledge.key_takeaways
+        ),
+    }
+
     return render(
         request,
         "product/product_knowledge_detail.html",
         {
             "product": product,
             "knowledge": knowledge,
+            "knowledge_points": knowledge_points,
         },
     )
 

@@ -1469,6 +1469,124 @@
                         </div>
                     </div>
 
+                    <!-- ================= SAMPLE REQUEST HISTORY ================= -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                            <span>Sample Request History</span>
+                            {% if sample_requests %}
+                                <span class="badge bg-primary">{{ sample_requests|length }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            {% if sample_requests %}
+                                <div class="vstack gap-3">
+                                    {% for sr in sample_requests %}
+                                        <div class="border rounded p-3 bg-light">
+                                            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                                                <div>
+                                                    <div class="fw-semibold">Sample Request #{{ sr.pk }}</div>
+                                                    <div class="text-muted small">
+                                                        Requested {{ sr.requested_at|date:"Y-m-d H:i" }}
+                                                        {% if sr.requested_by %}
+                                                            by {{ sr.requested_by.get_full_name|default:sr.requested_by.username }}
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+
+                                                {% if sr.status == "PENDING" %}
+                                                    <span class="badge bg-warning text-dark">Pending</span>
+                                                {% elif sr.status == "APPROVED" %}
+                                                    <span class="badge bg-success">Approved</span>
+                                                {% elif sr.status == "DECLINED" %}
+                                                    <span class="badge bg-danger">Declined</span>
+                                                {% elif sr.status == "RETURNED" %}
+                                                    <span class="badge bg-secondary">Returned</span>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="row g-3 mb-3">
+                                                <div class="col-md-4">
+                                                    <div class="text-muted small">Expected Date</div>
+                                                    <div class="fw-semibold">{{ sr.expected_date|date:"Y-m-d" }}</div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="text-muted small">Task</div>
+                                                    <div class="fw-semibold">
+                                                        {% if sr.task %}
+                                                            Task #{{ sr.task.pk }}
+                                                        {% else %}
+                                                            —
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="text-muted small">Status</div>
+                                                    <div class="fw-semibold">{{ sr.get_status_display }}</div>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <div class="text-muted small mb-1">Requested Products</div>
+                                                <ul class="mb-0">
+                                                    {% for item in sr.items.all %}
+                                                        <li>
+                                                            {{ item.product.product_no }} — {{ item.product.name }}
+                                                            × {{ item.quantity }} {{ item.product.get_uom_display }}
+                                                        </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+
+                                            {% if sr.notes %}
+                                                <div class="mb-3">
+                                                    <div class="text-muted small mb-1">Notes</div>
+                                                    <div style="white-space:pre-wrap;">{{ sr.notes }}</div>
+                                                </div>
+                                            {% endif %}
+
+                                            <!-- Status changes are intentionally available ONLY here. -->
+                                            {% if sr.status == "PENDING" %}
+                                                <div class="d-flex gap-2 flex-wrap">
+                                                    <form method="post" action="{% url 'staff-prospect-sample-request-action' sr.pk %}" class="d-inline">
+                                                        {% csrf_token %}
+                                                        <button type="submit"
+                                                                name="sample_action"
+                                                                value="APPROVE"
+                                                                class="btn btn-success btn-sm">
+                                                            Approve
+                                                        </button>
+                                                    </form>
+                                                    <form method="post" action="{% url 'staff-prospect-sample-request-action' sr.pk %}" class="d-inline">
+                                                        {% csrf_token %}
+                                                        <button type="submit"
+                                                                name="sample_action"
+                                                                value="DECLINE"
+                                                                class="btn btn-outline-danger btn-sm"
+                                                                onclick="return confirm('Decline this sample request?');">
+                                                            Decline
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            {% elif sr.status == "APPROVED" %}
+                                                <form method="post" action="{% url 'staff-prospect-sample-request-action' sr.pk %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit"
+                                                            name="sample_action"
+                                                            value="RETURN"
+                                                            class="btn btn-outline-secondary btn-sm">
+                                                        Mark Returned
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted mb-0">No sample requests have been made for this prospect.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
                     <div class="card shadow-sm mb-4">
                         <div class="card-header fw-semibold">Site Visit Stage Outcome</div>
                         <div class="card-body">

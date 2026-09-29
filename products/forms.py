@@ -251,8 +251,9 @@ class ProductKnowledgeForm(forms.ModelForm):
                     "class": "form-control",
                     "rows": 4,
                     "placeholder": (
-                        "Describe what this product is and provide "
-                        "a clear definition for the sales representative."
+                        "Enter each important point on a separate line. "
+                        "Describe what this product is and provide a clear definition "
+                        "for the sales representative."
                     ),
                 }
             ),
@@ -266,6 +267,7 @@ class ProductKnowledgeForm(forms.ModelForm):
                     "class": "form-control",
                     "rows": 4,
                     "placeholder": (
+                        "Enter each use or application on a separate line. "
                         "Describe what meals, menu items or applications "
                         "this product is used for."
                     ),
@@ -281,6 +283,7 @@ class ProductKnowledgeForm(forms.ModelForm):
                     "class": "form-control",
                     "rows": 4,
                     "placeholder": (
+                        "Enter each yield, portion or serving point on a separate line. "
                         "Provide useful yield, portion or serving information."
                     ),
                 }
@@ -295,6 +298,7 @@ class ProductKnowledgeForm(forms.ModelForm):
                     "class": "form-control",
                     "rows": 4,
                     "placeholder": (
+                        "Enter each reason on a separate line. "
                         "Explain why the customer should choose "
                         "this product from The Daily Market."
                     ),
@@ -310,7 +314,8 @@ class ProductKnowledgeForm(forms.ModelForm):
                     "class": "form-control",
                     "rows": 4,
                     "placeholder": (
-                        "Enter the most important things the sales "
+                        "Enter each takeaway on a separate line. "
+                        "List the most important things the sales "
                         "representative must remember about this product."
                     ),
                 }
@@ -338,27 +343,28 @@ class ProductKnowledgeForm(forms.ModelForm):
 
         help_texts = {
             "product_description": (
-                "What is this product? Provide a clear definition "
-                "for the sales representative."
+                "What is this product? Enter each point on a separate line. "
+                "Provide a clear definition for the sales representative."
             ),
 
             "usage_application": (
-                "What meals, menu items or applications is this "
-                "product used for?"
+                "What meals, menu items or applications is this product used for? "
+                "Enter each point on a separate line."
             ),
 
             "yield_portion_information": (
                 "Provide useful yield, portion or serving information. "
-                "Enter N/A if not applicable."
+                "Enter each point on a separate line. Enter N/A if not applicable."
             ),
 
             "why_choose_tdm": (
                 "Why should the customer choose this product from "
-                "The Daily Market?"
+                "The Daily Market? Enter each reason on a separate line."
             ),
 
             "key_takeaways": (
-                "The most important things the sales representative "
+                "Enter each takeaway on a separate line. "
+                "These are the most important things the sales representative "
                 "must remember about this product."
             ),
         }

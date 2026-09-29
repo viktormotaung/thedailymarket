@@ -4,6 +4,7 @@ from .models import ProspectOperatingHours
 from decimal import Decimal
 from .models import ClientOperatingHours
 from django import forms
+from django.forms import inlineformset_factory
 from django.contrib.auth import get_user_model
 from profiles.models import SalesRepProfile
 from django.core.exceptions import ValidationError
@@ -11,6 +12,8 @@ from django.utils import timezone
 from .models import Client
 from .models import GAUTENG_CITY_CHOICES
 from .models import EndUser
+from .models import SampleRequest, SampleRequestItem
+from products.models import Product
 from .models import (
     Client,
     Prospect,
@@ -2306,15 +2309,173 @@ class EndUserForm(forms.ModelForm):
         return cleaned
 
 
+# -------------------------------------------------
+# Prospect Sample Requests
+# -------------------------------------------------
+class SampleRequestForm(forms.ModelForm):
+    """
+    Form used when requesting one or more product samples for a Prospect.
+
+    The view should normally supply the Prospect and the requesting user.
+    The status starts as PENDING and the expected date is calculated by the
+    SampleRequest model as the next configured business day.
+    """
+
+    class Meta:
+        model = SampleRequest
+        fields = [
+            "prospect",
+            "requested_at",
+            "status",
+            "expected_date",
+            "notes",
+        ]
+        widgets = {
+            "prospect": forms.Select(attrs={
+                "class": "form-select",
+            }),
+            "requested_at": forms.DateTimeInput(attrs={
+                "class": "form-control",
+                "type": "datetime-local",
+            }),
+            "status": forms.Select(attrs={
+                "class": "form-select",
+            }),
+            "expected_date": forms.DateInput(attrs={
+                "class": "form-control",
+                "type": "date",
+            }),
+            "notes": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 4,
+                "placeholder": (
+                    "Add any instructions or notes about the samples "
+                    "being requested..."
+                ),
+            }),
+        }
+        help_texts = {
+            "expected_date": (
+                "Automatically set to the next configured business day "
+                "after the request."
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        prospect = kwargs.pop("prospect", None)
+        requested_by = kwargs.pop("requested_by", None)
+        super().__init__(*args, **kwargs)
+
+        self.requested_by = requested_by
+
+        if prospect is not None:
+            self.fields["prospect"].queryset = Prospect.objects.filter(
+                pk=prospect.pk
+            )
+            self.fields["prospect"].initial = prospect
+            self.fields["prospect"].disabled = True
+
+        if not self.instance.pk:
+            self.fields["status"].initial = "PENDING"
+            self.fields["status"].disabled = True
+
+            # Let the model calculate this on save, but show the calculated
+            # value when the form is rendered.
+            request_date = self.initial.get("requested_at")
+            if request_date:
+                if hasattr(request_date, "date"):
+                    request_date = request_date.date()
+                self.fields["expected_date"].initial = (
+                    SampleRequest.get_next_business_day(request_date)
+                )
+            else:
+                self.fields["expected_date"].initial = (
+                    SampleRequest.get_next_business_day()
+                )
+
+            self.fields["expected_date"].disabled = True
+
+        # Requested date defaults to now for a new request.
+        if not self.instance.pk and not self.initial.get("requested_at"):
+            self.initial["requested_at"] = timezone.now().strftime(
+                "%Y-%m-%dT%H:%M"
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+
+        prospect = cleaned.get("prospect")
+        if not prospect:
+            self.add_error(
+                "prospect",
+                "Please select the Prospect this sample request is for.",
+            )
+
+        return cleaned
 
 
-    
+class SampleRequestItemForm(forms.ModelForm):
+    """
+    A single product and quantity within a SampleRequest.
+    """
+
+    class Meta:
+        model = SampleRequestItem
+        fields = [
+            "product",
+            "quantity",
+        ]
+        widgets = {
+            "product": forms.Select(attrs={
+                "class": "form-select sample-product-select",
+                "data-product-search": "true",
+            }),
+            "quantity": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01",
+                "min": "0.01",
+                "placeholder": "e.g. 1",
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Only products that can currently be sold/requested are shown.
+        self.fields["product"].queryset = (
+            Product.objects
+            .filter(visible="YES")
+            .order_by("name")
+        )
+
+        self.fields["product"].label_from_instance = (
+            lambda product: (
+                f"{product.product_no} - {product.name}"
+                + (f" ({product.uom})" if product.uom else "")
+            )
+        )
+
+        self.fields["quantity"].help_text = (
+            "Number of product units required for the sample."
+        )
+
+    def clean_quantity(self):
+        quantity = self.cleaned_data.get("quantity")
+        if quantity is None:
+            return quantity
+
+        if quantity <= Decimal("0"):
+            raise ValidationError(
+                "Sample quantity must be greater than zero."
+            )
+
+        return quantity
 
 
-    
-
-
-    
-
-
-    
+SampleRequestItemFormSet = inlineformset_factory(
+    SampleRequest,
+    SampleRequestItem,
+    form=SampleRequestItemForm,
+    extra=3,
+    can_delete=True,
+)

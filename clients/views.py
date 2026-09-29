@@ -15,7 +15,7 @@ from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from clients.models import Client, ClientCompliance, ClientComplianceDocument, Prospect, ProspectUpdate, Membership, Lead, LeadActivity
+from clients.models import Client, ClientCompliance, ClientComplianceDocument, Prospect, ProspectUpdate, Membership, Lead, LeadActivity, SampleRequest
 from clients.models import GAUTENG_CITY_CHOICES
 from clients.forms import ProspectForm, ProspectUpdateForm
 from tasks.models import Task
@@ -883,6 +883,16 @@ def prospect_detail(request, pk: int):
     site_visit_updates = updates.filter(action_type__in=["VISIT", "SAMPLE"])
     negotiation_updates = updates.filter(action_type="NEGOTIATION")
 
+    # Sample requests belong to the Prospect, but their operational status
+    # is managed from this Main Staff prospect detail page.
+    sample_requests = (
+        SampleRequest.objects
+        .filter(prospect=prospect)
+        .select_related("requested_by", "task")
+        .prefetch_related("items__product")
+        .order_by("-requested_at", "-created_at")
+    )
+
     # -------------------------------
     # Reopen + button-enable logic
     # -------------------------------
@@ -916,6 +926,7 @@ def prospect_detail(request, pk: int):
         "contact_updates": contact_updates,
         "site_visit_updates": site_visit_updates,
         "negotiation_updates": negotiation_updates,
+        "sample_requests": sample_requests,
 
         # button flags
         "can_reopen": can_reopen,
@@ -926,7 +937,63 @@ def prospect_detail(request, pk: int):
     return render(request, "clients/prospect_detail.html", context)
 
 
+@login_required
+@staff_required
+def prospect_sample_request_action(request, pk: int):
+    """Update a Prospect SampleRequest from the Main Staff prospect page only."""
+    sample_request = get_object_or_404(
+        SampleRequest.objects.select_related("prospect", "task"),
+        pk=pk,
+    )
 
+    if request.method != "POST":
+        return redirect("staff-prospect-detail", pk=sample_request.prospect_id)
+
+    action = (request.POST.get("sample_action") or "").strip().upper()
+    transitions = {
+        "APPROVE": ("PENDING", "APPROVED"),
+        "DECLINE": ("PENDING", "DECLINED"),
+        "RETURN": ("APPROVED", "RETURNED"),
+    }
+
+    transition = transitions.get(action)
+    if not transition:
+        messages.error(request, "Invalid sample request action.")
+        return redirect("staff-prospect-detail", pk=sample_request.prospect_id)
+
+    current_status, new_status = transition
+    if sample_request.status != current_status:
+        messages.error(
+            request,
+            f"This sample request is already {sample_request.get_status_display().lower()} and cannot be updated with that action.",
+        )
+        return redirect("staff-prospect-detail", pk=sample_request.prospect_id)
+
+    sample_request.status = new_status
+    sample_request.save(update_fields=["status", "updated_at"])
+
+    # Declined and returned requests are complete, so close their task.
+    if sample_request.task and new_status in {"DECLINED", "RETURNED"}:
+        task = sample_request.task
+        mark_done = getattr(task, "mark_done", None)
+        if mark_done:
+            mark_done(by=request.user)
+        else:
+            task.status = Task.Status.CLOSED
+            task.completed_at = timezone.now()
+            task.save(update_fields=["status", "completed_at", "updated_at"])
+
+    # Approval keeps the sample task active and refreshes its description
+    # now that the request has moved beyond approval.
+    if sample_request.task and new_status == "APPROVED":
+        sample_request.task.description = sample_request._build_task_description()
+        sample_request.task.save(update_fields=["description", "updated_at"])
+
+    messages.success(
+        request,
+        f"Sample request #{sample_request.pk} marked {sample_request.get_status_display().lower()}.",
+    )
+    return redirect("staff-prospect-detail", pk=sample_request.prospect_id)
 
 
 @login_required

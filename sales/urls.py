@@ -340,6 +340,18 @@ urlpatterns = [
         views.quotation_accept,
         name="funeral-quotation-accept",
     ),
+
+    path(
+        "prospects/<int:pk>/sample-request/",
+        views.prospect_sample_request_create,
+        name="sales-prospect-sample-request-create",
+    ),
+    path(
+        "sample-requests/<int:pk>/action/",
+        views.prospect_sample_request_action,
+        name="sales-prospect-sample-request-action",
+    ),
+
 ]
 
 

@@ -108,6 +108,53 @@
       height: 100% !important;
       display: block;
     }
+
+    .sample-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      align-items: center;
+    }
+
+    .sample-flow-step {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .4rem .7rem;
+      border-radius: 999px;
+      background: #f1f3f5;
+      color: #6c757d;
+      font-size: .82rem;
+      font-weight: 600;
+    }
+
+    .sample-flow-step.done {
+      background: #d1e7dd;
+      color: #0f5132;
+    }
+
+    .sample-flow-step.active {
+      background: #cff4fc;
+      color: #055160;
+    }
+
+    .sample-flow-step.declined {
+      background: #f8d7da;
+      color: #842029;
+    }
+
+    .sample-flow-arrow {
+      color: #adb5bd;
+    }
+
+    .sample-product-row {
+      border: 1px solid #dee2e6;
+      border-radius: .5rem;
+      padding: .75rem;
+      margin-bottom: .75rem;
+      background: #fff;
+    }
+
   </style>
 </head>
 
@@ -1243,6 +1290,171 @@
         <!-- ================= SITE VISIT TAB ================= -->
         <div class="tab-pane fade" id="sitevisit" role="tabpanel">
           <div class="row g-4">
+
+            <!-- ================= SAMPLE REQUESTS ================= -->
+            <div class="col-12">
+              <div class="card shadow-sm mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                  <div>
+                    <div class="fw-semibold">Sample Requests</div>
+                    <div class="text-muted small">Request samples before the site visit and track what happens to the request.</div>
+                  </div>
+                </div>
+                <div class="card-body">
+
+                  <!-- NEW SAMPLE REQUEST -->
+                  <div class="border rounded p-3 mb-4 bg-light">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                      <div>
+                        <h6 class="fw-semibold mb-1">Request Samples</h6>
+                        <div class="text-muted small">Search for products, add the quantity required, and save this sample request.</div>
+                      </div>
+                      <span class="badge bg-primary">Expected: next business day</span>
+                    </div>
+
+                    <div id="sampleProductData" class="d-none" aria-hidden="true">
+                      {% for product in products_for_samples %}
+                        <span
+                          data-product
+                          data-id="{{ product.pk }}"
+                          data-product-no="{{ product.product_no }}"
+                          data-name="{{ product.name }}"
+                          data-sku="{{ product.sku|default:'' }}"
+                          data-uom="{{ product.get_uom_display }}"
+                        ></span>
+                      {% endfor %}
+                    </div>
+
+                    <form method="post" action="{% url 'sales:sales-prospect-sample-request-create' prospect.pk %}" id="sampleRequestForm">
+                      {% csrf_token %}
+
+                      <div class="row g-2 align-items-end mb-3">
+                        <div class="col-md-9">
+                          <label class="form-label">Search Products</label>
+                          <input type="text" id="sampleProductSearch" class="form-control" placeholder="Search by product number, name or SKU..." autocomplete="off">
+                        </div>
+                        <div class="col-md-3">
+                          <button type="button" id="addSampleProduct" class="btn btn-outline-primary w-100">+ Add Product</button>
+                        </div>
+                      </div>
+
+                      <div id="sampleProductResults" class="list-group mb-3 d-none"></div>
+
+                      <div id="sampleProductRows">
+                        <div id="sampleProductEmpty" class="text-muted small border rounded p-3 bg-white">
+                          No products added yet.
+                        </div>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="sample_notes" class="form-control" rows="3" placeholder="Why are these samples required or what should the team know?"></textarea>
+                      </div>
+
+                      <button type="submit" class="btn btn-primary">Save Sample Request</button>
+                    </form>
+                  </div>
+
+                  <!-- EXISTING SAMPLE REQUESTS -->
+                  <h6 class="fw-semibold mb-3">Sample Request History</h6>
+
+                  {% if sample_requests %}
+                    <div class="vstack gap-3">
+                      {% for sr in sample_requests %}
+                        <div class="border rounded p-3">
+                          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                            <div>
+                              <div class="fw-semibold">Sample Request #{{ sr.pk }}</div>
+                              <div class="text-muted small">
+                                Requested {{ sr.requested_at|date:"Y-m-d H:i" }}
+                                {% if sr.requested_by %}by {{ sr.requested_by.get_full_name|default:sr.requested_by.username }}{% endif %}
+                              </div>
+                            </div>
+                            {% if sr.status == "PENDING" %}
+                              <span class="badge bg-warning text-dark">Pending</span>
+                            {% elif sr.status == "APPROVED" %}
+                              <span class="badge bg-success">Approved</span>
+                            {% elif sr.status == "DECLINED" %}
+                              <span class="badge bg-danger">Declined</span>
+                            {% elif sr.status == "RETURNED" %}
+                              <span class="badge bg-secondary">Returned</span>
+                            {% endif %}
+                          </div>
+
+                          <!-- REQUEST FLOW -->
+                          <div class="sample-flow mb-3">
+                            <span class="sample-flow-step done">✓ Requested</span>
+                            <span class="sample-flow-arrow">→</span>
+                            {% if sr.status == "APPROVED" or sr.status == "RETURNED" %}
+                              <span class="sample-flow-step done">✓ Approved</span>
+                            {% elif sr.status == "DECLINED" %}
+                              <span class="sample-flow-step declined">✕ Declined</span>
+                            {% else %}
+                              <span class="sample-flow-step active">● Pending Approval</span>
+                            {% endif %}
+                            {% if sr.status == "APPROVED" or sr.status == "RETURNED" %}
+                              <span class="sample-flow-arrow">→</span>
+                              <span class="sample-flow-step {% if sr.task %}done{% else %}active{% endif %}">{% if sr.task %}✓{% else %}●{% endif %} Task</span>
+                              <span class="sample-flow-arrow">→</span>
+                              {% if sr.status == "RETURNED" %}
+                                <span class="sample-flow-step done">✓ Returned</span>
+                              {% else %}
+                                <span class="sample-flow-step active">● Awaiting Return</span>
+                              {% endif %}
+                            {% endif %}
+                          </div>
+
+                          <div class="row g-3 mb-3">
+                            <div class="col-md-3">
+                              <div class="text-muted small">Expected Date</div>
+                              <div class="fw-semibold">{{ sr.expected_date|date:"Y-m-d" }}</div>
+                            </div>
+                            <div class="col-md-3">
+                              <div class="text-muted small">Status</div>
+                              <div class="fw-semibold">{{ sr.get_status_display }}</div>
+                            </div>
+                            <div class="col-md-3">
+                              <div class="text-muted small">Task</div>
+                              <div class="fw-semibold">{% if sr.task %}Task #{{ sr.task.pk }}{% else %}—{% endif %}</div>
+                            </div>
+                            <div class="col-md-3">
+                              <div class="text-muted small">Products</div>
+                              <div class="fw-semibold">{{ sr.items.all|length }}</div>
+                            </div>
+                          </div>
+
+                          <div class="mb-3">
+                            <div class="text-muted small mb-1">Requested Products</div>
+                            <ul class="mb-0 ps-3">
+                              {% for item in sr.items.all %}
+                                <li>{{ item.product.product_no }} — {{ item.product.name }} × {{ item.quantity }} {{ item.product.get_uom_display }}</li>
+                              {% endfor %}
+                            </ul>
+                          </div>
+
+                          {% if sr.notes %}
+                            <div class="small mb-3"><strong>Notes:</strong> {{ sr.notes }}</div>
+                          {% endif %}
+
+                          {% if sr.status == "APPROVED" %}
+                            <div class="d-flex gap-2 flex-wrap">
+                              <form method="post" action="{% url 'sales:sales-prospect-sample-request-action' sr.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" name="sample_action" value="RETURN" class="btn btn-outline-secondary btn-sm">Mark Returned</button>
+                              </form>
+                            </div>
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <p class="text-muted mb-0">No sample requests have been made for this prospect yet.</p>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <!-- ================= SITE VISIT HISTORY ================= -->
             <div class="col-lg-7">
               <div class="card shadow-sm mb-4">
                 <div class="card-header fw-semibold">Site Visit History</div>
@@ -1321,6 +1533,7 @@
               </div>
             </div>
 
+            <!-- ================= LOG SITE VISIT ================= -->
             <div class="col-lg-5">
               <div class="card shadow-sm mb-4">
                 <div class="card-header fw-semibold">Log Site Visit</div>
@@ -1682,6 +1895,131 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    (function () {
+      /*
+       * Sample products are rendered as HTML data attributes rather than
+       * injected directly into a JavaScript object. This prevents product
+       * names/SKUs containing quotes, backslashes or other characters from
+       * breaking the page's JavaScript.
+       */
+      const productData = document.getElementById("sampleProductData");
+      const products = productData
+        ? Array.from(productData.querySelectorAll("[data-product]")).map(function (el) {
+            return {
+              id: el.dataset.id,
+              productNo: el.dataset.productNo || "",
+              name: el.dataset.name || "",
+              sku: el.dataset.sku || "",
+              uom: el.dataset.uom || ""
+            };
+          })
+        : [];
+
+      const search = document.getElementById("sampleProductSearch");
+      const results = document.getElementById("sampleProductResults");
+      const addButton = document.getElementById("addSampleProduct");
+      const rows = document.getElementById("sampleProductRows");
+      const empty = document.getElementById("sampleProductEmpty");
+      let selectedProduct = null;
+
+      if (!search || !results || !addButton || !rows) return;
+
+      function selectedIds() {
+        return Array.from(rows.querySelectorAll('input[name="product_id[]"]')).map(el => el.value);
+      }
+
+      function renderResults() {
+        const q = search.value.trim().toLowerCase();
+        results.innerHTML = "";
+        selectedProduct = null;
+
+        if (!q) {
+          results.classList.add("d-none");
+          return;
+        }
+
+        const matches = products.filter(p => {
+          const haystack = `${p.productNo} ${p.name} ${p.sku}`.toLowerCase();
+          return haystack.includes(q) && !selectedIds().includes(p.id);
+        }).slice(0, 12);
+
+        if (!matches.length) {
+          results.innerHTML = '<div class="list-group-item text-muted">No available products found.</div>';
+        } else {
+          matches.forEach(p => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "list-group-item list-group-item-action";
+            button.innerHTML = `<strong>${p.productNo}</strong> — ${p.name}<span class="text-muted small">${p.sku ? ' · SKU ' + p.sku : ''} · ${p.uom}</span>`;
+            button.addEventListener("click", function () {
+              selectedProduct = p;
+              search.value = `${p.productNo} — ${p.name}`;
+              results.classList.add("d-none");
+            });
+            results.appendChild(button);
+          });
+        }
+        results.classList.remove("d-none");
+      }
+
+      search.addEventListener("input", renderResults);
+
+      addButton.addEventListener("click", function () {
+        if (!selectedProduct) {
+          renderResults();
+          search.focus();
+          return;
+        }
+
+        if (selectedIds().includes(selectedProduct.id)) {
+          return;
+        }
+
+        if (empty) empty.remove();
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "sample-product-row";
+        wrapper.innerHTML = `
+          <div class="row g-2 align-items-end">
+            <div class="col-md-7">
+              <div class="fw-semibold">${selectedProduct.productNo} — ${selectedProduct.name}</div>
+              <div class="text-muted small">${selectedProduct.sku ? 'SKU ' + selectedProduct.sku + ' · ' : ''}${selectedProduct.uom}</div>
+              <input type="hidden" name="product_id[]" value="${selectedProduct.id}">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small">Quantity</label>
+              <input type="number" name="quantity[]" class="form-control" min="0.01" step="0.01" value="1" required>
+            </div>
+            <div class="col-md-2">
+              <button type="button" class="btn btn-outline-danger w-100 remove-sample-product">Remove</button>
+            </div>
+          </div>
+        `;
+
+        wrapper.querySelector(".remove-sample-product").addEventListener("click", function () {
+          wrapper.remove();
+          if (!rows.querySelector('input[name="product_id[]"]')) {
+            rows.innerHTML = '<div id="sampleProductEmpty" class="text-muted small border rounded p-3 bg-white">No products added yet.</div>';
+          }
+        });
+
+        rows.appendChild(wrapper);
+        selectedProduct = null;
+        search.value = "";
+        results.innerHTML = "";
+        results.classList.add("d-none");
+      });
+
+      document.addEventListener("click", function (event) {
+        if (!results.contains(event.target) && event.target !== search) {
+          results.classList.add("d-none");
+        }
+      });
+    })();
+  </script>
+
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
     // Chart data from Django
@@ -1719,4 +2057,3 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-

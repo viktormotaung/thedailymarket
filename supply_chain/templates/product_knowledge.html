@@ -1,4 +1,4 @@
-{% load static humanize %}
+{% load static humanize knowledge_tags %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -84,6 +84,19 @@
 
     .detail-value {
       font-weight: 500;
+    }
+
+    .knowledge-points {
+      margin: 0;
+      padding-left: 1.25rem;
+    }
+
+    .knowledge-points li {
+      margin-bottom: .45rem;
+    }
+
+    .knowledge-points li:last-child {
+      margin-bottom: 0;
     }
 
     .price-table th {
@@ -369,7 +382,17 @@
 
         <div class="card info-card mb-4">
           <div class="card-header bg-white"><h5 class="fw-bold mb-0">1. Product Description / Definition</h5></div>
-          <div class="card-body"><div class="knowledge-text">{{ knowledge.product_description|default:"N/A"|linebreaksbr }}</div></div>
+          <div class="card-body">
+            {% if knowledge.product_description %}
+              <ul class="knowledge-points">
+                {% for point in knowledge.product_description|split_lines %}
+                  <li>{{ point }}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="text-muted">N/A</div>
+            {% endif %}
+          </div>
         </div>
 
         <div class="card info-card mb-4">
@@ -386,7 +409,17 @@
 
         <div class="card info-card mb-4">
           <div class="card-header bg-white"><h5 class="fw-bold mb-0">3. Where / What It Is Used For</h5></div>
-          <div class="card-body"><div class="knowledge-text">{{ knowledge.usage_application|default:"N/A"|linebreaksbr }}</div></div>
+          <div class="card-body">
+            {% if knowledge.usage_application %}
+              <ul class="knowledge-points">
+                {% for point in knowledge.usage_application|split_lines %}
+                  <li>{{ point }}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="text-muted">N/A</div>
+            {% endif %}
+          </div>
         </div>
 
         <div class="card info-card mb-4">
@@ -403,7 +436,17 @@
 
         <div class="card info-card mb-4">
           <div class="card-header bg-white"><h5 class="fw-bold mb-0">5. Yield / Portion Information</h5></div>
-          <div class="card-body"><div class="knowledge-text">{{ knowledge.yield_portion_information|default:"N/A"|linebreaksbr }}</div></div>
+          <div class="card-body">
+            {% if knowledge.yield_portion_information %}
+              <ul class="knowledge-points">
+                {% for point in knowledge.yield_portion_information|split_lines %}
+                  <li>{{ point }}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="text-muted">N/A</div>
+            {% endif %}
+          </div>
         </div>
 
         <div class="card info-card mb-4">
@@ -455,7 +498,17 @@
 
         <div class="card info-card mb-4">
           <div class="card-header bg-white"><h5 class="fw-bold mb-0">9. Why Choose The Daily Market</h5></div>
-          <div class="card-body"><div class="knowledge-text">{{ knowledge.why_choose_tdm|default:"N/A"|linebreaksbr }}</div></div>
+          <div class="card-body">
+            {% if knowledge.why_choose_tdm %}
+              <ul class="knowledge-points">
+                {% for point in knowledge.why_choose_tdm|split_lines %}
+                  <li>{{ point }}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="text-muted">N/A</div>
+            {% endif %}
+          </div>
         </div>
 
         <div class="card info-card mb-4">
@@ -490,7 +543,17 @@
 
         <div class="card info-card mb-4">
           <div class="card-header bg-white"><h5 class="fw-bold mb-0">12. Key Takeaways</h5></div>
-          <div class="card-body"><div class="knowledge-text">{{ knowledge.key_takeaways|default:"N/A"|linebreaksbr }}</div></div>
+          <div class="card-body">
+            {% if knowledge.key_takeaways %}
+              <ul class="knowledge-points">
+                {% for point in knowledge.key_takeaways|split_lines %}
+                  <li>{{ point }}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="text-muted">N/A</div>
+            {% endif %}
+          </div>
         </div>
 
         <div class="card info-card mb-4">

@@ -433,6 +433,21 @@
         border-bottom: 1px solid #eef1ef;
     }
 
+    /* KNOWLEDGE POINT LISTS */
+
+    .knowledge-points {
+        margin: 0;
+        padding-left: 1.25rem;
+    }
+
+    .knowledge-points li {
+        margin-bottom: .45rem;
+    }
+
+    .knowledge-points li:last-child {
+        margin-bottom: 0;
+    }
+
     /* KEY TAKEAWAYS */
 
     .product-takeaway {
@@ -1096,18 +1111,7 @@
 
             <div class="product-detail-actions">
 
-                <button
-                    type="button"
-                    id="compareProductBtn"
-                    class="btn btn-primary"
-                    data-product-id="{{ product.pk }}"
-                    data-product-name="{{ product.name }}"
-                    data-product-no="{{ product.product_no }}"
-                    data-product-price="{{ product.wholesale_price|default:'' }}"
-                >
-                    <i class="bi bi-arrow-left-right me-1"></i>
-                    Compare Product
-                </button>
+                
 
                 <a
                     href="{% url 'sales:sales-knowledge-list' %}"
@@ -1350,7 +1354,11 @@
 
                         {% if knowledge.product_description %}
 
-                            {{ knowledge.product_description|linebreaksbr }}
+                            <ul class="knowledge-points">
+                                {% for point in knowledge_points.product_description %}
+                                    <li>{{ point }}</li>
+                                {% endfor %}
+                            </ul>
 
                         {% else %}
 
@@ -1505,7 +1513,11 @@
 
                         {% if knowledge.usage_application %}
 
-                            {{ knowledge.usage_application|linebreaksbr }}
+                            <ul class="knowledge-points">
+                                {% for point in knowledge_points.usage_application %}
+                                    <li>{{ point }}</li>
+                                {% endfor %}
+                            </ul>
 
                         {% else %}
 
@@ -1553,7 +1565,11 @@
 
                         {% if knowledge.yield_portion_information %}
 
-                            {{ knowledge.yield_portion_information|linebreaksbr }}
+                            <ul class="knowledge-points">
+                                {% for point in knowledge_points.yield_portion_information %}
+                                    <li>{{ point }}</li>
+                                {% endfor %}
+                            </ul>
 
                         {% else %}
 
@@ -1603,7 +1619,11 @@
 
                 {% if knowledge.why_choose_tdm %}
 
-                    {{ knowledge.why_choose_tdm|linebreaksbr }}
+                    <ul class="knowledge-points">
+                        {% for point in knowledge_points.why_choose_tdm %}
+                            <li>{{ point }}</li>
+                        {% endfor %}
+                    </ul>
 
                 {% else %}
 
@@ -1795,7 +1815,11 @@
                 {% if knowledge.key_takeaways %}
 
                     <div class="product-takeaway">
-                        {{ knowledge.key_takeaways|linebreaksbr }}
+                        <ul class="knowledge-points">
+                            {% for point in knowledge_points.key_takeaways %}
+                                <li>{{ point }}</li>
+                            {% endfor %}
+                        </ul>
                     </div>
 
                 {% else %}
@@ -1826,18 +1850,7 @@
             </a>
 
 
-            <button
-                type="button"
-                id="compareProductBtnBottom"
-                class="btn btn-primary"
-                data-product-id="{{ product.pk }}"
-                data-product-name="{{ product.name }}"
-                data-product-no="{{ product.product_no }}"
-                data-product-price="{{ product.wholesale_price|default:'' }}"
-            >
-                <i class="bi bi-arrow-left-right me-1"></i>
-                Compare Product
-            </button>
+            
 
         </div>
 
