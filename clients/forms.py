@@ -946,21 +946,150 @@ class ProspectUpdateForm(forms.ModelForm):
 
 
 class ClientMinimalForm(forms.ModelForm):
+    """
+    Public registration form.
+
+    The form uses a few existing Client fields for business information,
+    while the additional contact and address fields are collected here
+    for creation of the Lead during registration.
+    """
+
+    phone = forms.CharField(
+        max_length=50,
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Enter phone number",
+            }
+        ),
+    )
+
+    whatsapp = forms.CharField(
+        max_length=50,
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Enter WhatsApp number",
+            }
+        ),
+    )
+
+    address_line1 = forms.CharField(
+        max_length=200,
+        required=True,
+        label="Street address",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Street address",
+            }
+        ),
+    )
+
+    address_line2 = forms.CharField(
+        max_length=200,
+        required=False,
+        label="Address line 2",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Apartment, unit, building, etc.",
+            }
+        ),
+    )
+
+    suburb = forms.CharField(
+        max_length=120,
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Suburb",
+            }
+        ),
+    )
+
+    city = forms.ChoiceField(
+        required=True,
+        choices=[
+            ("", "Select city"),
+            *GAUTENG_CITY_CHOICES,
+        ],
+        widget=forms.Select(
+            attrs={
+                "class": "form-select",
+            }
+        ),
+    )
+
+    province = forms.ChoiceField(
+        required=True,
+        choices=[
+            ("", "Select province"),
+            *Client.PROVINCES,
+        ],
+        widget=forms.Select(
+            attrs={
+                "class": "form-select",
+            }
+        ),
+    )
+
+    postal_code = forms.CharField(
+        max_length=20,
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Postal code",
+            }
+        ),
+    )
+
+    country = forms.CharField(
+        max_length=120,
+        required=True,
+        initial="South Africa",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "value": "South Africa",
+            }
+        ),
+    )
+
     class Meta:
         model = Client
         fields = [
             "entity_type",
             "name",
             "organization",
-            "registration_identifier",
             "client_type",
         ]
+
         widgets = {
-            "entity_type": forms.Select(attrs=_bs("form-select")),
-            "name": forms.TextInput(attrs={"class": "form-control"}),
-            "organization": forms.TextInput(attrs={"class": "form-control"}),
-            "registration_identifier": forms.TextInput(attrs={"class": "form-control"}),  # 🔑
-            "client_type": forms.Select(attrs={"class": "form-select"}),
+            "entity_type": forms.Select(
+                attrs={
+                    "class": "form-select",
+                }
+            ),
+            "name": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+            "organization": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+            "client_type": forms.Select(
+                attrs={
+                    "class": "form-select",
+                }
+            ),
         }
 
 

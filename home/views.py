@@ -2506,17 +2506,34 @@ def view_invoice(request, pk):
 
 def register_profile(request: HttpRequest) -> HttpResponse:
     """
-    Minimal registration flow:
-    1) Create User (email = username)
-    2) Create Client (minimal fields only, status=PENDING)
+    Public registration flow:
 
-    3) Create Business CustomerProfile linked to User + Client
-       (display_name enforced as client.name at model level)
+    1) Create the Django User account.
+    2) Create a Lead from the submitted business information.
+    3) Do NOT create a Client at registration.
+    4) Do NOT create a CustomerProfile at registration.
 
-    After success:
-    - Auto-login user
-    - Send welcome email
-    - Redirect to success page
+    The sales lifecycle is therefore:
+
+        User -> Lead -> Prospect -> Client
+
+    Required registration information:
+    - First name
+    - Last name
+    - Email
+    - Phone
+    - WhatsApp
+    - Business name / trading name
+    - Entity type
+    - Client type
+    - Address line 1
+    - Suburb
+    - City
+    - Province
+    - Postal code
+    - Country
+
+    Address line 2 remains optional.
     """
 
     def _blank_ctx():
@@ -2527,11 +2544,22 @@ def register_profile(request: HttpRequest) -> HttpResponse:
 
     # ---------- GET ----------
     if request.method != "POST":
-        return render(request, "home/register_profile.html", _blank_ctx())
+        return render(
+            request,
+            "home/register_profile.html",
+            _blank_ctx(),
+        )
 
     # ---------- POST ----------
-    user_form = RegisterUserForm(request.POST, prefix="user")
-    client_form = ClientMinimalForm(request.POST, prefix="client")
+    user_form = RegisterUserForm(
+        request.POST,
+        prefix="user",
+    )
+
+    client_form = ClientMinimalForm(
+        request.POST,
+        prefix="client",
+    )
 
     # Username comes from email
     if "username" in user_form.fields:
@@ -2540,32 +2568,125 @@ def register_profile(request: HttpRequest) -> HttpResponse:
     user_ok = user_form.is_valid()
     client_ok = client_form.is_valid()
 
-    # Pull candidate email safely
+    # -------------------------------------------------
+    # Candidate email
+    # -------------------------------------------------
     candidate_email = (
         (user_form.cleaned_data.get("email") if user_ok else None)
-        or request.POST.get(f"{user_form.prefix}-email", "")
+        or request.POST.get(
+            f"{user_form.prefix}-email",
+            "",
+        )
         or ""
     ).strip()
 
-    # Case-insensitive duplicate check (UX layer)
+    # -------------------------------------------------
+    # Check duplicate email
+    # -------------------------------------------------
     if candidate_email:
         exists = (
-            User.objects.filter(username__iexact=candidate_email).exists()
-            or User.objects.filter(email__iexact=candidate_email).exists()
+            User.objects.filter(
+                username__iexact=candidate_email
+            ).exists()
+            or
+            User.objects.filter(
+                email__iexact=candidate_email
+            ).exists()
         )
+
         if exists:
             user_form.add_error(
                 "email",
-                "A user with this email address already exists."
+                "A user with this email address already exists.",
             )
             user_ok = False
+
     else:
-        user_form.add_error("email", "Please enter a valid email address.")
+        user_form.add_error(
+            "email",
+            "Please enter a valid email address.",
+        )
         user_ok = False
 
-    # Early exit if forms invalid
+    # -------------------------------------------------
+    # Registration contact + address fields
+    # -------------------------------------------------
+    phone = (
+        request.POST.get("client-phone") or ""
+    ).strip()
+
+    whatsapp = (
+        request.POST.get("client-whatsapp") or ""
+    ).strip()
+
+    address_line1 = (
+        request.POST.get("client-address_line1") or ""
+    ).strip()
+
+    address_line2 = (
+        request.POST.get("client-address_line2") or ""
+    ).strip()
+
+    suburb = (
+        request.POST.get("client-suburb") or ""
+    ).strip()
+
+    city = (
+        request.POST.get("client-city") or ""
+    ).strip()
+
+    province = (
+        request.POST.get("client-province") or ""
+    ).strip()
+
+    postal_code = (
+        request.POST.get("client-postal_code") or ""
+    ).strip()
+
+    country = (
+        request.POST.get("client-country")
+        or "South Africa"
+    ).strip()
+
+    # -------------------------------------------------
+    # Required Lead information
+    # -------------------------------------------------
+    required_registration_fields = {
+        "phone": phone,
+        "WhatsApp": whatsapp,
+        "address": address_line1,
+        "suburb": suburb,
+        "city": city,
+        "province": province,
+        "postal code": postal_code,
+        "country": country,
+    }
+
+    missing_fields = [
+        label
+        for label, value in required_registration_fields.items()
+        if not value
+    ]
+
+    if missing_fields:
+        client_ok = False
+
+        messages.error(
+            request,
+            "Please complete the following required fields: "
+            + ", ".join(missing_fields)
+            + ".",
+        )
+
+    # -------------------------------------------------
+    # Stop if anything is invalid
+    # -------------------------------------------------
     if not (user_ok and client_ok):
-        messages.error(request, "Please fix the highlighted fields and try again.")
+        messages.error(
+            request,
+            "Please fix the highlighted fields and try again.",
+        )
+
         return render(
             request,
             "home/register_profile.html",
@@ -2575,23 +2696,30 @@ def register_profile(request: HttpRequest) -> HttpResponse:
             },
         )
 
-    created_bundle: Optional[Tuple[User, Client, CustomerProfile]] = None
+    created_bundle: Optional[Tuple[User, Lead]] = None
 
-    # ---------- ATOMIC CREATION ----------
+    # =================================================
+    # ATOMIC CREATION
+    # =================================================
     with transaction.atomic():
-        # ---- 1) USER ----
+
+        # -------------------------------------------------
+        # 1) USER
+        # -------------------------------------------------
         user = user_form.save(commit=False)
+
         user.username = candidate_email.lower()
         user.email = candidate_email
 
         try:
             user.save()
+
         except IntegrityError:
-            # 🔥 DB-level protection (prevents crash)
             user_form.add_error(
                 "email",
-                "A user with this email address already exists."
+                "A user with this email address already exists.",
             )
+
             return render(
                 request,
                 "home/register_profile.html",
@@ -2601,70 +2729,138 @@ def register_profile(request: HttpRequest) -> HttpResponse:
                 },
             )
 
-        # ---- 2) CLIENT (MINIMAL) ----
-        client = client_form.save(commit=False)
-        client.status = "PENDING"
-        client.account_manager = None
-        client.save()
+        # -------------------------------------------------
+        # 2) LEAD
+        # -------------------------------------------------
 
-        # ---- 3) CUSTOMER PROFILE (BUSINESS) ----
-        profile = CustomerProfile(
-            user=user,
-            client=client,
-            profile_type="BUSINESS",
-            status="active",
+        business_name = (
+            client_form.cleaned_data.get("organization")
+            or client_form.cleaned_data.get("name")
+            or ""
+        ).strip()
+
+        contact_person = (
+            user.get_full_name()
+            or user.first_name
+            or candidate_email
+        ).strip()
+
+        lead = Lead(
+            # Pipeline
+            status="NEW",
+            priority="MEDIUM",
+            source="WEBSITE",
+
+            # Ownership
+            created_by=user,
+            assigned_to=None,
+
+            # Business
+            business_name=business_name,
+            entity_type=(
+                client_form.cleaned_data.get("entity_type")
+                or "COMPANY"
+            ),
+            potential_client_type=(
+                client_form.cleaned_data.get("client_type")
+                or ""
+            ),
+
+            # Contact
+            contact_person=contact_person,
+            phone=phone,
+            whatsapp=whatsapp,
+            email=candidate_email,
+
+            # Address
+            address_line1=address_line1,
+            address_line2=address_line2,
+            suburb=suburb,
+            city=city,
+            province=province,
+            postal_code=postal_code,
+            country=country,
         )
-        profile.save()
 
-        created_bundle = (user, client, profile)
+        lead.save()
 
-    # ---------- POST-SUCCESS ----------
-    user, client, profile = created_bundle  # type: ignore[misc]
+        created_bundle = (user, lead)
 
-    # Auto-login user
+    # =================================================
+    # POST-SUCCESS
+    # =================================================
+    user, lead = created_bundle  # type: ignore[misc]
+
+    # Auto-login
     login(request, user)
 
-    # Welcome email (best-effort)
+    # Welcome email
     try:
         if user.email:
-            send_success_registration_email(user, client, profile)
+            send_success_registration_email(
+                user,
+                lead,
+            )
     except Exception:
+        # Registration itself must not fail
+        # because of email delivery.
         pass
 
-    # Redirect to success page
+    # Registration success page
     return redirect("register-success")
 
 
-def send_success_registration_email(user, client, profile):
+
+
+def send_success_registration_email(user, lead):
     """
     Sends a branded HTML + text email to the newly registered user.
-    All wording is in templates:
-      - email/successful_registration.txt
-      - email/successful_registration.html
+
+    Registration is now represented by a Lead, so no Client or
+    CustomerProfile is created at this stage.
     """
-    # Context only (no wording here)
     ctx = {
         "user": user,
-        "client": client,
-        "profile": profile,
-        "login_url": reverse("client-login"),  # relative URL; switch to absolute if you prefer
+        "lead": lead,
+
+        # Kept in the context for compatibility with the existing
+        # registration email templates. These are intentionally None
+        # because a Client / CustomerProfile does not exist yet.
+        "client": None,
+        "profile": None,
+
+        "login_url": reverse("client-login"),
     }
 
-    subject = "The Daily Market – Thanks, your account is under review"
-    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "accounts@thedailymarket.co.za")
+    subject = "The Daily Market – Thanks, your registration is under review"
+    from_email = getattr(
+        settings,
+        "DEFAULT_FROM_EMAIL",
+        "accounts@thedailymarket.co.za",
+    )
     to = [user.email or user.username]
 
-    # Render templates
-    text_body = render_to_string("email/successful_registration.txt", ctx)
-    html_body = render_to_string("email/successful_registration.html", ctx)
+    text_body = render_to_string(
+        "email/successful_registration.txt",
+        ctx,
+    )
+    html_body = render_to_string(
+        "email/successful_registration.html",
+        ctx,
+    )
 
-    # Send
     msg = EmailMultiAlternatives(
         subject=subject,
         body=text_body,
         from_email=from_email,
         to=to,
-        headers={"Reply-To": getattr(settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za")},
+        headers={
+            "Reply-To": getattr(
+                settings,
+                "SUPPORT_EMAIL",
+                "support@thedailymarket.co.za",
+            )
+        },
     )
     msg.attach_alternative(html_body, "text/html")
     msg.send(fail_silently=False)
@@ -2672,16 +2868,33 @@ def send_success_registration_email(user, client, profile):
 
 @login_required
 def register_success(request):
-    profile = request.user.customer_profile
-    client_name = profile.client.name if profile.client else ""
+    """
+    Registration success page.
+
+    A newly registered user has a Lead, not a Client or CustomerProfile.
+    Resolve the Lead using the registration email.
+    """
+
+    lead = (
+        Lead.objects
+        .filter(email__iexact=request.user.email)
+        .order_by("-created_at")
+        .first()
+    )
+
+    business_name = lead.business_name if lead else ""
 
     return render(
         request,
         "home/register_success.html",
         {
-            "client_name": client_name,
+            # Keep the existing context variable name so the current
+            # template does not have to change immediately.
+            "client_name": business_name,
+            "lead": lead,
         }
     )
+
 
 
 def _redirect_after_register(request: HttpRequest) -> str:

@@ -1,17 +1,17 @@
 Hi {{ user.first_name|default:user.username }},
 
-Welcome to The Daily Market.
+Thank you for showing interest in The Daily Market as a food supply partner for your business.
 
-Your account{% if client.name %} for {{ client.name }}{% endif %} has been successfully created.
+We work with businesses that need a reliable supply of food products for their kitchens and day-to-day operations. We would like to understand your business, what you purchase, and how we can best support your needs.
 
-To start placing orders, please complete your business profile. This helps us tailor pricing, delivery, and services to your needs.
+A representative from The Daily Market will contact you within working hours to learn more about your requirements and discuss the next steps.
 
-Complete your profile:
-{{ complete_profile_url|default:"[https://thedailymarket.co.za](https://thedailymarket.co.za)" }}
+We look forward to speaking with you and learning more about your business.
 
-If you need assistance, simply reply to this email or contact us at:
-{{ support_email|default:"[support@thedailymarket.co.za](mailto:support@thedailymarket.co.za)" }}
+If you need assistance in the meantime, simply reply to this email or contact us at:
+
+{{ support_email|default:"support@thedailymarket.co.za" }}
 
 — The Daily Market Team
 
-If you didn’t sign up for this account, please ignore this email.
+This email confirms that we have received your registration and interest in The Daily Market.
