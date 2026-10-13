@@ -174,6 +174,16 @@
           Procurement cycles, requirements and supplier orders
         </div>
       </div>
+
+      <div class="d-flex align-items-center">
+        <a
+          href="{% url 'supply_chain:supply-chain-procurement-create' %}"
+          class="btn btn-success"
+        >
+          <i class="bi bi-plus-circle me-1"></i>
+          Create Procurement
+        </a>
+      </div>
     </div>
 
     <!-- FILTERS -->
@@ -282,14 +292,33 @@
                 <tr>
 
                   <td class="px-3">
-                    <div class="fw-bold text-success">
-                      {{ procurement.procurement_number }}
-                    </div>
-                    {% if procurement.notes %}
-                      <div class="small text-muted text-truncate" style="max-width: 260px;">
-                        {{ procurement.notes }}
+                    <div class="d-flex align-items-center justify-content-between gap-2">
+                      <div>
+                        <a
+                          href="{% url 'supply_chain:supply-chain-procurement-detail' pk=procurement.pk %}"
+                          class="text-decoration-none"
+                        >
+                          <div class="fw-bold text-success">
+                            {{ procurement.procurement_number }}
+                          </div>
+                        </a>
+
+                        {% if procurement.notes %}
+                          <div class="small text-muted text-truncate" style="max-width: 260px;">
+                            {{ procurement.notes }}
+                          </div>
+                        {% endif %}
                       </div>
-                    {% endif %}
+
+                      <a
+                        href="{% url 'supply_chain:supply-chain-procurement-detail' pk=procurement.pk %}"
+                        class="btn btn-sm btn-outline-success text-nowrap"
+                        title="View procurement"
+                      >
+                        <i class="bi bi-eye me-1"></i>
+                        View
+                      </a>
+                    </div>
                   </td>
 
                   <td>

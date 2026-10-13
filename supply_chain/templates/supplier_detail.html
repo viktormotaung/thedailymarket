@@ -1,0 +1,1343 @@
+{% load static humanize %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>{{ supplier.name }} - Supplier - The Daily Market</title>
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+    rel="stylesheet"
+  >
+
+  <style>
+
+    /* ---------------------------------------------------------
+       DESKTOP SIDEBAR
+    --------------------------------------------------------- */
+
+    @media (min-width: 992px) {
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      .sidebar-desktop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 220px;
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: visible !important;
+      }
+
+      .sidebar-desktop .dropdown {
+        position: relative;
+      }
+
+      .sidebar-desktop .dropdown-menu {
+        margin-top: 8px;
+      }
+
+      main.content {
+        margin-left: 220px;
+        min-height: 100vh;
+      }
+
+    }
+
+
+    /* ---------------------------------------------------------
+       SHARED SIDEBAR
+    --------------------------------------------------------- */
+
+    .sidebar-skin {
+      background-color: #0b5c39;
+      color: #fff;
+      padding: 1rem;
+    }
+
+    .sidebar-skin .nav-link {
+      color: #fff;
+      margin: .25rem 0;
+      display: block;
+    }
+
+    .sidebar-skin .nav-link.active,
+    .sidebar-skin .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding-left: 8px;
+    }
+
+    .logo-img {
+      max-height: 80px;
+      width: auto;
+    }
+
+
+    /* ---------------------------------------------------------
+       CONTENT
+    --------------------------------------------------------- */
+
+    .content {
+      background: #f8f9fa;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+
+    /* ---------------------------------------------------------
+       DETAIL CARDS
+    --------------------------------------------------------- */
+
+    .detail-card {
+      border: 0;
+      box-shadow: 0 .125rem .25rem rgba(0,0,0,.075);
+    }
+
+    .detail-label {
+      font-size: .75rem;
+      font-weight: 600;
+      color: #6c757d;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      margin-bottom: .2rem;
+    }
+
+    .detail-value {
+      font-size: .95rem;
+    }
+
+    .supplier-logo {
+      width: 90px;
+      height: 90px;
+      object-fit: contain;
+      border: 1px solid #dee2e6;
+      border-radius: .5rem;
+      background: #fff;
+      padding: .5rem;
+    }
+
+    .category-badge {
+      margin-right: .35rem;
+      margin-bottom: .35rem;
+    }
+
+  </style>
+</head>
+
+<body>
+
+
+  <!-- =========================================================
+       MOBILE HEADER
+  ========================================================== -->
+
+  <nav
+    class="navbar navbar-dark d-lg-none"
+    style="background:#0b5c39;"
+  >
+
+    <div class="container-fluid">
+
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-bs-toggle="offcanvas"
+        data-bs-target="#mobileMenu"
+        aria-controls="mobileMenu"
+      >
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <a
+        class="navbar-brand ms-2"
+        href="{% url 'supply_chain:supply-chain-dashboard' %}"
+      >
+        <img
+          src="{% static 'images/logo.png' %}"
+          alt="Seshibo Daily Market"
+          style="height:40px;"
+        >
+      </a>
+
+    </div>
+
+  </nav>
+
+
+  <!-- =========================================================
+       MOBILE SIDEBAR
+  ========================================================== -->
+
+  <div
+    class="offcanvas offcanvas-start d-lg-none sidebar-skin"
+    tabindex="-1"
+    id="mobileMenu"
+  >
+
+    <div class="offcanvas-header">
+
+      <button
+        type="button"
+        class="btn-close btn-close-white"
+        data-bs-dismiss="offcanvas"
+      ></button>
+
+    </div>
+
+    <div class="offcanvas-body">
+
+      <div class="text-center mb-3">
+
+        <img
+          src="{% static 'images/logo.png' %}"
+          class="logo-img"
+          alt="The Daily Market"
+        >
+
+      </div>
+
+      <h6 class="text-uppercase fw-semibold mb-2 text-center small">
+        Supply Chain Platform
+      </h6>
+
+      <hr class="border-light">
+
+      {% with current=request.resolver_match.url_name %}
+
+        <a
+          href="{% url 'supply_chain:supply-chain-dashboard' %}"
+          class="nav-link {% if current == 'supply-chain-dashboard' %}active{% endif %}"
+        >
+          Dashboard
+        </a>
+
+        <a
+          href="{% url 'supply_chain:supply-chain-suppliers' %}"
+          class="nav-link {% if current == 'supply-chain-suppliers' or current == 'supply-chain-supplier-detail' %}active{% endif %}"
+        >
+          Suppliers
+        </a>
+
+        <a
+          href="{% url 'supply_chain:supply-chain-products' %}"
+          class="nav-link {% if current == 'supply-chain-products' %}active{% endif %}"
+        >
+          Products
+        </a>
+
+        <a
+          href="{% url 'supply_chain:supply-chain-procurement' %}"
+          class="nav-link {% if current == 'supply-chain-procurement' %}active{% endif %}"
+        >
+          Procurement
+        </a>
+
+        <a
+          href="{% url 'supply_chain:supply-chain-purchase-orders' %}"
+          class="nav-link {% if current == 'supply-chain-purchase-orders' %}active{% endif %}"
+        >
+          Purchase Orders
+        </a>
+
+        <hr class="border-light">
+
+        <button
+          type="button"
+          class="btn btn-outline-light w-100 mb-2"
+          data-bs-toggle="modal"
+          data-bs-target="#switchPlatformModal"
+        >
+          Switch Platform
+        </button>
+
+        <form
+          action="{% url 'logout' %}"
+          method="post"
+        >
+          {% csrf_token %}
+
+          <button
+            type="submit"
+            class="btn btn-outline-light w-100"
+          >
+            Sign out
+          </button>
+
+        </form>
+
+      {% endwith %}
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================================================
+       DESKTOP SIDEBAR
+  ========================================================== -->
+
+  <aside
+    class="sidebar-desktop d-none d-lg-block sidebar-skin"
+    id="desktopAccordion"
+  >
+
+    <div class="text-center mb-3">
+
+      <img
+        src="{% static 'images/logo.png' %}"
+        alt="Seshibo Daily Market"
+        class="logo-img"
+      >
+
+    </div>
+
+    <h6 class="text-uppercase fw-semibold mb-2 text-center small">
+      Supply Chain Platform
+    </h6>
+
+    <hr class="border-light">
+
+    {% with current=request.resolver_match.url_name %}
+
+      <a
+        href="{% url 'supply_chain:supply-chain-dashboard' %}"
+        class="nav-link {% if current == 'supply-chain-dashboard' %}active{% endif %}"
+      >
+        Dashboard
+      </a>
+
+      <a
+        href="{% url 'supply_chain:supply-chain-suppliers' %}"
+        class="nav-link {% if current == 'supply-chain-suppliers' or current == 'supply-chain-supplier-detail' %}active{% endif %}"
+      >
+        Suppliers
+      </a>
+
+      <a
+        href="{% url 'supply_chain:supply-chain-products' %}"
+        class="nav-link {% if current == 'supply-chain-products' %}active{% endif %}"
+      >
+        Products
+      </a>
+
+      <a
+        href="{% url 'supply_chain:supply-chain-procurement' %}"
+        class="nav-link {% if current == 'supply-chain-procurement' %}active{% endif %}"
+      >
+        Procurement
+      </a>
+
+      <a
+        href="{% url 'supply_chain:supply-chain-purchase-orders' %}"
+        class="nav-link {% if current == 'supply-chain-purchase-orders' %}active{% endif %}"
+      >
+        Purchase Orders
+      </a>
+
+      <hr class="border-light">
+
+      <div class="mb-2">
+
+        <button
+          type="button"
+          class="btn btn-outline-light btn-sm w-100 text-center py-1"
+          data-bs-toggle="modal"
+          data-bs-target="#switchPlatformModal"
+        >
+          Switch Platform
+        </button>
+
+      </div>
+
+      <div class="mt-2 mb-2">
+
+        <form
+          action="{% url 'logout' %}"
+          method="post"
+        >
+          {% csrf_token %}
+
+          <button
+            type="submit"
+            class="btn btn-outline-light btn-sm w-100 py-1"
+          >
+            Sign out
+          </button>
+
+        </form>
+
+      </div>
+
+    {% endwith %}
+
+  </aside>
+
+
+  <!-- =========================================================
+       MAIN CONTENT
+  ========================================================== -->
+
+  <main class="content">
+
+
+    <!-- HEADER -->
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+
+      <div>
+
+        <div class="mb-2">
+
+          <a
+            href="{% url 'supply_chain:supply-chain-suppliers' %}"
+            class="text-decoration-none text-muted small"
+          >
+            <i class="bi bi-arrow-left me-1"></i>
+            Supplier Register
+          </a>
+
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+
+          <h4 class="mb-0">
+            {{ supplier.name }}
+          </h4>
+
+          {% if supplier.is_active %}
+
+            <span
+              class="badge bg-success-subtle text-success-emphasis border border-success-subtle"
+            >
+              <i class="bi bi-check-circle me-1"></i>
+              Active
+            </span>
+
+          {% else %}
+
+            <span
+              class="badge bg-secondary-subtle text-secondary-emphasis border"
+            >
+              <i class="bi bi-pause-circle me-1"></i>
+              Inactive
+            </span>
+
+          {% endif %}
+
+        </div>
+
+        {% if supplier.code %}
+
+          <div class="text-muted small mt-1">
+            Supplier Code:
+            <strong>{{ supplier.code }}</strong>
+          </div>
+
+        {% endif %}
+
+      </div>
+
+
+      <div>
+
+        <div class="d-flex gap-2">
+
+            <a
+                href="{% url 'supply_chain:supply-chain-suppliers' %}"
+                class="btn btn-outline-secondary btn-sm"
+            >
+                <i class="bi bi-arrow-left me-1"></i>
+                Back to Suppliers
+            </a>
+
+            <a
+                href="{% url 'supply_chain:supply-chain-supplier-edit' pk=supplier.pk %}"
+                class="btn btn-success btn-sm"
+            >
+                <i class="bi bi-pencil me-1"></i>
+                Edit Supplier
+            </a>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- =======================================================
+         SUPPLIER SUMMARY
+    ======================================================== -->
+
+    <div class="card detail-card mb-3">
+
+      <div class="card-body">
+
+        <div class="row g-4 align-items-center">
+
+          <!-- LOGO -->
+
+          <div class="col-md-auto text-center">
+
+            {% if supplier.logo %}
+
+              <img
+                src="{{ supplier.logo.url }}"
+                alt="{{ supplier.name }}"
+                class="supplier-logo"
+              >
+
+            {% else %}
+
+              <div
+                class="supplier-logo d-flex align-items-center justify-content-center"
+              >
+                <i class="bi bi-building text-muted fs-1"></i>
+              </div>
+
+            {% endif %}
+
+          </div>
+
+
+          <!-- BASIC DETAILS -->
+
+          <div class="col">
+
+            <div class="row g-3">
+
+              <div class="col-md-6">
+
+                <div class="detail-label">
+                  Supplier
+                </div>
+
+                <div class="detail-value fw-semibold">
+                  {{ supplier.name|default:"—" }}
+                </div>
+
+              </div>
+
+
+              <div class="col-md-6">
+
+                <div class="detail-label">
+                  Supplier Code
+                </div>
+
+                <div class="detail-value">
+                  {{ supplier.code|default:"—" }}
+                </div>
+
+              </div>
+
+
+              <div class="col-md-6">
+
+                <div class="detail-label">
+                  Account Manager
+                </div>
+
+                <div class="detail-value">
+
+                  {% if supplier.account_manager %}
+
+                    {{ supplier.account_manager.get_full_name|default:supplier.account_manager.username }}
+
+                  {% else %}
+
+                    —
+
+                  {% endif %}
+
+                </div>
+
+              </div>
+
+
+              <div class="col-md-6">
+
+                <div class="detail-label">
+                  Payment Terms
+                </div>
+
+                <div class="detail-value">
+                  {{ supplier.payment_terms|default:"—" }}
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <div class="row g-3">
+
+
+      <!-- =====================================================
+           CONTACT DETAILS
+      ====================================================== -->
+
+      <div class="col-lg-6">
+
+        <div class="card detail-card h-100">
+
+          <div class="card-header bg-white">
+
+            <h6 class="mb-0 fw-semibold">
+
+              <i class="bi bi-person-lines-fill text-success me-2"></i>
+
+              Contact Details
+
+            </h6>
+
+          </div>
+
+
+          <div class="card-body">
+
+            <div class="row g-3">
+
+              <div class="col-12">
+
+                <div class="detail-label">
+                  Contact Person
+                </div>
+
+                <div class="detail-value">
+                  {{ supplier.contact_person|default:"—" }}
+                </div>
+
+              </div>
+
+
+              <div class="col-md-6">
+
+                <div class="detail-label">
+                  Phone
+                </div>
+
+                <div class="detail-value">
+
+                  {% if supplier.phone %}
+
+                    <a
+                      href="tel:{{ supplier.phone }}"
+                      class="text-decoration-none"
+                    >
+                      {{ supplier.phone }}
+                    </a>
+
+                  {% else %}
+
+                    —
+
+                  {% endif %}
+
+                </div>
+
+              </div>
+
+
+              <div class="col-md-6">
+
+                <div class="detail-label">
+                  WhatsApp
+                </div>
+
+                <div class="detail-value">
+
+                  {% if supplier.whatsapp %}
+
+                    <a
+                      href="https://wa.me/{{ supplier.whatsapp }}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-decoration-none"
+                    >
+                      {{ supplier.whatsapp }}
+                    </a>
+
+                  {% else %}
+
+                    —
+
+                  {% endif %}
+
+                </div>
+
+              </div>
+
+
+              <div class="col-12">
+
+                <div class="detail-label">
+                  Email
+                </div>
+
+                <div class="detail-value">
+
+                  {% if supplier.email %}
+
+                    <a
+                      href="mailto:{{ supplier.email }}"
+                      class="text-decoration-none"
+                    >
+                      {{ supplier.email }}
+                    </a>
+
+                  {% else %}
+
+                    —
+
+                  {% endif %}
+
+                </div>
+
+              </div>
+
+
+              <div class="col-12">
+
+                <div class="detail-label">
+                  Website
+                </div>
+
+                <div class="detail-value">
+
+                  {% if supplier.website %}
+
+                    <a
+                      href="{{ supplier.website }}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-decoration-none"
+                    >
+                      {{ supplier.website }}
+                    </a>
+
+                  {% else %}
+
+                    —
+
+                  {% endif %}
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- =====================================================
+           BUSINESS DETAILS
+      ====================================================== -->
+
+      <div class="col-lg-6">
+
+        <div class="card detail-card h-100">
+
+          <div class="card-header bg-white">
+
+            <h6 class="mb-0 fw-semibold">
+
+              <i class="bi bi-building text-success me-2"></i>
+
+              Business Details
+
+            </h6>
+
+          </div>
+
+
+          <div class="card-body">
+
+            <div class="row g-3">
+
+              <div class="col-md-6">
+
+                <div class="detail-label">
+                  VAT Number
+                </div>
+
+                <div class="detail-value">
+                  {{ supplier.vat_number|default:"—" }}
+                </div>
+
+              </div>
+
+
+              <div class="col-md-6">
+
+                <div class="detail-label">
+                  Company Registration
+                </div>
+
+                <div class="detail-value">
+                  {{ supplier.company_reg_number|default:"—" }}
+                </div>
+
+              </div>
+
+
+              <div class="col-md-6">
+
+                <div class="detail-label">
+                  Supplier Status
+                </div>
+
+                <div class="detail-value">
+
+                  {% if supplier.is_active %}
+
+                    <span class="text-success fw-semibold">
+                      Active
+                    </span>
+
+                  {% else %}
+
+                    <span class="text-muted fw-semibold">
+                      Inactive
+                    </span>
+
+                  {% endif %}
+
+                </div>
+
+              </div>
+
+
+              <div class="col-md-6">
+
+                <div class="detail-label">
+                  Visibility
+                </div>
+
+                <div class="detail-value">
+
+                  {% if supplier.visible %}
+
+                    <span class="text-success fw-semibold">
+                      Visible
+                    </span>
+
+                  {% else %}
+
+                    <span class="text-muted fw-semibold">
+                      Hidden
+                    </span>
+
+                  {% endif %}
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- =====================================================
+           ADDRESS
+      ====================================================== -->
+
+      <div class="col-lg-6">
+
+        <div class="card detail-card h-100">
+
+          <div class="card-header bg-white">
+
+            <h6 class="mb-0 fw-semibold">
+
+              <i class="bi bi-geo-alt text-success me-2"></i>
+
+              Address
+
+            </h6>
+
+          </div>
+
+
+          <div class="card-body">
+
+            {% if supplier.address_line1 %}
+
+              <div class="detail-value">
+                {{ supplier.address_line1 }}
+              </div>
+
+            {% endif %}
+
+
+            {% if supplier.address_line2 %}
+
+              <div class="detail-value">
+                {{ supplier.address_line2 }}
+              </div>
+
+            {% endif %}
+
+
+            {% if supplier.city %}
+
+              <div class="detail-value">
+                {{ supplier.city }}
+              </div>
+
+            {% endif %}
+
+
+            {% if supplier.province %}
+
+              <div class="detail-value">
+                {{ supplier.province }}
+              </div>
+
+            {% endif %}
+
+
+            {% if supplier.postal_code %}
+
+              <div class="detail-value">
+                {{ supplier.postal_code }}
+              </div>
+
+            {% endif %}
+
+
+            {% if supplier.country %}
+
+              <div class="detail-value">
+                {{ supplier.country }}
+              </div>
+
+            {% endif %}
+
+
+            {% if not supplier.address_line1 and not supplier.address_line2 and not supplier.city and not supplier.province and not supplier.postal_code %}
+
+              <span class="text-muted">
+                No address captured.
+              </span>
+
+            {% endif %}
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- =====================================================
+           CATEGORIES
+      ====================================================== -->
+
+      <div class="col-lg-6">
+
+        <div class="card detail-card h-100">
+
+          <div class="card-header bg-white">
+
+            <h6 class="mb-0 fw-semibold">
+
+              <i class="bi bi-tags text-success me-2"></i>
+
+              Product Categories
+
+            </h6>
+
+          </div>
+
+
+          <div class="card-body">
+
+            {% for category in supplier.categories.all %}
+
+              <span
+                class="badge rounded-pill bg-light text-dark border category-badge"
+              >
+                {{ category.name }}
+              </span>
+
+            {% empty %}
+
+              <span class="text-muted">
+                No categories assigned.
+              </span>
+
+            {% endfor %}
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- =====================================================
+           DOCUMENTS
+      ====================================================== -->
+
+      <div class="col-lg-6">
+
+        <div class="card detail-card h-100">
+
+          <div class="card-header bg-white">
+
+            <h6 class="mb-0 fw-semibold">
+
+              <i class="bi bi-file-earmark-text text-success me-2"></i>
+
+              Documents
+
+            </h6>
+
+          </div>
+
+
+          <div class="card-body">
+
+            {% if supplier.contract_file %}
+
+              <a
+                href="{{ supplier.contract_file.url }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn-outline-success btn-sm"
+              >
+                <i class="bi bi-file-earmark-pdf me-1"></i>
+                View Contract
+              </a>
+
+            {% else %}
+
+              <span class="text-muted">
+                No contract uploaded.
+              </span>
+
+            {% endif %}
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- =====================================================
+           NOTES
+      ====================================================== -->
+
+      <div class="col-lg-6">
+
+        <div class="card detail-card h-100">
+
+          <div class="card-header bg-white">
+
+            <h6 class="mb-0 fw-semibold">
+
+              <i class="bi bi-sticky text-success me-2"></i>
+
+              Notes
+
+            </h6>
+
+          </div>
+
+
+          <div class="card-body">
+
+            {% if supplier.notes %}
+
+              <div class="text-muted" style="white-space: pre-line;">
+                {{ supplier.notes }}
+              </div>
+
+            {% else %}
+
+              <span class="text-muted">
+                No notes captured.
+              </span>
+
+            {% endif %}
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- =====================================================
+           SYSTEM INFORMATION
+      ====================================================== -->
+
+      <div class="col-12">
+
+        <div class="card detail-card">
+
+          <div class="card-header bg-white">
+
+            <h6 class="mb-0 fw-semibold">
+
+              <i class="bi bi-clock-history text-success me-2"></i>
+
+              Record Information
+
+            </h6>
+
+          </div>
+
+
+          <div class="card-body">
+
+            <div class="row g-3">
+
+              <div class="col-md-6">
+
+                <div class="detail-label">
+                  Created
+                </div>
+
+                <div class="detail-value">
+                  {{ supplier.created_at|date:"d M Y H:i" }}
+                </div>
+
+              </div>
+
+
+              <div class="col-md-6">
+
+                <div class="detail-label">
+                  Last Updated
+                </div>
+
+                <div class="detail-value">
+                  {{ supplier.updated_at|date:"d M Y H:i" }}
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- BACK BUTTON -->
+
+    <div class="mt-3">
+
+      <a
+        href="{% url 'supply_chain:supply-chain-suppliers' %}"
+        class="btn btn-outline-secondary"
+      >
+        <i class="bi bi-arrow-left me-1"></i>
+        Back to Supplier Register
+      </a>
+
+    </div>
+
+
+  </main>
+
+
+  <!-- =========================================================
+       SWITCH PLATFORM MODAL
+  ========================================================== -->
+
+  <div
+    class="modal fade"
+    id="switchPlatformModal"
+    tabindex="-1"
+    aria-labelledby="switchPlatformModalLabel"
+    aria-hidden="true"
+  >
+
+    <div class="modal-dialog modal-dialog-centered">
+
+      <div class="modal-content">
+
+        <div class="modal-header justify-content-center position-relative">
+
+          <h5
+            class="modal-title w-100 text-center"
+            id="switchPlatformModalLabel"
+          >
+            Switch Platform
+          </h5>
+
+          <button
+            type="button"
+            class="btn-close position-absolute"
+            style="right:1rem; top:1rem;"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+
+        </div>
+
+
+        <div class="modal-body text-center">
+
+          <p class="mb-3 text-muted">
+            Choose a platform to continue:
+          </p>
+
+
+          <div class="d-grid gap-2">
+
+
+            <!-- MAIN STAFF PORTAL -->
+
+            <a
+              href="{% url 'staff-dashboard' %}"
+              class="btn {% if current == 'staff_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_staff_portal %} disabled{% endif %}"
+              {% if not can_staff_portal %}
+                tabindex="-1"
+                aria-disabled="true"
+              {% endif %}
+            >
+              Main Staff Portal
+            </a>
+
+
+            <!-- FUNDER PORTAL -->
+
+            <a
+              href="{% url 'funder-dashboard' %}"
+              class="btn {% if current == 'funder_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_lender_portal %} disabled{% endif %}"
+              {% if not can_lender_portal %}
+                tabindex="-1"
+                aria-disabled="true"
+              {% endif %}
+            >
+              Funder Portal
+            </a>
+
+
+            <!-- SALES PORTAL -->
+
+            <a
+              href="{% url 'sales:sales-dashboard' %}"
+              class="btn {% if current == 'sales_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_sales_portal %} disabled{% endif %}"
+              {% if not can_sales_portal %}
+                tabindex="-1"
+                aria-disabled="true"
+              {% endif %}
+            >
+              Sales Portal
+            </a>
+
+
+            <!-- LOGISTICS PORTAL -->
+
+            <a
+              href="{% url 'logistics:logistics-dashboard' %}"
+              class="btn {% if current == 'logistics_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_logistics_portal %} disabled{% endif %}"
+              {% if not can_logistics_portal %}
+                tabindex="-1"
+                aria-disabled="true"
+              {% endif %}
+            >
+              Logistics Portal
+            </a>
+
+
+            <!-- SUPPLY CHAIN PORTAL -->
+
+            <a
+              href="{% url 'supply_chain:supply-chain-dashboard' %}"
+              class="btn {% if current == 'supply_chain_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_supply_chain_portal %} disabled{% endif %}"
+              {% if not can_supply_chain_portal %}
+                tabindex="-1"
+                aria-disabled="true"
+              {% endif %}
+            >
+              Supply Chain Portal
+            </a>
+
+
+            <!-- WAREHOUSE PORTAL -->
+
+            <a
+              href="{% url 'warehouse:warehouse-dashboard' %}"
+              class="btn {% if current == 'warehouse_dashboard' %}btn-outline-success{% else %}btn-outline-primary{% endif %}{% if not can_warehouse_portal %} disabled{% endif %}"
+              {% if not can_warehouse_portal %}
+                tabindex="-1"
+                aria-disabled="true"
+              {% endif %}
+            >
+              Warehouse Portal
+            </a>
+
+
+          </div>
+
+        </div>
+
+
+        <div class="modal-footer justify-content-center border-0">
+
+          <small class="text-muted">
+            Platforms you don’t have access to are disabled.
+          </small>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+  ></script>
+
+</body>
+</html>

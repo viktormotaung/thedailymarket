@@ -1436,25 +1436,18 @@
                                     </td>
 
 
+                                    
                                     <!-- PRICE -->
-
                                     <td class="text-end">
-
                                         {% if product.wholesale_price %}
-
                                             <span class="product-price">
-                                                R {{ product.wholesale_price|floatformat:2 }}
+                                                R {{ product.wholesale_price_inc|floatformat:2 }}
                                             </span>
-
                                         {% else %}
-
-                                            <span class="text-muted">
-                                                —
-                                            </span>
-
+                                            <span class="text-muted">—</span>
                                         {% endif %}
-
                                     </td>
+
 
 
                                     <!-- ACTION -->

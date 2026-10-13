@@ -251,12 +251,48 @@ class StockReceiptItem(models.Model):
         validators=[MinValueValidator(Decimal("0.00"))],
     )
 
+    # --------------------------------------------------
+    # EXPECTED PRICING SNAPSHOT
+    # --------------------------------------------------
+    # Captures what the Purchase Order expected to be paid
+    # at the time this receipt was created.
+    expected_unit_cost_excl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Expected supplier unit price excluding VAT, captured from the Purchase Order.",
+    )
+    expected_vat_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Expected VAT percentage captured from the Purchase Order.",
+    )
+    expected_unit_cost_incl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Expected supplier unit price including VAT, captured from the Purchase Order.",
+    )
+
+    # --------------------------------------------------
+    # RECEIVED / ACTUAL PRICING
+    # --------------------------------------------------
+    # Captures what the supplier actually charged on the
+    # invoice / delivery.
     unit_cost_excl = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Actual supplier unit price excluding VAT as received/invoiced.",
     )
     vat_percent = models.DecimalField(
         max_digits=5,
@@ -264,6 +300,7 @@ class StockReceiptItem(models.Model):
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Actual VAT percentage on the supplier invoice.",
     )
     unit_cost_incl = models.DecimalField(
         max_digits=12,
@@ -271,6 +308,7 @@ class StockReceiptItem(models.Model):
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Actual supplier unit price including VAT as received/invoiced.",
     )
 
     batch_reference = models.CharField(max_length=100, blank=True)
@@ -291,6 +329,34 @@ class StockReceiptItem(models.Model):
     @property
     def quantity_variance(self):
         return self.received_qty - self.expected_qty
+
+    @property
+    def expected_total_incl(self):
+        if self.expected_qty is None or self.expected_unit_cost_incl is None:
+            return None
+        return self.expected_qty * self.expected_unit_cost_incl
+
+    @property
+    def received_total_incl(self):
+        if self.received_qty is None or self.unit_cost_incl is None:
+            return None
+        return self.received_qty * self.unit_cost_incl
+
+    @property
+    def price_variance_incl(self):
+        if self.unit_cost_incl is None or self.expected_unit_cost_incl is None:
+            return None
+        return self.unit_cost_incl - self.expected_unit_cost_incl
+
+    @property
+    def total_price_variance_incl(self):
+        expected_total = self.expected_total_incl
+        received_total = self.received_total_incl
+
+        if expected_total is None or received_total is None:
+            return None
+
+        return received_total - expected_total
 
 
 class StockReservation(models.Model):

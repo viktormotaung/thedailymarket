@@ -642,6 +642,42 @@ def receiving(request):
     )
 
 
+@login_required
+@warehouse_staff_required
+def receiving_detail(request, pk):
+    """View and control a single warehouse stock receipt / GRN."""
+
+    receipt = get_object_or_404(
+        StockReceipt.objects
+        .select_related(
+            "supplier", "created_by", "received_by",
+            "checked_by", "completed_by",
+        )
+        .prefetch_related("items__product"),
+        pk=pk,
+    )
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+
+        if action == "start_receiving" and receipt.status == "draft":
+            receipt.status = "receiving"
+            receipt.save(update_fields=["status", "updated_at"])
+
+            return redirect(
+                "warehouse:warehouse-receiving-detail",
+                pk=receipt.pk,
+            )
+
+    context = {
+        "current": "warehouse-receiving",
+        "receipt": receipt,
+        "receipt_items": receipt.items.all().order_by("product__name", "id"),
+    }
+
+    return render(request, "receiving_detail.html", context)
+
+
 # ---------------------------------------------------------
 # Fulfilment
 # ---------------------------------------------------------

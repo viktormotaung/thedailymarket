@@ -92,6 +92,55 @@ urlpatterns = [
         views.purchase_orders_list,
         name="supply-chain-purchase-orders",
     ),
+
+    path(
+        "procurement/<int:pk>/",
+        views.procurement_detail,
+        name="supply-chain-procurement-detail",
+    ),
+
+    path(
+        "procurement/<int:pk>/edit/",
+        views.procurement_edit,
+        name="supply-chain-procurement-edit",
+    ),
+
+    path(
+        "procurement/create/",
+        views.procurement_create,
+        name="supply-chain-procurement-create",
+    ),
+
+    path(
+        "purchase-orders/<int:pk>/",
+        views.purchase_order_detail,
+        name="supply-chain-purchase-order-detail",
+    ),
+
+    path(
+        "purchase-orders/<int:pk>/pdf/",
+        views.purchase_order_pdf,
+        name="supply-chain-purchase-order-pdf",
+    ),
+
+    path(
+        "procurement/<int:pk>/pdf/",
+        views.procurement_pdf,
+        name="supply-chain-procurement-pdf",
+    ),
+
+    path(
+        "suppliers/<int:pk>/",
+        views.supplier_detail,
+        name="supply-chain-supplier-detail",
+    ),
+
+    path(
+        "suppliers/<int:pk>/edit/",
+        views.supplier_edit,
+        name="supply-chain-supplier-edit",
+    ),
+
 ]
 
 

@@ -1,4 +1,4 @@
-{% load static humanize knowledge_tags %}
+{% load static humanize %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -88,7 +88,7 @@
 
     .knowledge-points {
       margin: 0;
-      padding-left: 1.25rem;
+      padding-left: 0;
     }
 
     .knowledge-points li {
@@ -384,11 +384,9 @@
           <div class="card-header bg-white"><h5 class="fw-bold mb-0">1. Product Description / Definition</h5></div>
           <div class="card-body">
             {% if knowledge.product_description %}
-              <ul class="knowledge-points">
-                {% for point in knowledge.product_description|split_lines %}
-                  <li>{{ point }}</li>
-                {% endfor %}
-              </ul>
+              <div class="knowledge-points">
+                {{ knowledge.product_description|linebreaksbr }}
+              </div>
             {% else %}
               <div class="text-muted">N/A</div>
             {% endif %}
@@ -411,11 +409,9 @@
           <div class="card-header bg-white"><h5 class="fw-bold mb-0">3. Where / What It Is Used For</h5></div>
           <div class="card-body">
             {% if knowledge.usage_application %}
-              <ul class="knowledge-points">
-                {% for point in knowledge.usage_application|split_lines %}
-                  <li>{{ point }}</li>
-                {% endfor %}
-              </ul>
+              <div class="knowledge-points">
+                {{ knowledge.usage_application|linebreaksbr }}
+              </div>
             {% else %}
               <div class="text-muted">N/A</div>
             {% endif %}
@@ -438,11 +434,9 @@
           <div class="card-header bg-white"><h5 class="fw-bold mb-0">5. Yield / Portion Information</h5></div>
           <div class="card-body">
             {% if knowledge.yield_portion_information %}
-              <ul class="knowledge-points">
-                {% for point in knowledge.yield_portion_information|split_lines %}
-                  <li>{{ point }}</li>
-                {% endfor %}
-              </ul>
+              <div class="knowledge-points">
+                {{ knowledge.yield_portion_information|linebreaksbr }}
+              </div>
             {% else %}
               <div class="text-muted">N/A</div>
             {% endif %}
@@ -500,11 +494,9 @@
           <div class="card-header bg-white"><h5 class="fw-bold mb-0">9. Why Choose The Daily Market</h5></div>
           <div class="card-body">
             {% if knowledge.why_choose_tdm %}
-              <ul class="knowledge-points">
-                {% for point in knowledge.why_choose_tdm|split_lines %}
-                  <li>{{ point }}</li>
-                {% endfor %}
-              </ul>
+              <div class="knowledge-points">
+                {{ knowledge.why_choose_tdm|linebreaksbr }}
+              </div>
             {% else %}
               <div class="text-muted">N/A</div>
             {% endif %}
@@ -545,11 +537,9 @@
           <div class="card-header bg-white"><h5 class="fw-bold mb-0">12. Key Takeaways</h5></div>
           <div class="card-body">
             {% if knowledge.key_takeaways %}
-              <ul class="knowledge-points">
-                {% for point in knowledge.key_takeaways|split_lines %}
-                  <li>{{ point }}</li>
-                {% endfor %}
-              </ul>
+              <div class="knowledge-points">
+                {{ knowledge.key_takeaways|linebreaksbr }}
+              </div>
             {% else %}
               <div class="text-muted">N/A</div>
             {% endif %}

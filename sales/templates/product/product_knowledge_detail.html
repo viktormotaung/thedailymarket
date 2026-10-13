@@ -1265,37 +1265,34 @@
                     </div>
 
 
+                    
                     <!-- PRICE -->
-
                     <div class="col-12 col-lg-4">
 
                         <div class="product-price-panel">
 
                             <div class="product-price-label">
-                                Current Wholesale Price
+                                Current Wholesale Price (Including VAT)
                             </div>
 
                             <div class="product-price-value">
-
                                 {% if product.wholesale_price %}
-                                    R {{ product.wholesale_price|floatformat:2 }}
+                                    R {{ product.wholesale_price_inc|floatformat:2 }}
                                 {% else %}
                                     —
                                 {% endif %}
-
                             </div>
 
                             <div class="product-price-caption">
-                                Current listed sales price
+                                Current listed sales price, including VAT
                             </div>
-
 
                             {% if product.special_wholesale_price_inc %}
 
                                 <div class="product-special-price">
 
                                     <div class="product-special-price-label">
-                                        Special Price
+                                        Special Price (Including VAT)
                                     </div>
 
                                     <div class="product-special-price-value">
@@ -1309,6 +1306,7 @@
                         </div>
 
                     </div>
+
 
                 </div>
 

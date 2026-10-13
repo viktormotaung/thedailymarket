@@ -956,7 +956,12 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
         "procurement",
         "supplier",
         "order_date",
+        "fulfilment_type",
         "expected_delivery_date",
+        "estimated_total_display",
+        "expected_vat_display",
+        "expected_total_incl_display",
+        "actual_total_display",
         "status",
         "created_by",
         "approved_by",
@@ -965,6 +970,7 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
 
     list_filter = (
         "status",
+        "fulfilment_type",
         "order_date",
         "expected_delivery_date",
         "supplier",
@@ -994,6 +1000,9 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     )
 
     readonly_fields = (
+        "estimated_total_display",
+        "expected_vat_display",
+        "expected_total_incl_display",
         "approved_at",
         "sent_at",
         "created_at",
@@ -1009,7 +1018,12 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
                     "procurement",
                     "supplier",
                     "order_date",
+                    "fulfilment_type",
                     "expected_delivery_date",
+                    "estimated_total_display",
+                    "expected_vat_display",
+                    "expected_total_incl_display",
+                    "actual_total",
                     "status",
                     "supplier_reference",
                 )
@@ -1048,3 +1062,55 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     inlines = [
         PurchaseOrderItemInline,
     ]
+
+    @admin.display(description="Estimated Total EXCL VAT")
+    def estimated_total_display(self, obj):
+        if not obj or not obj.pk:
+            return "R0.00"
+        return f"R{obj.estimated_total:,.2f}"
+
+    @admin.display(description="Expected VAT")
+    def expected_vat_display(self, obj):
+        if not obj or not obj.pk:
+            return "R0.00"
+        return f"R{obj.expected_vat:,.2f}"
+
+    @admin.display(description="Expected Total INCL VAT")
+    def expected_total_incl_display(self, obj):
+        if not obj or not obj.pk:
+            return "R0.00"
+        return f"R{obj.expected_total_incl:,.2f}"
+
+    @admin.display(description="Actual Total EXCL VAT")
+    def actual_total_display(self, obj):
+        if not obj or obj.actual_total is None:
+            return "—"
+        return f"R{obj.actual_total:,.2f}"
+
+    def save_formset(self, request, form, formset, change):
+        """
+        Save Purchase Order items first, then recalculate the Purchase
+        Order estimated total from the saved items.
+
+        Actual total is never changed automatically.
+        """
+        instances = formset.save(commit=False)
+
+        for instance in instances:
+            instance.save()
+
+        for instance in formset.deleted_objects:
+            instance.delete()
+
+        formset.save_m2m()
+
+        if formset.model is PurchaseOrderItem:
+            purchase_order = form.instance
+
+            # PurchaseOrder.save() recalculates:
+            #   - estimated_total
+            #   - expected_vat
+            #   - expected_total_incl
+            #
+            # It intentionally leaves actual_total unchanged.
+            purchase_order.save()

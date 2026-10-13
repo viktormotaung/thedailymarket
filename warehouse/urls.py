@@ -32,6 +32,12 @@ urlpatterns = [
     ),
 
     path(
+        "receiving/<int:pk>/",
+        views.receiving_detail,
+        name="warehouse-receiving-detail",
+    ),
+
+    path(
         "fulfilment/",
         views.fulfilment,
         name="warehouse-fulfilment",

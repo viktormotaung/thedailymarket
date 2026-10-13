@@ -284,9 +284,12 @@
                 <tr>
 
                   <td class="px-3">
-                    <div class="fw-bold text-success">
+                    <a
+                      href="{% url 'supply_chain:supply-chain-purchase-order-detail' pk=purchase_order.pk %}"
+                      class="fw-bold text-success text-decoration-none"
+                    >
                       {{ purchase_order.po_number }}
-                    </div>
+                    </a>
                   </td>
 
                   <td>

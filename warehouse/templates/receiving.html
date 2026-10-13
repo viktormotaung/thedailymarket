@@ -674,7 +674,13 @@
 
                                 {% for receipt in pending_receipts %}
 
-                                    <tr class="receipt-row">
+                                    <tr
+    class="receipt-row"
+    role="link"
+    tabindex="0"
+    onclick="window.location.href='{% url 'warehouse:warehouse-receiving-detail' pk=receipt.pk %}'"
+    onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.location.href='{% url 'warehouse:warehouse-receiving-detail' pk=receipt.pk %}'; }"
+>
 
                                         <td class="ps-3">
                                             <div class="receipt-number">
@@ -777,7 +783,7 @@
                                         <td class="text-end pe-3">
 
                                             <a
-                                                href="#"
+                                                href="{% url 'warehouse:warehouse-receiving-detail' pk=receipt.pk %}"
                                                 class="btn btn-sm btn-outline-success"
                                                 title="Open receipt"
                                             >
@@ -811,179 +817,6 @@
                         <p class="mb-0">
                             There are currently no draft or in-progress
                             stock receipts requiring attention.
-                        </p>
-
-                    </div>
-
-                {% endif %}
-
-            </div>
-
-        </div>
-
-
-        <!-- =================================================
-             RECENT RECEIVING
-        ================================================== -->
-
-        <div class="card mb-4">
-
-            <div class="card-header bg-white">
-
-                <div>
-
-                    <div class="fw-semibold">
-                        <i class="bi bi-clock-history me-2"></i>
-                        Recent Receiving Activity
-                    </div>
-
-                    <div class="small text-muted mt-1">
-                        Latest stock receipts recorded in the warehouse.
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <div class="card-body p-0">
-
-                {% if recent_receipts %}
-
-                    <div class="table-responsive">
-
-                        <table class="table table-hover mb-0">
-
-                            <thead>
-                                <tr>
-                                    <th class="ps-3">Receipt</th>
-                                    <th>Supplier</th>
-                                    <th>Status</th>
-                                    <th>Invoice</th>
-                                    <th>Received At</th>
-                                    <th>Received By</th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-
-                                {% for receipt in recent_receipts %}
-
-                                    <tr>
-
-                                        <td class="ps-3">
-
-                                            <div class="receipt-number">
-                                                {{ receipt.receipt_number }}
-                                            </div>
-
-                                            <div class="small text-muted">
-                                                #{{ receipt.pk }}
-                                            </div>
-
-                                        </td>
-
-
-                                        <td>
-                                            {% if receipt.supplier %}
-                                                {{ receipt.supplier }}
-                                            {% else %}
-                                                —
-                                            {% endif %}
-                                        </td>
-
-
-                                        <td>
-
-                                            {% if receipt.status == "received" %}
-
-                                                <span class="status-badge status-received">
-                                                    Received
-                                                </span>
-
-                                            {% elif receipt.status == "receiving" %}
-
-                                                <span class="status-badge status-receiving">
-                                                    Receiving
-                                                </span>
-
-                                            {% elif receipt.status == "cancelled" %}
-
-                                                <span class="status-badge status-cancelled">
-                                                    Cancelled
-                                                </span>
-
-                                            {% else %}
-
-                                                <span class="status-badge status-draft">
-                                                    {{ receipt.get_status_display }}
-                                                </span>
-
-                                            {% endif %}
-
-                                        </td>
-
-
-                                        <td>
-                                            {% if receipt.supplier_invoice_number %}
-                                                {{ receipt.supplier_invoice_number }}
-                                            {% else %}
-                                                —
-                                            {% endif %}
-                                        </td>
-
-
-                                        <td>
-                                            {% if receipt.received_at %}
-                                                <div>
-                                                    {{ receipt.received_at|date:"d M Y" }}
-                                                </div>
-
-                                                <div class="small text-muted">
-                                                    {{ receipt.received_at|date:"H:i" }}
-                                                </div>
-                                            {% else %}
-                                                <span class="text-muted">
-                                                    —
-                                                </span>
-                                            {% endif %}
-                                        </td>
-
-
-                                        <td>
-                                            {% if receipt.received_by %}
-                                                {{ receipt.received_by }}
-                                            {% else %}
-                                                <span class="text-muted">
-                                                    —
-                                                </span>
-                                            {% endif %}
-                                        </td>
-
-                                    </tr>
-
-                                {% endfor %}
-
-                            </tbody>
-
-                        </table>
-
-                    </div>
-
-                {% else %}
-
-                    <div class="empty-state">
-
-                        <div class="empty-state-icon">
-                            <i class="bi bi-inbox"></i>
-                        </div>
-
-                        <h5 class="mb-2">
-                            No receiving history
-                        </h5>
-
-                        <p class="mb-0">
-                            No stock receipts have been recorded yet.
                         </p>
 
                     </div>

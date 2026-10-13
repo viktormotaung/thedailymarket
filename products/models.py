@@ -11,7 +11,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models, transaction, IntegrityError
 from django.db.models import Q
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 from django.utils.text import slugify
 from suppliers.models import Supplier
@@ -25,6 +25,7 @@ SKU_NUM_WIDTH = 3  # -> 001, 002, ...
 
 D0 = Decimal("0.00")
 D1 = Decimal("1.00")
+EXPECTED_VAT_RATE = Decimal("0.15")  # South African standard VAT rate
 
 
 
@@ -2095,10 +2096,26 @@ class PurchaseOrder(models.Model):
 
     order_date = models.DateField(db_index=True)
 
+    FULFILMENT_TYPE_CHOICES = [
+        ("delivery", "Delivery"),
+        ("pickup", "Pickup"),
+    ]
+
+    fulfilment_type = models.CharField(
+        max_length=20,
+        choices=FULFILMENT_TYPE_CHOICES,
+        default="delivery",
+        db_index=True,
+        help_text="How the supplier will fulfil this Purchase Order.",
+    )
+
+    # Kept unchanged so all existing Purchase Order delivery-date data
+    # remains intact. This now represents the "On or before" date.
     expected_delivery_date = models.DateField(
         null=True,
         blank=True,
         db_index=True,
+        help_text="Supplier fulfilment required on or before this date.",
     )
 
     status = models.CharField(
@@ -2133,6 +2150,39 @@ class PurchaseOrder(models.Model):
     approved_at = models.DateTimeField(null=True, blank=True)
     sent_at = models.DateTimeField(null=True, blank=True)
 
+    estimated_total = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=D0,
+        validators=[MinValueValidator(D0)],
+        help_text="Calculated estimated Purchase Order total excluding VAT.",
+    )
+
+    expected_vat = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=D0,
+        validators=[MinValueValidator(D0)],
+        help_text="Calculated expected VAT amount on the estimated Purchase Order total.",
+    )
+
+    expected_total_incl = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=D0,
+        validators=[MinValueValidator(D0)],
+        help_text="Calculated expected Purchase Order total including VAT.",
+    )
+
+    actual_total = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(D0)],
+        help_text="Final actual Purchase Order total excluding VAT, entered manually.",
+    )
+
     notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2154,6 +2204,71 @@ class PurchaseOrder(models.Model):
                 name="po_order_date_status_idx",
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        """
+        Save the Purchase Order and calculate its estimated total from its items.
+
+        Estimated total is always system-calculated from PO items.
+        Expected VAT and expected total including VAT are also system-calculated
+        using the standard 15% VAT rate.
+
+        Actual total is intentionally NOT calculated here because it is the
+        final supplier amount that must be entered manually.
+        """
+        super().save(*args, **kwargs)
+
+        if self.pk:
+            from django.db.models import Sum, F, ExpressionWrapper, DecimalField
+
+            estimated_total = (
+                PurchaseOrderItem.objects
+                .filter(purchase_order_id=self.pk)
+                .aggregate(
+                    total=Sum(
+                        ExpressionWrapper(
+                            F("ordered_quantity") * F("expected_unit_cost_excl"),
+                            output_field=DecimalField(
+                                max_digits=20,
+                                decimal_places=4,
+                            ),
+                        )
+                    )
+                )["total"]
+                or D0
+            )
+
+            estimated_total = r2(estimated_total)
+
+            expected_vat = r2(
+                estimated_total * EXPECTED_VAT_RATE
+            )
+
+            expected_total_incl = r2(
+                estimated_total + expected_vat
+            )
+
+            update_fields = []
+
+            if self.estimated_total != estimated_total:
+                self.estimated_total = estimated_total
+                update_fields.append("estimated_total")
+
+            if self.expected_vat != expected_vat:
+                self.expected_vat = expected_vat
+                update_fields.append("expected_vat")
+
+            if self.expected_total_incl != expected_total_incl:
+                self.expected_total_incl = expected_total_incl
+                update_fields.append("expected_total_incl")
+
+            if update_fields:
+                type(self).objects.filter(pk=self.pk).update(
+                    **{
+                        field: getattr(self, field)
+                        for field in update_fields
+                    }
+                )
 
     def __str__(self):
         return f"{self.po_number} · {self.supplier}"
@@ -2220,6 +2335,17 @@ class PurchaseOrderItem(models.Model):
             ),
         ]
 
+    def save(self, *args, **kwargs):
+        """
+        Save the item and then recalculate the parent Purchase Order's
+        estimated total.
+        """
+        super().save(*args, **kwargs)
+
+        if self.purchase_order_id:
+            purchase_order = PurchaseOrder.objects.get(pk=self.purchase_order_id)
+            purchase_order.save(update_fields=[])
+
     def __str__(self):
         return (
             f"{self.purchase_order.po_number} · "
@@ -2231,4 +2357,555 @@ class PurchaseOrderItem(models.Model):
         if self.expected_unit_cost_excl is None:
             return Decimal("0.00")
         return self.ordered_quantity * self.expected_unit_cost_excl
+
+# =============================================================================
+# PROCUREMENT -> PURCHASE ORDER SYNCHRONISATION
+# =============================================================================
+# An approved Procurement is the source of truth for the products and
+# quantities that need to be purchased.
+#
+# When an approved Procurement is saved again:
+#
+#   - Existing Purchase Orders are updated.
+#   - Existing Purchase Order Items are updated.
+#   - New Procurement Items create new Purchase Order Items.
+#   - If a new supplier is required, a new Purchase Order is created.
+#   - If a product is now allocated to a different cheapest supplier, the
+#     item is moved to that supplier's Purchase Order.
+#   - Estimated totals are recalculated automatically.
+#   - Actual totals are NEVER changed automatically.
+#
+# Supplier allocation is based on the cheapest active ProductPricing row.
+# One Purchase Order is maintained per supplier for each Procurement.
+# =============================================================================
+
+
+def _procurement_po_number(
+    procurement: Procurement,
+    supplier: Supplier,
+) -> str:
+    """
+    Return a unique Purchase Order number for a Procurement/Supplier pair.
+
+    The normal number is:
+        PO-{procurement_number}-{supplier_id}
+
+    If that number already exists for another Purchase Order, a numeric
+    suffix is added.
+    """
+
+    base_number = (
+        f"PO-{procurement.procurement_number}-{supplier.pk}"
+    )
+
+    existing = (
+        PurchaseOrder.objects
+        .filter(po_number__startswith=base_number)
+        .exclude(procurement_id=procurement.pk)
+        .order_by("-id")
+    )
+
+    if not PurchaseOrder.objects.filter(po_number=base_number).exists():
+        return base_number
+
+    suffix = 2
+
+    for po in existing:
+        if po.po_number == f"{base_number}-{suffix}":
+            suffix += 1
+        else:
+            break
+
+    candidate = f"{base_number}-{suffix}"
+
+    while PurchaseOrder.objects.filter(po_number=candidate).exists():
+        suffix += 1
+        candidate = f"{base_number}-{suffix}"
+
+    return candidate
+
+
+def sync_procurement_purchase_orders(procurement_id: int) -> None:
+    """
+    Synchronise all Purchase Orders for an approved Procurement.
+
+    Procurement controls:
+        - product
+        - required quantity
+        - item notes
+        - supplier allocation
+        - expected supplier cost
+
+    Purchase Order controls:
+        - fulfilment type
+        - expected delivery date
+        - supplier reference
+        - approval/sent/received status
+        - actual total
+        - other operational PO information
+    """
+
+    procurement = (
+        Procurement.objects
+        .select_related("created_by")
+        .filter(pk=procurement_id)
+        .first()
+    )
+
+    if not procurement:
+        return
+
+    if procurement.status != "approved":
+        return
+
+    with transaction.atomic():
+
+        # -------------------------------------------------------------
+        # 1. Determine the cheapest active supplier for every requirement
+        # -------------------------------------------------------------
+
+        supplier_groups = {}
+
+        procurement_items = (
+            ProcurementItem.objects
+            .filter(procurement_id=procurement.pk)
+            .select_related("product")
+            .order_by("id")
+        )
+
+        for item in procurement_items:
+
+            pricing = (
+                ProductPricing.objects
+                .filter(
+                    product_id=item.product_id,
+                    is_active=True,
+                )
+                .select_related("supplier")
+                .order_by(
+                    "supplier_price_excl",
+                    "id",
+                )
+                .first()
+            )
+
+            if not pricing:
+                continue
+
+            supplier_groups.setdefault(
+                pricing.supplier_id,
+                {
+                    "supplier": pricing.supplier,
+                    "items": [],
+                },
+            )
+
+            supplier_groups[pricing.supplier_id]["items"].append(
+                (
+                    item,
+                    pricing,
+                )
+            )
+
+        # -------------------------------------------------------------
+        # 2. Load all existing POs for this Procurement
+        # -------------------------------------------------------------
+
+        existing_pos = list(
+            PurchaseOrder.objects
+            .select_for_update()
+            .filter(procurement_id=procurement.pk)
+            .order_by("id")
+        )
+
+        # One PO per supplier.
+        #
+        # If historical data somehow contains more than one PO for the
+        # same supplier, use the first one as the active synchronisation
+        # target and leave the others untouched.
+        po_by_supplier = {}
+
+        for purchase_order in existing_pos:
+            po_by_supplier.setdefault(
+                purchase_order.supplier_id,
+                purchase_order,
+            )
+
+        used_po_ids = set()
+
+        # -------------------------------------------------------------
+        # 3. Create or update supplier Purchase Orders
+        # -------------------------------------------------------------
+
+        for supplier_id, group in supplier_groups.items():
+
+            supplier = group["supplier"]
+
+            purchase_order = po_by_supplier.get(supplier_id)
+
+            if purchase_order is None:
+
+                purchase_order = PurchaseOrder.objects.create(
+                    po_number=_procurement_po_number(
+                        procurement,
+                        supplier,
+                    ),
+                    procurement=procurement,
+                    supplier=supplier,
+                    order_date=procurement.procurement_date,
+                    status="draft",
+                    created_by=procurement.created_by,
+                    notes=(
+                        f"Automatically created from approved procurement "
+                        f"{procurement.procurement_number}."
+                    ),
+                )
+
+            else:
+
+                # Procurement controls the PO date.
+                if purchase_order.order_date != procurement.procurement_date:
+                    purchase_order.order_date = procurement.procurement_date
+                    purchase_order.save(
+                        update_fields=[
+                            "order_date",
+                            "updated_at",
+                        ]
+                    )
+
+            used_po_ids.add(purchase_order.pk)
+
+            # ---------------------------------------------------------
+            # 4. Load existing items on this supplier PO
+            # ---------------------------------------------------------
+
+            existing_items = {
+                po_item.procurement_item_id: po_item
+                for po_item in (
+                    PurchaseOrderItem.objects
+                    .select_for_update()
+                    .filter(
+                        purchase_order_id=purchase_order.pk,
+                        procurement_item__isnull=False,
+                    )
+                )
+            }
+
+            required_item_ids = set()
+
+            # ---------------------------------------------------------
+            # 5. Create or update PO items
+            # ---------------------------------------------------------
+
+            for procurement_item, pricing in group["items"]:
+
+                required_item_ids.add(procurement_item.pk)
+
+                po_item = existing_items.get(procurement_item.pk)
+
+                if po_item is None:
+
+                    # The ProcurementItem may previously have belonged
+                    # to another supplier PO. Remove that old link first.
+                    PurchaseOrderItem.objects.filter(
+                        procurement_item_id=procurement_item.pk,
+                    ).exclude(
+                        purchase_order_id=purchase_order.pk,
+                    ).delete()
+
+                    PurchaseOrderItem.objects.create(
+                        purchase_order=purchase_order,
+                        procurement_item=procurement_item,
+                        product=procurement_item.product,
+                        ordered_quantity=procurement_item.required_quantity,
+                        expected_unit_cost_excl=(
+                            pricing.supplier_price_excl
+                        ),
+                        notes=procurement_item.notes,
+                    )
+
+                else:
+
+                    changed_fields = []
+
+                    if po_item.product_id != procurement_item.product_id:
+                        po_item.product = procurement_item.product
+                        changed_fields.append("product")
+
+                    if (
+                        po_item.ordered_quantity
+                        != procurement_item.required_quantity
+                    ):
+                        po_item.ordered_quantity = (
+                            procurement_item.required_quantity
+                        )
+                        changed_fields.append("ordered_quantity")
+
+                    if (
+                        po_item.expected_unit_cost_excl
+                        != pricing.supplier_price_excl
+                    ):
+                        po_item.expected_unit_cost_excl = (
+                            pricing.supplier_price_excl
+                        )
+                        changed_fields.append(
+                            "expected_unit_cost_excl"
+                        )
+
+                    if po_item.notes != procurement_item.notes:
+                        po_item.notes = procurement_item.notes
+                        changed_fields.append("notes")
+
+                    if changed_fields:
+                        changed_fields.append("updated_at")
+                        po_item.save(
+                            update_fields=changed_fields
+                        )
+
+            # ---------------------------------------------------------
+            # 6. Remove PO items that are no longer required for this PO
+            # ---------------------------------------------------------
+
+            (
+                PurchaseOrderItem.objects
+                .filter(
+                    purchase_order_id=purchase_order.pk,
+                    procurement_item__isnull=False,
+                )
+                .exclude(
+                    procurement_item_id__in=required_item_ids,
+                )
+                .delete()
+            )
+
+            # Recalculate estimated total.
+            # actual_total is deliberately not changed.
+            purchase_order.save(update_fields=[])
+
+        # -------------------------------------------------------------
+        # 7. Handle suppliers that are no longer required
+        # -------------------------------------------------------------
+
+        for purchase_order in existing_pos:
+
+            if purchase_order.pk in used_po_ids:
+                continue
+
+            # Remove only automatically-linked Procurement items.
+            PurchaseOrderItem.objects.filter(
+                purchase_order_id=purchase_order.pk,
+                procurement_item__isnull=False,
+            ).delete()
+
+            # If the PO has no remaining items, it is no longer required.
+            #
+            # Draft POs can safely be deleted.
+            #
+            # For a PO that has already progressed operationally, retain
+            # the header so its historical record remains available.
+            if not purchase_order.items.exists():
+                if purchase_order.status == "draft":
+                    purchase_order.delete()
+                else:
+                    purchase_order.save(update_fields=[])
+
+
+@receiver(
+    post_save,
+    sender=Procurement,
+    dispatch_uid="procurement_sync_purchase_orders_on_save",
+)
+def procurement_post_save_sync_purchase_orders(
+    sender,
+    instance: Procurement,
+    created,
+    **kwargs,
+):
+    """
+    Synchronise Purchase Orders whenever an approved Procurement is saved.
+
+    This is important because it means an already-approved Procurement can
+    be edited and saved again, and its existing Purchase Orders will be
+    updated accordingly.
+    """
+
+    if instance.status != "approved":
+        return
+
+    sync_procurement_purchase_orders(instance.pk)
+
+
+@receiver(
+    post_save,
+    sender=ProcurementItem,
+    dispatch_uid="procurement_item_sync_purchase_orders_on_save",
+)
+def procurement_item_post_save_sync_purchase_orders(
+    sender,
+    instance: ProcurementItem,
+    created,
+    **kwargs,
+):
+    """
+    Synchronise Purchase Orders when a ProcurementItem is created or edited.
+
+    This also catches changes made through inline formsets after the parent
+    Procurement has already been saved.
+    """
+
+    if instance.procurement_id:
+        sync_procurement_purchase_orders(
+            instance.procurement_id
+        )
+
+
+@receiver(
+    post_delete,
+    sender=ProcurementItem,
+    dispatch_uid="procurement_item_sync_purchase_orders_on_delete",
+)
+def procurement_item_post_delete_sync_purchase_orders(
+    sender,
+    instance: ProcurementItem,
+    **kwargs,
+):
+    """
+    Synchronise Purchase Orders after a ProcurementItem is deleted.
+    """
+
+    if instance.procurement_id:
+        sync_procurement_purchase_orders(
+            instance.procurement_id
+        )
+
+# =============================================================================
+# PURCHASE ORDER -> STOCK RECEIPT / GRN
+# =============================================================================
+# When a Purchase Order is approved, automatically create the corresponding
+# warehouse receiving record if one does not already exist.
+#
+# The Purchase Order remains the commercial source of truth.
+# The StockReceipt is the warehouse receiving document and receives a snapshot
+# of the expected quantities and supplier pricing at the time it is created.
+#
+# Receipt number is deterministic:
+#     GRN-{PO number}
+#
+# This means the same approved PO can never create duplicate receiving records.
+# =============================================================================
+
+
+def _create_receiving_for_approved_purchase_order(
+    purchase_order: PurchaseOrder,
+) -> None:
+    """
+    Create the warehouse StockReceipt for an approved Purchase Order if one
+    does not already exist.
+
+    Expected values are copied from the PO:
+        - Supplier
+        - Product
+        - Expected quantity
+        - Expected supplier price EXCL VAT
+        - Expected VAT %
+        - Expected supplier price INCL VAT
+
+    Actual/received values remain untouched for the warehouse to capture.
+    """
+
+    if purchase_order.status != "approved":
+        return
+
+    # Import locally to avoid a products <-> deliveries model import cycle.
+    from deliveries.models import StockReceipt, StockReceiptItem
+
+    receipt_number = f"GRN-{purchase_order.po_number}"
+
+    # A receipt already exists for this PO.
+    if StockReceipt.objects.filter(receipt_number=receipt_number).exists():
+        return
+
+    with transaction.atomic():
+        # Re-check inside the transaction so concurrent saves cannot create
+        # duplicate receiving records.
+        receipt = (
+            StockReceipt.objects
+            .select_for_update()
+            .filter(receipt_number=receipt_number)
+            .first()
+        )
+
+        if receipt is not None:
+            return
+
+        receipt = StockReceipt.objects.create(
+            receipt_number=receipt_number,
+            supplier=purchase_order.supplier,
+            status="draft",
+            created_by=purchase_order.approved_by or purchase_order.created_by,
+            notes=(
+                f"Automatically created from approved Purchase Order "
+                f"{purchase_order.po_number}."
+            ),
+        )
+
+        po_items = (
+            PurchaseOrderItem.objects
+            .filter(purchase_order_id=purchase_order.pk)
+            .select_related("product")
+            .order_by("product__name", "id")
+        )
+
+        receipt_items = []
+
+        for po_item in po_items:
+            expected_excl = po_item.expected_unit_cost_excl
+
+            expected_incl = None
+            if expected_excl is not None:
+                expected_incl = r2(
+                    expected_excl * (D1 + EXPECTED_VAT_RATE)
+                )
+
+            receipt_items.append(
+                StockReceiptItem(
+                    receipt=receipt,
+                    product=po_item.product,
+                    expected_qty=po_item.ordered_quantity,
+                    received_qty=D0,
+                    expected_unit_cost_excl=expected_excl,
+                    expected_vat_percent=Decimal("15.00"),
+                    expected_unit_cost_incl=expected_incl,
+                )
+            )
+
+        if receipt_items:
+            StockReceiptItem.objects.bulk_create(receipt_items)
+
+
+@receiver(
+    post_save,
+    sender=PurchaseOrder,
+    dispatch_uid="purchase_order_create_receiving_when_approved",
+)
+def purchase_order_post_save_create_receiving(
+    sender,
+    instance: PurchaseOrder,
+    created,
+    **kwargs,
+):
+    """
+    Automatically create receiving when a Purchase Order is approved.
+
+    Saving an already-approved PO is safe because the deterministic GRN
+    number is checked first, so an existing receiving record is never
+    duplicated.
+    """
+
+    if instance.status != "approved":
+        return
+
+    _create_receiving_for_approved_purchase_order(instance)
+
+
 

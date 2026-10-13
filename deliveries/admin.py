@@ -221,28 +221,71 @@ class ExternalDeliveryRateAdmin(admin.ModelAdmin):
 class StockReceiptItemInline(admin.TabularInline):
     model = StockReceiptItem
     extra = 0
+
     fields = (
         "product",
         "expected_qty",
         "received_qty",
         "quantity_variance_display",
+        "expected_unit_cost_excl",
+        "expected_vat_percent",
+        "expected_unit_cost_incl",
         "unit_cost_excl",
         "vat_percent",
         "unit_cost_incl",
+        "price_variance_incl_display",
         "batch_reference",
     )
-    readonly_fields = ("quantity_variance_display",)
 
-    @admin.display(description="Variance")
+    readonly_fields = (
+        "quantity_variance_display",
+        "price_variance_incl_display",
+    )
+
+    @admin.display(description="Qty Variance")
     def quantity_variance_display(self, obj):
         if not obj.pk:
             return "—"
+
         variance = obj.quantity_variance
+
         if variance > 0:
-            return format_html('<strong style="color:green;">+{}</strong>', variance)
+            return format_html(
+                '<strong style="color:green;">+{:,.2f}</strong>',
+                variance,
+            )
+
         if variance < 0:
-            return format_html('<strong style="color:red;">{}</strong>', variance)
-        return "0"
+            return format_html(
+                '<strong style="color:red;">{:,.2f}</strong>',
+                variance,
+            )
+
+        return "0.00"
+
+    @admin.display(description="Price Variance INCL")
+    def price_variance_incl_display(self, obj):
+        if not obj.pk:
+            return "—"
+
+        variance = obj.total_price_variance_incl
+
+        if variance is None:
+            return "—"
+
+        if variance > 0:
+            return format_html(
+                '<strong style="color:red;">+R{:,.2f}</strong>',
+                variance,
+            )
+
+        if variance < 0:
+            return format_html(
+                '<strong style="color:green;">R{:,.2f}</strong>',
+                variance,
+            )
+
+        return "R0.00"
 
 
 @admin.register(Inventory)
