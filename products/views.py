@@ -1505,7 +1505,7 @@ def download_price_list(request):
             contact_style
         ),
         Paragraph(
-            "<b>WhatsApp Orders:</b> 064 458 7575",
+            "<b>WhatsApp Orders:</b> 062 231 1902",
             contact_style
         ),
         Paragraph(
@@ -1907,7 +1907,7 @@ def download_price_list(request):
             ],
             [
                 Paragraph(
-                    "WhatsApp us on <b>064 458 7575</b> or call <b>087 265 5488</b>",
+                    "WhatsApp us on <b>062 231 1902</b> or call <b>087 265 5488</b>",
                     cta_sub_style
                 )
             ],
