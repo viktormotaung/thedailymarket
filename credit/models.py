@@ -342,8 +342,10 @@ class FunderMember(models.Model):
             models.Index(fields=["is_active"]),
         ]
 
+    
     def __str__(self):
-        return f"{self.user} → {self.funder or 'No Funder'} ({self.role})"
+        return f"{self.user} - {self.funder or 'No Funder'} ({self.role})"
+
     
 # ============================================================
 # FUNDER ALLOCATION (capital reserved per client)

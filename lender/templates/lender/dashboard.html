@@ -1,980 +1,455 @@
 {% load static %}
-{% load humanize %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Funder · {{ funder.name }}</title>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{ funder.name|default:"Funder Dashboard" }} · The Daily Market</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-
   <style>
-    :root{
-      --brand:#0b5c39;
-      --brand-dark:#094c30;
-      --muted:#6c757d;
-      --soft:#f8f9fa;
-      --line:#e9ecef;
-      --bg:#fcfcfc;
+    :root {
+      --brand: #0b5c39;
+      --brand-dark: #08452b;
+      --navy: #172b3a;
+      --canvas: #f3f5f4;
+      --line: #e6ebe8;
+      --muted: #738078;
+      --green-soft: #e7f4ec;
+      --app-width: 775px;
+      --nav-height: 76px;
     }
-
-    body{
-      background:var(--bg);
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: #e9eeeb; }
+    body {
+      margin: 0;
+      background: #e9eeeb;
+      color: #1f2b25;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
-
-    .navbar{
-      background:var(--brand);
+    a { color: inherit; text-decoration: none; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    .app-shell {
+      width: 100%;
+      max-width: var(--app-width);
+      min-height: 100vh;
+      margin: 0 auto;
+      background: var(--canvas);
+      position: relative;
+      box-shadow: 0 0 38px rgba(24, 48, 36, .08);
+      padding-bottom: calc(var(--nav-height) + 28px + env(safe-area-inset-bottom));
+      overflow: clip;
     }
-
-    .navbar .navbar-brand,
-    .navbar .nav-link,
-    .navbar .btn-outline-light{
-      color:#fff !important;
+    .top-panel {
+      background: var(--brand);
+      color: #fff;
+      padding: 22px 22px 25px;
+      border-radius: 0 0 26px 26px;
     }
-
-    .navbar .btn-outline-light{
-      border-color:rgba(255,255,255,.6);
+    .top-line { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .brand-lockup { display:flex; align-items:center; gap:10px; min-width:0; }
+    .brand-mark {
+      width: 42px; height: 42px; border-radius: 13px;
+      background: rgba(255,255,255,.13); display:grid; place-items:center;
+      border: 1px solid rgba(255,255,255,.18); flex: 0 0 auto;
     }
-
-    .navbar .btn-outline-light:hover{
-      background:rgba(255,255,255,.15);
-      border-color:rgba(255,255,255,.9);
-      color:#fff;
+    .brand-mark img { max-width: 34px; max-height: 34px; object-fit:contain; }
+    .brand-name { font-size:.95rem; font-weight:750; letter-spacing:.01em; line-height:1.2; }
+    .brand-sub { color:rgba(255,255,255,.7); font-size:.73rem; margin-top:3px; }
+    .header-actions { display:flex; gap:8px; align-items:center; }
+    .icon-button {
+      width:40px; height:40px; display:grid; place-items:center;
+      border:1px solid rgba(255,255,255,.22); border-radius:13px;
+      color:#fff; background:rgba(255,255,255,.09);
     }
-
-    .page-wrap{
-      min-height:100svh;
-      display:flex;
-      flex-direction:column;
+    .icon-button:hover, .icon-button:focus-visible { background:rgba(255,255,255,.18); color:#fff; }
+    .welcome { margin-top:24px; }
+    .eyebrow { font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:rgba(255,255,255,.68); font-weight:700; }
+    .welcome h1 { font-size:1.55rem; line-height:1.2; font-weight:750; margin:6px 0 6px; letter-spacing:-.035em; }
+    .welcome p { margin:0; font-size:.88rem; color:rgba(255,255,255,.78); }
+    .account-chip {
+      margin-top:18px; display:flex; align-items:center; justify-content:space-between; gap:12px;
+      padding:12px 14px; border-radius:15px; background:rgba(255,255,255,.11);
+      border:1px solid rgba(255,255,255,.15);
     }
-
-    main{
-      flex:1 0 auto;
-      padding:18px 0 24px;
+    .account-chip .chip-label { color:rgba(255,255,255,.68); font-size:.72rem; }
+    .account-chip .chip-value { font-weight:650; font-size:.88rem; margin-top:2px; }
+    .-tag { font-size:.68rem; font-weight:750; background:#d8f0df; color:#155b37; border-radius:999px; padding:6px 9px; white-space:nowrap; }
+    main { padding:20px 18px 24px; }
+    .section-heading { display:flex; justify-content:space-between; align-items:end; gap:12px; margin:23px 2px 12px; }
+    .section-heading:first-child { margin-top:0; }
+    .section-heading h2 { font-size:1rem; font-weight:780; margin:0; letter-spacing:-.02em; }
+    .section-heading p { color:var(--muted); font-size:.78rem; margin:4px 0 0; }
+    .text-link { color:var(--brand); font-weight:700; font-size:.78rem; white-space:nowrap; }
+    .promo {
+      position:relative; min-height:150px; overflow:hidden; border-radius:22px; padding:20px;
+      color:#fff; background:linear-gradient(115deg, #123d2b 0%, #0b5c39 54%, #43865e 100%);
+      display:flex; align-items:center; isolation:isolate;
     }
-
-    footer{
-      flex-shrink:0;
-      background:var(--brand);
-      color:#fff;
-      border-top:1px solid rgba(255,255,255,.15);
+    .promo::before, .promo::after { content:""; position:absolute; border-radius:50%; z-index:-1; }
+    .promo::before { width:210px; height:210px; right:-48px; top:-88px; border:1px solid rgba(255,255,255,.18); box-shadow:0 0 0 22px rgba(255,255,255,.035), 0 0 0 44px rgba(255,255,255,.025); }
+    .promo::after { width:95px; height:95px; right:39px; bottom:-54px; background:rgba(255,255,255,.08); }
+    .promo-content { max-width:75%; }
+    .promo-kicker { font-size:.69rem; font-weight:800; text-transform:uppercase; letter-spacing:.12em; color:#c7ead3; }
+    .promo h2 { font-size:1.28rem; line-height:1.2; font-weight:800; margin:7px 0 6px; letter-spacing:-.03em; }
+    .promo p { font-size:.8rem; color:rgba(255,255,255,.78); margin:0 0 13px; }
+    .promo .btn { font-size:.76rem; font-weight:750; border-radius:10px; padding:8px 12px; }
+    .promo-symbol { position:absolute; right:22px; top:50%; transform:translateY(-50%); font-size:3.5rem; color:rgba(255,255,255,.16); }
+    .primary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .action-card {
+      min-height:122px; padding:16px; border-radius:19px; color:#fff; background:var(--navy);
+      display:flex; flex-direction:column; justify-content:space-between; gap:17px;
+      border:1px solid rgba(255,255,255,.05); transition:transform .16s ease, background .16s ease;
     }
-
-    footer a{ color:#fff; }
-    footer a:hover{ color:#d4f3e3; text-decoration:underline; }
-
-    .centered{
-      max-width:1200px;
-      margin:0 auto;
+    .action-card:nth-child(2) { background:#244b3a; }
+    .action-card:nth-child(3) { background:#263846; }
+    .action-card:nth-child(4) { background:#3b4d43; }
+    .action-card:hover { color:#fff; transform:translateY(-2px); background:#0f5a38; }
+    .action-card:focus-visible, .secondary-row:focus-visible, .bottom-nav a:focus-visible { outline:3px solid #78c69a; outline-offset:3px; }
+    .action-top { display:flex; align-items:center; justify-content:space-between; }
+    .action-icon { width:37px; height:37px; border-radius:12px; display:grid; place-items:center; background:rgba(255,255,255,.12); font-size:1.1rem; }
+    .action-arrow { color:rgba(255,255,255,.65); }
+    .action-title { font-weight:750; font-size:.94rem; line-height:1.25; }
+    .action-note { color:rgba(255,255,255,.66); font-size:.72rem; margin-top:4px; }
+    .summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .summary-card { background:#fff; border:1px solid var(--line); border-radius:17px; padding:15px; min-width:0; }
+    .summary-label { color:var(--muted); font-size:.75rem; }
+    .summary-value { font-size:1.27rem; line-height:1.2; font-weight:800; margin-top:7px; letter-spacing:-.035em; }
+    .summary-foot { color:var(--muted); font-size:.7rem; margin-top:7px; }
+    .summary-foot i { color:var(--brand); margin-right:4px; }
+    .secondary-list { display:grid; gap:9px; }
+    .secondary-row {
+      display:flex; align-items:center; gap:13px; width:100%; min-height:66px;
+      background:#fff; border:1px solid var(--line); border-radius:16px; padding:12px 14px;
+      text-align:left; transition:background .15s ease, border-color .15s ease;
     }
+    .secondary-row:hover { background:#fafffb; border-color:#c8dfd0; }
+    .secondary-icon { width:40px; height:40px; flex:0 0 auto; display:grid; place-items:center; border-radius:13px; background:#eef5f0; color:var(--brand); font-size:1.1rem; }
+    .secondary-copy { min-width:0; flex:1; }
+    .secondary-title { font-size:.86rem; font-weight:750; }
+    .secondary-desc { font-size:.73rem; color:var(--muted); margin-top:3px; }
+    .secondary-chevron { color:#9aa69f; }
+    .reporting-period { display:flex; align-items:center; gap:8px; padding:10px 12px; margin-bottom:14px; border-radius:12px; background:#f1f5f2; color:#4d6255; font-size:.72rem; }
+    .overview-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .overview-metric { background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px; min-width:0; }
+    .overview-metric-accent { background:#f3f8f4; border-color:#d8e8dc; }
+    .overview-metric-top { display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--muted); font-size:.68rem; line-height:1.35; }
+    .overview-metric-top i { color:var(--brand); font-size:1rem; flex:0 0 auto; }
+    .overview-number { font-size:clamp(1rem,3.4vw,1.3rem); font-weight:800; letter-spacing:-.035em; margin-top:10px; overflow-wrap:anywhere; }
+    .overview-foot { font-size:.64rem; color:var(--muted); margin-top:5px; }
+    .project-section-heading { margin-top:24px; }
+    .project-summary-strip { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:18px 0 19px; }
+    .project-summary-strip > div { background:#f7f9f7; border-radius:11px; padding:10px 8px; min-width:0; }
+    .project-summary-strip span { display:block; color:var(--muted); font-size:.62rem; line-height:1.35; min-height:2.6em; }
+    .project-summary-strip strong { display:block; margin-top:6px; font-size:.76rem; letter-spacing:-.02em; overflow-wrap:anywhere; }
+    .subsection-title { font-size:.78rem; font-weight:800; margin:0 0 8px; }
+    .month-to-date-row td { background:#f4f8f5; font-weight:700; }
 
-    .card{
-      border-radius:1rem;
-      border:1px solid var(--line);
-      overflow:hidden;
+    .project-card { padding:17px; }
+    .project-heading, .invoice-project-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .project-name { font-size:1.02rem; font-weight:800; letter-spacing:-.02em; }
+    .project-caption { font-size:.73rem; color:var(--muted); margin-top:3px; }
+    .project-icon, .invoice-project-mark { width:42px; height:42px; border-radius:14px; display:grid; place-items:center; background:#eef5f0; color:var(--brand); font-size:1.15rem; flex:0 0 auto; }
+    .project-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:19px; padding-bottom:15px; border-bottom:1px solid #edf0ee; }
+    .project-metrics .summary-value { font-size:1.13rem; overflow-wrap:anywhere; }
+    .project-progress-label { display:flex; justify-content:space-between; gap:8px; font-size:.69rem; color:var(--muted); margin-top:14px; }
+    .project-progress-label strong { color:var(--brand); white-space:nowrap; }
+    .project-progress { height:6px; margin-top:7px; background:#e8eee9; border-radius:999px; }
+    .project-progress .progress-bar { background:var(--brand); border-radius:999px; }
+    .project-note { color:var(--muted); font-size:.68rem; margin-top:9px; }
+    .invoice-project { background:#fff; border:1px solid var(--line); border-radius:18px; overflow:hidden; }
+    .invoice-project-heading { padding:15px 16px; border-bottom:1px solid var(--line); }
+    .invoice-project-heading h3 { font-size:.91rem; font-weight:800; margin:0; }
+    .invoice-project-heading p { font-size:.72rem; color:var(--muted); margin:4px 0 0; }
+    .invoice-table-wrap { padding:0 13px 5px; }
+    .invoice-table { font-size:.76rem; vertical-align:middle; }
+    .invoice-table thead th { color:var(--muted); font-size:.67rem; font-weight:700; text-transform:uppercase; letter-spacing:.035em; border-bottom-color:#edf0ee; padding:12px 3px 9px; }
+    .invoice-table tbody td { padding:12px 3px; border-bottom-color:#edf0ee; white-space:nowrap; }
+    .invoice-table tbody td:last-child, .invoice-table tfoot th:last-child { font-variant-numeric:tabular-nums; }
+    .invoice-table tfoot th { padding:13px 3px; border-bottom:0; font-size:.74rem; }
+
+    .activity-card { background:#fff; border:1px solid var(--line); border-radius:18px; padding:3px 15px; }
+    .activity-item { display:flex; gap:12px; align-items:center; padding:13px 0; }
+    .activity-item + .activity-item { border-top:1px solid #edf0ee; }
+    .activity-dot { width:38px; height:38px; border-radius:13px; background:#eef5f0; color:var(--brand); display:grid; place-items:center; flex:0 0 auto; }
+    .activity-main { flex:1; min-width:0; }
+    .activity-title { font-size:.82rem; font-weight:720; }
+    .activity-meta { font-size:.72rem; color:var(--muted); margin-top:3px; }
+    .activity-amount { text-align:right; font-size:.82rem; font-weight:780; white-space:nowrap; }
+    .activity-status { display:block; font-size:.66rem; color:#247448; margin-top:3px; font-weight:700; }
+    .bottom-nav {
+      position:fixed; z-index:20; bottom:0; left:50%; transform:translateX(-50%);
+      width:100%; max-width:var(--app-width); min-height:var(--nav-height);
+      padding:9px 8px calc(8px + env(safe-area-inset-bottom)); background:var(--navy);
+      display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:end;
+      box-shadow:0 -8px 24px rgba(20,40,30,.12);
     }
-
-    .metric{
-      font-size:clamp(1.2rem, 1.05rem + 0.8vw, 1.85rem);
-      font-weight:700;
-      line-height:1.1;
+    .bottom-nav a { display:flex; flex-direction:column; align-items:center; justify-content:end; gap:4px; min-width:0; color:#aab8b1; font-size:.63rem; font-weight:650; min-height:51px; }
+    .bottom-nav a i { font-size:1.15rem; line-height:1; }
+    .bottom-nav .bottom-nav-logout { display:flex; min-width:0; margin:0; }
+    .bottom-nav .bottom-nav-logout button { display:flex; flex:1; flex-direction:column; align-items:center; justify-content:end; gap:4px; min-width:0; min-height:51px; padding:0; border:0; background:transparent; color:#aab8b1; font:inherit; cursor:pointer; }
+    .bottom-nav .bottom-nav-logout button i { font-size:1.15rem; line-height:1; }
+    .bottom-nav a.active { color:#fff; }
+    .bottom-nav a.active i { color:#8bd3a5; }
+    .bottom-nav .nav-disabled { display:flex; flex-direction:column; align-items:center; justify-content:end; gap:4px; min-width:0; min-height:51px; color:#6f817a; font-size:.63rem; font-weight:650; opacity:.62; cursor:not-allowed; }
+    .bottom-nav .nav-disabled i { font-size:1.15rem; line-height:1; }
+    .bottom-nav .bottom-nav-logout { grid-column:3; }
+    .bottom-nav .centre-nav { position:relative; padding-top:0; }
+    .centre-bubble { width:53px; height:53px; border-radius:50%; border:5px solid var(--canvas); background:#fff; display:grid; place-items:center; margin-top:-31px; box-shadow:0 4px 12px rgba(0,0,0,.15); }
+    .centre-bubble span { width:37px; height:37px; border-radius:50%; background:var(--brand); display:grid; place-items:center; color:#fff; font-size:1.15rem; }
+    .centre-label { margin-top:0; }
+    .modal-content { border:0; border-radius:20px; overflow:hidden; }
+    .modal-header { background:var(--brand); color:#fff; border:0; }
+    .modal-header .btn-close { filter:invert(1); }
+    .modal-body { padding:22px; }
+    @media (min-width: 776px) {
+      .bottom-nav { bottom:16px; border-radius:19px; }
+      .app-shell { min-height:100vh; }
     }
-
-    .muted{
-      color:var(--muted);
+    @media (max-width: 420px) {
+      .top-panel { padding:19px 16px 22px; }
+      main { padding:17px 13px 22px; }
+      .welcome h1 { font-size:1.42rem; }
+      .promo { min-height:150px; padding:17px; }
+      .promo-content { max-width:82%; }
+      .promo-symbol { right:10px; font-size:2.8rem; }
+      .action-card { padding:13px; min-height:116px; }
+      .action-title { font-size:.88rem; }
+      .bottom-nav a { font-size:.59rem; }
     }
-
-    .mini-note{
-      font-size:.8rem;
-      color:var(--muted);
-    }
-
-    .section-subtle{
-      font-size:.875rem;
-      color:var(--muted);
-    }
-
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:.45rem;
-      background:var(--soft);
-      border:1px solid var(--line);
-      border-radius:999px;
-      padding:.35rem .75rem;
-      font-size:.82rem;
-      line-height:1.1;
-    }
-
-    .progress-sm{ height:.5rem; }
-
-    .table thead th{
-      white-space:nowrap;
-    }
-
-    .hover-row tbody tr:hover{
-      background:#fafafa;
-    }
-
-    .week-card .title,
-    .profit-card .title,
-    .mobile-stack-card .title{
-      font-weight:600;
-    }
-
-    .status-badge{
-      font-size:.75rem;
-      padding:.35rem .6rem;
-      border-radius:999px;
-      display:inline-block;
-      border:1px solid transparent;
-    }
-
-    .status-pending{
-      background:#fff3cd;
-      color:#856404;
-      border-color:#ffe69c;
-    }
-
-    .status-reinvested{
-      background:#d1e7dd;
-      color:#0f5132;
-      border-color:#badbcc;
-    }
-
-    .status-paid{
-      background:#cff4fc;
-      color:#055160;
-      border-color:#b6effb;
-    }
-
-    .status-cancelled{
-      background:#f8d7da;
-      color:#842029;
-      border-color:#f5c2c7;
-    }
-
-    .desktop-only{
-      display:block;
-    }
-
-    .mobile-only{
-      display:none;
-    }
-
-    .mobile-stack{
-      display:grid;
-      gap:.75rem;
-    }
-
-    .mobile-stack-card{
-      border:1px solid var(--line);
-      border-radius:1rem;
-      background:#fff;
-      padding:.9rem;
-    }
-
-    .mobile-row{
-      display:flex;
-      justify-content:space-between;
-      gap:1rem;
-      margin-top:.35rem;
-      font-size:.92rem;
-    }
-
-    .mobile-row .label{
-      color:var(--muted);
-      flex:0 0 auto;
-    }
-
-    .mobile-row .value{
-      text-align:right;
-      font-weight:500;
-      flex:1 1 auto;
-    }
-
-    .kpi-icon{
-      opacity:.9;
-    }
-
-    .section-header{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:1rem;
-    }
-
-    .tight-card .card-body{
-      padding:1rem;
-    }
-
-    .brand-btn{
-      background:var(--brand);
-      color:#fff;
-      border:none;
-    }
-
-    .brand-btn:hover{
-      background:var(--brand-dark);
-      color:#fff;
-    }
-
-    @media (max-width: 991.98px){
-      .desktop-only{
-        display:none !important;
-      }
-
-      .mobile-only{
-        display:block !important;
-      }
-
-      .centered{
-        max-width:100%;
-      }
-
-      main{
-        padding:14px 0 20px;
-      }
-
-      .card-header{
-        padding:.85rem 1rem;
-      }
-
-      .card-body{
-        padding:1rem;
-      }
-
-      .metric{
-        font-size:1.45rem;
-      }
-
-      .section-header{
-        align-items:flex-start;
-        flex-direction:column;
-        gap:.25rem;
-      }
-
-      .top-brand-title{
-        font-size:1rem;
-      }
-
-      .top-brand-subtitle{
-        font-size:.75rem;
-      }
-    }
-
-    @media (max-width: 767.98px){
-      .navbar .row{
-        row-gap:.5rem;
-      }
-
-      .navbar .col-4{
-        width:100%;
-        max-width:100%;
-        flex:0 0 100%;
-      }
-
-      .navbar .col-4.text-center{
-        order:1;
-      }
-
-      .navbar .col-4.d-flex:first-child{
-        order:0;
-        justify-content:center !important;
-      }
-
-      .navbar .col-4.d-flex.justify-content-end{
-        order:2;
-        justify-content:center !important;
-      }
-
-      .top-actions{
-        flex-wrap:wrap;
-        justify-content:center;
-      }
-
-      .metric{
-        font-size:1.35rem;
-      }
-
-      .mobile-stack-card{
-        padding:.85rem;
-      }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition:none !important; scroll-behavior:auto !important; }
     }
   </style>
 </head>
 <body>
-<div class="page-wrap">
-
-  <nav class="navbar">
-    <div class="container-fluid">
-      <div class="row w-100 align-items-center">
-        <div class="col-4 d-flex">
-          <a class="navbar-brand d-inline-flex align-items-center gap-2" href="{% url 'funder-dashboard' %}">
-            <img src="{% static 'images/logo.png' %}" alt="Seshibo Daily Market" style="height:40px;">
-          </a>
-        </div>
-
-        <div class="col-4 text-center">
-          <div class="h5 mb-0 text-white top-brand-title">Funder Dashboard</div>
-          {% if funder %}
-            <div class="small text-white-50 top-brand-subtitle">Viewing: {{ funder.name }}</div>
-          {% endif %}
-        </div>
-
-        <div class="col-4 d-flex justify-content-end align-items-center gap-2 top-actions">
-          <button
-            type="button"
-            class="btn btn-outline-light btn-sm"
-            data-bs-toggle="modal"
-            data-bs-target="#switchPlatformModal"
-          >
-            <i class="bi bi-grid"></i> Switch Platform
-          </button>
-
-          <form method="post" action="{% url 'logout' %}">
-            {% csrf_token %}
-            <button class="btn btn-outline-light btn-sm" type="submit">Sign out</button>
-          </form>
-        </div>
+<div class="app-shell">
+  <header class="top-panel">
+    <div class="top-line">
+      <a class="brand-lockup" href="{% url 'funder-dashboard' %}" aria-label="The Daily Market home">
+        <span class="brand-mark">
+          <img src="{% static 'images/logo.png' %}" alt="" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=&quot;bi bi-shop-window&quot; style=&quot;font-size:1.3rem&quot;></i>';">
+        </span>
+        <span>
+          <span class="brand-name d-block">The Daily Market</span>
+          <span class="brand-sub d-block">Funder portal</span>
+        </span>
+      </a>
+      <div class="header-actions">
+        <button class="icon-button" type="button" data-bs-toggle="modal" data-bs-target="#switchPlatformModal" aria-label="Switch platform" title="Switch platform">
+          <i class="bi bi-grid"></i>
+        </button>
+        <form method="post" action="{% url 'logout' %}" class="m-0">
+          {% csrf_token %}
+          <button class="icon-button" type="submit" aria-label="Sign out" title="Sign out"><i class="bi bi-box-arrow-right"></i></button>
+        </form>
       </div>
     </div>
-  </nav>
+
+    <div class="welcome">
+      <div class="eyebrow">Your overview</div>
+      <h1>Hello, {{ request.user.get_short_name|default:request.user.username|default:"there" }}</h1>
+      <p>{{ funder.name|default:"Your account" }} · Portfolio overview</p>
+    </div>
+
+    <div class="account-chip">
+      <div>
+        <div class="chip-label">Funder account</div>
+        <div class="chip-value">{{ funder.name|default:"Funder account" }}</div>
+      </div>
+      <span class="demo-tag"><i class="bi bi-person-check me-1"></i>ACCOUNT</span>
+    </div>
+  </header>
 
   <main>
-    <div class="container centered">
+    <section class="promo" aria-label="Portfolio overview">
+      <div class="promo-content">
+        <div class="promo-kicker">Your portfolio at a glance</div>
+        <h2>Clarity for every contribution.</h2>
+        <p>Track portfolio activity, allocations and performance in one place.</p>
+        <a href="#portfolio" class="btn btn-light">View projects <i class="bi bi-arrow-right ms-1"></i></a>
+      </div>
+      <i class="bi bi-pie-chart-fill promo-symbol" aria-hidden="true"></i>
+    </section>
 
-      <!-- KPI ROW -->
-      <div class="row g-3">
-        <div class="col-12 col-md-6 col-xl-3">
-          <div class="card shadow-sm h-100 tight-card">
-            <div class="card-body d-flex justify-content-between align-items-start">
-              <div>
-                <div class="muted">Balance</div>
-                <div class="metric">R{{ funder.balance|default:0|floatformat:2|intcomma }}</div>
-                <div class="mini-note mt-1">Live balance</div>
-
-                <div class="mt-3 d-flex flex-wrap gap-2">
-                  <a
-                    href="{% url 'top-up' %}?funder={{ funder.id }}&kind=topup"
-                    class="btn btn-success btn-sm"
-                    title="Temporarily disabled"
-                    onclick="return false;"
-                    style="pointer-events:none; cursor:not-allowed;"
-                  >
-                    <i class="bi bi-plus-circle"></i>
-                  </a>
-
-                  <a
-                    href="{% url 'withdraw' %}?funder={{ funder.id }}&kind=payout"
-                    class="btn btn-outline-danger btn-sm"
-                    title="Temporarily disabled"
-                    onclick="return false;"
-                    style="pointer-events:none; cursor:not-allowed;"
-                  >
-                    <i class="bi bi-dash-circle"></i>
-                  </a>
-                </div>
-              </div>
-
-              <i class="bi bi-wallet2 fs-2 text-secondary kpi-icon"></i>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-xl-3">
-          <div class="card shadow-sm h-100 tight-card">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-start">
-                <div>
-                  <div class="muted">Allocated</div>
-                  <div class="metric">R{{ total_alloc|default:0|floatformat:2|intcomma }}</div>
-                </div>
-                <i class="bi bi-people fs-2 text-secondary kpi-icon"></i>
-              </div>
-
-              <div class="mt-3">
-                {% if funder.balance and funder.balance > 0 %}
-                  <div class="d-flex justify-content-between small">
-                    <span class="text-muted">Of balance</span>
-                    <span class="text-muted" id="allocPctLabel">—</span>
-                  </div>
-                  <div class="progress progress-sm">
-                    <div class="progress-bar bg-success"
-                         id="allocPctBar"
-                         role="progressbar"
-                         style="width:0%"
-                         aria-valuemin="0"
-                         aria-valuemax="100"
-                         data-amount="{{ total_alloc|default:'0' }}"
-                         data-total="{{ funder.balance|default:'0' }}">
-                    </div>
-                  </div>
-                {% else %}
-                  <div class="small text-muted mt-2">No balance comparison.</div>
-                {% endif %}
-              </div>
-
-              <div class="mt-2">
-                <span class="badge text-bg-success">
-                  Allocatable: R{{ allocatable|default:0|floatformat:2|intcomma }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-xl-3">
-          <div class="card shadow-sm h-100 tight-card">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-start">
-                <div>
-                  <div class="muted">Latest Return</div>
-                  <div class="metric text-success">
-                    {% if latest_week %}
-                      R{{ latest_week.weekly_return|floatformat:2|intcomma }}
-                    {% else %}
-                      R0.00
-                    {% endif %}
-                  </div>
-                </div>
-                <i class="bi bi-graph-up-arrow fs-2 text-secondary kpi-icon"></i>
-              </div>
-
-              {% if latest_week %}
-                <div class="mt-3">
-                  <div class="d-flex justify-content-between small">
-                    <span class="text-muted">Utilization</span>
-                    <span class="text-muted" id="utilPctLabel">—</span>
-                  </div>
-                  <div class="progress progress-sm">
-                    <div class="progress-bar bg-info"
-                         id="utilPctBar"
-                         role="progressbar"
-                         style="width:0%"
-                         aria-valuemin="0"
-                         aria-valuemax="100"
-                         data-amount="{{ latest_week.visible_utilization_total|default:'0' }}"
-                         data-total="{{ total_alloc|default:'0' }}">
-                    </div>
-                  </div>
-                  <div class="small text-muted mt-2">
-                    {{ latest_week.week_start }} · {{ latest_week.weekly_rate_pct_snapshot|floatformat:2 }}%
-                  </div>
-                </div>
-              {% else %}
-                <div class="small text-muted mt-2">No week data yet.</div>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-xl-3">
-          <div class="card shadow-sm h-100 tight-card">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-start">
-                <div>
-                  <div class="muted">Profit Mode</div>
-                  <div class="metric">
-                    {{ funder.get_profit_mode_display|default:funder.profit_mode|default:"—" }}
-                  </div>
-                </div>
-                <i class="bi bi-arrow-repeat fs-2 text-secondary kpi-icon"></i>
-              </div>
-
-              <div class="mt-3 d-flex flex-column gap-2">
-                <span class="pill">
-                  <i class="bi bi-calendar-week"></i>
-                  {{ funder.get_profit_frequency_display|default:funder.profit_frequency|default:"—" }}
-                </span>
-
-                
-              </div>
-            </div>
-          </div>
+    <section id="portfolio" aria-labelledby="projectsTitle">
+      <div class="section-heading">
+        <div>
+          <h2 id="projectsTitle">Project performance</h2>
+          <p>Monthly invoicing and earnings across your projects</p>
         </div>
       </div>
 
-      <!-- PROFIT SUMMARY -->
-      
-      <!-- LAST 4 WEEKS -->
-      <div class="row g-3 mt-1">
-        <div class="col-12">
-          <div class="card shadow-sm">
-            <div class="card-header section-header">
-              <strong>Last 4 Weeks</strong>
-              <span class="section-subtle">Weekly summary</span>
-            </div>
-            <div class="card-body">
-              {% if recent_weeks %}
-                <div class="row g-3">
-                  {% for w in recent_weeks %}
-                  <div class="col-12 col-sm-6 col-xl-3">
-                    <div class="border rounded-4 p-3 week-card h-100">
-                      <div class="title">{{ w.week_start }}</div>
+      <div class="reporting-period"><i class="bi bi-info-circle"></i> Combined contribution: R50,000.00 · Earnings are capped at R3,000 per project per month (equivalent to R60,000 invoiced at 5%).</div>
+      <div class="reporting-period"><i class="bi bi-calendar3"></i> Last calendar month: September 2026 · Month to date: 1–15 October 2026</div>
 
-                      <div class="mt-2 small muted">Utilization</div>
-                      <div class="fw-semibold">R{{ w.visible_utilization_total|floatformat:2|intcomma }}</div>
+      <div class="overview-grid">
+        <article class="overview-metric">
+          <div class="overview-metric-top"><span>Last month invoiced</span><i class="bi bi-receipt"></i></div>
+          <div class="overview-number">R117,650.00</div>
+          <div class="overview-foot">September 2026 · both projects</div>
+        </article>
+        <article class="overview-metric">
+          <div class="overview-metric-top"><span>Invoiced over 3 months</span><i class="bi bi-bar-chart-line"></i></div>
+          <div class="overview-number">R340,300.00</div>
+          <div class="overview-foot">July–September 2026</div>
+        </article>
+        <article class="overview-metric">
+          <div class="overview-metric-top"><span>Earned over 3 months (5%)</span><i class="bi bi-wallet2"></i></div>
+          <div class="overview-number">R17,015.00</div>
+          <div class="overview-foot">5% of R340,300 invoiced</div>
+        </article>
+        <article class="overview-metric overview-metric-accent">
+          <div class="overview-metric-top"><span>Month to date invoiced</span><i class="bi bi-calendar-check"></i></div>
+          <div class="overview-number">R48,900.00</div>
+          <div class="overview-foot">1–15 October 2026 · 5% earned: R2,445.00</div>
+        </article>
+      </div>
 
-                      <div class="mt-2 small muted">Return</div>
-                      <div class="text-success fw-semibold">R{{ w.weekly_return|floatformat:2|intcomma }}</div>
-
-                      <div class="mt-2">
-                        <span class="pill">
-                          <i class="bi bi-percent"></i>
-                          {{ w.weekly_rate_pct_snapshot|floatformat:2 }}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  {% endfor %}
-                </div>
-              {% else %}
-                <div class="text-center text-muted py-3">No weekly summaries available yet.</div>
-              {% endif %}
-            </div>
-          </div>
+      <div class="section-heading project-section-heading">
+        <div>
+          <h2>Project breakdown</h2>
+          <p>Each project has a R25,000 contribution. Monthly invoicing varies with trading activity.</p>
         </div>
       </div>
 
-      <!-- RECENT PROFITS -->
-      <div class="row g-3 mt-1">
-        <div class="col-12">
-          <div class="card shadow-sm">
-            <div class="card-header section-header">
-              <strong>Recent Profit Entries</strong>
-              <span class="section-subtle">Recent weekly profits</span>
-            </div>
-
-            <!-- Desktop -->
-            <div class="card-body p-0 desktop-only">
-              <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0 hover-row">
-                  <thead class="table-light">
-                    <tr>
-                      <th>Period</th>
-                      <th class="text-end">Amount</th>
-                      <th>Source</th>
-                      <th>Status</th>
-                      <th>Processed</th>
-                      <th>Reference</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% if recent_profits %}
-                      {% for p in recent_profits %}
-                        <tr>
-                          <td>{{ p.period_start }} → {{ p.period_end }}</td>
-                          <td class="text-end">R{{ p.amount|floatformat:2|intcomma }}</td>
-                          <td>{{ p.get_source_type_display|default:p.source_type }}</td>
-                          <td>
-                            {% if p.status == "PENDING" %}
-                              <span class="status-badge status-pending">Pending</span>
-                            {% elif p.status == "REINVESTED" %}
-                              <span class="status-badge status-reinvested">Reinvested</span>
-                            {% elif p.status == "PAID_OUT" %}
-                              <span class="status-badge status-paid">Paid Out</span>
-                            {% else %}
-                              <span class="status-badge status-cancelled">{{ p.status }}</span>
-                            {% endif %}
-                          </td>
-                          <td>
-                            {% if p.processed_at %}
-                              {{ p.processed_at|date:"Y-m-d H:i" }}
-                            {% else %}
-                              <span class="text-muted">—</span>
-                            {% endif %}
-                          </td>
-                          <td>{{ p.reference|default:"—" }}</td>
-                        </tr>
-                      {% endfor %}
-                    {% else %}
-                      <tr>
-                        <td colspan="6" class="text-center text-muted py-4">No profit entries available yet.</td>
-                      </tr>
-                    {% endif %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Mobile -->
-            <div class="card-body mobile-only">
-              {% if recent_profits %}
-                <div class="mobile-stack">
-                  {% for p in recent_profits %}
-                    <div class="mobile-stack-card">
-                      <div class="title">{{ p.period_start }} → {{ p.period_end }}</div>
-
-                      <div class="mobile-row">
-                        <span class="label">Amount</span>
-                        <span class="value">R{{ p.amount|floatformat:2|intcomma }}</span>
-                      </div>
-
-                      <div class="mobile-row">
-                        <span class="label">Source</span>
-                        <span class="value">{{ p.get_source_type_display|default:p.source_type }}</span>
-                      </div>
-
-                      <div class="mobile-row">
-                        <span class="label">Status</span>
-                        <span class="value">
-                          {% if p.status == "PENDING" %}
-                            <span class="status-badge status-pending">Pending</span>
-                          {% elif p.status == "REINVESTED" %}
-                            <span class="status-badge status-reinvested">Reinvested</span>
-                          {% elif p.status == "PAID_OUT" %}
-                            <span class="status-badge status-paid">Paid Out</span>
-                          {% else %}
-                            <span class="status-badge status-cancelled">{{ p.status }}</span>
-                          {% endif %}
-                        </span>
-                      </div>
-
-                      <div class="mobile-row">
-                        <span class="label">Processed</span>
-                        <span class="value">
-                          {% if p.processed_at %}
-                            {{ p.processed_at|date:"Y-m-d H:i" }}
-                          {% else %}
-                            —
-                          {% endif %}
-                        </span>
-                      </div>
-
-                      <div class="mobile-row">
-                        <span class="label">Reference</span>
-                        <span class="value">{{ p.reference|default:"—" }}</span>
-                      </div>
-                    </div>
-                  {% endfor %}
-                </div>
-              {% else %}
-                <div class="text-center text-muted py-3">No profit entries available yet.</div>
-              {% endif %}
-            </div>
+      <article class="summary-card project-card mb-3" id="maplankeng">
+        <div class="project-heading">
+          <div>
+            <div class="project-name">Maplankeng</div>
+            <div class="project-caption">Contribution: R25,000.00</div>
           </div>
+          <span class="project-icon"><i class="bi bi-building"></i></span>
+        </div>
+        <div class="project-summary-strip">
+          <div><span>September invoiced</span><strong>R59,400.00</strong></div>
+          <div><span>September earned (5%)</span><strong>R2,970.00</strong></div>
+          <div><span>October MTD invoiced</span><strong>R22,900.00</strong></div>
+        </div>
+        <h3 class="subsection-title">Monthly performance</h3>
+        <div class="invoice-table-wrap">
+          <table class="table invoice-table mb-0">
+            <thead><tr><th scope="col">Period</th><th scope="col" class="text-end">Invoiced</th><th scope="col" class="text-end">Earned (5%)</th></tr></thead>
+            <tbody>
+              <tr><td>July 2026</td><td class="text-end">R54,200.00</td><td class="text-end">R2,710.00</td></tr>
+              <tr><td>August 2026</td><td class="text-end">R57,800.00</td><td class="text-end">R2,890.00</td></tr>
+              <tr><td>September 2026</td><td class="text-end">R59,400.00</td><td class="text-end">R2,970.00</td></tr>
+              <tr class="month-to-date-row"><td>October MTD</td><td class="text-end">R22,900.00</td><td class="text-end">R1,145.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="project-note">Earnings are calculated at 5% of invoiced amounts and never exceed R3,000 per project in a completed month. October is month to date, not a completed month.</div>
+      </article>
+
+      <article class="summary-card project-card mb-3" id="icebolethu">
+        <div class="project-heading">
+          <div>
+            <div class="project-name">Icebolethu</div>
+            <div class="project-caption">Contribution: R25,000.00</div>
+          </div>
+          <span class="project-icon"><i class="bi bi-heart-pulse"></i></span>
+        </div>
+        <div class="project-summary-strip">
+          <div><span>September invoiced</span><strong>R58,250.00</strong></div>
+          <div><span>September earned (5%)</span><strong>R2,912.50</strong></div>
+          <div><span>October MTD invoiced</span><strong>R26,000.00</strong></div>
+        </div>
+        <h3 class="subsection-title">Monthly performance</h3>
+        <div class="invoice-table-wrap">
+          <table class="table invoice-table mb-0">
+            <thead><tr><th scope="col">Period</th><th scope="col" class="text-end">Invoiced</th><th scope="col" class="text-end">Earned (5%)</th></tr></thead>
+            <tbody>
+              <tr><td>July 2026</td><td class="text-end">R58,600.00</td><td class="text-end">R2,930.00</td></tr>
+              <tr><td>August 2026</td><td class="text-end">R52,050.00</td><td class="text-end">R2,602.50</td></tr>
+              <tr><td>September 2026</td><td class="text-end">R58,250.00</td><td class="text-end">R2,912.50</td></tr>
+              <tr class="month-to-date-row"><td>October MTD</td><td class="text-end">R26,000.00</td><td class="text-end">R1,300.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="project-note">Earnings are calculated at 5% of invoiced amounts and never exceed R3,000 per project in a completed month. October is month to date, not a completed month.</div>
+      </article>
+    </section>
+
+    <section aria-labelledby="invoicesTitle">
+      <div class="section-heading">
+        <div>
+          <h2 id="invoicesTitle">Invoice history</h2>
+          <p>Weekly invoices listed separately for each project</p>
         </div>
       </div>
 
-      <!-- RECENT MOVEMENTS -->
-      <div class="row g-3 mt-1">
-        <div class="col-12">
-          <div class="card shadow-sm">
-            <div class="card-header section-header">
-              <strong>Recent Movements</strong>
-              <span class="section-subtle">Top-ups, payouts, reinvestments</span>
-            </div>
-
-            <!-- Desktop -->
-            <div class="card-body p-0 desktop-only">
-              <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0 hover-row">
-                  <thead class="table-light">
-                    <tr>
-                      <th>Date</th>
-                      <th>Kind</th>
-                      <th class="text-end">Amount</th>
-                      <th>Reference</th>
-                      <th class="text-end">Linked Profits</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% if recent_movements %}
-                      {% for m in recent_movements %}
-                        <tr>
-                          <td>{{ m.created_at|date:"Y-m-d H:i" }}</td>
-                          <td>{{ m.get_kind_display|default:m.kind }}</td>
-                          <td class="text-end">R{{ m.amount|floatformat:2|intcomma }}</td>
-                          <td>{{ m.reference|default:"—" }}</td>
-                          <td class="text-end">{{ m.linked_profits_count|default:0 }}</td>
-                        </tr>
-                      {% endfor %}
-                    {% else %}
-                      <tr>
-                        <td colspan="5" class="text-center text-muted py-4">No movements available yet.</td>
-                      </tr>
-                    {% endif %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Mobile -->
-            <div class="card-body mobile-only">
-              {% if recent_movements %}
-                <div class="mobile-stack">
-                  {% for m in recent_movements %}
-                    <div class="mobile-stack-card">
-                      <div class="title">{{ m.get_kind_display|default:m.kind }}</div>
-
-                      <div class="mobile-row">
-                        <span class="label">Date</span>
-                        <span class="value">{{ m.created_at|date:"Y-m-d H:i" }}</span>
-                      </div>
-
-                      <div class="mobile-row">
-                        <span class="label">Amount</span>
-                        <span class="value">R{{ m.amount|floatformat:2|intcomma }}</span>
-                      </div>
-
-                      <div class="mobile-row">
-                        <span class="label">Reference</span>
-                        <span class="value">{{ m.reference|default:"—" }}</span>
-                      </div>
-
-                      <div class="mobile-row">
-                        <span class="label">Linked</span>
-                        <span class="value">{{ m.linked_profits_count|default:0 }}</span>
-                      </div>
-                    </div>
-                  {% endfor %}
-                </div>
-              {% else %}
-                <div class="text-center text-muted py-3">No movements available yet.</div>
-              {% endif %}
-            </div>
-          </div>
+      <div class="invoice-project">
+        <div class="invoice-project-heading">
+          <div><h3>Maplankeng</h3><p>Recent invoices · date and amount billed</p></div>
+          <span class="invoice-project-mark"><i class="bi bi-receipt"></i></span>
+        </div>
+        <div class="invoice-table-wrap">
+          <table class="table invoice-table mb-0">
+            <thead><tr><th scope="col">Invoice date</th><th scope="col" class="text-end">Amount invoiced</th></tr></thead>
+            <tbody>
+              <tr><td>14 Oct 2026</td><td class="text-end">R12,900.00</td></tr>
+              <tr><td>07 Oct 2026</td><td class="text-end">R10,000.00</td></tr>
+              <tr><td>30 Sep 2026</td><td class="text-end">R16,400.00</td></tr>
+              <tr><td>23 Sep 2026</td><td class="text-end">R21,000.00</td></tr>
+              <tr><td>16 Sep 2026</td><td class="text-end">R18,000.00</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <!-- CLIENT ALLOCATIONS -->
-      <div class="row g-3 mt-1">
-        <div class="col-12">
-          <div class="card shadow-sm">
-            <div class="card-header section-header">
-              <strong>Client Allocations</strong>
-              <span class="section-subtle">R{{ total_alloc|default:0|floatformat:2|intcomma }} total</span>
-            </div>
-
-            <!-- Desktop -->
-            <div class="card-body p-0 desktop-only">
-              <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0 hover-row">
-                  <thead class="table-light">
-                    <tr>
-                      <th>Client</th>
-                      <th class="text-end">Allocation</th>
-                      <th style="width:260px;">Share</th>
-                      <th class="text-end">Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                  {% if allocations %}
-                    {% for a in allocations %}
-                      <tr>
-                        <td>{{ a.client.name }}</td>
-                        <td class="text-end">R{{ a.amount|floatformat:2|intcomma }}</td>
-                        <td>
-                          <div class="d-flex justify-content-between small">
-                            <span class="text-muted">0%</span>
-                            <span class="text-muted alloc-row-label"
-                                  data-amount="{{ a.amount }}"
-                                  data-total="{{ total_alloc|default:'0' }}">—</span>
-                          </div>
-                          <div class="progress progress-sm">
-                            <div class="progress-bar bg-secondary alloc-row-bar"
-                                 role="progressbar"
-                                 style="width:0%"
-                                 aria-valuemin="0"
-                                 aria-valuemax="100"
-                                 data-amount="{{ a.amount }}"
-                                 data-total="{{ total_alloc|default:'0' }}">
-                            </div>
-                          </div>
-                        </td>
-                        <td class="text-end text-muted">—</td>
-                      </tr>
-                    {% endfor %}
-                  {% else %}
-                    <tr>
-                      <td colspan="4" class="text-center text-muted py-4">No allocations yet.</td>
-                    </tr>
-                  {% endif %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Mobile -->
-            <div class="card-body mobile-only">
-              {% if allocations %}
-                <div class="mobile-stack">
-                  {% for a in allocations %}
-                    <div class="mobile-stack-card">
-                      <div class="title">{{ a.client.name }}</div>
-
-                      <div class="mobile-row">
-                        <span class="label">Allocation</span>
-                        <span class="value">R{{ a.amount|floatformat:2|intcomma }}</span>
-                      </div>
-
-                      <div class="mt-2">
-                        <div class="d-flex justify-content-between small">
-                          <span class="text-muted">Share</span>
-                          <span class="text-muted alloc-row-label"
-                                data-amount="{{ a.amount }}"
-                                data-total="{{ total_alloc|default:'0' }}">—</span>
-                        </div>
-                        <div class="progress progress-sm mt-1">
-                          <div class="progress-bar bg-secondary alloc-row-bar"
-                               role="progressbar"
-                               style="width:0%"
-                               aria-valuemin="0"
-                               aria-valuemax="100"
-                               data-amount="{{ a.amount }}"
-                               data-total="{{ total_alloc|default:'0' }}">
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  {% endfor %}
-                </div>
-              {% else %}
-                <div class="text-center text-muted py-3">No allocations yet.</div>
-              {% endif %}
-            </div>
-
-            <div class="card-footer small text-muted">
-              Manage allocations in admin under <em>Credit → Funders</em>.
-            </div>
-          </div>
+      <div class="invoice-project mt-3">
+        <div class="invoice-project-heading">
+          <div><h3>Icebolethu</h3><p>Recent invoices · date and amount billed</p></div>
+          <span class="invoice-project-mark"><i class="bi bi-receipt"></i></span>
+        </div>
+        <div class="invoice-table-wrap">
+          <table class="table invoice-table mb-0">
+            <thead><tr><th scope="col">Invoice date</th><th scope="col" class="text-end">Amount invoiced</th></tr></thead>
+            <tbody>
+              <tr><td>13 Oct 2026</td><td class="text-end">R14,000.00</td></tr>
+              <tr><td>06 Oct 2026</td><td class="text-end">R12,000.00</td></tr>
+              <tr><td>29 Sep 2026</td><td class="text-end">R17,250.00</td></tr>
+              <tr><td>22 Sep 2026</td><td class="text-end">R19,000.00</td></tr>
+              <tr><td>15 Sep 2026</td><td class="text-end">R18,000.00</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
+    </section>
+</main>
 
-    </div>
-  </main>
+  <nav class="bottom-nav" aria-label="Primary navigation">
+    <span class="nav-disabled" aria-disabled="true" title="Projects is not available yet"><i class="bi bi-folder2-open"></i><span>Projects</span></span>
+    <a href="{% url 'funder-dashboard' %}" class="active" aria-current="page"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+    <form method="post" action="{% url 'logout' %}" class="bottom-nav-logout">
+      {% csrf_token %}
+      <button type="submit" aria-label="Logout" title="Logout"><i class="bi bi-box-arrow-right"></i><span>Logout</span></button>
+    </form>
+  </nav>
+</div>
 
-  <div class="modal fade"
-      id="switchPlatformModal"
-      tabindex="-1"
-      aria-labelledby="switchPlatformModalLabel"
-      aria-hidden="true">
-
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-
-        <div class="modal-header justify-content-center position-relative">
-          <h5 class="modal-title w-100 text-center" id="switchPlatformModalLabel">
-            Switch Platform
-          </h5>
-          <button type="button"
-                  class="btn-close position-absolute"
-                  style="right:1rem; top:1rem;"
-                  data-bs-dismiss="modal"
-                  aria-label="Close"></button>
+<div class="modal fade" id="switchPlatformModal" tabindex="-1" aria-labelledby="switchPlatformModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title fs-6" id="switchPlatformModalLabel">Switch platform</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-secondary mb-3">Choose another platform you have access to.</p>
+        <div class="d-grid gap-2">
+          <a href="{% url 'staff-dashboard' %}" class="btn btn-outline-success">Main Staff Portal</a>
+          <a href="{% url 'funder-dashboard' %}" class="btn btn-success">Funder Portal</a>
+          <a href="{% url 'sales:sales-dashboard' %}" class="btn btn-outline-success">Sales Portal</a>
+          <a href="{% url 'logistics:logistics-dashboard' %}" class="btn btn-outline-success">Logistics Portal</a>
         </div>
-
-        <div class="modal-body text-center">
-          <p class="mb-3 text-muted">Choose a platform to continue:</p>
-
-          <div class="d-grid gap-2">
-            <a
-              href="{% url 'staff-dashboard' %}"
-              class="btn btn-outline-primary{% if not can_staff_portal %} disabled{% endif %}"
-              {% if not can_staff_portal %}tabindex="-1" aria-disabled="true"{% endif %}
-            >
-              Main Staff Portal
-            </a>
-
-            <a
-              href="{% url 'funder-dashboard' %}"
-              class="btn btn-outline-primary{% if not can_lender_portal %} disabled{% endif %}"
-              {% if not can_lender_portal %}tabindex="-1" aria-disabled="true"{% endif %}
-            >
-              Funder Portal
-            </a>
-
-            <a
-              href="{% url 'sales:sales-dashboard' %}"
-              class="btn btn-outline-primary{% if not can_sales_portal %} disabled{% endif %}"
-              {% if not can_sales_portal %}tabindex="-1" aria-disabled="true"{% endif %}
-            >
-              Sales Portal
-            </a>
-
-            <a
-              href="{% url 'logistics:logistics-dashboard' %}"
-              class="btn btn-outline-primary{% if not can_logistics_portal %} disabled{% endif %}"
-              {% if not can_logistics_portal %}tabindex="-1" aria-disabled="true"{% endif %}
-            >
-              Logistics Portal
-            </a>
-          </div>
-        </div>
-
-        <div class="modal-footer justify-content-center border-0">
-          <small class="text-muted">
-            Platforms you don’t have access to are disabled.
-          </small>
-        </div>
-
+        <p class="small text-secondary mt-3 mb-0">Your existing route permissions should continue to be enforced by Django views.</p>
       </div>
     </div>
   </div>
-
-  <footer class="py-2">
-    <div class="container text-center small">
-      <div>© {% now "Y" %} The Daily Market · All rights reserved.</div>
-      <div class="mt-1">Built for funders who demand transparency.</div>
-    </div>
-  </footer>
-
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-  function pct(amount, total) {
-    amount = parseFloat(amount || 0);
-    total  = parseFloat(total || 0);
-    if (!total || total <= 0) return 0;
-    const p = (amount / total) * 100;
-    return Math.max(0, Math.min(100, p));
-  }
-
-  (function(){
-    const bar = document.getElementById('allocPctBar');
-    const lbl = document.getElementById('allocPctLabel');
-    if (bar && lbl) {
-      const p = pct(bar.dataset.amount, bar.dataset.total);
-      bar.style.width = p.toFixed(0) + '%';
-      lbl.textContent = p.toFixed(0) + '%';
-    }
-  })();
-
-  (function(){
-    const bar = document.getElementById('utilPctBar');
-    const lbl = document.getElementById('utilPctLabel');
-    if (bar && lbl) {
-      const p = pct(bar.dataset.amount, bar.dataset.total);
-      bar.style.width = p.toFixed(0) + '%';
-      lbl.textContent = p.toFixed(0) + '%';
-    }
-  })();
-
-  (function(){
-    const bars = document.querySelectorAll('.alloc-row-bar');
-    const labels = document.querySelectorAll('.alloc-row-label');
-    bars.forEach((b, idx) => {
-      const p = pct(b.dataset.amount, b.dataset.total);
-      b.style.width = p.toFixed(0) + '%';
-      if (labels[idx]) labels[idx].textContent = p.toFixed(0) + '%';
-    });
-  })();
-
-  (function(){
-    const sel = document.getElementById('funderSwitch');
-    if (sel) {
-      sel.addEventListener('change', function(){
-        const id = this.value;
-        const url = new URL(window.location.href);
-        url.searchParams.set('funder', id);
-        window.location.href = url.toString();
-      });
-    }
-  })();
-</script>
 </body>
 </html>

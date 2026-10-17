@@ -1032,7 +1032,6 @@ class LeadAdmin(admin.ModelAdmin):
         "location_status",
         "assigned_to",
         "is_converted_display",
-        "created_at",
     )
 
     list_filter = (
@@ -1078,7 +1077,6 @@ class LeadAdmin(admin.ModelAdmin):
 
     readonly_fields = (
         "lead_number",
-        "created_at",
         "updated_at",
         "preferred_call_time_selected_at",
         "is_converted_display",
@@ -1212,7 +1210,6 @@ class LeadAdmin(admin.ModelAdmin):
                     "updated_at",
                     "age_days",
                 ),
-                "classes": ("collapse",),
             },
         ),
     )
@@ -1589,5 +1586,6 @@ class EndUserAdmin(admin.ModelAdmin):
             obj.latitude,
             obj.longitude,
         )
+
 
 
