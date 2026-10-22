@@ -643,7 +643,8 @@
 
           <div class="col-lg-2 col-md-6">
             <select name="status" class="form-select form-select-sm">
-              <option value="">Status: All</option>
+              <option value="" {% if not request.GET.status %}selected{% endif %}>Status: Pending + Active (default)</option>
+              <option value="ALL" {% if request.GET.status == "ALL" %}selected{% endif %}>Status: All statuses</option>
               {% for key,label in statuses %}
                 <option value="{{ key }}" {% if request.GET.status == key %}selected{% endif %}>{{ label }}</option>
               {% endfor %}

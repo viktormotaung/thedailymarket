@@ -3142,7 +3142,9 @@ def clients(request):
     province = request.GET.get("province") or ""
     account_type = request.GET.get("account_type") or ""
     credit_status = request.GET.get("credit_status") or ""
-    status = request.GET.get("status") or ""
+    # Default to current client accounts: Pending and Active.
+    # Selecting "All statuses" explicitly disables this default.
+    status = (request.GET.get("status") or "").strip().upper()
     region_id = request.GET.get("region") or ""
     territory_id = request.GET.get("territory") or ""
     area_id = request.GET.get("area") or ""
@@ -3179,8 +3181,12 @@ def clients(request):
     if credit_status:
         qs = qs.filter(credit_status=credit_status)
 
-    if status:
+    if status == "ALL":
+        pass
+    elif status:
         qs = qs.filter(status=status)
+    else:
+        qs = qs.filter(status__in=["PENDING", "ACTIVE"])
 
     if region_id.isdigit():
         qs = qs.filter(region_id=int(region_id))

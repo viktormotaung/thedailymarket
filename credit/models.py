@@ -524,6 +524,7 @@ class FunderMovement(models.Model):
 class CreditAccount(models.Model):
     TERM_CHOICES = [
         ("0D", "0 Day (Cash)"),
+        ("1D", "1 Day Credit"),
         ("3D", "3 Day Credit"),
         ("7D", "7 Day Credit"),
     ]
@@ -532,6 +533,7 @@ class CreditAccount(models.Model):
         (Decimal("0.00"), "0%"),
         (Decimal("30.00"), "30%"),
         (Decimal("50.00"), "50%"),
+        (Decimal("70.00"), "70%"),
         (Decimal("100.00"), "100%"),
     ]
 
