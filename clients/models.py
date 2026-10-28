@@ -1624,6 +1624,22 @@ class Lead(models.Model):
         default="MEDIUM",
     )
 
+    # Lead temperature is separate from source and priority.
+    # Example: Facebook is the source; WARM is the temperature.
+    TEMPERATURE_CHOICES = [
+        ("COLD", "Cold"),
+        ("WARM", "Warm"),
+        ("HOT", "Hot"),
+    ]
+
+    temperature = models.CharField(
+        max_length=10,
+        choices=TEMPERATURE_CHOICES,
+        default="COLD",
+        db_index=True,
+        help_text="How engaged the lead is; separate from lead source and sales priority.",
+    )
+
     source = models.CharField(
         max_length=20,
         choices=SOURCE_CHOICES,
@@ -3387,7 +3403,398 @@ class EndUser(models.Model):
 
         super().save(*args, **kwargs)
 
+# ============================================================================
+# MARKETING CAMPAIGNS AND CAMPAIGN FORM RESPONSES
+# ============================================================================
+
+class Campaign(models.Model):
+    """A marketing campaign run by The Daily Market."""
+
+    TYPE_CHOICES = [
+        ("FOOD_SUPPLY", "Food Supply"),
+        ("TRADE_ASSIST", "Trade Assist"),
+        ("COMBINED", "Food Supply and Trade Assist"),
+        ("OTHER", "Other"),
+    ]
+
+    OBJECTIVE_CHOICES = [
+        ("LEADS", "Generate Leads"),
+        ("FIRST_ORDERS", "Generate First Orders"),
+        ("REPEAT_ORDERS", "Increase Repeat Orders"),
+        ("AWARENESS", "Brand Awareness"),
+        ("OTHER", "Other"),
+    ]
+
+    STATUS_CHOICES = [
+        ("DRAFT", "Draft"),
+        ("SCHEDULED", "Scheduled"),
+        ("ACTIVE", "Active"),
+        ("PAUSED", "Paused"),
+        ("COMPLETED", "Completed"),
+        ("CANCELLED", "Cancelled"),
+    ]
+
+    CHANNEL_CHOICES = [
+        ("FACEBOOK", "Facebook"),
+        ("INSTAGRAM", "Instagram"),
+        ("TIKTOK", "TikTok"),
+        ("WHATSAPP", "WhatsApp"),
+        ("WEBSITE", "Website"),
+        ("EMAIL", "Email"),
+        ("PRINT", "Print / Flyer / QR Code"),
+        ("OTHER", "Other"),
+    ]
+
+    name = models.CharField(max_length=180)
+    code = models.SlugField(
+        max_length=200,
+        unique=True,
+        blank=True,
+        help_text="Unique campaign code; generated from the campaign name if omitted.",
+    )
+    campaign_type = models.CharField(
+        max_length=20,
+        choices=TYPE_CHOICES,
+        default="FOOD_SUPPLY",
+        db_index=True,
+    )
+    objective = models.CharField(
+        max_length=20,
+        choices=OBJECTIVE_CHOICES,
+        default="LEADS",
+    )
+    status = models.CharField(
+        max_length=15,
+        choices=STATUS_CHOICES,
+        default="DRAFT",
+        db_index=True,
+    )
+    description = models.TextField(blank=True)
+    target_audience = models.TextField(
+        blank=True,
+        help_text="Describe the business types or audience targeted by this campaign.",
+    )
+    channels = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of marketing channels used, e.g. ['FACEBOOK', 'INSTAGRAM'].",
+    )
+    offer = models.TextField(blank=True)
+    start_date = models.DateField(null=True, blank=True, db_index=True)
+    end_date = models.DateField(null=True, blank=True, db_index=True)
+    budget = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Planned campaign budget in South African rand.",
+    )
+    form_title = models.CharField(max_length=180, blank=True)
+    form_description = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_marketing_campaigns",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "start_date"]),
+            models.Index(fields=["campaign_type", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.code or 'unsaved'})"
+
+    def clean(self):
+        super().clean()
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValidationError({"end_date": "End date cannot be before the start date."})
+        if self.channels is not None and not isinstance(self.channels, list):
+            raise ValidationError({"channels": "Channels must be stored as a list."})
+
+    def save(self, *args, **kwargs):
+        if not self.code and self.name:
+            from django.utils.text import slugify
+
+            base_code = slugify(self.name)[:180] or "campaign"
+            candidate = base_code
+            suffix = 2
+            queryset = type(self).objects.all()
+            if self.pk:
+                queryset = queryset.exclude(pk=self.pk)
+            while queryset.filter(code=candidate).exists():
+                candidate = f"{base_code[:180 - len(str(suffix)) - 1]}-{suffix}"
+                suffix += 1
+            self.code = candidate
+        super().save(*args, **kwargs)
 
 
+class CampaignQuestion(models.Model):
+    """Configurable question displayed on a campaign response form."""
 
-           
+    TYPE_CHOICES = [
+        ("SHORT_TEXT", "Short text"),
+        ("LONG_TEXT", "Long text"),
+        ("DROPDOWN", "Dropdown"),
+        ("MULTIPLE_CHOICE", "Multiple choice"),
+        ("YES_NO", "Yes / No"),
+        ("NUMBER", "Number"),
+    ]
+
+    campaign = models.ForeignKey(
+        Campaign,
+        on_delete=models.CASCADE,
+        related_name="questions",
+    )
+    question_text = models.CharField(max_length=300)
+    question_key = models.SlugField(
+        max_length=100,
+        help_text="Stable key used by reporting and form processing.",
+    )
+    question_type = models.CharField(
+        max_length=20,
+        choices=TYPE_CHOICES,
+        default="SHORT_TEXT",
+    )
+    options = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of options for dropdown or multiple-choice questions.",
+    )
+    is_required = models.BooleanField(default=False)
+    help_text = models.CharField(max_length=300, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["campaign", "question_key"],
+                name="unique_campaign_question_key",
+            ),
+        ]
+        indexes = [models.Index(fields=["campaign", "is_active", "sort_order"])]
+
+    def __str__(self):
+        return f"{self.campaign.name}: {self.question_text}"
+
+    def clean(self):
+        super().clean()
+        if self.question_type in {"DROPDOWN", "MULTIPLE_CHOICE"}:
+            if not isinstance(self.options, list) or not self.options:
+                raise ValidationError({"options": "Add at least one option for this question type."})
+        elif self.options and not isinstance(self.options, list):
+            raise ValidationError({"options": "Options must be stored as a list."})
+
+
+class CampaignResponse(models.Model):
+    """A single submission/interaction associated with a campaign and a lead."""
+
+    campaign = models.ForeignKey(
+        Campaign,
+        on_delete=models.PROTECT,
+        related_name="responses",
+    )
+    lead = models.ForeignKey(
+        "Lead",
+        on_delete=models.PROTECT,
+        related_name="campaign_responses",
+    )
+    channel = models.CharField(
+        max_length=30,
+        choices=Campaign.CHANNEL_CHOICES,
+        blank=True,
+        help_text="Channel through which this response was received.",
+    )
+    advert_reference = models.CharField(max_length=180, blank=True)
+    landing_page = models.URLField(max_length=500, blank=True)
+    utm_source = models.CharField(max_length=150, blank=True)
+    utm_medium = models.CharField(max_length=150, blank=True)
+    utm_campaign = models.CharField(max_length=180, blank=True)
+    utm_content = models.CharField(max_length=180, blank=True)
+    utm_term = models.CharField(max_length=180, blank=True)
+    fbclid = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text="Meta click identifier when provided in the landing-page URL.",
+    )
+    ttclid = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text="TikTok click identifier when provided in the landing-page URL.",
+    )
+    consent_to_contact = models.BooleanField(
+        default=False,
+        help_text="Record whether the person agreed to be contacted.",
+    )
+    consent_text = models.TextField(blank=True)
+    submitted_at = models.DateTimeField(default=timezone.now, db_index=True)
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Optional additional attribution metadata; do not store sensitive data unnecessarily.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-submitted_at", "-id"]
+        indexes = [
+            models.Index(fields=["campaign", "submitted_at"]),
+            models.Index(fields=["lead", "submitted_at"]),
+            models.Index(fields=["channel", "submitted_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.campaign.name} — {self.lead.lead_number} — {self.submitted_at:%Y-%m-%d %H:%M}"
+
+    def save(self, *args, **kwargs):
+        """Keep legacy Lead attribution fields populated for older reports."""
+        if self.lead_id and self.campaign_id:
+            lead_update_fields = []
+            if not self.lead.campaign:
+                self.lead.campaign = self.campaign.name
+                lead_update_fields.append("campaign")
+            if self.advert_reference and not self.lead.advert:
+                self.lead.advert = self.advert_reference[:150]
+                lead_update_fields.append("advert")
+            if self.channel and not self.lead.medium:
+                self.lead.medium = self.get_channel_display()
+                lead_update_fields.append("medium")
+            if lead_update_fields:
+                lead_update_fields.append("updated_at")
+                self.lead.save(update_fields=lead_update_fields)
+        super().save(*args, **kwargs)
+
+
+class CampaignResponseAnswer(models.Model):
+    """Answer to one configured question for a particular campaign response."""
+
+    response = models.ForeignKey(
+        CampaignResponse,
+        on_delete=models.CASCADE,
+        related_name="answers",
+    )
+    question = models.ForeignKey(
+        CampaignQuestion,
+        on_delete=models.PROTECT,
+        related_name="answers",
+    )
+    question_text_snapshot = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text="Question wording preserved as it appeared when the response was submitted.",
+    )
+    answer_value = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Answer value; can be text, a number, a boolean or a list of selections.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["response_id", "question__sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["response", "question"],
+                name="unique_answer_per_campaign_response_question",
+            ),
+        ]
+        indexes = [models.Index(fields=["question", "created_at"])]
+
+    def __str__(self):
+        return f"Answer: {self.question.question_key} — response #{self.response_id}"
+
+    def clean(self):
+        super().clean()
+        if self.response_id and self.question_id:
+            if self.response.campaign_id != self.question.campaign_id:
+                raise ValidationError({"question": "The question must belong to the response's campaign."})
+
+    def save(self, *args, **kwargs):
+        if self.question_id and not self.question_text_snapshot:
+            self.question_text_snapshot = self.question.question_text
+        super().save(*args, **kwargs)
+
+class CampaignSMSConfirmation(models.Model):
+    """Track the confirmation SMS associated with a campaign form submission.
+
+    This model records the SMS lifecycle separately from the lead and response.
+    A one-to-one relationship prevents a normal form retry from creating a
+    second confirmation record for the same submission. Delivery/retry logic
+    belongs in the SMS service or Celery task, not in this model.
+    """
+
+    STATUS_CHOICES = [
+        ("QUEUED", "Queued"),
+        ("SENDING", "Sending"),
+        ("SENT", "Sent to provider"),
+        ("DELIVERED", "Delivered"),
+        ("FAILED", "Failed"),
+        ("CANCELLED", "Cancelled"),
+    ]
+
+    response = models.OneToOneField(
+        CampaignResponse,
+        on_delete=models.CASCADE,
+        related_name="sms_confirmation",
+    )
+    phone_number = models.CharField(max_length=50)
+    message = models.TextField(
+        help_text="Exact SMS body submitted to the SMS provider.",
+    )
+    provider = models.CharField(
+        max_length=80,
+        blank=True,
+        help_text="SMS gateway/provider used to send this message.",
+    )
+    status = models.CharField(
+        max_length=12,
+        choices=STATUS_CHOICES,
+        default="QUEUED",
+        db_index=True,
+    )
+    idempotency_key = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text="Stable unique key used to avoid duplicate SMS sends on retries.",
+    )
+    provider_message_id = models.CharField(max_length=200, blank=True, db_index=True)
+    attempt_count = models.PositiveSmallIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    queued_at = models.DateTimeField(default=timezone.now, db_index=True)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "queued_at"]),
+            models.Index(fields=["status", "last_attempt_at"]),
+        ]
+
+    def __str__(self):
+        return f"SMS confirmation for response #{self.response_id} ({self.status})"
+
+    def clean(self):
+        super().clean()
+        if self.status == "DELIVERED" and not self.delivered_at:
+            raise ValidationError({"delivered_at": "A delivered SMS must have a delivery timestamp."})
+        if self.status == "SENT" and not self.sent_at:
+            raise ValidationError({"sent_at": "A sent SMS must have a sent timestamp."})
+        if self.attempt_count < 0:
+            raise ValidationError({"attempt_count": "Attempt count cannot be negative."})
+

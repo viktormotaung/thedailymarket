@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from .models import (
     Inventory,
     StockReceipt,
@@ -28,6 +28,7 @@ from .models import (
     ExternalDeliveryRate,
 )
 from suppliers.models import Supplier
+from django.utils.html import strip_tags
 
 
 def send_delivery_email(stop, recipient_email, recipient_name):
@@ -858,21 +859,44 @@ class DeliveryRunAdmin(admin.ModelAdmin):
     # DISPLAY HELPERS
     # =========================
 
-    def overall_total_cost_display(self, obj):
-        value = obj.overall_total_cost
+    
 
-        if value is None:
+
+    @admin.display(
+        description="Total Cost",
+        ordering="overall_total_cost",
+    )
+    def overall_total_cost_display(self, obj):
+        """Display the run's total cost safely, whether raw or preformatted."""
+        raw_value = obj.overall_total_cost
+
+        if raw_value is None:
             return "—"
 
+        # A model property may return a SafeString containing HTML or currency
+        # formatting. Remove markup before converting it to a numeric value.
+        text_value = strip_tags(str(raw_value)).strip()
+        if not text_value or text_value in ("—", "-"):
+            return "—"
+
+        # Accept raw numbers and common formatted values such as "R 1,234.50".
+        normalized_value = (
+            text_value
+            .replace("R", "")
+            .replace(",", "")
+            .replace(" ", "")
+            .strip()
+        )
+
         try:
-            value = Decimal(value)
-        except Exception:
-            return format_html("<strong>{}</strong>", value)
+            amount = Decimal(normalized_value)
+        except (InvalidOperation, TypeError, ValueError):
+            # Avoid applying numeric formatting to a string. Show the original
+            # value as escaped text so unusual legacy values cannot break admin.
+            return format_html("<strong>{}</strong>", text_value)
 
-        return format_html("<strong>R {:,.2f}</strong>", value)
-
-    overall_total_cost_display.short_description = "Total Cost"
-    overall_total_cost_display.admin_order_field = "overall_total_cost"
+        formatted_amount = f"{amount:,.2f}"
+        return format_html("<strong>R {}</strong>", formatted_amount)
 
     # =========================
     # ACTIONS

@@ -133,6 +133,28 @@
       .mobile-topbar { background:var(--brand); }
       .mobile-topbar .navbar-brand img { height:40px; }
     }
+
+    /* Shared Index homepage footer */
+    .site-footer { color: rgba(255,255,255,.82); background: #073d27; }
+    .footer-main { padding-block: 3.5rem 2.5rem; }
+    .footer-brand img { height: 54px; width: auto; margin-bottom: 1rem; }
+    .footer-brand p { max-width: 300px; color: rgba(255,255,255,.68); font-size: .9rem; }
+    .footer-col h2 { margin-bottom: 1rem; color: #fff; font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .footer-links { display: grid; gap: .55rem; padding: 0; margin: 0; list-style: none; }
+    .footer-links a { color: rgba(255,255,255,.72); font-size: .9rem; text-decoration: none; }
+    .footer-links a:hover { color: #fff; text-decoration: underline; }
+    .footer-bottom { padding-block: 1.1rem; border-top: 1px solid rgba(255,255,255,.15); color: rgba(255,255,255,.62); font-size: .78rem; }
+    .social-links { display: flex; gap: .65rem; margin-top: .9rem; }
+    .social-links a { display: grid; width: 40px; height: 40px; place-items: center; color: #fff; border: 1px solid rgba(255,255,255,.2); border-radius: 50%; text-decoration: none; }
+    .social-links a:hover { background: rgba(255,255,255,.12); }
+    .page-hero { min-height: clamp(250px, 36vw, 420px); padding: 3rem 1rem; background-position: center; }
+    .page-hero h1 { font-size: clamp(2rem, 5vw, 3.5rem); padding-inline: 1rem; }
+    @media (max-width: 575.98px) {
+      .membership-bar .d-flex { gap: .65rem !important; flex-wrap: wrap; }
+      .btn-member, .btn-member-login { padding: .55rem 1rem; font-size: .9rem; }
+      .page-hero { min-height: 230px; }
+      .section-heading { font-size: 1.65rem; }
+    }
   </style>
 </head>
 
@@ -370,95 +392,71 @@
 ```
 
 
-  <!-- ========== Footer ========== -->
-  <footer class="text-white bg-dark">
-    <div class="container py-5">
-      <div class="row text-center gy-4">
-
-        <!-- Services & Access -->
-        <div class="col-12 col-md-3">
-          <h6 class="text-uppercase fw-bold mb-3">Our Services</h6>
-          <ul class="list-unstyled mb-3">
-            <li><a class="text-decoration-none text-white-50" href="/wholesale/">Wholesale Trade</a></li>
-            <li><a class="text-decoration-none text-white-50" href="/retail/">Retail Express</a></li>
-            <li><a class="text-decoration-none text-white-50" href="/grill/">Grill Experience</a></li>
-          </ul>
-
-          <h6 class="text-uppercase fw-bold mb-3">Access</h6>
-          <ul class="list-unstyled mb-0">
-            <li>
-              <a class="text-decoration-none text-white-50" href="{% url 'client-login' %}">
-                Client Access
-              </a>
-            </li>
-            <li>
-              <a class="text-decoration-none text-white-50" href="{% url 'staff-login' %}">
-                Staff Access
-              </a>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Legal / Compliance -->
-        <div class="col-12 col-md-3">
-          <h6 class="text-uppercase fw-bold mb-3">Legal</h6>
-          <ul class="list-unstyled mb-0 small">
-            <li><a class="text-decoration-none text-white-50" href="/terms-and-conditions/">Terms &amp; Conditions</a></li>
-            <li><a class="text-decoration-none text-white-50" href="/privacy-policy/">Privacy Policy</a></li>
-            <li><a class="text-decoration-none text-white-50" href="/refund-policy/">Refund Policy</a></li>
-            <li><a class="text-decoration-none text-white-50" href="/shipping-policy/">Shipping Policy</a></li>
-          </ul>
-        </div>
-
-        <!-- Contact -->
-        <div class="col-12 col-md-3">
-          <h6 class="text-uppercase fw-bold mb-3">Contact Us</h6>
-          <div class="small text-white-50">
-            <div>+27 87 265 5488</div>
-            <div>
-              <a class="text-decoration-none text-white-50" href="mailto:info@thedailymarket.co.za">
-                info@thedailymarket.co.za
-              </a>
-            </div>
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-main">
+      <div class="row g-4 g-xl-5">
+        <div class="col-12 col-md-6 col-xl-3 footer-brand">
+          <a href="{% url 'home' %}" aria-label="The Daily Market home"><img src="{% static 'images/logo.png' %}" alt="The Daily Market"></a>
+          <p>Quality food products and practical supply solutions for households and food businesses.</p>
+          <div class="social-links" aria-label="Social media">
+            <a href="https://facebook.com/" aria-label="Facebook"><i class="bi bi-facebook" aria-hidden="true"></i></a>
+            <a href="https://instagram.com/" aria-label="Instagram"><i class="bi bi-instagram" aria-hidden="true"></i></a>
+            <a href="https://youtube.com/" aria-label="YouTube"><i class="bi bi-youtube" aria-hidden="true"></i></a>
           </div>
         </div>
-
-        <!-- Trading Hours & Social -->
-        <div class="col-12 col-md-3">
-          <h6 class="text-uppercase fw-bold mb-3">Trading Hours</h6>
-          <div class="small text-white-50 mb-3">
-            <div>Mon–Fri: 7:30am–4:00pm</div>
-            <div>Sat: 7:30am–1:00pm</div>
-            <div>Sun: Closed</div>
-          </div>
-
-          <h6 class="text-uppercase fw-bold mb-2">Follow Us</h6>
-          <div class="d-flex justify-content-center gap-3 fs-4">
-            <a href="https://facebook.com/" class="text-white" aria-label="Facebook">
-              <i class="bi bi-facebook"></i>
-            </a>
-            <a href="https://instagram.com/" class="text-white" aria-label="Instagram">
-              <i class="bi bi-instagram"></i>
-            </a>
-            <a href="https://youtube.com/" class="text-white" aria-label="YouTube">
-              <i class="bi bi-youtube"></i>
-            </a>
-          </div>
+        <div class="col-6 col-md-6 col-xl-2 footer-col">
+          <h2>Explore</h2>
+          <ul class="footer-links">
+            <li><a href="{% url 'about' %}">About us</a></li>
+            <li><a href="{% url 'wholesale' %}">Wholesale Trade</a></li>
+            <li><a href="{% url 'retail' %}">Retail Express</a></li>
+            <li><a href="{% url 'grill' %}">Grill Experience</a></li>
+            <li><a href="{% url 'products' %}">Shop products</a></li>
+            <li><a href="{% url 'trade_assist' %}">Trade Assist</a></li>
+          </ul>
         </div>
-
+        <div class="col-6 col-md-6 col-xl-2 footer-col">
+          <h2>Account access</h2>
+          <ul class="footer-links">
+            <li><a href="{% url 'client-login' %}">Client access</a></li>
+            <li><a href="{% url 'staff-login' %}">Staff access</a></li>
+            <li><a href="/register_profile/">Become a member</a></li>
+            <li><a href="{% url 'contact' %}">Contact us</a></li>
+          </ul>
+        </div>
+        <div class="col-6 col-md-6 col-xl-2 footer-col">
+          <h2>Policies</h2>
+          <ul class="footer-links">
+            <li><a href="/terms-and-conditions/">Terms &amp; Conditions</a></li>
+            <li><a href="/privacy-policy/">Privacy Policy</a></li>
+            <li><a href="/refund-policy/">Refund Policy</a></li>
+            <li><a href="/shipping-policy/">Shipping Policy</a></li>
+          </ul>
+        </div>
+        <div class="col-6 col-md-6 col-xl-3 footer-col">
+          <h2>Contact</h2>
+          <ul class="footer-links">
+            <li><a href="tel:+27872655488"><i class="bi bi-telephone me-2" aria-hidden="true"></i>+27 87 265 5488</a></li>
+            <li><a href="mailto:info@thedailymarket.co.za"><i class="bi bi-envelope me-2" aria-hidden="true"></i>info@thedailymarket.co.za</a></li>
+          </ul>
+          <h2 class="mt-4">Trading hours</h2>
+          <ul class="footer-links">
+            <li>Mon–Fri: 7:30am–4:00pm</li>
+            <li>Saturday: 7:30am–1:00pm</li>
+            <li>Sunday: Closed</li>
+          </ul>
+        </div>
       </div>
-
-      <hr class="my-4 border-light">
-
-      <div class="text-center small text-white-50">
-        © {% now "Y" %} The Daily Market • Quality You Can Trust
-      </div>
-      <div class="text-center small text-white-50 mt-1 opacity-75">
-        The Daily Market operates in accordance with South African consumer and data protection laws.
+    </div>
+    <div class="footer-bottom">
+      <div class="container d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+        <span>© {% now "Y" %} The Daily Market. Quality You Can Trust.</span>
+        <span>The Daily Market operates in accordance with applicable South African consumer and data protection laws.</span>
       </div>
     </div>
   </footer>
-  
+
   <!-- ========== Sign-in required modal ========== -->
   <div class="modal fade" id="authRequiredModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">

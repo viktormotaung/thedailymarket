@@ -1394,6 +1394,85 @@
 
 
                         <!-- =================================================
+                            CAMPAIGN QUESTIONS & ANSWERS
+                            Read-only questionnaire history linked to this lead
+                        ================================================== -->
+
+                        <div class="card shadow-sm border-0 mb-4">
+
+                            <div class="card-header bg-white border-bottom py-3">
+                                <div class="d-flex align-items-center">
+                                    <div
+                                        class="rounded-circle bg-info-subtle text-info-emphasis
+                                               d-flex align-items-center justify-content-center me-3"
+                                        style="width:40px;height:40px;"
+                                    >
+                                        <i class="bi bi-ui-checks"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="mb-0 fw-semibold">Campaign Questions &amp; Answers</h5>
+                                        <div class="text-muted small">
+                                            Questionnaire responses submitted for this lead.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card-body p-4">
+                                {% for response in lead.campaign_responses.all %}
+                                    <div class="{% if not forloop.last %}border-bottom pb-3 mb-3{% endif %}">
+                                        <div class="d-flex flex-column flex-md-row
+                                                    justify-content-between gap-1 mb-3">
+                                            <div class="fw-semibold">
+                                                {{ response.campaign|default:"Campaign questionnaire" }}
+                                            </div>
+                                            {% if response.submitted_at %}
+                                                <small class="text-muted">
+                                                    Submitted {{ response.submitted_at|date:"d M Y, H:i" }}
+                                                </small>
+                                            {% endif %}
+                                        </div>
+
+                                        {% for answer in response.answers.all %}
+                                            <div class="rounded-3 border bg-light p-3 mb-2">
+                                                <div class="small text-muted mb-1">Question {{ forloop.counter }}</div>
+                                                <div class="fw-medium mb-2">
+                                                    {% if answer.question_snapshot %}
+                                                        {{ answer.question_snapshot }}
+                                                    {% elif answer.question.text %}
+                                                        {{ answer.question.text }}
+                                                    {% elif answer.question %}
+                                                        {{ answer.question }}
+                                                    {% else %}
+                                                        Campaign question
+                                                    {% endif %}
+                                                </div>
+                                                <div class="text-dark">
+                                                    {% if answer.answer_value %}
+                                                        {{ answer.answer_value|linebreaksbr }}
+                                                    {% else %}
+                                                        <span class="text-muted">No answer recorded.</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% empty %}
+                                            <div class="alert alert-light border mb-0">
+                                                No answers were recorded for this questionnaire submission.
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% empty %}
+                                    <div class="text-muted">
+                                        No campaign questionnaire responses are recorded for this lead.
+                                    </div>
+                                {% endfor %}
+                            </div>
+
+                        </div>
+
+
+
+                        <!-- =================================================
                             NOTES
                         ================================================== -->
 

@@ -1,7 +1,6 @@
 # home/urls.py
 from django.urls import path
-from . import views
-from django.conf.urls.static import static
+from . import views, campaign_views
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -10,15 +9,27 @@ urlpatterns = [
     path("about/", views.about, name="about"),
     path("trade_assist/", views.trade_assist, name="trade_assist"),
 
+    # Public campaign landing page (use Campaign.code in the URL)
+    # Example: /campaign/gauteng-food-supply/
+    path(
+        "campaign/<slug:campaign_code>/",
+        campaign_views.food_supply_campaign_form,
+        name="food-supply-campaign-form",
+    ),
+    path(
+        "campaign/<slug:campaign_code>/thank-you/",
+        campaign_views.food_supply_campaign_thank_you,
+        name="food-supply-campaign-thank-you",
+    ),
+
     # Auth
     path("portal/staff/login/", views.staff_login, name="staff-login"),
     path("portal/client/login/", views.ClientLoginView.as_view(), name="client-login"),
     path("register_profile/", views.register_profile, name="register-profile"),
-    path("register/success/", views.register_success, name="register-success",),
+    path("register/success/", views.register_success, name="register-success"),
     path("logout/", views.logout_view, name="logout"),
     path("portal/consumer/login/", views.consumer_login, name="consumer-login"),
-
-    path("reset/<uidb64>/<token>/", views.staff_password_set, name="staff-password-set",), 
+    path("reset/<uidb64>/<token>/", views.staff_password_set, name="staff-password-set"),
 
     # Dashboards
     path("portal/client/", views.client_dashboard, name="client-dashboard"),
@@ -40,23 +51,16 @@ urlpatterns = [
     path("orders/<int:pk>/", views.view_order, name="view-order"),
     path("orders/", views.orders, name="orders"),
     path("invoice/<int:pk>/", views.view_invoice, name="view-invoice"),
-
     path("invoice/<int:invoice_id>/pay/", views.pay_invoice, name="pay-invoice"),
-
-    
     path("invoices/<int:pk>/send-email/", views.send_invoice_email, name="send-invoice-email"),
-
-    path("ozow/pay/<int:invoice_id>/",views.pay_invoice_ozow,name="pay_invoice_ozow",), 
-
-
+    path("ozow/pay/<int:invoice_id>/", views.pay_invoice_ozow, name="pay_invoice_ozow"),
 
     # PayFast endpoints
     path("payfast/return/", views.payfast_return, name="payfast-return"),
     path("payfast/cancel/", views.payfast_cancel, name="payfast-cancel"),
     path("payfast/itn/", views.payfast_itn, name="payfast-itn"),
 
-
-    # ---------- Password reset (OTP) ----------
+    # Password reset (OTP)
     path("password-reset/", views.OtpResetPageView.as_view(), name="password-reset-otp"),
     path("api/pwreset/start", views.pwreset_start, name="api_pwreset_start"),
     path("api/pwreset/verify", views.pwreset_verify, name="api_pwreset_verify"),
@@ -64,14 +68,13 @@ urlpatterns = [
 
     path("payfast/start/", views.payfast_start, name="payfast_start"),
 
-    # urls.py
+    # Policies
     path("terms-and-conditions/", views.terms, name="terms"),
     path("privacy-policy/", views.privacy, name="privacy"),
     path("refund-policy/", views.refund, name="refund"),
     path("shipping-policy/", views.shipping, name="shipping"),
-    
-    path("trade_assist/form/", views.trade_assist_form, name="trade_assist_form",),
-    path("trade_assist/thank-you/", views.trade_assist_thank_you, name="trade_assist_thank_you",),
 
+    # Trade Assist form
+    path("trade_assist/form/", views.trade_assist_form, name="trade_assist_form"),
+    path("trade_assist/thank-you/", views.trade_assist_thank_you, name="trade_assist_thank_you"),
 ]
-

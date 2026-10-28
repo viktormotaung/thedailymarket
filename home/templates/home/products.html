@@ -4,7 +4,9 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Products · The Daily Market</title>
+  <meta name="theme-color" content="#0b5c39"/>
+  <meta name="description" content="Explore The Daily Market product range for households, restaurants and food businesses."/>
+  <title>Shop Products | The Daily Market</title>
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
@@ -249,165 +251,362 @@
         color:#fff;
     }
     @media (max-width:991.98px){ .navbar-brand img{ height:40px; } }
+
+
+    /* Shared site design system */
+
+    :root {
+      --brand: #0b5c39;
+      --brand-dark: #08472d;
+      --brand-soft: #eaf3ed;
+      --ink: #17251d;
+      --muted: #68756d;
+      --surface: #ffffff;
+      --page: #f6f8f6;
+      --line: #e2e9e4;
+      --radius: 1.15rem;
+      --shadow: 0 12px 34px rgba(18, 45, 30, .08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 6rem; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+      color: var(--ink);
+      background: var(--page);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    main { flex: 1; }
+    img { max-width: 100%; }
+    a { text-underline-offset: .2em; }
+    a:focus-visible, button:focus-visible { outline: 3px solid #e0b85c; outline-offset: 3px; }
+    .container { --bs-gutter-x: 1.5rem; }
+    .section-pad { padding-block: clamp(3.25rem, 7vw, 5.75rem); }
+    .eyebrow { display: inline-flex; align-items: center; gap: .5rem; color: var(--brand); font-size: .76rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .eyebrow::before { content: ""; width: 1.5rem; height: 2px; background: currentColor; }
+    .section-heading { max-width: 720px; margin-inline: auto; }
+    .section-heading h2 { margin: .7rem 0 1rem; font-size: clamp(1.8rem, 3.6vw, 2.7rem); line-height: 1.12; letter-spacing: -.045em; font-weight: 800; }
+    .section-heading p { max-width: 620px; margin: 0 auto; color: var(--muted); }
+
+    /* Header and navigation */
+    .site-header { position: relative; z-index: 1030; background: var(--brand); color: #fff; }
+    .desktop-nav { min-height: 92px; }
+    .brand-logo { display: block; width: auto; height: 66px; object-fit: contain; }
+    .desktop-nav .nav-link { padding: .7rem .85rem !important; border-radius: .65rem; color: rgba(255,255,255,.9) !important; font-size: .94rem; font-weight: 600; transition: background .2s ease, color .2s ease; }
+    .desktop-nav .nav-link:hover, .desktop-nav .nav-link:focus-visible, .desktop-nav .nav-link.active { color: #fff !important; background: rgba(255,255,255,.13); }
+    .desktop-nav .dropdown-menu { padding: .5rem; border: 1px solid rgba(255,255,255,.12); border-radius: .9rem; background: var(--brand-dark); box-shadow: var(--shadow); }
+    .desktop-nav .dropdown-item { padding: .7rem .8rem; border-radius: .5rem; color: #fff; }
+    .desktop-nav .dropdown-item:hover, .desktop-nav .dropdown-item:focus, .desktop-nav .dropdown-item.active { color: #fff; background: rgba(255,255,255,.14); }
+    .header-actions { display: flex; align-items: center; gap: .65rem; }
+    .btn { min-height: 44px; border-radius: .75rem; padding: .7rem 1.1rem; font-weight: 700; }
+    .btn-brand { color: #fff; background: var(--brand); border: 1px solid var(--brand); }
+    .btn-brand:hover, .btn-brand:focus { color: #fff; background: var(--brand-dark); border-color: var(--brand-dark); }
+    .btn-outline-brand { color: var(--brand); background: #fff; border: 1px solid var(--brand); }
+    .btn-outline-brand:hover, .btn-outline-brand:focus { color: #fff; background: var(--brand); border-color: var(--brand); }
+    .btn-light-brand { color: var(--brand); background: #fff; border: 1px solid #fff; }
+    .btn-light-brand:hover { color: var(--brand-dark); background: #edf5ef; border-color: #edf5ef; }
+
+    .mobile-topbar { min-height: 68px; padding-block: .55rem; }
+    .mobile-topbar .brand-logo { height: 44px; max-width: 190px; }
+    .menu-toggle { width: 46px; height: 46px; display: inline-grid; place-items: center; color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: .8rem; background: transparent; font-size: 1.4rem; }
+    .mobile-menu { color: #fff; background: var(--brand-dark); }
+    .mobile-menu .offcanvas-header { padding: 1.25rem 1.25rem .75rem; }
+    .mobile-menu .offcanvas-body { padding: .75rem 1.25rem 1.5rem; }
+    .mobile-menu .menu-label { margin: 1rem 0 .35rem; color: rgba(255,255,255,.62); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .mobile-menu .nav-link { display: flex; align-items: center; min-height: 48px; padding: .7rem .8rem; border-radius: .65rem; color: #fff; font-weight: 600; }
+    .mobile-menu .nav-link:hover, .mobile-menu .nav-link:focus-visible, .mobile-menu .nav-link.active { color: #fff; background: rgba(255,255,255,.13); }
+    .mobile-menu .menu-cta { display: grid; gap: .65rem; margin-top: 1.25rem; }
+
+    /* Trade Assist membership strip */
+    .membership-strip { position: relative; z-index: 2; background: #fff; border-bottom: 1px solid var(--line); }
+    .membership-inner { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding-block: 1rem; }
+    .membership-copy { display: flex; align-items: center; gap: .9rem; min-width: 0; }
+    .membership-icon { flex: 0 0 46px; width: 46px; height: 46px; display: grid; place-items: center; color: var(--brand); background: var(--brand-soft); border-radius: 14px; font-size: 1.3rem; }
+    .membership-copy strong { display: block; color: var(--brand); font-size: 1rem; line-height: 1.3; }
+    .membership-copy span { display: block; margin-top: .2rem; color: var(--muted); font-size: .86rem; }
+    .membership-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+    .membership-actions .btn { padding: .6rem .95rem; font-size: .9rem; }
+
+    /* Hero */
+    .hero { position: relative; overflow: hidden; background: #143b28; }
+    .hero .carousel-item { position: relative; }
+    .hero-slide { position: relative; display: block; width: 100%; aspect-ratio: 4 / 1; min-height: 300px; max-height: 570px; background-position: center; background-size: cover; background-repeat: no-repeat; }
+    .hero-slide::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(3,24,14,.28), rgba(3,24,14,.03) 70%); pointer-events: none; }
+    .hero .carousel-indicators { z-index: 3; margin-bottom: 1.1rem; }
+    .hero .carousel-indicators [data-bs-target] { width: 26px; height: 4px; margin-inline: 4px; border: 0; border-radius: 99px; }
+    .hero .carousel-control-prev, .hero .carousel-control-next { z-index: 3; width: 8%; opacity: .8; }
+    .hero .carousel-control-prev:hover, .hero .carousel-control-next:hover { opacity: 1; }
+    .mobile-hero-slide { display: block; width: 100%; aspect-ratio: 4 / 3; max-height: 520px; background-position: center; background-size: cover; background-repeat: no-repeat; }
+    .mobile-hero .carousel-indicators { margin-bottom: .8rem; }
+    .mobile-hero .carousel-indicators [data-bs-target] { width: 24px; height: 4px; border: 0; border-radius: 99px; }
+
+    /* Quick routes */
+    .quick-section { padding-block: clamp(2.75rem, 5vw, 4.5rem); }
+    .quick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .quick-card { position: relative; display: flex; flex-direction: column; min-height: 190px; padding: 1.35rem; color: var(--ink); text-decoration: none; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+    .quick-card:hover { color: var(--ink); transform: translateY(-4px); border-color: #b7d2c0; box-shadow: var(--shadow); }
+    .quick-card-icon { width: 48px; height: 48px; display: grid; place-items: center; margin-bottom: 1.2rem; color: var(--brand); background: var(--brand-soft); border-radius: 14px; font-size: 1.35rem; }
+    .quick-card h3 { margin: 0 0 .45rem; font-size: 1.05rem; font-weight: 800; }
+    .quick-card p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.5; }
+    .quick-card .card-arrow { position: absolute; right: 1.15rem; bottom: 1.1rem; color: var(--brand); }
+
+    /* Intro */
+    .intro-section { background: #fff; }
+    .intro-layout { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: clamp(2rem, 6vw, 5rem); }
+    .intro-copy h2 { margin: .7rem 0 1rem; font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.08; letter-spacing: -.05em; font-weight: 850; }
+    .intro-copy p { color: var(--muted); }
+    .intro-media { overflow: hidden; border-radius: 1.4rem; background: #e9f0eb; box-shadow: var(--shadow); }
+    .intro-media .ratio { --bs-aspect-ratio: 62%; }
+    .intro-media iframe { border: 0; }
+    .video-placeholder { display: grid; min-height: 250px; place-items: center; padding: 2rem; text-align: center; color: var(--brand); background: linear-gradient(135deg, #eaf3ed, #dbe9df); }
+    .video-placeholder i { display: block; margin-bottom: .75rem; font-size: 3rem; }
+
+    /* Trade Assist feature */
+    .trade-assist-section { background: var(--page); }
+    .ta-panel { display: grid; grid-template-columns: 1.2fr .8fr; gap: 2rem; align-items: center; padding: clamp(1.5rem, 4vw, 3.25rem); color: #fff; background: var(--brand); border-radius: 1.5rem; overflow: hidden; }
+    .ta-panel .eyebrow { color: #c9e6d3; }
+    .ta-panel h2 { max-width: 640px; margin: .7rem 0 1rem; font-size: clamp(1.9rem, 4vw, 3rem); line-height: 1.1; letter-spacing: -.04em; font-weight: 850; }
+    .ta-panel p { max-width: 600px; color: rgba(255,255,255,.8); }
+    .ta-benefits { display: grid; gap: .75rem; padding: 0; margin: 1.3rem 0 1.6rem; list-style: none; }
+    .ta-benefits li { display: flex; align-items: flex-start; gap: .65rem; color: rgba(255,255,255,.94); }
+    .ta-benefits i { margin-top: .2rem; color: #bfe7cd; }
+    .ta-side-card { padding: 1.5rem; color: var(--ink); background: #fff; border-radius: 1.1rem; }
+    .ta-side-card .ta-mark { width: 56px; height: 56px; display: grid; place-items: center; margin-bottom: 1rem; color: var(--brand); background: var(--brand-soft); border-radius: 16px; font-size: 1.6rem; }
+    .ta-side-card h3 { font-size: 1.2rem; font-weight: 800; }
+    .ta-side-card p { color: var(--muted); font-size: .92rem; }
+
+    /* Partners */
+    .partners-section { background: #fff; }
+    .partner-logo-wrap { display: flex; justify-content: center; align-items: center; max-width: 280px; min-height: 130px; padding: 1.5rem; margin: 2rem auto 0; background: #fff; border: 1px solid var(--line); border-radius: 1rem; }
+    .partner-logo-wrap img { max-width: 100%; max-height: 90px; object-fit: contain; }
+
+    /* Footer */
+    .site-footer { color: rgba(255,255,255,.82); background: #073d27; }
+    .footer-main { padding-block: 3.5rem 2.5rem; }
+    .footer-brand img { height: 54px; width: auto; margin-bottom: 1rem; }
+    .footer-brand p { max-width: 300px; color: rgba(255,255,255,.68); font-size: .9rem; }
+    .footer-col h2 { margin-bottom: 1rem; color: #fff; font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .footer-links { display: grid; gap: .55rem; padding: 0; margin: 0; list-style: none; }
+    .footer-links a { color: rgba(255,255,255,.72); font-size: .9rem; text-decoration: none; }
+    .footer-links a:hover { color: #fff; text-decoration: underline; }
+    .footer-bottom { padding-block: 1.1rem; border-top: 1px solid rgba(255,255,255,.15); color: rgba(255,255,255,.62); font-size: .78rem; }
+    .social-links { display: flex; gap: .65rem; margin-top: .9rem; }
+    .social-links a { display: grid; width: 40px; height: 40px; place-items: center; color: #fff; border: 1px solid rgba(255,255,255,.2); border-radius: 50%; text-decoration: none; }
+    .social-links a:hover { background: rgba(255,255,255,.12); }
+
+    /* Contact actions */
+    .whatsapp-float { position: fixed; right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom)); z-index: 1020; display: inline-flex; align-items: center; justify-content: center; gap: .55rem; min-height: 52px; padding: .8rem 1.05rem; color: #fff; background: #168b51; border: 0; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,.2); font-weight: 750; text-decoration: none; }
+    .whatsapp-float:hover { color: #fff; background: #117441; transform: translateY(-2px); }
+    .whatsapp-float i { font-size: 1.25rem; }
+    .mobile-bottom-nav { display: none; }
+
+    /* Modals */
+    .modal-content { border: 0; border-radius: 1.2rem; box-shadow: var(--shadow); }
+    .modal-header, .modal-footer { border-color: var(--line); }
+    .modal-title { font-weight: 800; letter-spacing: -.02em; }
+    .modal-choice { display: flex; flex-direction: column; align-items: flex-start; gap: .35rem; height: 100%; padding: 1.1rem; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: .9rem; text-align: left; text-decoration: none; }
+    .modal-choice:hover { color: var(--brand); border-color: var(--brand); background: var(--brand-soft); }
+    .modal-choice i { color: var(--brand); font-size: 1.5rem; }
+    .modal-choice strong { font-size: 1rem; }
+    .modal-choice span { color: var(--muted); font-size: .85rem; }
+
+    @media (max-width: 1199.98px) {
+      .brand-logo { height: 58px; }
+      .desktop-nav .nav-link { padding-inline: .55rem !important; font-size: .88rem; }
+      .header-actions .btn { padding-inline: .8rem; font-size: .88rem; }
+      .hero-slide { aspect-ratio: 3.4 / 1; }
+    }
+    @media (max-width: 991.98px) {
+      .membership-inner { align-items: stretch; flex-direction: column; gap: .9rem; padding-block: .9rem; }
+      .membership-actions { display: grid; grid-template-columns: 1fr 1fr; }
+      .membership-actions .btn { width: 100%; }
+      .quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .quick-card { min-height: 170px; padding: 1.1rem; }
+      .intro-layout { grid-template-columns: 1fr; gap: 2rem; }
+      .intro-copy { max-width: 700px; }
+      .ta-panel { grid-template-columns: 1fr; }
+      .ta-side-card { max-width: 560px; }
+      .footer-main { padding-bottom: 2rem; }
+      .whatsapp-float { bottom: calc(5.1rem + env(safe-area-inset-bottom)); }
+      .mobile-bottom-nav { position: fixed; right: 0; bottom: 0; left: 0; z-index: 1015; display: grid; grid-template-columns: repeat(4, 1fr); padding: .45rem .35rem calc(.45rem + env(safe-area-inset-bottom)); background: rgba(255,255,255,.97); border-top: 1px solid var(--line); box-shadow: 0 -6px 24px rgba(20,40,28,.06); backdrop-filter: blur(12px); }
+      .mobile-bottom-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; min-height: 46px; color: #59665e; font-size: .68rem; font-weight: 700; text-decoration: none; }
+      .mobile-bottom-nav a i { font-size: 1.15rem; }
+      .mobile-bottom-nav a.active, .mobile-bottom-nav a:hover { color: var(--brand); }
+      body { padding-bottom: 68px; }
+    }
+    @media (max-width: 575.98px) {
+      .container { --bs-gutter-x: 1.15rem; }
+      .mobile-topbar { min-height: 62px; }
+      .mobile-topbar .brand-logo { height: 39px; max-width: 165px; }
+      .membership-icon { flex-basis: 42px; width: 42px; height: 42px; }
+      .membership-copy strong { font-size: .95rem; }
+      .membership-copy span { font-size: .8rem; }
+      .membership-actions { grid-template-columns: 1fr; gap: .5rem; }
+      .membership-actions .btn { min-height: 45px; }
+      .mobile-hero-slide { aspect-ratio: 4 / 3.25; max-height: 430px; }
+      .quick-grid { gap: .7rem; margin-top: 1.5rem; }
+      .quick-card { min-height: 158px; padding: .95rem; border-radius: .95rem; }
+      .quick-card-icon { width: 42px; height: 42px; margin-bottom: .85rem; border-radius: 12px; font-size: 1.2rem; }
+      .quick-card h3 { padding-right: .5rem; font-size: .96rem; }
+      .quick-card p { font-size: .82rem; }
+      .quick-card .card-arrow { right: .8rem; bottom: .75rem; }
+      .section-pad { padding-block: 3rem; }
+      .intro-copy h2 { font-size: 2.15rem; }
+      .ta-panel { padding: 1.35rem; border-radius: 1.15rem; }
+      .ta-panel h2 { font-size: 2rem; }
+      .ta-panel .btn { width: 100%; }
+      .ta-side-card { padding: 1.2rem; }
+      .footer-main { padding-top: 2.75rem; }
+      .footer-brand { margin-bottom: .75rem; }
+      .footer-col { padding-top: .6rem; }
+      .footer-bottom { padding-bottom: 1.25rem; }
+      .whatsapp-float { right: .75rem; bottom: calc(5.1rem + env(safe-area-inset-bottom)); width: 50px; height: 50px; min-height: 50px; padding: 0; }
+      .whatsapp-float .whatsapp-label { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+
+    /* Products page refinements */
+    .hero-carousel { overflow:hidden; background:#123b28; }
+    .hero-slide { min-height:clamp(250px, 31vw, 430px); padding:3rem 1rem; }
+    .hero-slide-1 { background-image:linear-gradient(90deg,rgba(4,30,18,.78),rgba(4,30,18,.25)),url("{% static 'images/hero.png' %}"); }
+    .hero-slide-2 { background-image:linear-gradient(90deg,rgba(4,30,18,.78),rgba(4,30,18,.25)),url("{% static 'images/hero.png' %}"); }
+    .hero-slide-3 { background-image:linear-gradient(90deg,rgba(4,30,18,.78),rgba(4,30,18,.25)),url("{% static 'images/hero.png' %}"); }
+    .hero-slide h1 { font-size:clamp(2rem,5vw,3.7rem); font-weight:850; letter-spacing:-.04em; }
+    .hero-slide p { max-width:700px; margin-inline:auto; color:rgba(255,255,255,.9); }
+    .quick-shops { gap:.85rem; padding:.6rem .25rem; }
+    .quick-shop-item { flex:0 0 118px; min-width:118px; max-width:145px; padding:1rem .65rem; border:1px solid var(--line); border-radius:1rem; background:#fff; transition:transform .2s ease,border-color .2s ease; }
+    .quick-shop-item:hover { transform:translateY(-3px); border-color:#b7d2c0; }
+    .quick-shop-icon { width:48px; height:48px; display:grid; place-items:center; margin:0 auto .65rem; border-radius:14px; background:var(--brand-soft); }
+    .quick-shop-icon img { max-width:34px; max-height:34px; }
+    .quick-shop-item .small { line-height:1.35; }
+    .filter-card { top:1rem; border:1px solid var(--line)!important; border-radius:1.1rem; }
+    .filter-card .card-body { padding:1.25rem; }
+    .filter-card .form-control,.filter-card .form-select { min-height:44px; border-color:#d9e2dc; border-radius:.7rem; }
+    .filter-card .input-group-text { border-color:#d9e2dc; border-radius:.7rem 0 0 .7rem; background:#f6f8f6; }
+    .filter-card .input-group .form-control { border-radius:0 .7rem .7rem 0; }
+    .section-heading { letter-spacing:-.02em; }
+    main .pagination .page-link { border-color:var(--line); }
+    main .pagination .page-item.active .page-link { color:#fff; }
+    .products-toolbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.25rem; }
+    @media(max-width:991.98px) {
+      .membership-inner { align-items:flex-start; flex-direction:column; gap:1rem; }
+      .membership-actions { width:100%; display:grid; grid-template-columns:1fr 1fr; }
+      .membership-actions .btn { width:100%; }
+      .filter-card { position:static; }
+      .hero-slide { min-height:260px; }
+      .quick-shops { padding-inline:.1rem; }
+    }
+    @media(max-width:575.98px) {
+      .membership-inner { padding-block:.9rem; }
+      .membership-copy { align-items:flex-start; }
+      .membership-icon { flex-basis:40px; width:40px; height:40px; }
+      .membership-copy span { font-size:.82rem; }
+      .membership-actions { grid-template-columns:1fr; gap:.5rem; }
+      .hero-slide { min-height:245px; padding:2.25rem 1rem; }
+      .hero-slide .lead { font-size:1rem; }
+      .quick-shops-wrapper { margin-inline:-.25rem; }
+      .quick-shop-item { flex-basis:105px; min-width:105px; }
+      .products-toolbar { align-items:flex-start; flex-direction:column; }
+      .products-toolbar form { width:100%; }
+      .products-toolbar form select { flex:1; min-width:0; }
+      .filter-card .card-body { padding:1rem; }
+    }
+    body.bg-light { background:var(--page)!important; }
   </style>
 </head>
 <body class="bg-light">
   <!-- Auth flag for JS gating -->
   <script>const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};</script>
 
-  <!-- ========== MOBILE TOP BAR (visible < lg) ========== -->
-  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
-    <div class="container-fluid">
-      <button class="navbar-toggler" type="button"
-              data-bs-toggle="offcanvas" data-bs-target="#mobileMenu"
-              aria-controls="mobileMenu" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <a class="navbar-brand ms-2" href="/"><img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="height:40px;"></a>
-    </div>
-  </nav>
-
-  <!-- Offcanvas menu (mobile) -->
-  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
-    <div class="offcanvas-header brand-skin">
-      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-    </div>
-    <div class="offcanvas-body brand-skin">
-      <div class="text-center mb-3">
-        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="max-height:80px; width:auto;">
+  <!-- Header -->
+  <header class="site-header">
+    <nav class="desktop-nav d-none d-lg-block" aria-label="Main navigation">
+      <div class="container d-flex align-items-center justify-content-between gap-3">
+        <a href="{% url 'home' %}" class="flex-shrink-0" aria-label="The Daily Market home">
+          <img class="brand-logo" src="{% static 'images/logo.png' %}" alt="The Daily Market">
+        </a>
+        <ul class="navbar-nav flex-row align-items-center gap-1 mx-auto">
+          <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">Home</a></li>
+          <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" href="{% url 'about' %}">About</a></li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle {% if request.path == '/wholesale/' or request.path == '/retail/' or request.path == '/grill/' %}active{% endif %}" href="/divisions/" id="divisionsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Divisions</a>
+            <ul class="dropdown-menu" aria-labelledby="divisionsDropdown">
+              <li><a class="dropdown-item {% if request.path == '/wholesale/' %}active{% endif %}" href="{% url 'wholesale' %}">Wholesale Trade</a></li>
+              <li><a class="dropdown-item {% if request.path == '/retail/' %}active{% endif %}" href="{% url 'retail' %}">Retail Express</a></li>
+              <li><a class="dropdown-item {% if request.path == '/grill/' %}active{% endif %}" href="{% url 'grill' %}">Grill Experience</a></li>
+            </ul>
+          </li>
+          <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}">Shop</a></li>
+          <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}" href="{% url 'trade_assist' %}">Trade Assist</a></li>
+          <li class="nav-item"><a class="nav-link {% if request.path == '/contact/' %}active{% endif %}" href="{% url 'contact' %}">Contact</a></li>
+        </ul>
       </div>
+    </nav>
 
-      <!-- Top-level -->
-      <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-bs-dismiss="offcanvas">Home</a>
-      <a href="{% url 'about' %}" class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" data-bs-dismiss="offcanvas">About</a>
+    <nav class="mobile-topbar d-flex d-lg-none align-items-center" aria-label="Mobile navigation">
+      <div class="container d-flex align-items-center justify-content-between gap-3">
+        <button class="menu-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Open navigation menu"><i class="bi bi-list" aria-hidden="true"></i></button>
+        <a href="{% url 'home' %}" aria-label="The Daily Market home"><img class="brand-logo" src="{% static 'images/logo.png' %}" alt="The Daily Market"></a>
+        <a href="{% url 'client-login' %}" class="btn btn-light-brand btn-sm px-3">Login</a>
+      </div>
+    </nav>
+  </header>
 
-      <!-- Divisions -->
-      <div class="mt-2 text-uppercase small opacity-75">Divisions</div>
-      <a href="{% url 'wholesale' %}" class="nav-link {% if request.path == '/wholesale/' %}active{% endif %}" data-bs-dismiss="offcanvas">Wholesale Trade</a>
-      <a href="{% url 'retail' %}" class="nav-link {% if request.path == '/retail/' %}active{% endif %}" data-bs-dismiss="offcanvas">Retail Express</a>
-      <a href="{% url 'grill' %}" class="nav-link {% if request.path == '/grill/' %}active{% endif %}" data-bs-dismiss="offcanvas">Grill Experience</a>
-
-      <hr class="border-light my-3">
-
-      <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}" data-bs-dismiss="offcanvas">Shop</a>
-      <a class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}"
-        href="{% url 'trade_assist' %}"
-        data-bs-dismiss="offcanvas">
-          Trade Assist
-      </a>
-
-      
-      <a href="{% url 'contact' %}" class="nav-link mt-3 {% if request.path == '/contact/' %}active{% endif %}" data-bs-dismiss="offcanvas">Contact</a>
-
-      <hr class="border-light my-3">
-
-      
-
-        
-
-        
-     
+  <!-- Mobile navigation drawer -->
+  <div class="offcanvas offcanvas-start mobile-menu d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header">
+      <div>
+        <div class="fw-bold fs-5" id="mobileMenuLabel">Explore The Daily Market</div>
+        <div class="small text-white-50">Food supply and solutions</div>
+      </div>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close menu"></button>
+    </div>
+    <div class="offcanvas-body">
+      <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}"><i class="bi bi-house me-3" aria-hidden="true"></i>Home</a>
+      <a href="{% url 'about' %}" class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}"><i class="bi bi-info-circle me-3" aria-hidden="true"></i>About us</a>
+      <div class="menu-label">Our divisions</div>
+      <a href="{% url 'wholesale' %}" class="nav-link {% if request.path == '/wholesale/' %}active{% endif %}"><i class="bi bi-box-seam me-3" aria-hidden="true"></i>Wholesale Trade</a>
+      <a href="{% url 'retail' %}" class="nav-link {% if request.path == '/retail/' %}active{% endif %}"><i class="bi bi-shop me-3" aria-hidden="true"></i>Retail Express</a>
+      <a href="{% url 'grill' %}" class="nav-link {% if request.path == '/grill/' %}active{% endif %}"><i class="bi bi-fire me-3" aria-hidden="true"></i>Grill Experience</a>
+      <div class="menu-label">Shop and membership</div>
+      <a href="{% url 'products' %}" class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}"><i class="bi bi-basket me-3" aria-hidden="true"></i>Shop products</a>
+      <a href="{% url 'trade_assist' %}" class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}"><i class="bi bi-handshake me-3" aria-hidden="true"></i>Trade Assist</a>
+      <a href="{% url 'contact' %}" class="nav-link {% if request.path == '/contact/' %}active{% endif %}"><i class="bi bi-chat-dots me-3" aria-hidden="true"></i>Contact us</a>
+      <div class="menu-cta">
+        <a href="/register_profile/" class="btn btn-light-brand">Become a member</a>
+        <a href="{% url 'client-login' %}" class="btn btn-outline-light">Member login</a>
+      </div>
     </div>
   </div>
 
-  <!-- ========== DESKTOP NAVBAR (visible ≥ lg) ========== -->
-  <nav class="navbar navbar-expand-lg navbar-dark border-bottom d-none d-lg-block">
-    <div class="container d-flex align-items-center">
-      <a class="navbar-brand me-auto" href="/">
-        <img src="{% static 'images/logo.png' %}" alt="The Daily Market">
-      </a>
-
-      <div id="nav" class="navbar-collapse justify-content-center">
-        <ul class="navbar-nav">
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">Home</a>
-          </li>
-
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" href="/about/">About</a>
-          </li>
-
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle {% if request.path == '/grill/' or request.path == '/retail/' or request.path == '/wholesale/' %}active{% endif %}"
-               href="/divisions/" id="divisionsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              Divisions
-            </a>
-            <ul class="dropdown-menu brand" aria-labelledby="divisionsDropdown">
-              <li><a class="dropdown-item {% if request.path == '/wholesale/' %}active{% endif %}" href="/wholesale/">Wholesale Trade</a></li>
-              <li><a class="dropdown-item {% if request.path == '/retail/' %}active{% endif %}" href="/retail/">Retail Express</a></li>
-              <li><a class="dropdown-item {% if request.path == '/grill/' %}active{% endif %}" href="/grill/">Grill Experience</a></li>
-            </ul>
-          </li>
-
-          
-
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}"
-               href="{% url 'products' %}">Shop</a>
-          </li>
-
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}"
-              href="{% url 'trade_assist' %}">
-                Trade Assist
-            </a>
-          </li>
-
-          
-
-          <li class="nav-item">
-            <a class="nav-link {% if request.path == '/contact/' %}active{% endif %}" href="/contact/">Contact</a>
-          </li>
-        </ul>
-      </div>
-
-      
-    </div>
-  </nav>
-
-  <!-- ================================================= -->
-  <!-- Trade Assist Membership -->
-  <!-- ================================================= -->
-
-  <section class="membership-bar py-3">
-      <div class="container">
-
-          <div class="row align-items-center">
-
-              <div class="col-lg-6 text-center text-lg-start mb-3 mb-lg-0">
-
-                  <div class="membership-title">
-                      Trade Assist Membership
-                  </div>
-
-                  <div class="membership-subtitle">
-                      Building Better Food Businesses Together
-                  </div>
-
-              </div>
-
-              <div class="col-lg-6">
-
-                  <div class="d-flex justify-content-center justify-content-lg-end gap-3">
-
-                      <a href="/register_profile/" class="btn btn-member">
-                          Become a Member
-                      </a>
-
-                      <a href="{% url 'client-login' %}" class="btn btn-member-login">
-                          Member Login
-                      </a>
-
-                  </div>
-
-              </div>
-
+  <!-- Trade Assist membership strip -->
+  <section class="membership-strip" aria-label="Trade Assist membership">
+    <div class="container">
+      <div class="membership-inner">
+        <div class="membership-copy">
+          <div class="membership-icon" aria-hidden="true"><i class="bi bi-handshake"></i></div>
+          <div>
+            <strong>Trade Assist Membership</strong>
+            <span>Building better food businesses together.</span>
           </div>
-
+        </div>
+        <div class="membership-actions">
+          <a href="/register_profile/" class="btn btn-outline-brand">Become a member</a>
+          <a href="{% url 'client-login' %}" class="btn btn-brand">Member login</a>
+        </div>
       </div>
+    </div>
   </section>
 
+  <main>
   <!-- HERO CAROUSEL -->
   <section class="hero-carousel">
     <div id="heroCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="7000">
@@ -615,7 +814,7 @@
         </aside>
 
         <!-- Results -->
-        <main class="col-lg-9">
+        <div class="col-lg-9">
           <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
             <div class="small text-muted">
               {% if products.paginator.count %}
@@ -705,14 +904,76 @@
               <a class="btn btn-outline-secondary" href="{% url 'products' %}"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset Filters</a>
             </div>
           {% endif %}
-        </main>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Footer -->
-  <footer class="mt-auto">
-    <div class="container py-4 text-center small">© {% now "Y" %} The Daily Market • Quality You Can Trust</div>
+  </main>
+
+  <!-- Shared site footer -->
+  <footer class="site-footer">
+    <div class="container footer-main">
+      <div class="row g-4 g-xl-5">
+        <div class="col-12 col-md-6 col-xl-3 footer-brand">
+          <a href="{% url 'home' %}" aria-label="The Daily Market home"><img src="{% static 'images/logo.png' %}" alt="The Daily Market"></a>
+          <p>Quality food products and practical supply solutions for households and food businesses.</p>
+          <div class="social-links" aria-label="Social media">
+            <a href="https://facebook.com/" aria-label="Facebook"><i class="bi bi-facebook" aria-hidden="true"></i></a>
+            <a href="https://instagram.com/" aria-label="Instagram"><i class="bi bi-instagram" aria-hidden="true"></i></a>
+            <a href="https://youtube.com/" aria-label="YouTube"><i class="bi bi-youtube" aria-hidden="true"></i></a>
+          </div>
+        </div>
+        <div class="col-6 col-md-6 col-xl-2 footer-col">
+          <h2>Explore</h2>
+          <ul class="footer-links">
+            <li><a href="{% url 'about' %}">About us</a></li>
+            <li><a href="{% url 'wholesale' %}">Wholesale Trade</a></li>
+            <li><a href="{% url 'retail' %}">Retail Express</a></li>
+            <li><a href="{% url 'grill' %}">Grill Experience</a></li>
+            <li><a href="{% url 'products' %}">Shop products</a></li>
+            <li><a href="{% url 'trade_assist' %}">Trade Assist</a></li>
+          </ul>
+        </div>
+        <div class="col-6 col-md-6 col-xl-2 footer-col">
+          <h2>Account access</h2>
+          <ul class="footer-links">
+            <li><a href="{% url 'client-login' %}">Client access</a></li>
+            <li><a href="{% url 'staff-login' %}">Staff access</a></li>
+            <li><a href="/register_profile/">Become a member</a></li>
+            <li><a href="{% url 'contact' %}">Contact us</a></li>
+          </ul>
+        </div>
+        <div class="col-6 col-md-6 col-xl-2 footer-col">
+          <h2>Policies</h2>
+          <ul class="footer-links">
+            <li><a href="/terms-and-conditions/">Terms &amp; Conditions</a></li>
+            <li><a href="/privacy-policy/">Privacy Policy</a></li>
+            <li><a href="/refund-policy/">Refund Policy</a></li>
+            <li><a href="/shipping-policy/">Shipping Policy</a></li>
+          </ul>
+        </div>
+        <div class="col-6 col-md-6 col-xl-3 footer-col">
+          <h2>Contact</h2>
+          <ul class="footer-links">
+            <li><a href="tel:+27872655488"><i class="bi bi-telephone me-2" aria-hidden="true"></i>+27 87 265 5488</a></li>
+            <li><a href="mailto:info@thedailymarket.co.za"><i class="bi bi-envelope me-2" aria-hidden="true"></i>info@thedailymarket.co.za</a></li>
+          </ul>
+          <h2 class="mt-4">Trading hours</h2>
+          <ul class="footer-links">
+            <li>Mon–Fri: 7:30am–4:00pm</li>
+            <li>Saturday: 7:30am–1:00pm</li>
+            <li>Sunday: Closed</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+        <span>© {% now "Y" %} The Daily Market. Quality You Can Trust.</span>
+        <span>The Daily Market operates in accordance with applicable South African consumer and data protection laws.</span>
+      </div>
+    </div>
   </footer>
 
   <!-- ========== Sign-in required modal ========== -->

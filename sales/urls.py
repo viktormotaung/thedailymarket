@@ -352,6 +352,31 @@ urlpatterns = [
         name="sales-prospect-sample-request-action",
     ),
 
+
+    # ============================================================
+    # DELIVERY NOTES — PDF, EMAIL, SMS
+    # ============================================================
+    path(
+        "delivery-stops/<int:stop_id>/delivery-note/",
+        views.delivery_stop_note_pdf,
+        name="delivery-stop-note-pdf",
+    ),
+    path(
+        "delivery-stops/<int:stop_id>/delivery-note/email/",
+        views.send_delivery_note_email,
+        name="send-delivery-note-email",
+    ),
+    path(
+        "delivery-stops/<int:stop_id>/delivery-note/sms/",
+        views.send_delivery_note_sms,
+        name="send-delivery-note-sms",
+    ),
+    path(
+        "delivery-notes/public/<str:token>/",
+        views.public_delivery_note_pdf,
+        name="public-delivery-note-pdf",
+    ),
+
 ]
 
 

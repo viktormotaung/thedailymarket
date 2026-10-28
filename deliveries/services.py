@@ -1,750 +1,46 @@
 # deliveries/services.py
-
+from django.db.models import Q
+import math
 import requests
 from decimal import Decimal
+from datetime import timedelta
+
 from django.conf import settings
 from django.utils.timezone import now
 from django.db import transaction
-from datetime import timedelta
+
 from deliveries.models import DeliveryStop
-    
 
 GOOGLE_DIRECTIONS_URL = "https://maps.googleapis.com/maps/api/directions/json"
 
 
-def plan_run_sequence(run):
+# -------------------------------------------------
+# GOOGLE API HELPER
+# -------------------------------------------------
+def _call_google(origin, destination, waypoints):
     """
-    Build the delivery route in this order:
+    Uses the EXACT waypoint order supplied.
 
-        DRIVER ADDRESS
-            ↓
-        SELECTED START SUPPLIER
-            ↓
-        OTHER SUPPLIERS
-            ↓
-        CUSTOMERS
-            ↓
-        DRIVER ADDRESS
-
-    The driver address is both the origin and destination.
-
-    Supplier order:
-        - Selected start_supplier is always first.
-        - Remaining suppliers are selected by nearest-neighbour distance.
-
-    Customer order:
-        - Start from the final supplier.
-        - Select the nearest remaining customer.
-        - Reserve the customer closest to the driver for the final customer stop.
-        - Return to the driver.
-
-    The final "RETURN" stop is a visible stop in the Delivery Stops
-    table, but it is NOT sent to Google as a waypoint. The driver's
-    coordinates are used as Google's final destination.
+    Returns:
+        legs
     """
 
-    print("\n==== ROUTE PLANNING START ====")
-    print("RUN ID:", run.id)
-    print("STATUS:", run.status)
+    waypoint_str = None
 
-    # ============================================================
-    # 1. DRIVER START / END LOCATION
-    # ============================================================
-
-    if not run.driver:
-        print("❌ No driver assigned")
-        return False, "No driver is assigned to this delivery run."
-
-    try:
-        driver_profile = run.driver.driver_profile
-    except Exception:
-        print("❌ Driver profile missing")
-        return False, "Driver profile is missing."
-
-    if (
-        driver_profile.latitude is None
-        or driver_profile.longitude is None
-    ):
-        print("❌ Driver coordinates missing")
-        return False, "Driver coordinates are missing."
-
-    driver_lat = float(driver_profile.latitude)
-    driver_lng = float(driver_profile.longitude)
-
-    print(
-        "DRIVER START / END:",
-        driver_lat,
-        driver_lng,
-    )
-
-    # ============================================================
-    # 2. CREATE / UPDATE RETURN-TO-DRIVER STOP
-    #
-    # This is a visible final stop.
-    #
-    # IMPORTANT:
-    # It is NOT added to Google's waypoints.
-    #
-    # Google will instead use:
-    #
-    #     Origin      = Driver
-    #     Waypoints   = Suppliers + Customers
-    #     Destination = Driver
-    #
-    # The final Google leg will then be:
-    #
-    #     Last Customer → Driver
-    #
-    # That final leg will be saved against this RETURN stop.
-    # ============================================================
-
-    return_stop = (
-        run.stops
-        .filter(
-            stop_type="RETURN"
-        )
-        .first()
-    )
-
-    # ------------------------------------------------------------
-    # Build driver display name
-    # ------------------------------------------------------------
-
-    try:
-        driver_name = run.driver.get_full_name()
-    except Exception:
-        driver_name = ""
-
-    if not driver_name:
-        driver_name = (
-            getattr(
-                run.driver,
-                "username",
-                ""
-            )
-            or "Driver"
-        )
-
-    # ------------------------------------------------------------
-    # Driver address
-    #
-    # We use getattr so this does not break if a particular
-    # address field is not present on DriverProfile.
-    # ------------------------------------------------------------
-
-    driver_address_line1 = (
-        getattr(
-            driver_profile,
-            "address_line1",
-            ""
-        )
-        or getattr(
-            driver_profile,
-            "address",
-            ""
-        )
-        or ""
-    )
-
-    driver_address_line2 = (
-        getattr(
-            driver_profile,
-            "address_line2",
-            ""
-        )
-        or ""
-    )
-
-    driver_suburb = (
-        getattr(
-            driver_profile,
-            "suburb",
-            ""
-        )
-        or ""
-    )
-
-    driver_city = (
-        getattr(
-            driver_profile,
-            "city",
-            ""
-        )
-        or ""
-    )
-
-    driver_province = (
-        getattr(
-            driver_profile,
-            "province",
-            ""
-        )
-        or ""
-    )
-
-    driver_postal_code = (
-        getattr(
-            driver_profile,
-            "postal_code",
-            ""
-        )
-        or ""
-    )
-
-    driver_country = (
-        getattr(
-            driver_profile,
-            "country",
-            ""
-        )
-        or "South Africa"
-    )
-
-    # ------------------------------------------------------------
-    # Create or update Return-to-Driver stop
-    # ------------------------------------------------------------
-
-    if return_stop is None:
-
-        return_stop = DeliveryStop.objects.create(
-            run=run,
-            stop_type="RETURN",
-            status="assigned",
-            sequence=0,
-
-            customer_name=driver_name,
-
-            address_line1=driver_address_line1,
-            address_line2=driver_address_line2,
-            suburb=driver_suburb,
-            city=driver_city,
-            province=driver_province,
-            postal_code=driver_postal_code,
-            country=driver_country,
-
-            lat=driver_lat,
-            lng=driver_lng,
-
-            service_min=0,
-        )
-
-        print(
-            "CREATED RETURN-TO-DRIVER STOP:",
-            driver_name,
-        )
-
-    else:
-
-        # --------------------------------------------------------
-        # Update the return stop in case the driver or driver's
-        # address has changed.
-        # --------------------------------------------------------
-
-        return_stop.status = "assigned"
-
-        return_stop.customer_name = driver_name
-
-        return_stop.address_line1 = driver_address_line1
-        return_stop.address_line2 = driver_address_line2
-        return_stop.suburb = driver_suburb
-        return_stop.city = driver_city
-        return_stop.province = driver_province
-        return_stop.postal_code = driver_postal_code
-        return_stop.country = driver_country
-
-        return_stop.lat = driver_lat
-        return_stop.lng = driver_lng
-
-        return_stop.service_min = 0
-
-        return_stop.save(
-            update_fields=[
-                "status",
-                "customer_name",
-                "address_line1",
-                "address_line2",
-                "suburb",
-                "city",
-                "province",
-                "postal_code",
-                "country",
-                "lat",
-                "lng",
-                "service_min",
-                "updated_at",
-            ]
-        )
-
-        print(
-            "UPDATED RETURN-TO-DRIVER STOP:",
-            driver_name,
-        )
-
-    # ============================================================
-    # 3. LOAD SUPPLIER STOPS
-    # ============================================================
-
-    supplier_stops = list(
-        run.stops
-        .filter(
-            stop_type="SUPPLIER",
-            supplier__isnull=False,
-            lat__isnull=False,
-            lng__isnull=False,
-        )
-        .select_related("supplier")
-    )
-
-    # ============================================================
-    # 4. LOAD CUSTOMER STOPS
-    #
-    # IMPORTANT:
-    #
-    # There should now be ONE CUSTOMER stop per physical client,
-    # regardless of how many orders/items that client has.
-    # ============================================================
-
-    customer_stops = list(
-        run.stops
-        .filter(
-            stop_type="CUSTOMER",
-            lat__isnull=False,
-            lng__isnull=False,
-        )
-    )
-
-    print(
-        "SUPPLIER STOPS:",
-        len(supplier_stops),
-    )
-
-    print(
-        "CUSTOMER STOPS:",
-        len(customer_stops),
-    )
-
-    if not supplier_stops:
-        return False, "No supplier stops with coordinates."
-
-    if not customer_stops:
-        return False, "No customer stops with coordinates."
-
-    # ============================================================
-    # 5. SIMPLE DISTANCE HELPER
-    #
-    # Used only to determine sequence.
-    #
-    # Google Directions calculates the actual driving distance
-    # and travel time.
-    # ============================================================
-
-    from math import (
-        radians,
-        sin,
-        cos,
-        sqrt,
-        atan2,
-    )
-
-    def straight_line_km(
-        lat1,
-        lng1,
-        lat2,
-        lng2,
-    ):
-
-        R = 6371.0
-
-        dlat = radians(
-            lat2 - lat1
-        )
-
-        dlng = radians(
-            lng2 - lng1
-        )
-
-        a = (
-            sin(dlat / 2) ** 2
-            +
-            cos(radians(lat1))
-            * cos(radians(lat2))
-            * sin(dlng / 2) ** 2
-        )
-
-        c = 2 * atan2(
-            sqrt(a),
-            sqrt(1 - a),
-        )
-
-        return R * c
-
-    # ============================================================
-    # 6. SUPPLIER SEQUENCE
-    #
-    # The selected start_supplier MUST be first.
-    # ============================================================
-
-    ordered_suppliers = []
-
-    remaining_suppliers = supplier_stops.copy()
-
-    start_supplier_id = run.start_supplier_id
-
-    if start_supplier_id:
-
-        selected_start = next(
-            (
-                stop
-                for stop in remaining_suppliers
-                if stop.supplier_id == start_supplier_id
-            ),
-            None,
-        )
-
-        if selected_start:
-
-            ordered_suppliers.append(
-                selected_start
-            )
-
-            remaining_suppliers.remove(
-                selected_start
-            )
-
-            print(
-                "SELECTED START SUPPLIER:",
-                selected_start.supplier.name,
-            )
-
-        else:
-
-            print(
-                "⚠️ Selected start supplier was not "
-                "found among the Picking Batch suppliers."
-            )
-
-    # ============================================================
-    # 7. IF NO VALID START SUPPLIER
-    #
-    # Use the supplier closest to the driver's address.
-    # ============================================================
-
-    if not ordered_suppliers:
-
-        if not remaining_suppliers:
-            return False, "No suppliers available for routing."
-
-        first_supplier = min(
-            remaining_suppliers,
-            key=lambda stop: straight_line_km(
-                driver_lat,
-                driver_lng,
-                float(stop.lat),
-                float(stop.lng),
-            ),
-        )
-
-        ordered_suppliers.append(
-            first_supplier
-        )
-
-        remaining_suppliers.remove(
-            first_supplier
-        )
-
-        print(
-            "AUTO START SUPPLIER:",
-            first_supplier.supplier.name,
-        )
-
-    # ============================================================
-    # 8. SEQUENCE REMAINING SUPPLIERS
-    #
-    # From the current supplier, select the nearest remaining
-    # supplier.
-    # ============================================================
-
-    while remaining_suppliers:
-
-        current_supplier = (
-            ordered_suppliers[-1]
-        )
-
-        next_supplier = min(
-            remaining_suppliers,
-            key=lambda stop: straight_line_km(
-                float(current_supplier.lat),
-                float(current_supplier.lng),
-                float(stop.lat),
-                float(stop.lng),
-            ),
-        )
-
-        ordered_suppliers.append(
-            next_supplier
-        )
-
-        remaining_suppliers.remove(
-            next_supplier
-        )
-
-        print(
-            "NEXT SUPPLIER:",
-            next_supplier.supplier.name,
-        )
-
-    # ============================================================
-    # 9. CUSTOMER SEQUENCE
-    #
-    # We want the final customer to be the customer closest
-    # to the driver's address.
-    #
-    # This means:
-    #
-    # Supplier(s)
-    #      ↓
-    # Customer
-    #      ↓
-    # Customer
-    #      ↓
-    # Customer closest to driver
-    #      ↓
-    # Driver
-    # ============================================================
-
-    ordered_customers = []
-
-    remaining_customers = customer_stops.copy()
-
-    # ------------------------------------------------------------
-    # Reserve the customer closest to the driver for LAST.
-    # ------------------------------------------------------------
-
-    final_customer = min(
-        remaining_customers,
-        key=lambda stop: straight_line_km(
-            driver_lat,
-            driver_lng,
-            float(stop.lat),
-            float(stop.lng),
-        ),
-    )
-
-    if len(remaining_customers) > 1:
-
-        remaining_customers.remove(
-            final_customer
-        )
-
-    # ------------------------------------------------------------
-    # Start customer sequencing from the FINAL supplier.
-    # ------------------------------------------------------------
-
-    current_lat = float(
-        ordered_suppliers[-1].lat
-    )
-
-    current_lng = float(
-        ordered_suppliers[-1].lng
-    )
-
-    # ============================================================
-    # 10. NEAREST-NEIGHBOUR CUSTOMER ROUTING
-    # ============================================================
-
-    while remaining_customers:
-
-        next_customer = min(
-            remaining_customers,
-            key=lambda stop: straight_line_km(
-                current_lat,
-                current_lng,
-                float(stop.lat),
-                float(stop.lng),
-            ),
-        )
-
-        ordered_customers.append(
-            next_customer
-        )
-
-        remaining_customers.remove(
-            next_customer
-        )
-
-        current_lat = float(
-            next_customer.lat
-        )
-
-        current_lng = float(
-            next_customer.lng
-        )
-
-    # ------------------------------------------------------------
-    # Add the reserved final customer.
-    # ------------------------------------------------------------
-
-    if final_customer not in ordered_customers:
-
-        ordered_customers.append(
-            final_customer
-        )
-
-    # ============================================================
-    # 11. FINAL PHYSICAL STOPS
-    #
-    # These are ONLY:
-    #
-    #     Suppliers
-    #     +
-    #     Customers
-    #
-    # The Return-to-Driver stop is handled separately because
-    # it is the Google destination, not a waypoint.
-    # ============================================================
-
-    ordered_stops = (
-        ordered_suppliers
-        + ordered_customers
-    )
-
-    # ============================================================
-    # 12. PRINT FINAL ROUTE
-    # ============================================================
-
-    print("\nFINAL ROUTE ORDER:")
-
-    print(
-        "START:",
-        driver_name,
-        "→",
-        driver_lat,
-        driver_lng,
-    )
-
-    for sequence, stop in enumerate(
-        ordered_stops,
-        start=1,
-    ):
-
-        if stop.stop_type == "SUPPLIER":
-
-            print(
-                sequence,
-                "SUPPLIER:",
-                stop.supplier.name,
-            )
-
-        elif stop.stop_type == "CUSTOMER":
-
-            print(
-                sequence,
-                "CUSTOMER:",
-                stop.customer_name,
-            )
-
-    print(
-        len(ordered_stops) + 1,
-        "RETURN TO DRIVER:",
-        driver_name,
-    )
-
-    # ============================================================
-    # 13. SAVE SEQUENCE NUMBERS
-    #
-    # Supplier/customer stops:
-    #
-    #     1
-    #     2
-    #     3
-    #     ...
-    #
-    # Return-to-driver:
-    #
-    #     final sequence
-    # ============================================================
-
-    with transaction.atomic():
-
-        for sequence, stop in enumerate(
-            ordered_stops,
-            start=1,
-        ):
-
-            stop.sequence = sequence
-
-            stop.save(
-                update_fields=[
-                    "sequence",
-                    "updated_at",
-                ]
-            )
-
-        # --------------------------------------------------------
-        # Return-to-driver is ALWAYS LAST.
-        # --------------------------------------------------------
-
-        return_stop.sequence = (
-            len(ordered_stops) + 1
-        )
-
-        return_stop.save(
-            update_fields=[
-                "sequence",
-                "updated_at",
-            ]
-        )
-
-    # ============================================================
-    # 14. GOOGLE ROUTE
-    #
-    # VERY IMPORTANT:
-    #
-    # ORIGIN:
-    #     Driver address
-    #
-    # WAYPOINTS:
-    #     Suppliers + Customers
-    #
-    # DESTINATION:
-    #     SAME DRIVER ADDRESS
-    #
-    # The RETURN stop is NOT a waypoint.
-    # ============================================================
-
-    origin = (
-        f"{driver_lat},{driver_lng}"
-    )
-
-    destination = (
-        f"{driver_lat},{driver_lng}"
-    )
-
-    waypoints = [
-        f"{float(stop.lat)},{float(stop.lng)}"
-        for stop in ordered_stops
-    ]
-
-    print(
-        "\nGOOGLE ORIGIN:",
-        origin,
-    )
-
-    print(
-        "GOOGLE WAYPOINTS:",
-        waypoints,
-    )
-
-    print(
-        "GOOGLE DESTINATION:",
-        destination,
-    )
+    if waypoints:
+        waypoint_str = "|".join(waypoints)
 
     params = {
         "origin": origin,
         "destination": destination,
-        "waypoints": "|".join(waypoints),
+        "waypoints": waypoint_str,
         "key": settings.GOOGLE_MAPS_API_KEY,
+    }
+
+    params = {
+        k: v
+        for k, v in params.items()
+        if v
     }
 
     response = requests.get(
@@ -753,270 +49,383 @@ def plan_run_sequence(run):
         timeout=20,
     )
 
-    print(
-        "GOOGLE STATUS CODE:",
-        response.status_code,
-    )
-
     if response.status_code != 200:
-
-        return False, (
-            "Failed to contact Google Directions API."
-        )
+        raise RuntimeError("Failed to contact Google Directions API")
 
     data = response.json()
 
-    print(
-        "GOOGLE RESPONSE STATUS:",
-        data.get("status"),
-    )
-
     if data.get("status") != "OK":
-
-        print(
-            "❌ GOOGLE ERROR:",
-            data,
+        raise RuntimeError(
+            f"Google Directions error: {data.get('status')}"
         )
 
+    return data["routes"][0]["legs"]
+
+
+# -------------------------------------------------
+# DISTANCE
+# -------------------------------------------------
+def _distance(a_lat, a_lng, b_lat, b_lng):
+    """
+    Haversine distance (km)
+    """
+
+    r = 6371
+
+    lat1 = math.radians(float(a_lat))
+    lon1 = math.radians(float(a_lng))
+
+    lat2 = math.radians(float(b_lat))
+    lon2 = math.radians(float(b_lng))
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    aa = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(lat1)
+        * math.cos(lat2)
+        * math.sin(dlon / 2) ** 2
+    )
+
+    c = 2 * math.atan2(math.sqrt(aa), math.sqrt(1 - aa))
+
+    return r * c
+
+
+# -------------------------------------------------
+# NEAREST NEIGHBOUR
+# -------------------------------------------------
+def _nearest(current_lat, current_lng, remaining):
+
+    best = None
+    best_distance = None
+
+    for stop in remaining:
+
+        d = _distance(
+            current_lat,
+            current_lng,
+            stop.lat,
+            stop.lng,
+        )
+
+        if best is None or d < best_distance:
+            best = stop
+            best_distance = d
+
+    return best
+
+
+# -------------------------------------------------
+# MAIN ROUTE PLANNER
+# -------------------------------------------------
+def plan_run_sequence(run):
+    """
+    Plan the delivery run in this order:
+
+        Driver address
+            ↓
+        Selected starting supplier
+            ↓
+        Nearest customer
+            ↓
+        Nearest remaining customer
+            ↓
+        ...
+            ↓
+        Driver address
+
+    The driver's saved coordinates are the route origin and destination.
+    The selected supplier's coordinates come from Supplier.delivery_lat
+    and Supplier.delivery_lng.
+    """
+
+    print("\n==== ROUTE PLANNING START ====")
+    print("RUN:", run.id)
+
+    # -------------------------------------------------
+    # 1. DRIVER ADDRESS = ORIGIN AND DESTINATION
+    # -------------------------------------------------
+    if run.start_lat is None or run.start_lng is None:
         return False, (
-            f"Google Directions error: "
-            f"{data.get('status')}"
+            "Driver route coordinates are missing. "
+            "Check the selected driver's profile."
         )
 
-    route = data["routes"][0]
+    origin_point = f"{run.start_lat},{run.start_lng}"
+    destination_point = origin_point
 
-    legs = route["legs"]
+    # -------------------------------------------------
+    # 2. SELECTED STARTING SUPPLIER
+    # -------------------------------------------------
+    supplier = getattr(run, "start_supplier", None)
 
-    print(
-        "LEGS RETURNED:",
-        len(legs),
+    if supplier is None:
+        return False, "Please select a starting supplier before generating the route."
+
+    supplier_lat = getattr(supplier, "delivery_lat", None)
+    supplier_lng = getattr(supplier, "delivery_lng", None)
+
+    if supplier_lat is None or supplier_lng is None:
+        return False, (
+            f"{supplier.name} is selected as the starting supplier, "
+            "but its delivery latitude or longitude is missing."
+        )
+
+    # Create or update the physical supplier stop from the selected
+    # supplier's current address and saved GPS coordinates.
+    supplier_address_parts = [
+        getattr(supplier, "address_line1", ""),
+        getattr(supplier, "address_line2", ""),
+        getattr(supplier, "city", ""),
+        getattr(supplier, "province", ""),
+        getattr(supplier, "postal_code", ""),
+        getattr(supplier, "country", ""),
+    ]
+    supplier_address_parts = [
+        str(part).strip()
+        for part in supplier_address_parts
+        if part and str(part).strip()
+    ]
+    supplier_address = ", ".join(supplier_address_parts)
+
+    supplier_stop, _ = DeliveryStop.objects.get_or_create(
+        run=run,
+        stop_type="SUPPLIER",
+        supplier=supplier,
+        order__isnull=True,
+        defaults={
+            "status": "assigned",
+            "customer_name": supplier.name,
+            "address_line1": supplier.address_line1 or supplier.name,
+            "address_line2": supplier.address_line2 or "",
+            "city": supplier.city or "",
+            "province": supplier.province or "",
+            "postal_code": supplier.postal_code or "",
+            "country": supplier.country or "South Africa",
+            "lat": supplier_lat,
+            "lng": supplier_lng,
+            "service_min": 0,
+        },
     )
 
-    # ============================================================
-    # EXPECTED GOOGLE LEG COUNT
-    #
-    # If we have:
-    #
-    # 1 supplier
-    # 4 customers
-    #
-    # Google should return:
-    #
-    # Driver → Supplier       = Leg 1
-    # Supplier → Customer 1   = Leg 2
-    # Customer 1 → Customer 2 = Leg 3
-    # Customer 2 → Customer 3 = Leg 4
-    # Customer 3 → Customer 4 = Leg 5
-    # Customer 4 → Driver     = Leg 6
-    #
-    # Therefore:
-    #
-    # len(legs) == len(ordered_stops) + 1
-    # ============================================================
+    # Refresh the stop snapshot so a previously-created legacy stop
+    # uses the selected supplier's current coordinates and address.
+    supplier_stop.customer_name = supplier.name
+    supplier_stop.address_line1 = supplier.address_line1 or supplier.name
+    supplier_stop.address_line2 = supplier.address_line2 or ""
+    supplier_stop.city = supplier.city or ""
+    supplier_stop.province = supplier.province or ""
+    supplier_stop.postal_code = supplier.postal_code or ""
+    supplier_stop.country = supplier.country or "South Africa"
+    supplier_stop.lat = supplier_lat
+    supplier_stop.lng = supplier_lng
+    supplier_stop.save(update_fields=[
+        "customer_name",
+        "address_line1",
+        "address_line2",
+        "city",
+        "province",
+        "postal_code",
+        "country",
+        "lat",
+        "lng",
+        "updated_at",
+    ])
 
-    expected_legs = (
-        len(ordered_stops) + 1
+    supplier_point = f"{supplier_lat},{supplier_lng}"
+
+    # -------------------------------------------------
+    # 3. CUSTOMER STOPS WITH VALID COORDINATES
+    # -------------------------------------------------
+    remaining = list(
+        run.stops.filter(
+            stop_type="CUSTOMER",
+            lat__isnull=False,
+            lng__isnull=False,
+        ).order_by("id")
     )
 
+    # Do not silently create a route that skips customers with no GPS.
+    customers_without_geo = run.stops.filter(
+        stop_type="CUSTOMER"
+    ).filter(
+        Q(lat__isnull=True) | Q(lng__isnull=True)
+    ).count()
+
+    if customers_without_geo:
+        return False, (
+            f"{customers_without_geo} customer stop(s) are missing GPS coordinates. "
+            "Update those delivery addresses before generating the route."
+        )
+
+    if not remaining:
+        return False, (
+            "No customer stops with coordinates. "
+            "Check the delivery addresses and GPS coordinates."
+        )
+
+    # -------------------------------------------------
+    # 4. ORDER CUSTOMERS BY NEAREST NEIGHBOUR FROM SUPPLIER
+    # -------------------------------------------------
+    current_lat = float(supplier_lat)
+    current_lng = float(supplier_lng)
+    ordered_stops = []
+
+    while remaining:
+        nxt = _nearest(current_lat, current_lng, remaining)
+        ordered_stops.append(nxt)
+        remaining.remove(nxt)
+        current_lat = float(nxt.lat)
+        current_lng = float(nxt.lng)
+
+    print("ROUTE ORIGIN = DRIVER:", origin_point)
+    print("FIRST PHYSICAL STOP = SUPPLIER:", supplier.name, supplier_point)
+    print("CUSTOMER DISPATCH ORDER:")
+    for index, stop in enumerate(ordered_stops, start=1):
+        print(index, "-", stop.customer_name)
+
+    # -------------------------------------------------
+    # 5. ASK GOOGLE FOR ROUTE LEGS
+    #    Fixed waypoint order: supplier first, then customers.
+    # -------------------------------------------------
+    waypoint_coords = [supplier_point] + [
+        f"{stop.lat},{stop.lng}" for stop in ordered_stops
+    ]
+
+    try:
+        legs = _call_google(
+            origin=origin_point,
+            destination=destination_point,
+            waypoints=waypoint_coords,
+        )
+    except Exception as exc:
+        print("Google Directions error:", exc)
+        return False, str(exc)
+
+    expected_legs = len(waypoint_coords) + 1
     if len(legs) != expected_legs:
-
-        print(
-            "❌ UNEXPECTED GOOGLE LEG COUNT"
-        )
-
-        print(
-            "Expected:",
-            expected_legs,
-        )
-
-        print(
-            "Received:",
-            len(legs),
-        )
-
         return False, (
-            "Google returned an unexpected number "
-            "of route legs."
+            f"Expected {expected_legs} route legs, "
+            f"but Google returned {len(legs)}."
         )
 
-    # ============================================================
-    # 15. SAVE ROUTE DISTANCE / TIME / ETA
-    # ============================================================
+    # -------------------------------------------------
+    # 6. CREATE / UPDATE RETURN STOP AT DRIVER ADDRESS
+    # -------------------------------------------------
+    return_stop, _ = DeliveryStop.objects.get_or_create(
+        run=run,
+        stop_type="RETURN",
+        order__isnull=True,
+        supplier__isnull=True,
+        defaults={
+            "status": "assigned",
+            "customer_name": (
+                run.start_location_label
+                or (run.driver.get_full_name() if run.driver else "")
+                or "Driver address"
+            ),
+            "address_line1": run.start_location_label or "Driver address",
+            "lat": run.start_lat,
+            "lng": run.start_lng,
+            "service_min": 0,
+        },
+    )
+
+    return_stop.customer_name = (
+        run.start_location_label
+        or (run.driver.get_full_name() if run.driver else "")
+        or "Driver address"
+    )
+    return_stop.address_line1 = run.start_location_label or "Driver address"
+    return_stop.lat = run.start_lat
+    return_stop.lng = run.start_lng
+
+    # -------------------------------------------------
+    # 7. SAVE SEQUENCES AND TIMINGS
+    # -------------------------------------------------
+    route_stops = [supplier_stop] + ordered_stops
 
     with transaction.atomic():
+        run.stops.update(
+            sequence=None,
+            distance_km=None,
+            drive_min=None,
+            eta=None,
+        )
 
-        current_eta = None
+        # Reapply return stop's driver-address snapshot after clearing
+        # route sequence/timing fields.
+        return_stop.sequence = None
+        return_stop.distance_km = None
+        return_stop.drive_min = None
+        return_stop.eta = None
+        return_stop.save(update_fields=[
+            "customer_name",
+            "address_line1",
+            "lat",
+            "lng",
+            "sequence",
+            "distance_km",
+            "drive_min",
+            "eta",
+            "updated_at",
+        ])
 
-        # --------------------------------------------------------
-        # Supplier + customer stops receive the first N legs.
-        # --------------------------------------------------------
+        base = run.start_time
+        current_eta = now().replace(
+            hour=base.hour if base else now().hour,
+            minute=base.minute if base else now().minute,
+            second=0,
+            microsecond=0,
+        )
 
-        for stop, leg in zip(
-            ordered_stops,
-            legs[:-1],
-        ):
+        for index, stop in enumerate(route_stops):
+            leg = legs[index]
+            distance_km = Decimal(leg["distance"]["value"]) / Decimal("1000")
+            drive_min = int(leg["duration"]["value"] / 60)
+            current_eta += timedelta(minutes=drive_min)
 
-            distance_km = (
-                Decimal(
-                    leg["distance"]["value"]
-                )
-                / Decimal("1000")
-            )
-
-            drive_min = int(
-                leg["duration"]["value"] / 60
-            )
-
-            stop.distance_km = (
-                distance_km
-            )
-
-            stop.drive_min = (
-                drive_min
-            )
-
-            # ====================================================
-            # ETA
-            # ====================================================
-
-            if current_eta is None:
-
-                base_time = run.start_time
-
-                if base_time:
-
-                    current_eta = now().replace(
-                        hour=base_time.hour,
-                        minute=base_time.minute,
-                        second=0,
-                        microsecond=0,
-                    )
-
-                else:
-
-                    current_eta = now()
-
-            current_eta += timedelta(
-                minutes=drive_min
-            )
-
+            stop.sequence = index + 1
+            stop.distance_km = distance_km
+            stop.drive_min = drive_min
             stop.eta = current_eta
-
-            stop.save(
-                update_fields=[
-                    "distance_km",
-                    "drive_min",
-                    "eta",
-                    "updated_at",
-                ]
-            )
-
-            print(
-                f"STOP {stop.sequence}: "
-                f"{stop.stop_type} → "
-                f"{distance_km} km / "
-                f"{drive_min} min"
-            )
-
-        # ========================================================
-        # 16. FINAL LEG = LAST CUSTOMER → DRIVER
-        #
-        # Save this against the visible RETURN stop.
-        # ========================================================
-
-        final_leg = legs[-1]
-
-        return_distance_km = (
-            Decimal(
-                final_leg["distance"]["value"]
-            )
-            / Decimal("1000")
-        )
-
-        return_drive_min = int(
-            final_leg["duration"]["value"] / 60
-        )
-
-        return_stop.distance_km = (
-            return_distance_km
-        )
-
-        return_stop.drive_min = (
-            return_drive_min
-        )
-
-        # --------------------------------------------------------
-        # Continue ETA from the last customer.
-        # --------------------------------------------------------
-
-        if current_eta is None:
-
-            base_time = run.start_time
-
-            if base_time:
-
-                current_eta = now().replace(
-                    hour=base_time.hour,
-                    minute=base_time.minute,
-                    second=0,
-                    microsecond=0,
-                )
-
-            else:
-
-                current_eta = now()
-
-        current_eta += timedelta(
-            minutes=return_drive_min
-        )
-
-        return_stop.eta = current_eta
-
-        return_stop.sequence = (
-            len(ordered_stops) + 1
-        )
-
-        return_stop.save(
-            update_fields=[
+            stop.save(update_fields=[
+                "sequence",
                 "distance_km",
                 "drive_min",
                 "eta",
-                "sequence",
                 "updated_at",
-            ]
+            ])
+
+            print(
+                f"SEQ {stop.sequence} | "
+                f"{stop.customer_name} | {distance_km} km"
+            )
+
+        # Last leg is from the final customer (or supplier if there
+        # are no customers) back to the driver's address.
+        last_leg = legs[-1]
+        return_distance_km = (
+            Decimal(last_leg["distance"]["value"]) / Decimal("1000")
         )
+        return_drive_min = int(last_leg["duration"]["value"] / 60)
+        current_eta += timedelta(minutes=return_drive_min)
 
-        print(
-            f"STOP {return_stop.sequence}: "
-            f"RETURN TO DRIVER → "
-            f"{return_distance_km} km / "
-            f"{return_drive_min} min"
-        )
+        return_stop.sequence = len(route_stops) + 1
+        return_stop.distance_km = return_distance_km
+        return_stop.drive_min = return_drive_min
+        return_stop.eta = current_eta
+        return_stop.save(update_fields=[
+            "sequence",
+            "distance_km",
+            "drive_min",
+            "eta",
+            "updated_at",
+        ])
 
-        # ========================================================
-        # 17. RUN TOTALS
-        # ========================================================
+        run.recalc_aggregates(save=True)
 
-        run.recalc_aggregates(
-            save=True
-        )
-
-    # ============================================================
-    # 18. FINAL SUMMARY
-    # ============================================================
-
-    print(
-        "TOTAL DISTANCE:",
-        run.total_distance_km,
-    )
-
-    print(
-        "TOTAL DRIVE MIN:",
-        run.total_drive_min,
-    )
-
-    print(
-        "==== ROUTE PLANNING COMPLETE ====\n"
-    )
-
-    return True, "Route successfully generated."
+    print("==== ROUTE COMPLETE ====\n")
+    return True, "Route planned successfully: driver → supplier → customers → driver."

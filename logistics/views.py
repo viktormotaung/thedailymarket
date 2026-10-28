@@ -1456,12 +1456,17 @@ def stop_completion(request, stop_id):
                 ""
             )
 
+            # Capture the completion timestamp independently of the photo.
+            # Previously signed_at was only set when a photo was uploaded,
+            # which caused completed deliveries without a photo to show
+            # "Not recorded" on the delivery note.
+            completion_time = now()
             stop.updated_by = request.user
-            stop.updated_at = now()
+            stop.updated_at = completion_time
 
-            if request.FILES.get("signature"):
-                stop.signature = request.FILES["signature"]
-                stop.signed_at = now()
+            uploaded_pod = request.FILES.get("signature")
+            if uploaded_pod:
+                stop.signature = uploaded_pod
 
             # -----------------------------------------
             # Delivery Stop Items
@@ -1512,6 +1517,9 @@ def stop_completion(request, stop_id):
             if outcome == "complete":
 
                 stop.status = "delivered"
+                # Record the delivery completion time even when no POD image
+                # was uploaded. The photo and timestamp are separate fields.
+                stop.signed_at = completion_time
                 order.status = "complete"
 
             elif outcome == "returned":

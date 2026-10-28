@@ -2608,3 +2608,643 @@ SampleRequestItemFormSet = inlineformset_factory(
     extra=3,
     can_delete=True,
 )
+
+
+# ============================================================
+# MARKETING CAMPAIGNS
+# ============================================================
+#
+# These forms extend the existing clients/forms.py without replacing
+# or changing the existing Client, Prospect, Lead, compliance or sample
+# request workflows.
+#
+# Campaign management forms are for staff/admin-facing campaign setup.
+# CampaignLeadSubmissionForm is intended for the public campaign landing
+# pages. The view must still create CampaignResponse and
+# CampaignSMSConfirmation records and queue the SMS after saving.
+# ============================================================
+
+from .models import (
+    Campaign,
+    CampaignQuestion,
+    CampaignResponse,
+    CampaignResponseAnswer,
+    CampaignSMSConfirmation,
+)
+
+
+class CampaignForm(forms.ModelForm):
+    """Staff form for creating and editing a marketing campaign."""
+
+    channels = forms.MultipleChoiceField(
+        choices=Campaign.CHANNEL_CHOICES,
+        required=False,
+        widget=forms.SelectMultiple(
+            attrs={
+                "class": "form-select",
+                "multiple": "multiple",
+            }
+        ),
+        help_text="Select every channel used for this campaign.",
+    )
+
+    class Meta:
+        model = Campaign
+        fields = [
+            "name",
+            "code",
+            "campaign_type",
+            "objective",
+            "status",
+            "description",
+            "target_audience",
+            "channels",
+            "offer",
+            "start_date",
+            "end_date",
+            "budget",
+            "form_title",
+            "form_description",
+            "created_by",
+        ]
+        widgets = {
+            "name": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "e.g. Gauteng Food Supply Campaign",
+            }),
+            "code": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Leave blank to generate from campaign name",
+            }),
+            "campaign_type": forms.Select(attrs={"class": "form-select"}),
+            "objective": forms.Select(attrs={"class": "form-select"}),
+            "status": forms.Select(attrs={"class": "form-select"}),
+            "description": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 3,
+            }),
+            "target_audience": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 3,
+                "placeholder": "e.g. Kota shops, takeaways, caterers and food businesses",
+            }),
+            "offer": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 3,
+                "placeholder": "Describe the offer or campaign message",
+            }),
+            "start_date": forms.DateInput(attrs={
+                "class": "form-control",
+                "type": "date",
+            }),
+            "end_date": forms.DateInput(attrs={
+                "class": "form-control",
+                "type": "date",
+            }),
+            "budget": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01",
+                "min": "0",
+                "placeholder": "3000.00",
+            }),
+            "form_title": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Headline shown on the campaign form",
+            }),
+            "form_description": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 3,
+                "placeholder": "Short explanation shown above the form",
+            }),
+            "created_by": forms.Select(attrs={"class": "form-select"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if self.instance and self.instance.pk:
+            self.initial["channels"] = self.instance.channels or []
+        elif not self.initial.get("channels"):
+            self.initial["channels"] = ["FACEBOOK", "INSTAGRAM", "TIKTOK"]
+
+    def clean_channels(self):
+        channels = self.cleaned_data.get("channels") or []
+        allowed = {value for value, _label in Campaign.CHANNEL_CHOICES}
+        invalid = set(channels) - allowed
+        if invalid:
+            raise ValidationError("One or more selected marketing channels are invalid.")
+        return list(channels)
+
+    def clean(self):
+        cleaned = super().clean()
+        start_date = cleaned.get("start_date")
+        end_date = cleaned.get("end_date")
+
+        if start_date and end_date and end_date < start_date:
+            self.add_error("end_date", "End date cannot be before the start date.")
+
+        budget = cleaned.get("budget")
+        if budget is not None and budget < Decimal("0"):
+            self.add_error("budget", "Campaign budget cannot be negative.")
+
+        return cleaned
+
+
+class CampaignQuestionForm(forms.ModelForm):
+    """Staff form for configuring one question on a campaign form."""
+
+    options = forms.JSONField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            "class": "form-control",
+            "rows": 3,
+            "placeholder": '["Option 1", "Option 2"]',
+        }),
+        help_text=(
+            "For Dropdown or Multiple choice, enter a JSON list, "
+            'for example ["Kota shop", "Takeaway", "Caterer"]. '
+            "Leave blank for other question types."
+        ),
+    )
+
+    class Meta:
+        model = CampaignQuestion
+        fields = [
+            "campaign",
+            "question_text",
+            "question_key",
+            "question_type",
+            "options",
+            "is_required",
+            "help_text",
+            "sort_order",
+            "is_active",
+        ]
+        widgets = {
+            "campaign": forms.Select(attrs={"class": "form-select"}),
+            "question_text": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "e.g. What products do you buy most often?",
+            }),
+            "question_key": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "e.g. main_products",
+            }),
+            "question_type": forms.Select(attrs={"class": "form-select"}),
+            "is_required": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "help_text": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Optional help shown below the question",
+            }),
+            "sort_order": forms.NumberInput(attrs={
+                "class": "form-control",
+                "min": "0",
+                "step": "1",
+            }),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def clean_options(self):
+        options = self.cleaned_data.get("options")
+        question_type = self.cleaned_data.get("question_type")
+
+        if question_type in {"DROPDOWN", "MULTIPLE_CHOICE"}:
+            if not isinstance(options, list) or not options:
+                raise ValidationError(
+                    "Provide a JSON list of options for Dropdown or Multiple choice."
+                )
+            normalised = []
+            for option in options:
+                if not isinstance(option, (str, int, float, bool)):
+                    raise ValidationError("Each option must be a simple text or numeric value.")
+                option_text = str(option).strip()
+                if option_text:
+                    normalised.append(option_text)
+            if not normalised:
+                raise ValidationError("At least one non-empty option is required.")
+            return normalised
+
+        if options in (None, ""):
+            return []
+        if not isinstance(options, list):
+            raise ValidationError("Options must be a JSON list.")
+        return options
+
+
+class CampaignResponseForm(forms.ModelForm):
+    """Staff form for reviewing or manually recording a campaign response."""
+
+    class Meta:
+        model = CampaignResponse
+        fields = [
+            "campaign",
+            "lead",
+            "channel",
+            "advert_reference",
+            "landing_page",
+            "utm_source",
+            "utm_medium",
+            "utm_campaign",
+            "utm_content",
+            "utm_term",
+            "fbclid",
+            "ttclid",
+            "consent_to_contact",
+            "consent_text",
+            "submitted_at",
+            "metadata",
+        ]
+        widgets = {
+            "campaign": forms.Select(attrs={"class": "form-select"}),
+            "lead": forms.Select(attrs={"class": "form-select"}),
+            "channel": forms.Select(attrs={"class": "form-select"}),
+            "advert_reference": forms.TextInput(attrs={"class": "form-control"}),
+            "landing_page": forms.URLInput(attrs={"class": "form-control"}),
+            "utm_source": forms.TextInput(attrs={"class": "form-control"}),
+            "utm_medium": forms.TextInput(attrs={"class": "form-control"}),
+            "utm_campaign": forms.TextInput(attrs={"class": "form-control"}),
+            "utm_content": forms.TextInput(attrs={"class": "form-control"}),
+            "utm_term": forms.TextInput(attrs={"class": "form-control"}),
+            "fbclid": forms.TextInput(attrs={"class": "form-control"}),
+            "ttclid": forms.TextInput(attrs={"class": "form-control"}),
+            "consent_to_contact": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "consent_text": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "submitted_at": forms.DateTimeInput(attrs={
+                "class": "form-control",
+                "type": "datetime-local",
+            }),
+            "metadata": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 3,
+                "placeholder": "{}",
+            }),
+        }
+
+
+class CampaignResponseAnswerForm(forms.ModelForm):
+    """Form for capturing an answer to a configured campaign question."""
+
+    class Meta:
+        model = CampaignResponseAnswer
+        fields = [
+            "response",
+            "question",
+            "question_text_snapshot",
+            "answer_value",
+        ]
+        widgets = {
+            "response": forms.Select(attrs={"class": "form-select"}),
+            "question": forms.Select(attrs={"class": "form-select"}),
+            "question_text_snapshot": forms.TextInput(attrs={"class": "form-control"}),
+            "answer_value": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 3,
+                "placeholder": 'Enter text, a number, boolean, or JSON list as appropriate',
+            }),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        response = cleaned.get("response")
+        question = cleaned.get("question")
+
+        if response and question and response.campaign_id != question.campaign_id:
+            self.add_error(
+                "question",
+                "The selected question does not belong to the selected response's campaign.",
+            )
+        return cleaned
+
+
+class CampaignLeadSubmissionForm(forms.ModelForm):
+    """
+    Short public-facing lead form for the Food Supply and Trade Assist
+    landing pages.
+
+    This form deliberately creates a Lead, not a Prospect or Client.
+    The view must create a CampaignResponse, save question answers,
+    and queue the SMS confirmation after a successful submission.
+    """
+
+    contact_consent = forms.BooleanField(
+        required=True,
+        label="I agree that The Daily Market may contact me about this enquiry.",
+        error_messages={
+            "required": "Please agree to be contacted so our team can follow up.",
+        },
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+
+    class Meta:
+        model = Lead
+        fields = [
+            "business_name",
+            "contact_person",
+            "phone",
+            "whatsapp",
+            "email",
+            "potential_client_type",
+            "estimated_weekly_spend",
+            "suburb",
+            "city",
+            "province",
+        ]
+        widgets = {
+            "business_name": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Business or trading name",
+                "autocomplete": "organization",
+            }),
+            "contact_person": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Your full name",
+                "autocomplete": "name",
+            }),
+            "phone": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "e.g. 082 123 4567",
+                "autocomplete": "tel",
+                "inputmode": "tel",
+            }),
+            "whatsapp": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Optional alternative contact number",
+                "autocomplete": "tel",
+                "inputmode": "tel",
+            }),
+            "email": forms.EmailInput(attrs={
+                "class": "form-control",
+                "placeholder": "Optional email address",
+                "autocomplete": "email",
+            }),
+            "potential_client_type": forms.Select(attrs={"class": "form-select"}),
+            "estimated_weekly_spend": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01",
+                "min": "0",
+                "placeholder": "Approximate weekly stock spend (R)",
+                "inputmode": "decimal",
+            }),
+            "suburb": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Suburb or township",
+                "autocomplete": "address-level3",
+            }),
+            "city": forms.Select(attrs={"class": "form-select"}),
+            "province": forms.Select(attrs={"class": "form-select"}),
+        }
+
+        labels = {
+            "business_name": "Business name",
+            "contact_person": "Your name",
+            "phone": "Mobile number for SMS confirmation",
+            "whatsapp": "Alternative contact number",
+            "potential_client_type": "What type of business do you run?",
+            "estimated_weekly_spend": "Approximate weekly stock spend (R)",
+            "suburb": "Suburb / township",
+            "city": "City",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["business_name"].required = True
+        self.fields["contact_person"].required = True
+        self.fields["phone"].required = True
+        self.fields["potential_client_type"].required = True
+        self.fields["city"].required = True
+        self.fields["province"].required = True
+
+        self.fields["city"].choices = [
+            ("", "Select city"),
+            *GAUTENG_CITY_CHOICES,
+        ]
+        self.fields["province"].choices = [
+            ("", "Select province"),
+            *Lead.PROVINCES,
+        ]
+        self.fields["potential_client_type"].choices = [
+            ("", "Select business type"),
+            *Lead.CLIENT_TYPES,
+        ]
+
+    def clean_business_name(self):
+        return (self.cleaned_data.get("business_name") or "").strip()
+
+    def clean_contact_person(self):
+        return (self.cleaned_data.get("contact_person") or "").strip()
+
+    def clean_phone(self):
+        phone = (self.cleaned_data.get("phone") or "").strip()
+        digits = "".join(character for character in phone if character.isdigit())
+        if len(digits) < 9:
+            raise ValidationError("Enter a valid South African mobile or contact number.")
+        return phone
+
+    def clean_estimated_weekly_spend(self):
+        spend = self.cleaned_data.get("estimated_weekly_spend")
+        if spend is not None and spend < Decimal("0"):
+            raise ValidationError("Weekly spend cannot be negative.")
+        return spend
+
+    def save(self, commit=True):
+        lead = super().save(commit=False)
+
+        # Campaign submissions are warm enquiries. The view should set the
+        # exact source based on the campaign/channel and set campaign metadata.
+        lead.temperature = "WARM"
+        lead.status = "NEW"
+        lead.country = "South Africa"
+
+        if not lead.whatsapp:
+            lead.whatsapp = lead.phone
+
+        if commit:
+            lead.save()
+        return lead
+
+
+def build_campaign_question_form(campaign, *args, **kwargs):
+    """
+    Build a Django form class for the active questions on one campaign.
+
+    Returns a form instance, e.g.:
+        form = build_campaign_question_form(campaign, request.POST or None)
+
+    Values are validated against each question's configured type/options.
+    The view remains responsible for saving CampaignResponseAnswer rows.
+    """
+    # Ensure the Food Supply campaign always captures these two essential
+    # qualification details. Using stable question keys makes this safe to run
+    # on every form request without creating duplicate questions.
+    if (campaign.code or "").upper() == "TDM-FOOD-TEST":
+        qualification_questions = [
+            {
+                "question_key": "business_currently_active",
+                "question_text": "Is your business currently active and trading?",
+                "question_type": "DROPDOWN",
+                "options": [
+                    "Currently trading",
+                    "Not yet trading",
+                    "Temporarily not operating",
+                ],
+                "is_required": True,
+                "help_text": "Please select the option that best describes your business today.",
+                "sort_order": 10,
+                "is_active": True,
+            },
+            {
+                "question_key": "business_operating_duration",
+                "question_text": "How long has your business been operating?",
+                "question_type": "DROPDOWN",
+                "options": [
+                    "Less than 3 months",
+                    "3–6 months",
+                    "6–12 months",
+                    "1–2 years",
+                    "3–5 years",
+                    "More than 5 years",
+                ],
+                "is_required": True,
+                "help_text": "Choose the period that best describes how long your business has been operating.",
+                "sort_order": 20,
+                "is_active": True,
+            },
+        ]
+
+        for question_data in qualification_questions:
+            question_key = question_data.pop("question_key")
+            CampaignQuestion.objects.update_or_create(
+                campaign=campaign,
+                question_key=question_key,
+                defaults=question_data,
+            )
+
+    questions = list(
+        CampaignQuestion.objects.filter(
+            campaign=campaign,
+            is_active=True,
+        ).order_by("sort_order", "id")
+    )
+
+    # Build a fresh form class for this campaign. Do not mutate base_fields
+    # on a nested class: doing so can leak questions between campaign forms.
+    dynamic_fields = {}
+
+    for question in questions:
+        field_name = f"question_{question.pk}"
+        common = {
+            "required": question.is_required,
+            "label": question.question_text,
+            "help_text": question.help_text,
+        }
+
+        if question.question_type == "SHORT_TEXT":
+            field = forms.CharField(
+                max_length=1000,
+                widget=forms.TextInput(attrs={
+                    "class": "form-control",
+                    "placeholder": question.question_text,
+                }),
+                **common,
+            )
+        elif question.question_type == "LONG_TEXT":
+            field = forms.CharField(
+                max_length=5000,
+                widget=forms.Textarea(attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": question.question_text,
+                }),
+                **common,
+            )
+        elif question.question_type == "DROPDOWN":
+            choices = [("", "Select an option")] + [
+                (str(option), str(option)) for option in (question.options or [])
+            ]
+            field = forms.ChoiceField(
+                choices=choices,
+                widget=forms.Select(attrs={"class": "form-select"}),
+                **common,
+            )
+        elif question.question_type == "MULTIPLE_CHOICE":
+            choices = [
+                (str(option), str(option)) for option in (question.options or [])
+            ]
+            field = forms.MultipleChoiceField(
+                choices=choices,
+                widget=forms.CheckboxSelectMultiple(
+                    attrs={"class": "form-check-input"}
+                ),
+                **common,
+            )
+        elif question.question_type == "YES_NO":
+            field = forms.TypedChoiceField(
+                choices=[("", "Select yes or no"), ("true", "Yes"), ("false", "No")],
+                coerce=lambda value: value == "true",
+                empty_value=None,
+                widget=forms.Select(attrs={"class": "form-select"}),
+                **common,
+            )
+        elif question.question_type == "NUMBER":
+            field = forms.DecimalField(
+                max_digits=12,
+                decimal_places=2,
+                widget=forms.NumberInput(attrs={
+                    "class": "form-control",
+                    "step": "0.01",
+                    "inputmode": "decimal",
+                }),
+                **common,
+            )
+        else:
+            # Defensive fallback for a future question type.
+            field = forms.CharField(
+                max_length=1000,
+                widget=forms.TextInput(attrs={"class": "form-control"}),
+                **common,
+            )
+
+        dynamic_fields[field_name] = field
+
+    DynamicCampaignQuestionForm = type(
+        f"CampaignQuestionForm_{campaign.pk or 'unsaved'}",
+        (forms.Form,),
+        dynamic_fields,
+    )
+    form_instance = DynamicCampaignQuestionForm(*args, **kwargs)
+    form_instance.campaign_questions = questions
+    return form_instance
+
+
+class CampaignSMSConfirmationForm(forms.ModelForm):
+    """Staff-only form for reviewing SMS confirmation delivery records."""
+
+    class Meta:
+        model = CampaignSMSConfirmation
+        fields = [
+            "response",
+            "phone_number",
+            "message",
+            "provider",
+            "status",
+            "idempotency_key",
+            "provider_message_id",
+            "attempt_count",
+            "last_error",
+        ]
+        widgets = {
+            "response": forms.Select(attrs={"class": "form-select"}),
+            "phone_number": forms.TextInput(attrs={"class": "form-control"}),
+            "message": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "provider": forms.TextInput(attrs={"class": "form-control"}),
+            "status": forms.Select(attrs={"class": "form-select"}),
+            "idempotency_key": forms.TextInput(attrs={"class": "form-control"}),
+            "provider_message_id": forms.TextInput(attrs={"class": "form-control"}),
+            "attempt_count": forms.NumberInput(attrs={
+                "class": "form-control",
+                "min": "0",
+                "step": "1",
+            }),
+            "last_error": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+        }

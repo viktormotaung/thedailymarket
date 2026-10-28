@@ -1,0 +1,30 @@
+{% load static %}
+<!doctype html>
+<html lang="en-ZA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b5c39">
+  <title>Thank you | The Daily Market</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:18px;background:#eef3ef;color:#18251d;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+    .card{width:100%;max-width:520px;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 12px 45px #0f32200d}
+    header{padding:24px;background:#0b5c39;color:#fff}.brand{display:flex;align-items:center;gap:11px;color:#fff;text-decoration:none}.brand img{height:42px;width:auto}.brand strong{display:block;font-size:15px}.brand small{display:block;margin-top:4px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#d8eee0}
+    main{padding:30px 24px 28px;text-align:center}.check{width:60px;height:60px;margin:0 auto 18px;display:grid;place-items:center;border-radius:50%;background:#e5f4e9;color:#0b5c39;font-size:30px;font-weight:800}
+    h1{margin:0 0 12px;font-size:29px;letter-spacing:-.7px}.body{margin:0;color:#66736a;font-size:14px;line-height:1.7}.sms{margin-top:20px;padding:14px;border-radius:13px;background:#f3f7f4;text-align:left;color:#53665a;font-size:12px;line-height:1.6}
+    a.button{display:block;margin-top:22px;padding:14px 16px;border-radius:12px;background:#0b5c39;color:#fff;text-decoration:none;font-weight:800;font-size:14px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <header><a class="brand" href="/"><img src="{% static 'images/logo.png' %}" alt="The Daily Market"><span><strong>The Daily Market</strong><small>Business food supply</small></span></a></header>
+    <main>
+      <div class="check" aria-hidden="true">✓</div>
+      <h1>Thank you for your enquiry.</h1>
+      <p class="body">We’ve received your business details. A member of The Daily Market team will contact you to discuss the products your business needs.</p>
+      <div class="sms"><strong>What happens next?</strong><br>We’ll queue an SMS confirmation for your number. Your enquiry is not an approved account or a guarantee of pricing.</div>
+      <a class="button" href="/">Back to The Daily Market</a>
+    </main>
+  </div>
+</body>
+</html>

@@ -231,16 +231,23 @@
                 </td>
 
                 <td class="text-end">
-                    {% if batch.status != "complete" %}
-                        <a href="{% url 'logistics:batch-supplier-consolidation' batch.id s.supplier_id %}"
-                        class="btn btn-sm btn-outline-primary">
-                        View Items
-                        </a>
-                    {% else %}
-                        <button class="btn btn-sm btn-outline-secondary" disabled>
-                        Locked
-                        </button>
-                    {% endif %}
+                  {% if batch.status != "complete" %}
+                      {% if s.supplier_id %}
+                          <a href="{% url 'logistics:batch-supplier-consolidation' batch.id s.supplier_id %}"
+                            class="btn btn-sm btn-outline-primary">
+                              View Items
+                          </a>
+                      {% else %}
+                          <button class="btn btn-sm btn-outline-secondary" disabled
+                                  title="No supplier is associated with these items">
+                              No Supplier
+                          </button>
+                      {% endif %}
+                  {% else %}
+                      <button class="btn btn-sm btn-outline-secondary" disabled>
+                          Locked
+                      </button>
+                  {% endif %}
                 </td>
 
               </tr>

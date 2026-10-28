@@ -2,1035 +2,607 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>The Daily Market</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b5c39">
+  <meta name="description" content="The Daily Market — quality food products, wholesale supply and solutions for food businesses.">
+  <meta name="facebook-domain-verification" content="kwe9wi53wnwizr3eu3mvpqjfv5ho49">
+  <title>The Daily Market | Quality You Can Trust</title>
 
-  <!-- Bootstrap + Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
   <style>
-    :root { --brand:#0b5c39; --brand-dark:#094c30; }
+    :root {
+      --brand: #0b5c39;
+      --brand-dark: #08472d;
+      --brand-soft: #eaf3ed;
+      --ink: #17251d;
+      --muted: #68756d;
+      --surface: #ffffff;
+      --page: #f6f8f6;
+      --line: #e2e9e4;
+      --radius: 1.15rem;
+      --shadow: 0 12px 34px rgba(18, 45, 30, .08);
+    }
 
-    /* ---------- Base ---------- */
-    html, body { height:100%; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 6rem; }
     body {
-      min-height:100vh;
-      display:flex;
-      flex-direction:column;
-      background:#f7faf8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+      color: var(--ink);
+      background: var(--page);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }
-    .site-main { flex:1; }
+    main { flex: 1; }
+    img { max-width: 100%; }
+    a { text-underline-offset: .2em; }
+    a:focus-visible, button:focus-visible { outline: 3px solid #e0b85c; outline-offset: 3px; }
+    .container { --bs-gutter-x: 1.5rem; }
+    .section-pad { padding-block: clamp(3.25rem, 7vw, 5.75rem); }
+    .eyebrow { display: inline-flex; align-items: center; gap: .5rem; color: var(--brand); font-size: .76rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .eyebrow::before { content: ""; width: 1.5rem; height: 2px; background: currentColor; }
+    .section-heading { max-width: 720px; margin-inline: auto; }
+    .section-heading h2 { margin: .7rem 0 1rem; font-size: clamp(1.8rem, 3.6vw, 2.7rem); line-height: 1.12; letter-spacing: -.045em; font-weight: 800; }
+    .section-heading p { max-width: 620px; margin: 0 auto; color: var(--muted); }
 
-    /* ---------- Navbar (desktop) ---------- */
-    .navbar { background: var(--brand); }
-    .navbar-brand img { height:85px; max-height:100px; width:auto; }
+    /* Header and navigation */
+    .site-header { position: relative; z-index: 1030; background: var(--brand); color: #fff; }
+    .desktop-nav { min-height: 92px; }
+    .brand-logo { display: block; width: auto; height: 66px; object-fit: contain; }
+    .desktop-nav .nav-link { padding: .7rem .85rem !important; border-radius: .65rem; color: rgba(255,255,255,.9) !important; font-size: .94rem; font-weight: 600; transition: background .2s ease, color .2s ease; }
+    .desktop-nav .nav-link:hover, .desktop-nav .nav-link:focus-visible, .desktop-nav .nav-link.active { color: #fff !important; background: rgba(255,255,255,.13); }
+    .desktop-nav .dropdown-menu { padding: .5rem; border: 1px solid rgba(255,255,255,.12); border-radius: .9rem; background: var(--brand-dark); box-shadow: var(--shadow); }
+    .desktop-nav .dropdown-item { padding: .7rem .8rem; border-radius: .5rem; color: #fff; }
+    .desktop-nav .dropdown-item:hover, .desktop-nav .dropdown-item:focus, .desktop-nav .dropdown-item.active { color: #fff; background: rgba(255,255,255,.14); }
+    .header-actions { display: flex; align-items: center; gap: .65rem; }
+    .btn { min-height: 44px; border-radius: .75rem; padding: .7rem 1.1rem; font-weight: 700; }
+    .btn-brand { color: #fff; background: var(--brand); border: 1px solid var(--brand); }
+    .btn-brand:hover, .btn-brand:focus { color: #fff; background: var(--brand-dark); border-color: var(--brand-dark); }
+    .btn-outline-brand { color: var(--brand); background: #fff; border: 1px solid var(--brand); }
+    .btn-outline-brand:hover, .btn-outline-brand:focus { color: #fff; background: var(--brand); border-color: var(--brand); }
+    .btn-light-brand { color: var(--brand); background: #fff; border: 1px solid #fff; }
+    .btn-light-brand:hover { color: var(--brand-dark); background: #edf5ef; border-color: #edf5ef; }
 
-    .navbar .navbar-nav { align-items:center; gap:.25rem; }
-    .navbar .nav-link,
-    .navbar .navbar-brand,
-    .navbar .dropdown-toggle { color:#fff !important; }
+    .mobile-topbar { min-height: 68px; padding-block: .55rem; }
+    .mobile-topbar .brand-logo { height: 44px; max-width: 190px; }
+    .menu-toggle { width: 46px; height: 46px; display: inline-grid; place-items: center; color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: .8rem; background: transparent; font-size: 1.4rem; }
+    .mobile-menu { color: #fff; background: var(--brand-dark); }
+    .mobile-menu .offcanvas-header { padding: 1.25rem 1.25rem .75rem; }
+    .mobile-menu .offcanvas-body { padding: .75rem 1.25rem 1.5rem; }
+    .mobile-menu .menu-label { margin: 1rem 0 .35rem; color: rgba(255,255,255,.62); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .mobile-menu .nav-link { display: flex; align-items: center; min-height: 48px; padding: .7rem .8rem; border-radius: .65rem; color: #fff; font-weight: 600; }
+    .mobile-menu .nav-link:hover, .mobile-menu .nav-link:focus-visible, .mobile-menu .nav-link.active { color: #fff; background: rgba(255,255,255,.13); }
+    .mobile-menu .menu-cta { display: grid; gap: .65rem; margin-top: 1.25rem; }
 
-    .navbar .nav-link {
-      display:inline-flex;
-      align-items:center;
-      padding:.6rem 1rem;
-      line-height:1;
-      font-weight:500;
-      border-radius:.375rem;
+    /* Trade Assist membership strip */
+    .membership-strip { position: relative; z-index: 2; background: #fff; border-bottom: 1px solid var(--line); }
+    .membership-inner { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding-block: 1rem; }
+    .membership-copy { display: flex; align-items: center; gap: .9rem; min-width: 0; }
+    .membership-icon { flex: 0 0 46px; width: 46px; height: 46px; display: grid; place-items: center; color: var(--brand); background: var(--brand-soft); border-radius: 14px; font-size: 1.3rem; }
+    .membership-copy strong { display: block; color: var(--brand); font-size: 1rem; line-height: 1.3; }
+    .membership-copy span { display: block; margin-top: .2rem; color: var(--muted); font-size: .86rem; }
+    .membership-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+    .membership-actions .btn { padding: .6rem .95rem; font-size: .9rem; }
+
+    /* Hero */
+    .hero { position: relative; overflow: hidden; background: #143b28; }
+    .hero .carousel-item { position: relative; }
+    .hero-slide { position: relative; display: block; width: 100%; aspect-ratio: 4 / 1; min-height: 300px; max-height: 570px; background-position: center; background-size: cover; background-repeat: no-repeat; }
+    .hero-slide::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(3,24,14,.28), rgba(3,24,14,.03) 70%); pointer-events: none; }
+    .hero .carousel-indicators { z-index: 3; margin-bottom: 1.1rem; }
+    .hero .carousel-indicators [data-bs-target] { width: 26px; height: 4px; margin-inline: 4px; border: 0; border-radius: 99px; }
+    .hero .carousel-control-prev, .hero .carousel-control-next { z-index: 3; width: 8%; opacity: .8; }
+    .hero .carousel-control-prev:hover, .hero .carousel-control-next:hover { opacity: 1; }
+    .mobile-hero-slide { display: block; width: 100%; aspect-ratio: 4 / 3; max-height: 520px; background-position: center; background-size: cover; background-repeat: no-repeat; }
+    .mobile-hero .carousel-indicators { margin-bottom: .8rem; }
+    .mobile-hero .carousel-indicators [data-bs-target] { width: 24px; height: 4px; border: 0; border-radius: 99px; }
+
+    /* Quick routes */
+    .quick-section { padding-block: clamp(2.75rem, 5vw, 4.5rem); }
+    .quick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .quick-card { position: relative; display: flex; flex-direction: column; min-height: 190px; padding: 1.35rem; color: var(--ink); text-decoration: none; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+    .quick-card:hover { color: var(--ink); transform: translateY(-4px); border-color: #b7d2c0; box-shadow: var(--shadow); }
+    .quick-card-icon { width: 48px; height: 48px; display: grid; place-items: center; margin-bottom: 1.2rem; color: var(--brand); background: var(--brand-soft); border-radius: 14px; font-size: 1.35rem; }
+    .quick-card h3 { margin: 0 0 .45rem; font-size: 1.05rem; font-weight: 800; }
+    .quick-card p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.5; }
+    .quick-card .card-arrow { position: absolute; right: 1.15rem; bottom: 1.1rem; color: var(--brand); }
+
+    /* Intro */
+    .intro-section { background: #fff; }
+    .intro-layout { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: clamp(2rem, 6vw, 5rem); }
+    .intro-copy h2 { margin: .7rem 0 1rem; font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.08; letter-spacing: -.05em; font-weight: 850; }
+    .intro-copy p { color: var(--muted); }
+    .intro-media { overflow: hidden; border-radius: 1.4rem; background: #e9f0eb; box-shadow: var(--shadow); }
+    .intro-media .ratio { --bs-aspect-ratio: 62%; }
+    .intro-media iframe { border: 0; }
+    .video-placeholder { display: grid; min-height: 250px; place-items: center; padding: 2rem; text-align: center; color: var(--brand); background: linear-gradient(135deg, #eaf3ed, #dbe9df); }
+    .video-placeholder i { display: block; margin-bottom: .75rem; font-size: 3rem; }
+
+    /* Trade Assist feature */
+    .trade-assist-section { background: var(--page); }
+    .ta-panel { display: grid; grid-template-columns: 1.2fr .8fr; gap: 2rem; align-items: center; padding: clamp(1.5rem, 4vw, 3.25rem); color: #fff; background: var(--brand); border-radius: 1.5rem; overflow: hidden; }
+    .ta-panel .eyebrow { color: #c9e6d3; }
+    .ta-panel h2 { max-width: 640px; margin: .7rem 0 1rem; font-size: clamp(1.9rem, 4vw, 3rem); line-height: 1.1; letter-spacing: -.04em; font-weight: 850; }
+    .ta-panel p { max-width: 600px; color: rgba(255,255,255,.8); }
+    .ta-benefits { display: grid; gap: .75rem; padding: 0; margin: 1.3rem 0 1.6rem; list-style: none; }
+    .ta-benefits li { display: flex; align-items: flex-start; gap: .65rem; color: rgba(255,255,255,.94); }
+    .ta-benefits i { margin-top: .2rem; color: #bfe7cd; }
+    .ta-side-card { padding: 1.5rem; color: var(--ink); background: #fff; border-radius: 1.1rem; }
+    .ta-side-card .ta-mark { width: 56px; height: 56px; display: grid; place-items: center; margin-bottom: 1rem; color: var(--brand); background: var(--brand-soft); border-radius: 16px; font-size: 1.6rem; }
+    .ta-side-card h3 { font-size: 1.2rem; font-weight: 800; }
+    .ta-side-card p { color: var(--muted); font-size: .92rem; }
+
+    /* Partners */
+    .partners-section { background: #fff; }
+    .partner-logo-wrap { display: flex; justify-content: center; align-items: center; max-width: 280px; min-height: 130px; padding: 1.5rem; margin: 2rem auto 0; background: #fff; border: 1px solid var(--line); border-radius: 1rem; }
+    .partner-logo-wrap img { max-width: 100%; max-height: 90px; object-fit: contain; }
+
+    /* Footer */
+    .site-footer { color: rgba(255,255,255,.82); background: #073d27; }
+    .footer-main { padding-block: 3.5rem 2.5rem; }
+    .footer-brand img { height: 54px; width: auto; margin-bottom: 1rem; }
+    .footer-brand p { max-width: 300px; color: rgba(255,255,255,.68); font-size: .9rem; }
+    .footer-col h2 { margin-bottom: 1rem; color: #fff; font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .footer-links { display: grid; gap: .55rem; padding: 0; margin: 0; list-style: none; }
+    .footer-links a { color: rgba(255,255,255,.72); font-size: .9rem; text-decoration: none; }
+    .footer-links a:hover { color: #fff; text-decoration: underline; }
+    .footer-bottom { padding-block: 1.1rem; border-top: 1px solid rgba(255,255,255,.15); color: rgba(255,255,255,.62); font-size: .78rem; }
+    .social-links { display: flex; gap: .65rem; margin-top: .9rem; }
+    .social-links a { display: grid; width: 40px; height: 40px; place-items: center; color: #fff; border: 1px solid rgba(255,255,255,.2); border-radius: 50%; text-decoration: none; }
+    .social-links a:hover { background: rgba(255,255,255,.12); }
+
+    /* Contact actions */
+    .whatsapp-float { position: fixed; right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom)); z-index: 1020; display: inline-flex; align-items: center; justify-content: center; gap: .55rem; min-height: 52px; padding: .8rem 1.05rem; color: #fff; background: #168b51; border: 0; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,.2); font-weight: 750; text-decoration: none; }
+    .whatsapp-float:hover { color: #fff; background: #117441; transform: translateY(-2px); }
+    .whatsapp-float i { font-size: 1.25rem; }
+    .mobile-bottom-nav { display: none; }
+
+    /* Modals */
+    .modal-content { border: 0; border-radius: 1.2rem; box-shadow: var(--shadow); }
+    .modal-header, .modal-footer { border-color: var(--line); }
+    .modal-title { font-weight: 800; letter-spacing: -.02em; }
+    .modal-choice { display: flex; flex-direction: column; align-items: flex-start; gap: .35rem; height: 100%; padding: 1.1rem; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: .9rem; text-align: left; text-decoration: none; }
+    .modal-choice:hover { color: var(--brand); border-color: var(--brand); background: var(--brand-soft); }
+    .modal-choice i { color: var(--brand); font-size: 1.5rem; }
+    .modal-choice strong { font-size: 1rem; }
+    .modal-choice span { color: var(--muted); font-size: .85rem; }
+
+    @media (max-width: 1199.98px) {
+      .brand-logo { height: 58px; }
+      .desktop-nav .nav-link { padding-inline: .55rem !important; font-size: .88rem; }
+      .header-actions .btn { padding-inline: .8rem; font-size: .88rem; }
+      .hero-slide { aspect-ratio: 3.4 / 1; }
     }
-
-    .navbar .nav-link:hover,
-    .navbar .nav-link:focus-visible {
-      background:rgba(255,255,255,.10);
-      color:#fff !important;
-    }
-
-    .navbar .nav-link.active { background:rgba(255,255,255,.18); }
-    .navbar .dropdown-divider { border-color:rgba(255,255,255,.2); }
-
-    /* Dropdown look & active state */
-    .navbar .dropdown-menu.brand {
-      background:#0b5c39;
-      border:1px solid #094c30;
-      box-shadow:0 8px 24px rgba(0,0,0,.25);
-      --bs-dropdown-link-active-bg: rgba(255,255,255,.18);
-      --bs-dropdown-link-active-color: #fff;
-    }
-
-    .navbar .dropdown-item {
-      color:#fff;
-      border-radius:.375rem;
-    }
-
-    .navbar .dropdown-item:hover,
-    .navbar .dropdown-item:focus,
-    .navbar .dropdown-item.active,
-    .navbar .dropdown-item:active {
-      background: rgba(255,255,255,.18) !important;
-      color:#fff !important;
-    }
-
-    .navbar .dropdown-item:focus {
-      box-shadow: 0 0 0 .2rem rgba(255,255,255,.12);
-      outline: 0;
-    }
-
-    /* ---------- Mobile top bar + offcanvas ---------- */
-    .offcanvas-header.brand-skin,
-    .offcanvas-body.brand-skin {
-      background:#0b5c39;
-      color:#fff;
-    }
-
-    .offcanvas-body .nav-link {
-      color:#fff;
-      padding:.55rem 0;
-    }
-
-    .offcanvas-body .nav-link:hover { color:#d4f3e3; }
-
-    .offcanvas-body.brand-skin .nav-link.active,
-    .offcanvas-body.brand-skin .nav-link:focus,
-    .offcanvas-body.brand-skin .nav-link:hover,
-    .offcanvas-body.brand-skin .dropdown-item.active,
-    .offcanvas-body.brand-skin .dropdown-item:focus,
-    .offcanvas-body.brand-skin .dropdown-item:hover {
-      background: rgba(255,255,255,.18);
-      border-radius: .375rem;
-      padding-left: .5rem;
-      color:#fff;
-    }
-
-    .offcanvas-body.brand-skin .text-uppercase.small.opacity-75 {
-      color: rgba(255,255,255,.75) !important;
-    }
-
-    /* ---------- Desktop Hero (Canva 8000x2000 standard) ---------- */
-
-    .hero {
-      position: relative;
-      height: auto;
-      overflow: hidden;
-    }
-
-    /* Let carousel size itself from slide content */
-    .hero .carousel,
-    .hero .carousel-inner,
-    .hero .carousel-item {
-      height: auto;
-    }
-
-    /* Image defines the height */
-    .hero-slide {
-      width: 100%;
-      aspect-ratio: 4 / 1;          /* 8000 x 2000 */
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      position: relative;
-    }
-
-
-
-    .hero-overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,.10);
-      z-index: 1;
-    }
-
-    
-
-
-    .hero-slide .container {
-      position: relative;
-      z-index: 2;
-    }
-
-    /* ---------- Hero controls ---------- */
-    .carousel-control-prev,
-    .carousel-control-next {
-      width: 6%;
-      opacity: 0;
-      transition: opacity .3s ease;
-    }
-
-    .hero:hover .carousel-control-prev,
-    .hero:hover .carousel-control-next {
-      opacity: 1;
-    }
-
-    .carousel-control-prev-icon,
-    .carousel-control-next-icon {
-      filter: drop-shadow(0 2px 6px rgba(0,0,0,.5));
-      width: 2.25rem;
-      height: 2.25rem;
-    }
-
-    /* ========================================================= */
-    /* ========== MOBILE HERO (block fits image) ================ */
-    /* ========================================================= */
-
-    /* ========== MOBILE HERO ========== */
-
-    .hero-mobile {
-      background: #000;
-      overflow: hidden;
-    }
-
-    /* Let carousel manage slides normally */
-    .hero-mobile .carousel-inner {
-      width: 100%;
-    }
-
-    /* Each slide stays controlled by Bootstrap */
-    .hero-mobile .carousel-item {
-      position: relative;
-    }
-
-    /* This element defines the height */
-    .mobile-hero-slide {
-      display: block;
-      width: 100%;
-
-      /* Image defines height */
-      aspect-ratio: 3 / 4;
-
-      background-size: cover;
-      background-position: center top;
-      background-repeat: no-repeat;
-    }
-
-
-    /* ---------- Indicator animation ---------- */
-    .carousel-indicators [data-bs-target] {
-      position: relative;
-      overflow: hidden;
-    }
-
-    .carousel-indicators [data-bs-target]::after {
-      content:"";
-      position:absolute;
-      inset:0;
-      background:#fff;
-      transform:scaleX(0);
-      transform-origin:left;
-      transition:transform 7s linear;
-    }
-
-    .carousel-indicators .active::after {
-      transform:scaleX(1);
-    }
-
-    /* ---------- Circles ---------- */
-    .circle {
-      width:200px;
-      height:200px;
-      border-radius:50%;
-      background:#0a5c39;
-      color:#fff;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      transition:transform .25s ease, background-color .25s ease, box-shadow .25s ease;
-      box-shadow:0 8px 20px rgba(0,0,0,.08);
-    }
-
-    .circle:hover {
-      background:#05512e;
-      transform:scale(1.04);
-    }
-
-    /* ---------- Brands slider ---------- */
-    .brand-track {
-      display:flex;
-      gap:1rem;
-      overflow:auto;
-      padding-bottom:.5rem;
-      scroll-snap-type:x mandatory;
-      -webkit-overflow-scrolling:touch;
-    }
-
-    .brand-card {
-      scroll-snap-align:start;
-      flex:0 0 auto;
-      width:170px;
-      height:110px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      background:#fff;
-      border-radius:.75rem;
-      box-shadow:0 6px 18px rgba(0,0,0,.06);
-      border:1px solid rgba(0,0,0,.06);
-    }
-
-    .brand-logo {
-      max-width:100%;
-      max-height:70px;
-      opacity:.95;
-      filter:grayscale(15%);
-      transition:transform .2s ease, opacity .2s ease, filter .2s ease;
-    }
-
-    .brand-card:hover .brand-logo {
-      transform:scale(1.05);
-      opacity:1;
-      filter:none;
-    }
-
-    /* ---------- Buttons & tables ---------- */
-    .btn-brand {
-      background:var(--brand);
-      border-color:var(--brand);
-      color:#fff;
-    }
-
-    .btn-brand:hover {
-      background:var(--brand-dark);
-      border-color:var(--brand-dark);
-      color:#fff;
-    }
-
-    .table > :not(caption) > * > * {
-      vertical-align: middle;
-    }
-
-    /* ---------- Footer ---------- */
-    footer {
-      background:#0b5c39;
-      color:#fff;
-    }
-
-    footer a { color:#fff; }
-    footer a:hover {
-      color:#d4f3e3;
-      text-decoration:underline;
-    }
-
-    /* ===== Trade Assist Membership Bar ===== */
-
-    .membership-bar{
-        background:#fff;
-        border-bottom:1px solid #e8e8e8;
-        box-shadow:0 2px 8px rgba(0,0,0,.04);
-    }
-
-    .membership-title{
-        font-size:1.2rem;
-        font-weight:700;
-        color:#0b5c39;
-        letter-spacing:.5px;
-    }
-
-    .membership-subtitle{
-        font-size:.9rem;
-        color:#6c757d;
-    }
-
-    .btn-member{
-        border:2px solid #0b5c39;
-        color:#0b5c39;
-        background:#fff;
-        font-weight:600;
-        border-radius:30px;
-        padding:.6rem 1.5rem;
-        transition:.25s;
-    }
-
-    .btn-member:hover{
-        background:#0b5c39;
-        color:#fff;
-    }
-
-    .btn-member-login{
-        background:#0b5c39;
-        color:#fff;
-        border:2px solid #0b5c39;
-        font-weight:600;
-        border-radius:30px;
-        padding:.6rem 1.5rem;
-        transition:.25s;
-    }
-
-    .btn-member-login:hover{
-        background:#094c30;
-        border-color:#094c30;
-        color:#fff;
-    }
-
-    
-
-    /* ---------- Responsive tweaks ---------- */
     @media (max-width: 991.98px) {
-      .navbar-brand img {
-        height:56px;
-        max-height:64px;
-      }
-
-      .hero {
-        height:50vh !important;
-        min-height:330px;
-      }
-
-      .circle {
-        width:130px;
-        height:130px;
-        font-size:.95rem;
-      }
+      .membership-inner { align-items: stretch; flex-direction: column; gap: .9rem; padding-block: .9rem; }
+      .membership-actions { display: grid; grid-template-columns: 1fr 1fr; }
+      .membership-actions .btn { width: 100%; }
+      .quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .quick-card { min-height: 170px; padding: 1.1rem; }
+      .intro-layout { grid-template-columns: 1fr; gap: 2rem; }
+      .intro-copy { max-width: 700px; }
+      .ta-panel { grid-template-columns: 1fr; }
+      .ta-side-card { max-width: 560px; }
+      .footer-main { padding-bottom: 2rem; }
+      .whatsapp-float { bottom: calc(5.1rem + env(safe-area-inset-bottom)); }
+      .mobile-bottom-nav { position: fixed; right: 0; bottom: 0; left: 0; z-index: 1015; display: grid; grid-template-columns: repeat(4, 1fr); padding: .45rem .35rem calc(.45rem + env(safe-area-inset-bottom)); background: rgba(255,255,255,.97); border-top: 1px solid var(--line); box-shadow: 0 -6px 24px rgba(20,40,28,.06); backdrop-filter: blur(12px); }
+      .mobile-bottom-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; min-height: 46px; color: #59665e; font-size: .68rem; font-weight: 700; text-decoration: none; }
+      .mobile-bottom-nav a i { font-size: 1.15rem; }
+      .mobile-bottom-nav a.active, .mobile-bottom-nav a:hover { color: var(--brand); }
+      body { padding-bottom: 68px; }
+    }
+    @media (max-width: 575.98px) {
+      .container { --bs-gutter-x: 1.15rem; }
+      .mobile-topbar { min-height: 62px; }
+      .mobile-topbar .brand-logo { height: 39px; max-width: 165px; }
+      .membership-icon { flex-basis: 42px; width: 42px; height: 42px; }
+      .membership-copy strong { font-size: .95rem; }
+      .membership-copy span { font-size: .8rem; }
+      .membership-actions { grid-template-columns: 1fr; gap: .5rem; }
+      .membership-actions .btn { min-height: 45px; }
+      .mobile-hero-slide { aspect-ratio: 4 / 3.25; max-height: 430px; }
+      .quick-grid { gap: .7rem; margin-top: 1.5rem; }
+      .quick-card { min-height: 158px; padding: .95rem; border-radius: .95rem; }
+      .quick-card-icon { width: 42px; height: 42px; margin-bottom: .85rem; border-radius: 12px; font-size: 1.2rem; }
+      .quick-card h3 { padding-right: .5rem; font-size: .96rem; }
+      .quick-card p { font-size: .82rem; }
+      .quick-card .card-arrow { right: .8rem; bottom: .75rem; }
+      .section-pad { padding-block: 3rem; }
+      .intro-copy h2 { font-size: 2.15rem; }
+      .ta-panel { padding: 1.35rem; border-radius: 1.15rem; }
+      .ta-panel h2 { font-size: 2rem; }
+      .ta-panel .btn { width: 100%; }
+      .ta-side-card { padding: 1.2rem; }
+      .footer-main { padding-top: 2.75rem; }
+      .footer-brand { margin-bottom: .75rem; }
+      .footer-col { padding-top: .6rem; }
+      .footer-bottom { padding-bottom: 1.25rem; }
+      .whatsapp-float { right: .75rem; bottom: calc(5.1rem + env(safe-area-inset-bottom)); width: 50px; height: 50px; min-height: 50px; padding: 0; }
+      .whatsapp-float .whatsapp-label { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
   </style>
-
-  <meta name="facebook-domain-verification"
-      content="kwe9wi53wnwizr3eu3mvpqjfv5ho49" />
-
 </head>
 
-<body class="bg-light">
-  <!-- Auth flag for JS gating -->
+<body>
   <script>const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};</script>
 
-  <!-- ========== MOBILE TOP BAR (visible < lg) ========== -->
-  <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
-    <div class="container-fluid">
-      <button class="navbar-toggler" type="button"
-              data-bs-toggle="offcanvas" data-bs-target="#mobileMenu"
-              aria-controls="mobileMenu" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <a class="navbar-brand ms-2" href="/"><img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="height:40px;"></a>
-    </div>
-  </nav>
-
-  <!-- Offcanvas menu (mobile) -->
-  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
-    <div class="offcanvas-header brand-skin">
-      <h5 class="offcanvas-title" id="mobileMenuLabel">Menu</h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-    </div>
-    <div class="offcanvas-body brand-skin">
-      <div class="text-center mb-3">
-        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" style="max-height:80px; width:auto;">
-      </div>
-
-      <!-- Top-level -->
-      <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-bs-dismiss="offcanvas">Home</a>
-      <a href="{% url 'about' %}" class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" data-bs-dismiss="offcanvas">About</a>
-
-      <!-- Divisions -->
-      <div class="mt-2 text-uppercase small opacity-75">Divisions</div>
-      <a href="{% url 'wholesale' %}" class="nav-link {% if request.path == '/wholesale/' %}active{% endif %}" data-bs-dismiss="offcanvas">Wholesale Trade</a>
-      <a href="{% url 'retail' %}" class="nav-link {% if request.path == '/retail/' %}active{% endif %}" data-bs-dismiss="offcanvas">Retail Express</a>
-      <a href="{% url 'grill' %}" class="nav-link {% if request.path == '/grill/' %}active{% endif %}" data-bs-dismiss="offcanvas">Grill Experience</a>
-
-      <hr class="border-light my-3">
-
-      <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}" data-bs-dismiss="offcanvas">Shop</a>
-      <a class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}"
-        href="{% url 'trade_assist' %}"
-        data-bs-dismiss="offcanvas">
-          Trade Assist
-      </a>
-
-      
-      <a href="{% url 'contact' %}" class="nav-link mt-3 {% if request.path == '/contact/' %}active{% endif %}" data-bs-dismiss="offcanvas">Contact</a>
-
-      <hr class="border-light my-3">
-
-      
-
-        
-
-        
-     
-    </div>
-  </div>
-
-  <!-- ========== DESKTOP NAVBAR (visible ≥ lg) ========== -->
-  <nav class="navbar navbar-expand-lg navbar-dark border-bottom d-none d-lg-block">
-    <div class="container d-flex align-items-center">
-      <a class="navbar-brand me-auto" href="/">
-        <img src="{% static 'images/logo.png' %}" alt="The Daily Market">
-      </a>
-
-      <div id="nav" class="navbar-collapse justify-content-center">
-        <ul class="navbar-nav">
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">Home</a>
-          </li>
-
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" href="/about/">About</a>
-          </li>
-
+  <!-- Header -->
+  <header class="site-header">
+    <nav class="desktop-nav d-none d-lg-block" aria-label="Main navigation">
+      <div class="container d-flex align-items-center justify-content-between gap-3">
+        <a href="{% url 'home' %}" class="flex-shrink-0" aria-label="The Daily Market home">
+          <img class="brand-logo" src="{% static 'images/logo.png' %}" alt="The Daily Market">
+        </a>
+        <ul class="navbar-nav flex-row align-items-center gap-1 mx-auto">
+          <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">Home</a></li>
+          <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" href="{% url 'about' %}">About</a></li>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle {% if request.path == '/grill/' or request.path == '/retail/' or request.path == '/wholesale/' %}active{% endif %}"
-               href="/divisions/" id="divisionsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              Divisions
-            </a>
-            <ul class="dropdown-menu brand" aria-labelledby="divisionsDropdown">
-              <li><a class="dropdown-item {% if request.path == '/wholesale/' %}active{% endif %}" href="/wholesale/">Wholesale Trade</a></li>
-              <li><a class="dropdown-item {% if request.path == '/retail/' %}active{% endif %}" href="/retail/">Retail Express</a></li>
-              <li><a class="dropdown-item {% if request.path == '/grill/' %}active{% endif %}" href="/grill/">Grill Experience</a></li>
+            <a class="nav-link dropdown-toggle {% if request.path == '/wholesale/' or request.path == '/retail/' or request.path == '/grill/' %}active{% endif %}" href="/divisions/" id="divisionsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Divisions</a>
+            <ul class="dropdown-menu" aria-labelledby="divisionsDropdown">
+              <li><a class="dropdown-item {% if request.path == '/wholesale/' %}active{% endif %}" href="{% url 'wholesale' %}">Wholesale Trade</a></li>
+              <li><a class="dropdown-item {% if request.path == '/retail/' %}active{% endif %}" href="{% url 'retail' %}">Retail Express</a></li>
+              <li><a class="dropdown-item {% if request.path == '/grill/' %}active{% endif %}" href="{% url 'grill' %}">Grill Experience</a></li>
             </ul>
           </li>
-
-          
-
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}"
-               href="{% url 'products' %}">Shop</a>
-          </li>
-
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}"
-              href="{% url 'trade_assist' %}">
-                Trade Assist
-            </a>
-          </li>
-
-          
-
-          <li class="nav-item">
-            <a class="nav-link {% if request.path == '/contact/' %}active{% endif %}" href="/contact/">Contact</a>
-          </li>
+          <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}" href="{% url 'products' %}">Shop</a></li>
+          <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}" href="{% url 'trade_assist' %}">Trade Assist</a></li>
+          <li class="nav-item"><a class="nav-link {% if request.path == '/contact/' %}active{% endif %}" href="{% url 'contact' %}">Contact</a></li>
         </ul>
       </div>
+    </nav>
 
-      
-    </div>
-  </nav>
-
-  <!-- ================================================= -->
-  <!-- Trade Assist Membership -->
-  <!-- ================================================= -->
-
-  <section class="membership-bar py-3">
-      <div class="container">
-
-          <div class="row align-items-center">
-
-              <div class="col-lg-6 text-center text-lg-start mb-3 mb-lg-0">
-
-                  <div class="membership-title">
-                      Trade Assist Membership
-                  </div>
-
-                  <div class="membership-subtitle">
-                      Building Better Food Businesses Together
-                  </div>
-
-              </div>
-
-              <div class="col-lg-6">
-
-                  <div class="d-flex justify-content-center justify-content-lg-end gap-3">
-
-                      <a href="/register_profile/" class="btn btn-member">
-                          Become a Member
-                      </a>
-
-                      <a href="{% url 'client-login' %}" class="btn btn-member-login">
-                          Member Login
-                      </a>
-
-                  </div>
-
-              </div>
-
-          </div>
-
+    <nav class="mobile-topbar d-flex d-lg-none align-items-center" aria-label="Mobile navigation">
+      <div class="container d-flex align-items-center justify-content-between gap-3">
+        <button class="menu-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Open navigation menu"><i class="bi bi-list" aria-hidden="true"></i></button>
+        <a href="{% url 'home' %}" aria-label="The Daily Market home"><img class="brand-logo" src="{% static 'images/logo.png' %}" alt="The Daily Market"></a>
+        <a href="{% url 'client-login' %}" class="btn btn-light-brand btn-sm px-3">Login</a>
       </div>
+    </nav>
+  </header>
+
+  <!-- Mobile navigation drawer -->
+  <div class="offcanvas offcanvas-start mobile-menu d-lg-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+    <div class="offcanvas-header">
+      <div>
+        <div class="fw-bold fs-5" id="mobileMenuLabel">Explore The Daily Market</div>
+        <div class="small text-white-50">Food supply and solutions</div>
+      </div>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close menu"></button>
+    </div>
+    <div class="offcanvas-body">
+      <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}"><i class="bi bi-house me-3" aria-hidden="true"></i>Home</a>
+      <a href="{% url 'about' %}" class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}"><i class="bi bi-info-circle me-3" aria-hidden="true"></i>About us</a>
+      <div class="menu-label">Our divisions</div>
+      <a href="{% url 'wholesale' %}" class="nav-link {% if request.path == '/wholesale/' %}active{% endif %}"><i class="bi bi-box-seam me-3" aria-hidden="true"></i>Wholesale Trade</a>
+      <a href="{% url 'retail' %}" class="nav-link {% if request.path == '/retail/' %}active{% endif %}"><i class="bi bi-shop me-3" aria-hidden="true"></i>Retail Express</a>
+      <a href="{% url 'grill' %}" class="nav-link {% if request.path == '/grill/' %}active{% endif %}"><i class="bi bi-fire me-3" aria-hidden="true"></i>Grill Experience</a>
+      <div class="menu-label">Shop and membership</div>
+      <a href="{% url 'products' %}" class="nav-link {% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}"><i class="bi bi-basket me-3" aria-hidden="true"></i>Shop products</a>
+      <a href="{% url 'trade_assist' %}" class="nav-link {% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}"><i class="bi bi-handshake me-3" aria-hidden="true"></i>Trade Assist</a>
+      <a href="{% url 'contact' %}" class="nav-link {% if request.path == '/contact/' %}active{% endif %}"><i class="bi bi-chat-dots me-3" aria-hidden="true"></i>Contact us</a>
+      <div class="menu-cta">
+        <a href="/register_profile/" class="btn btn-light-brand">Become a member</a>
+        <a href="{% url 'client-login' %}" class="btn btn-outline-light">Member login</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trade Assist membership strip -->
+  <section class="membership-strip" aria-label="Trade Assist membership">
+    <div class="container">
+      <div class="membership-inner">
+        <div class="membership-copy">
+          <div class="membership-icon" aria-hidden="true"><i class="bi bi-handshake"></i></div>
+          <div>
+            <strong>Trade Assist Membership</strong>
+            <span>Building better food businesses together.</span>
+          </div>
+        </div>
+        <div class="membership-actions">
+          <a href="/register_profile/" class="btn btn-outline-brand">Become a member</a>
+          <a href="{% url 'client-login' %}" class="btn btn-brand">Member login</a>
+        </div>
+      </div>
+    </div>
   </section>
 
-  <main class="site-main">
-  
-    <!-- ========== HERO ========== -->
-    <section class="hero d-none d-lg-block">
-
-      <div id="homeHeroCarousel"
-          class="carousel slide h-100"
-          data-bs-ride="carousel"
-          data-bs-interval="7000"
-          data-bs-pause="hover">
-
-        <!-- Indicators -->
+  <main>
+    <!-- Desktop hero banners -->
+    <section class="hero d-none d-lg-block" aria-label="Featured offers">
+      <div id="homeHeroCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="8000" data-bs-pause="hover" data-bs-touch="true">
         <div class="carousel-indicators">
-          <button type="button" data-bs-target="#homeHeroCarousel" data-bs-slide-to="0" class="active"></button>
-          <button type="button" data-bs-target="#homeHeroCarousel" data-bs-slide-to="1"></button>
-          <button type="button" data-bs-target="#homeHeroCarousel" data-bs-slide-to="2"></button>
+          <button type="button" data-bs-target="#homeHeroCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+          <button type="button" data-bs-target="#homeHeroCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+          <button type="button" data-bs-target="#homeHeroCarousel" data-bs-slide-to="2" aria-label="Slide 3"></button>
         </div>
-
-        <!-- Slides -->
-        <div class="carousel-inner h-100">
-
-          <!-- Slide 1: Trade Assist -->
-          <div class="carousel-item active h-100">
-            <div class="hero-slide h-100 hero-clickable"
-                role="link"
-                tabindex="0"
-                data-href="{% url 'trade_assist' %}"
-                style="background-image:url('{% static 'images/1.png' %}');">
-              <div class="hero-overlay"></div>
-            </div>
-          </div>
-
-          <!-- Slide 2: Free Delivery -->
-          <div class="carousel-item h-100">
-            <div class="hero-slide h-100 hero-clickable"
-                role="link"
-                tabindex="0"
-                data-href="{% url 'products' %}"
-                style="background-image:url('{% static 'images/2.png' %}');">
-              <div class="hero-overlay"></div>
-            </div>
-          </div>
-
-          <!-- Slide 3: Monthly Promotions -->
-          <div class="carousel-item h-100">
-            <div class="hero-slide h-100 hero-clickable"
-                role="link"
-                tabindex="0"
-                data-href="{% url 'products' %}"
-                style="background-image:url('{% static 'images/3.png' %}');">
-              <div class="hero-overlay"></div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Controls -->
-        <button class="carousel-control-prev" type="button"
-                data-bs-target="#homeHeroCarousel" data-bs-slide="prev">
-          <span class="carousel-control-prev-icon"></span>
-        </button>
-
-        <button class="carousel-control-next" type="button"
-                data-bs-target="#homeHeroCarousel" data-bs-slide="next">
-          <span class="carousel-control-next-icon"></span>
-        </button>
-      </div>
-    </section>
-
-    <!-- ========== MOBILE HERO (< lg) ========== -->
-    <section class="hero-mobile d-lg-none site-main">
-
-      <div id="mobileHeroCarousel"
-          class="carousel slide"
-          data-bs-ride="carousel"
-          data-bs-interval="6000">
-
-        <div class="carousel-indicators">
-          <button type="button" data-bs-target="#mobileHeroCarousel" data-bs-slide-to="0" class="active"></button>
-          <button type="button" data-bs-target="#mobileHeroCarousel" data-bs-slide-to="1"></button>
-          <button type="button" data-bs-target="#mobileHeroCarousel" data-bs-slide-to="2"></button>
-        </div>
-
         <div class="carousel-inner">
+          <div class="carousel-item active"><a class="hero-slide" href="{% url 'trade_assist' %}" aria-label="Discover Trade Assist" style="background-image:url('{% static 'images/1.png' %}')"></a></div>
+          <div class="carousel-item"><a class="hero-slide" href="{% url 'products' %}" aria-label="Explore products and delivery information" style="background-image:url('{% static 'images/2.png' %}')"></a></div>
+          <div class="carousel-item"><a class="hero-slide" href="{% url 'products' %}" aria-label="Explore monthly promotions" style="background-image:url('{% static 'images/3.png' %}')"></a></div>
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#homeHeroCarousel" data-bs-slide="prev" aria-label="Previous banner"><span class="carousel-control-prev-icon" aria-hidden="true"></span></button>
+        <button class="carousel-control-next" type="button" data-bs-target="#homeHeroCarousel" data-bs-slide="next" aria-label="Next banner"><span class="carousel-control-next-icon" aria-hidden="true"></span></button>
+      </div>
+    </section>
 
-          <!-- Slide 1 -->
-          <div class="carousel-item active">
-            <a href="{% url 'trade_assist' %}" class="mobile-hero-slide"
-              style="background-image:url('{% static 'images/mobile/1.png' %}')">
-            </a>
-          </div>
-
-          <!-- Slide 2 -->
-          <div class="carousel-item">
-            <a href="{% url 'products' %}" class="mobile-hero-slide"
-              style="background-image:url('{% static 'images/mobile/2.png' %}')">
-            </a>
-          </div>
-
-          <!-- Slide 3 -->
-          <div class="carousel-item">
-            <a href="{% url 'products' %}" class="mobile-hero-slide"
-              style="background-image:url('{% static 'images/mobile/3.png' %}')">
-            </a>
-          </div>
-
+    <!-- Mobile banners use portrait assets -->
+    <section class="hero mobile-hero d-lg-none" aria-label="Featured offers">
+      <div id="mobileHeroCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="8000" data-bs-pause="hover" data-bs-touch="true">
+        <div class="carousel-indicators">
+          <button type="button" data-bs-target="#mobileHeroCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+          <button type="button" data-bs-target="#mobileHeroCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+          <button type="button" data-bs-target="#mobileHeroCarousel" data-bs-slide-to="2" aria-label="Slide 3"></button>
+        </div>
+        <div class="carousel-inner">
+          <div class="carousel-item active"><a href="{% url 'trade_assist' %}" class="mobile-hero-slide" aria-label="Discover Trade Assist" style="background-image:url('{% static 'images/mobile/1.png' %}')"></a></div>
+          <div class="carousel-item"><a href="{% url 'products' %}" class="mobile-hero-slide" aria-label="Explore products" style="background-image:url('{% static 'images/mobile/2.png' %}')"></a></div>
+          <div class="carousel-item"><a href="{% url 'products' %}" class="mobile-hero-slide" aria-label="Explore monthly promotions" style="background-image:url('{% static 'images/mobile/3.png' %}')"></a></div>
         </div>
       </div>
     </section>
 
-
-
-
-
-
-
-
-
-
-
-    <!-- ========== Feature tiles ========== -->
-    <section class="py-5 bg-light text-center">
+    <!-- Quick access cards -->
+    <section class="quick-section" aria-labelledby="quickHeading">
       <div class="container">
-        <h2 class="fw-bold mb-5">What We Do</h2>
-        <div class="row justify-content-center g-4">
-          <div class="col-6 col-md-4">
-            <a href="/wholesale/" class="text-decoration-none text-dark">
-              <div class="circle mx-auto"><span class="fw-bold">Wholesale<br>Trade</span></div>
-            </a>
-          </div>
-          <div class="col-6 col-md-4">
-            <a href="/retail/" class="text-decoration-none text-dark">
-              <div class="circle mx-auto"><span class="fw-bold">Retail<br>Express</span></div>
-            </a>
-          </div>
-          <div class="col-6 col-md-4">
-            <a href="/grill/" class="text-decoration-none text-dark">
-              <div class="circle mx-auto"><span class="fw-bold">Grill<br>Experience</span></div>
-            </a>
-          </div>
-          
+        <div class="section-heading text-center">
+          <span class="eyebrow">Find what you need</span>
+          <h2 id="quickHeading">How can we help you today?</h2>
+          <p>Explore our services and find the right route for your shopping or food business needs.</p>
+        </div>
+        <div class="quick-grid">
+          <a class="quick-card" href="{% url 'wholesale' %}">
+            <span class="quick-card-icon"><i class="bi bi-box-seam" aria-hidden="true"></i></span>
+            <h3>Wholesale Trade</h3><p>Food supply for shops, caterers and food businesses.</p><i class="bi bi-arrow-up-right card-arrow" aria-hidden="true"></i>
+          </a>
+          <a class="quick-card" href="{% url 'retail' %}">
+            <span class="quick-card-icon"><i class="bi bi-shop" aria-hidden="true"></i></span>
+            <h3>Retail Express</h3><p>Everyday food essentials for your household.</p><i class="bi bi-arrow-up-right card-arrow" aria-hidden="true"></i>
+          </a>
+          <a class="quick-card" href="{% url 'grill' %}">
+            <span class="quick-card-icon"><i class="bi bi-fire" aria-hidden="true"></i></span>
+            <h3>Grill Experience</h3><p>Discover our grill and food offering.</p><i class="bi bi-arrow-up-right card-arrow" aria-hidden="true"></i>
+          </a>
+          <a class="quick-card" href="{% url 'trade_assist' %}">
+            <span class="quick-card-icon"><i class="bi bi-handshake" aria-hidden="true"></i></span>
+            <h3>Trade Assist</h3><p>Explore purchasing support for qualifying food businesses.</p><i class="bi bi-arrow-up-right card-arrow" aria-hidden="true"></i>
+          </a>
         </div>
       </div>
     </section>
 
-    <!-- ========== About / Video ========== -->
-    <section class="py-5 bg-white">
+    <!-- About and video -->
+    <section class="intro-section section-pad" aria-labelledby="introHeading">
       <div class="container">
-        <div class="text-center mb-4">
-          <h2 class="fw-bold">Fueling Kitchens. Feeding Communities.</h2>
-          <p class="text-muted mb-0">
-            More than a market — The is your daily hub for poultry, produce, essentials, and wholesale trade, built on trust and community.
-          </p>
-        </div>
-
-        <div class="ratio ratio-16x9 shadow rounded overflow-hidden">
-          <iframe
-            src="https://www.youtube-nocookie.com/embed/VIDEO_ID_HERE"
-            title="The Daily Market"
-            loading="lazy"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            referrerpolicy="strict-origin-when-cross-origin"
-            allowfullscreen></iframe>
+        <div class="intro-layout">
+          <div class="intro-copy">
+            <span class="eyebrow">About The Daily Market</span>
+            <h2 id="introHeading">Fueling kitchens. Feeding communities.</h2>
+            <p>The Daily Market brings together food products, wholesale supply and practical solutions for food businesses. Our aim is to make sourcing food simpler through dependable service and a range built around everyday needs.</p>
+            <p>Whether you are shopping for your household or sourcing stock for your food business, explore the part of The Daily Market that suits you.</p>
+            <div class="d-flex flex-wrap gap-2 mt-4">
+              <a href="{% url 'about' %}" class="btn btn-brand">Get to know us <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
+              <a href="{% url 'contact' %}" class="btn btn-outline-brand">Contact our team</a>
+            </div>
+          </div>
+          <div class="intro-media">
+            <!-- Replace VIDEO_ID_HERE with the published YouTube video ID when available. -->
+            <div class="ratio ratio-16x9">
+              <iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID_HERE" title="Discover The Daily Market" loading="lazy" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- ========== Brands / Partners ========== -->
-    
-
-    {% load static %}
-
-    <section id="brands" class="py-5 bg-light text-center">
-      <div class="container position-relative">
-        <div class="d-flex flex-column align-items-center justify-content-center mb-3">
-          <h2 class="fw-bold mb-3 text-center">Partners</h2>
-
-          <img 
-            src="{% static 'images/trade_assist.png' %}" 
-            alt="Partners"
-            class="img-fluid"
-            style="max-height: 120px;"
-          >
+    <!-- Trade Assist highlight -->
+    <section class="trade-assist-section section-pad" aria-labelledby="taHeading">
+      <div class="container">
+        <div class="ta-panel">
+          <div>
+            <span class="eyebrow">For food businesses</span>
+            <h2 id="taHeading">A little more support as your food business grows.</h2>
+            <p>Trade Assist is an offering presented through The Daily Market for qualifying food businesses. Learn how membership works, what the requirements are, and how to speak to your area representative.</p>
+            <ul class="ta-benefits">
+              <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Understand the membership and qualification requirements.</span></li>
+              <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Learn about the available purchasing arrangements and applicable terms.</span></li>
+              <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Get guidance from your area representative.</span></li>
+            </ul>
+            <div class="d-flex flex-wrap gap-2">
+              <a href="{% url 'trade_assist' %}" class="btn btn-light-brand">Discover Trade Assist</a>
+              <a href="/register_profile/" class="btn btn-outline-light">Become a member</a>
+            </div>
+          </div>
+          <aside class="ta-side-card">
+            <div class="ta-mark"><i class="bi bi-shop-window" aria-hidden="true"></i></div>
+            <h3>Built around food businesses</h3>
+            <p>Trade consistently, keep your business documents in order, and learn whether the programme is suitable for your food business. Eligibility and terms apply.</p>
+            <a href="{% url 'trade_assist' %}" class="fw-bold text-success text-decoration-none">How it works <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
+          </aside>
         </div>
       </div>
     </section>
 
-
-
-    <!-- ========== Footer ========== -->
-    <footer class="text-white bg-dark">
-      <div class="container py-5">
-        <div class="row text-center gy-4">
-
-          <!-- Services & Access -->
-          <div class="col-12 col-md-3">
-            <h6 class="text-uppercase fw-bold mb-3">Our Services</h6>
-            <ul class="list-unstyled mb-3">
-              <li><a class="text-decoration-none text-white-50" href="/wholesale/">Wholesale Trade</a></li>
-              <li><a class="text-decoration-none text-white-50" href="/retail/">Retail Express</a></li>
-              <li><a class="text-decoration-none text-white-50" href="/grill/">Grill Experience</a></li>
-            </ul>
-
-            <h6 class="text-uppercase fw-bold mb-3">Access</h6>
-            <ul class="list-unstyled mb-0">
-              <li>
-                <a class="text-decoration-none text-white-50" href="{% url 'client-login' %}">
-                  Client Access
-                </a>
-              </li>
-              <li>
-                <a class="text-decoration-none text-white-50" href="{% url 'staff-login' %}">
-                  Staff Access
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <!-- Legal / Compliance -->
-          <div class="col-12 col-md-3">
-            <h6 class="text-uppercase fw-bold mb-3">Legal</h6>
-            <ul class="list-unstyled mb-0 small">
-              <li><a class="text-decoration-none text-white-50" href="/terms-and-conditions/">Terms &amp; Conditions</a></li>
-              <li><a class="text-decoration-none text-white-50" href="/privacy-policy/">Privacy Policy</a></li>
-              <li><a class="text-decoration-none text-white-50" href="/refund-policy/">Refund Policy</a></li>
-              <li><a class="text-decoration-none text-white-50" href="/shipping-policy/">Shipping Policy</a></li>
-            </ul>
-          </div>
-
-          <!-- Contact -->
-          <div class="col-12 col-md-3">
-            <h6 class="text-uppercase fw-bold mb-3">Contact Us</h6>
-            <div class="small text-white-50">
-              <div>+27 87 265 5488</div>
-              <div>
-                <a class="text-decoration-none text-white-50" href="mailto:info@thedailymarket.co.za">
-                  info@thedailymarket.co.za
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <!-- Trading Hours & Social -->
-          <div class="col-12 col-md-3">
-            <h6 class="text-uppercase fw-bold mb-3">Trading Hours</h6>
-            <div class="small text-white-50 mb-3">
-              <div>Mon–Fri: 7:30am–4:00pm</div>
-              <div>Sat: 7:30am–1:00pm</div>
-              <div>Sun: Closed</div>
-            </div>
-
-            <h6 class="text-uppercase fw-bold mb-2">Follow Us</h6>
-            <div class="d-flex justify-content-center gap-3 fs-4">
-              <a href="https://facebook.com/" class="text-white" aria-label="Facebook">
-                <i class="bi bi-facebook"></i>
-              </a>
-              <a href="https://instagram.com/" class="text-white" aria-label="Instagram">
-                <i class="bi bi-instagram"></i>
-              </a>
-              <a href="https://youtube.com/" class="text-white" aria-label="YouTube">
-                <i class="bi bi-youtube"></i>
-              </a>
-            </div>
-          </div>
-
+    <!-- Partners -->
+    <section class="partners-section section-pad" aria-labelledby="partnersHeading">
+      <div class="container text-center">
+        <div class="section-heading">
+          <span class="eyebrow">Working together</span>
+          <h2 id="partnersHeading">Our partners</h2>
+          <p>Working together to support food businesses and the communities they serve.</p>
         </div>
-
-        <hr class="my-4 border-light">
-
-        <div class="text-center small text-white-50">
-          © {% now "Y" %} The Daily Market • Quality You Can Trust
-        </div>
-        <div class="text-center small text-white-50 mt-1 opacity-75">
-          The Daily Market operates in accordance with South African consumer and data protection laws.
+        <div class="partner-logo-wrap">
+          <img src="{% static 'images/trade_assist.png' %}" alt="Trade Assist">
         </div>
       </div>
-    </footer>
-
+    </section>
   </main>
 
-  <!-- ========== Sign-in required modal ========== -->
-  <div class="modal fade" id="authRequiredModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content text-center">
-        <div class="modal-header d-block border-0">
-          <h5 class="modal-title w-100">Please sign in to access this</h5>
-          <button type="button" class="btn-close position-absolute end-0 me-3"
-                  data-bs-dismiss="modal" aria-label="Close"></button>
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-main">
+      <div class="row g-4 g-xl-5">
+        <div class="col-12 col-md-6 col-xl-3 footer-brand">
+          <a href="{% url 'home' %}" aria-label="The Daily Market home"><img src="{% static 'images/logo.png' %}" alt="The Daily Market"></a>
+          <p>Quality food products and practical supply solutions for households and food businesses.</p>
+          <div class="social-links" aria-label="Social media">
+            <a href="https://facebook.com/" aria-label="Facebook"><i class="bi bi-facebook" aria-hidden="true"></i></a>
+            <a href="https://instagram.com/" aria-label="Instagram"><i class="bi bi-instagram" aria-hidden="true"></i></a>
+            <a href="https://youtube.com/" aria-label="YouTube"><i class="bi bi-youtube" aria-hidden="true"></i></a>
+          </div>
+        </div>
+        <div class="col-6 col-md-6 col-xl-2 footer-col">
+          <h2>Explore</h2>
+          <ul class="footer-links">
+            <li><a href="{% url 'about' %}">About us</a></li>
+            <li><a href="{% url 'wholesale' %}">Wholesale Trade</a></li>
+            <li><a href="{% url 'retail' %}">Retail Express</a></li>
+            <li><a href="{% url 'grill' %}">Grill Experience</a></li>
+            <li><a href="{% url 'products' %}">Shop products</a></li>
+            <li><a href="{% url 'trade_assist' %}">Trade Assist</a></li>
+          </ul>
+        </div>
+        <div class="col-6 col-md-6 col-xl-2 footer-col">
+          <h2>Account access</h2>
+          <ul class="footer-links">
+            <li><a href="{% url 'client-login' %}">Client access</a></li>
+            <li><a href="{% url 'staff-login' %}">Staff access</a></li>
+            <li><a href="/register_profile/">Become a member</a></li>
+            <li><a href="{% url 'contact' %}">Contact us</a></li>
+          </ul>
+        </div>
+        <div class="col-6 col-md-6 col-xl-2 footer-col">
+          <h2>Policies</h2>
+          <ul class="footer-links">
+            <li><a href="/terms-and-conditions/">Terms &amp; Conditions</a></li>
+            <li><a href="/privacy-policy/">Privacy Policy</a></li>
+            <li><a href="/refund-policy/">Refund Policy</a></li>
+            <li><a href="/shipping-policy/">Shipping Policy</a></li>
+          </ul>
+        </div>
+        <div class="col-6 col-md-6 col-xl-3 footer-col">
+          <h2>Contact</h2>
+          <ul class="footer-links">
+            <li><a href="tel:+27872655488"><i class="bi bi-telephone me-2" aria-hidden="true"></i>+27 87 265 5488</a></li>
+            <li><a href="mailto:info@thedailymarket.co.za"><i class="bi bi-envelope me-2" aria-hidden="true"></i>info@thedailymarket.co.za</a></li>
+          </ul>
+          <h2 class="mt-4">Trading hours</h2>
+          <ul class="footer-links">
+            <li>Mon–Fri: 7:30am–4:00pm</li>
+            <li>Saturday: 7:30am–1:00pm</li>
+            <li>Sunday: Closed</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+        <span>© {% now "Y" %} The Daily Market. Quality You Can Trust.</span>
+        <span>The Daily Market operates in accordance with applicable South African consumer and data protection laws.</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Compact mobile bottom navigation -->
+  <nav class="mobile-bottom-nav d-lg-none" aria-label="Quick navigation">
+    <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}"><i class="bi bi-house" aria-hidden="true"></i><span>Home</span></a>
+    <a href="{% url 'products' %}" class="{% if request.resolver_match.url_name == 'products' or request.path == '/products/' %}active{% endif %}"><i class="bi bi-basket" aria-hidden="true"></i><span>Shop</span></a>
+    <a href="{% url 'trade_assist' %}" class="{% if request.resolver_match.url_name == 'trade_assist' or request.path == '/trade_assist/' %}active{% endif %}"><i class="bi bi-handshake" aria-hidden="true"></i><span>Trade Assist</span></a>
+    <a href="{% url 'contact' %}" class="{% if request.path == '/contact/' %}active{% endif %}"><i class="bi bi-chat-dots" aria-hidden="true"></i><span>Contact</span></a>
+  </nav>
+
+  <!-- Sign-in required modal (retained for any existing .requires-auth links) -->
+  <div class="modal fade" id="authRequiredModal" tabindex="-1" aria-labelledby="authRequiredTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5" id="authRequiredTitle">Sign in to continue</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          Choose how you’ll be using The Daily Market.
-        </div>
-        <div class="modal-footer justify-content-center border-0">
-          <a class="btn btn-outline-secondary" href="{% url 'consumer-login' %}">
-            Personal
-          </a>
-          <a class="btn btn-outline-secondary" href="{% url 'client-login' %}">
-            Business
-          </a>
+          <p class="text-secondary mb-3">Choose how you use The Daily Market.</p>
+          <div class="row g-3">
+            <div class="col-6"><a class="modal-choice" href="{% url 'consumer-login' %}"><i class="bi bi-person" aria-hidden="true"></i><strong>Personal</strong><span>For household shopping</span></a></div>
+            <div class="col-6"><a class="modal-choice" href="{% url 'client-login' %}"><i class="bi bi-shop" aria-hidden="true"></i><strong>Food business</strong><span>For business customers</span></a></div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ========== Profile Type Selection Modal ========== -->
-  <div class="modal fade" id="profileTypeModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content text-center">
-        <div class="modal-header d-block border-0">
-          <h5 class="modal-title w-100">How will you be using The Daily Market?</h5>
-          <button type="button" class="btn-close position-absolute end-0 me-3"
-                  data-bs-dismiss="modal" aria-label="Close"></button>
+  <!-- Profile type modal (retained for existing .js-client-signin triggers) -->
+  <div class="modal fade" id="profileTypeModal" tabindex="-1" aria-labelledby="profileTypeTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5" id="profileTypeTitle">How will you use The Daily Market?</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          Choose the option that best describes how you’ll be placing orders.
-        </div>
-        <div class="modal-footer justify-content-center border-0">
-          <a class="btn btn-outline-secondary" href="{% url 'consumer-login' %}">
-            Personal
-          </a>
-          <a class="btn btn-primary" href="{% url 'client-login' %}">
-            Business
-          </a>
+          <p class="text-secondary mb-3">Choose the option that best describes your shopping needs.</p>
+          <div class="row g-3">
+            <div class="col-6"><a class="modal-choice" href="{% url 'consumer-login' %}"><i class="bi bi-person" aria-hidden="true"></i><strong>Personal</strong><span>Shopping for yourself or home</span></a></div>
+            <div class="col-6"><a class="modal-choice" href="{% url 'client-login' %}"><i class="bi bi-shop" aria-hidden="true"></i><strong>Food business</strong><span>Buying for your food business</span></a></div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Floating WhatsApp -->
-  <a href="https://wa.me/27622311902?text=Hi%20The%20Daily%20Market%2C%20I%27d%20like%20to%20speak%20to%20an%20agent."
-    target="_blank"
-    class="btn btn-success shadow"
-    style="position:fixed; right:16px; bottom:16px; z-index:1050; border-radius:999px; padding:.75rem 1rem;">
-    <i class="bi bi-whatsapp me-1"></i> Speak to an agent
+  <!-- WhatsApp contact -->
+  <a href="https://wa.me/27622311902?text=Hi%20The%20Daily%20Market%2C%20I%27d%20like%20to%20speak%20to%20an%20agent." target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Speak to The Daily Market on WhatsApp">
+    <i class="bi bi-whatsapp" aria-hidden="true"></i><span class="whatsapp-label">Speak to an agent</span>
   </a>
 
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-  <!-- DESKTOP: intercept gated links; ensure backdrop cleanup -->
-  <script>
-    document.addEventListener('click', function (e) {
-      const el = e.target.closest('.requires-auth');
-      if (!el) return;
-      if (IS_AUTHENTICATED) return;
-
-      e.preventDefault();
-
-      const modalEl = document.getElementById('authRequiredModal');
-      const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: true, focus: true });
-
-      // Defensive cleanup when the modal closes
-      modalEl.addEventListener('hidden.bs.modal', () => {
-        document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
-        document.body.classList.remove('modal-open');
-        document.body.style.removeProperty('paddingRight');
-      }, { once: true });
-
-      modal.show();
-    });
-  </script>
-
-  <!-- MOBILE: offcanvas navigation + auth modal with safe cleanup -->
-  <script>
-    (function () {
-      if (typeof bootstrap === "undefined") return;
-      const offcanvasEl = document.getElementById("mobileMenu");
-      if (!offcanvasEl) return;
-
-      const selectors = [
-        "#mobileMenu a.nav-link",
-        "#mobileMenu a.dropdown-item",
-        "#mobileMenu .btn.btn-outline-light",
-        "#mobileMenu a.btn"
-      ].join(",");
-
-      offcanvasEl.querySelectorAll(selectors).forEach(function (el) {
-        el.addEventListener("click", function (e) {
-          const href = el.getAttribute("href") || "";
-          if (!href || href === "#" || href.startsWith("javascript:")) return;
-
-          const needsAuth = el.classList.contains("requires-auth");
-          const oc = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
-
-          e.preventDefault();
-
-          offcanvasEl.addEventListener("hidden.bs.offcanvas", function () {
-            if (needsAuth && !IS_AUTHENTICATED) {
-              const modalEl = document.getElementById("authRequiredModal");
-              const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: true, focus: true });
-
-              modalEl.addEventListener('hidden.bs.modal', () => {
-                document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
-                document.body.classList.remove('modal-open');
-                document.body.style.removeProperty('paddingRight');
-              }, { once: true });
-
-              modal.show();
-            } else {
-              window.location.href = href;
-            }
-          }, { once: true });
-
-          oc.hide();
-        });
-      });
-    })();
-  </script>
-
-  <!-- Brand slider controls -->
-  <script>
-    (function(){
-      const track = document.getElementById('brandTrack');
-      if (!track) return;
-
-      const prevBtns = document.querySelectorAll('.brand-fab.prev');
-      const nextBtns = document.querySelectorAll('.brand-fab.next');
-
-      function scrollByCards(direction = 1){
-        const card = track.querySelector('.brand-card');
-        const gap = 16;
-        const cardWidth = card ? (card.offsetWidth + gap) : 200;
-        track.scrollBy({ left: direction * cardWidth * 2, behavior: 'smooth' });
-      }
-
-      prevBtns.forEach(btn => btn.addEventListener('click', () => scrollByCards(-1)));
-      nextBtns.forEach(btn => btn.addEventListener('click', () => scrollByCards(1)));
-
-      track.addEventListener('wheel', (e) => {
-        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-          e.preventDefault();
-          track.scrollLeft += e.deltaY;
-        }
-      }, { passive:false });
-    })();
-  </script>
-  <script>
-    document.addEventListener('click', function (e) {
-      const el = e.target.closest('.js-client-signin');
-      if (!el) return;
-
-      // Always stop navigation immediately
-      e.preventDefault();
-      e.stopPropagation();
-
-      const modalEl = document.getElementById('profileTypeModal');
-      if (!modalEl) return;
-
-      const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
-        backdrop: true,
-        focus: true
-      });
-
-      // Defensive cleanup on close (mobile-safe)
-      modalEl.addEventListener('hidden.bs.modal', () => {
-        document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
-        document.body.classList.remove('modal-open');
-        document.body.style.removeProperty('paddingRight');
-      }, { once: true });
-
-      modal.show();
-    });
-  </script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      document.querySelectorAll('.hero-clickable').forEach(function (slide) {
-        slide.addEventListener('click', function (e) {
-          // Prevent clicks on carousel controls from triggering navigation
-          if (e.target.closest('.carousel-control-prev, .carousel-control-next')) {
-            return;
-          }
-          window.location.href = this.dataset.href;
+      // Pause autoplay for visitors who request reduced motion.
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.querySelectorAll('.carousel[data-bs-ride="carousel"]').forEach(function (element) {
+          const instance = bootstrap.Carousel.getOrCreateInstance(element);
+          instance.pause();
         });
+      }
 
-        // Keyboard accessibility
-        slide.addEventListener('keydown', function (e) {
-          if (e.key === 'Enter') {
-            window.location.href = this.dataset.href;
-          }
+      // Close the mobile menu before navigating, avoiding custom click interception.
+      const mobileMenu = document.getElementById('mobileMenu');
+      if (mobileMenu) {
+        mobileMenu.querySelectorAll('a[href]').forEach(function (link) {
+          link.addEventListener('click', function () {
+            const instance = bootstrap.Offcanvas.getInstance(mobileMenu);
+            if (instance) instance.hide();
+          });
         });
+      }
+
+      // Gate only links explicitly marked as requiring authentication.
+      document.addEventListener('click', function (event) {
+        const link = event.target.closest('a.requires-auth');
+        if (!link || IS_AUTHENTICATED) return;
+        event.preventDefault();
+        const modalElement = document.getElementById('authRequiredModal');
+        if (modalElement) bootstrap.Modal.getOrCreateInstance(modalElement).show();
+      });
+
+      // Existing triggers may still open the profile selection modal.
+      document.addEventListener('click', function (event) {
+        const trigger = event.target.closest('.js-client-signin');
+        if (!trigger) return;
+        event.preventDefault();
+        const modalElement = document.getElementById('profileTypeModal');
+        if (modalElement) bootstrap.Modal.getOrCreateInstance(modalElement).show();
       });
     });
   </script>
-
-
-
-
 </body>
 </html>

@@ -1495,6 +1495,115 @@
                   </div>
 
 
+
+                  <!-- =============================================
+                       DELIVERY STOP / PROOF OF DELIVERY
+                       ============================================= -->
+
+                  <div class="order-section mb-3">
+                      <div class="order-section-header">
+                          <div class="d-flex align-items-center gap-2">
+                              <div class="order-section-icon"><i class="bi bi-truck"></i></div>
+                              <div>
+                                  <h3 class="order-section-title">Delivery & Proof of Delivery</h3>
+                                  <div class="order-section-subtitle">Delivery stops linked directly to this order</div>
+                              </div>
+                          </div>
+                      </div>
+                      <div class="order-section-body">
+                          {% if delivery_stops %}
+                              {% for stop in delivery_stops %}
+                                  <div class="border rounded-3 p-3 mb-3">
+                                      <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+                                          <div>
+                                              <strong>Stop #{{ stop.id }}</strong>
+                                              {% if stop.run %}
+                                                  <span class="text-muted small ms-2">Run #{{ stop.run_id }}</span>
+                                              {% endif %}
+                                              <div class="small text-muted">
+                                                  {{ stop.customer_name|default:order.client }}
+                                                  {% if stop.signed_at %} · Completed {{ stop.signed_at|date:"Y-m-d H:i" }}{% endif %}
+                                              </div>
+                                          </div>
+                                          <div>
+                                              {% if stop.status == "delivered" %}
+                                                  <span class="badge bg-success">Delivered</span>
+                                              {% elif stop.status == "failed" %}
+                                                  <span class="badge bg-danger">Failed attempt</span>
+                                              {% else %}
+                                                  <span class="badge bg-secondary">{{ stop.get_status_display }}</span>
+                                              {% endif %}
+                                          </div>
+                                      </div>
+
+                                      {% if stop.signature %}
+                                          <div class="mb-3">
+                                              <div class="small fw-semibold text-muted mb-2">Proof of delivery photo</div>
+                                              <a href="{{ stop.signature.url }}" target="_blank" rel="noopener">
+                                                  <img src="{{ stop.signature.url }}"
+                                                       alt="Proof of delivery for stop {{ stop.id }}"
+                                                       class="img-thumbnail"
+                                                       style="max-width: 280px; max-height: 220px; object-fit: contain;">
+                                              </a>
+                                          </div>
+                                      {% else %}
+                                          <div class="small text-muted mb-3">
+                                              No proof-of-delivery photo/file uploaded for this stop.
+                                          </div>
+                                      {% endif %}
+
+                                      {% if stop.status == "delivered" %}
+                                          <div class="d-flex flex-wrap gap-2 mb-3">
+                                              <a class="btn btn-outline-primary btn-sm"
+                                                 href="{% url 'sales:delivery-stop-note-pdf' stop.id %}" target="_blank">
+                                                  <i class="bi bi-eye me-1"></i>View PDF
+                                              </a>
+                                              <a class="btn btn-primary btn-sm"
+                                                 href="{% url 'sales:delivery-stop-note-pdf' stop.id %}?download=1">
+                                                  <i class="bi bi-download me-1"></i>Download PDF
+                                              </a>
+                                          </div>
+
+                                          <div class="row g-2">
+                                              <div class="col-lg-6">
+                                                  <form method="post" action="{% url 'sales:send-delivery-note-email' stop.id %}" class="border rounded p-3 h-100">
+                                                      {% csrf_token %}
+                                                      <label class="form-label small fw-semibold">Send delivery note by email</label>
+                                                      <input type="email" name="email" class="form-control form-control-sm mb-2"
+                                                             value="{{ stop.email|default:'' }}" placeholder="Customer email address">
+                                                      <button type="submit" class="btn btn-outline-success btn-sm">
+                                                          <i class="bi bi-envelope me-1"></i>Send Email PDF
+                                                      </button>
+                                                  </form>
+                                              </div>
+                                              <div class="col-lg-6">
+                                                  <form method="post" action="{% url 'sales:send-delivery-note-sms' stop.id %}" class="border rounded p-3 h-100">
+                                                      {% csrf_token %}
+                                                      <label class="form-label small fw-semibold">Send delivery note link by SMS</label>
+                                                      <input type="tel" name="phone" class="form-control form-control-sm mb-2"
+                                                             value="{{ stop.phone|default:'' }}" placeholder="Customer mobile number">
+                                                      <button type="submit" class="btn btn-outline-success btn-sm">
+                                                          <i class="bi bi-chat-dots me-1"></i>Send SMS Link
+                                                      </button>
+                                                  </form>
+                                              </div>
+                                          </div>
+                                      {% else %}
+                                          <div class="small text-muted">
+                                              The PDF and send options will become available when this stop is marked Delivered.
+                                          </div>
+                                      {% endif %}
+                                  </div>
+                              {% endfor %}
+                          {% else %}
+                              <div class="text-muted">
+                                  No delivery stop is currently linked to this order. Once a delivery run creates a customer stop for this order, its completion record will appear here.
+                              </div>
+                          {% endif %}
+                      </div>
+                  </div>
+
+
                   <!-- =============================================
                       INVOICE
                       ============================================= -->

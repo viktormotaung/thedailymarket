@@ -15,6 +15,7 @@ from invoices.models import CommissionEntry, Invoice, MonthlyTarget, MonthlyTarg
 from invoices.models import CommissionEntry
 from products.models import Category, Product, ProductKnowledge
 from orders.models import Order, OrderItem, Quotation, QuotationItem
+from deliveries.models import DeliveryStop
 from django import forms
 from django.forms import ModelForm, inlineformset_factory, widgets
 from django.db.models import (
@@ -32,8 +33,10 @@ from communications.models import CommunicationLog, CommunicationDocs
 from communications.services.whatsapp import send_quotation_whatsapp
 from django.contrib import messages
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.urls import reverse
+from django.core import signing
+from io import BytesIO
 from django.utils import timezone
 from tasks.forms import TicketCreateForm
 from communications.services.whatsapp import send_whatsapp_message
@@ -60,7 +63,7 @@ from django.contrib import messages
 from django.http import Http404
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from credit.models import CreditAccount
 from clients.forms import ClientEditForm
 from django.contrib.contenttypes.models import ContentType
@@ -5465,6 +5468,17 @@ def view_order(request, pk):
     )
 
     # -------------------------------------------------
+    # DELIVERY STOPS LINKED TO THIS ORDER
+    # -------------------------------------------------
+    delivery_stops = (
+        DeliveryStop.objects
+        .filter(order=order)
+        .select_related("run", "run__driver")
+        .prefetch_related("items")
+        .order_by("run_id", "sequence", "id")
+    )
+
+    # -------------------------------------------------
     # RENDER
     # -------------------------------------------------
 
@@ -5475,6 +5489,7 @@ def view_order(request, pk):
             "order": order,
             "items": items,
             "invoice": invoice,
+            "delivery_stops": delivery_stops,
 
             # Existing access information
             "rep_only": rep_only,
@@ -10699,6 +10714,307 @@ def send_invoice_sms_view(request, pk):
         "result": result,
     })
 
+
+
+
+def _build_delivery_note_pdf(stop):
+    """Build a PDF delivery note from the saved stop-completion record."""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as ReportLabImage
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        rightMargin=18 * mm, leftMargin=18 * mm,
+        topMargin=16 * mm, bottomMargin=16 * mm,
+    )
+    styles = getSampleStyleSheet()
+    story = [
+        Paragraph("THE DAILY MARKET", styles["Title"]),
+        Paragraph(f"Proof of Delivery / Delivery Note — Stop #{stop.pk}", styles["Heading2"]),
+        Spacer(1, 5 * mm),
+    ]
+
+    order = stop.order
+    client = getattr(order, "client", None) if order else None
+    from xml.sax.saxutils import escape
+    from reportlab.lib.styles import ParagraphStyle
+
+    # Paragraph cells are essential here: plain strings do not wrap in ReportLab
+    # tables, so long delivery addresses were running past the page edge.
+    detail_value_style = ParagraphStyle(
+        "DeliveryNoteDetailValue", parent=styles["BodyText"],
+        fontName="Helvetica", fontSize=9, leading=11,
+        spaceBefore=0, spaceAfter=0, wordWrap="CJK", splitLongWords=True,
+    )
+    detail_label_style = ParagraphStyle(
+        "DeliveryNoteDetailLabel", parent=detail_value_style,
+        fontName="Helvetica-Bold",
+    )
+    # Build a clean address from the saved delivery-stop fields. Some older
+    # records contain the placeholder text "Same as above" inside address
+    # fields; it is not an address component and must not appear on the PDF.
+    import re
+
+    address_parts = []
+    seen_address_parts = set()
+    raw_address_parts = [
+        stop.address_line1, stop.address_line2, stop.suburb,
+        stop.city, stop.province, stop.postal_code,
+    ]
+    for raw_part in raw_address_parts:
+        if not raw_part:
+            continue
+        # Split comma-separated values because older stop records may have
+        # location details combined into a single field.
+        for part in str(raw_part).split(","):
+            part = re.sub(r"\bsame\s+as\s+above\b", "", part, flags=re.IGNORECASE)
+            part = re.sub(r"\s+", " ", part).strip(" ,;\t\r\n")
+            if not part:
+                continue
+            normalized = part.casefold()
+            if normalized not in seen_address_parts:
+                seen_address_parts.add(normalized)
+                address_parts.append(part)
+    address = ", ".join(address_parts) or "N/A"
+    detail_values = [
+        ("Order", f"#{order.pk}" if order else "N/A"),
+        ("Customer", stop.customer_name or getattr(client, "name", "") or "N/A"),
+        ("Delivery address", address),
+        ("Delivery status", stop.get_status_display()),
+        ("Completed / signed at", timezone.localtime(stop.signed_at).strftime("%Y-%m-%d %H:%M") if stop.signed_at else "Not recorded"),
+        ("Received by", stop.recipient_name or "Not recorded"),
+        ("Driver", str(stop.run.driver) if stop.run and stop.run.driver else "Not recorded"),
+    ]
+    details = [[
+        Paragraph(escape(str(label)), detail_label_style),
+        Paragraph(escape(str(value)), detail_value_style),
+    ] for label, value in detail_values]
+    table = Table(details, colWidths=[42 * mm, 125 * mm])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#edf5f0")),
+        ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#212529")),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#d9e2dc")),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("PADDING", (0, 0), (-1, -1), 7),
+    ]))
+    story.extend([table, Spacer(1, 6 * mm), Paragraph("Items delivered", styles["Heading3"])])
+
+    # Paragraph cells wrap long product names, SKUs and notes instead of
+    # allowing text to spill across neighbouring columns in the PDF.
+    cell_style = ParagraphStyle(
+        "DeliveryNoteCell", parent=styles["BodyText"], fontName="Helvetica",
+        fontSize=7.5, leading=9, spaceBefore=0, spaceAfter=0,
+        wordWrap="CJK", splitLongWords=True,
+    )
+    header_style = ParagraphStyle(
+        "DeliveryNoteHeader", parent=cell_style, fontName="Helvetica-Bold",
+        textColor=colors.white, fontSize=7.5, leading=9,
+    )
+    headers = ["Product", "SKU", "Planned", "Delivered", "Shortage / notes"]
+    rows = [[Paragraph(escape(label), header_style) for label in headers]]
+    for item in stop.items.all():
+        values = [
+            item.product_name or "Product",
+            item.sku or "—",
+            str(item.planned_qty),
+            str(item.delivered_qty),
+            " / ".join(filter(None, [item.shortage_reason, item.notes])) or "—",
+        ]
+        rows.append([Paragraph(escape(str(value)), cell_style) for value in values])
+    if len(rows) == 1:
+        rows.append([Paragraph("No item-level delivery quantities recorded", cell_style), "", "", "", ""])
+    # Available A4 width is 174 mm (210 mm less 18 mm margins on each side).
+    item_table = Table(rows, repeatRows=1, colWidths=[55*mm, 25*mm, 22*mm, 22*mm, 50*mm])
+    item_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0b5c39")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#d9e2dc")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    story.extend([item_table, Spacer(1, 6 * mm)])
+
+    # The existing Proof of Delivery upload is stored in stop.signature (ImageField).
+    # Include that image in the generated delivery-note PDF.
+    story.append(Paragraph("Proof of delivery photo", styles["Heading3"]))
+    if stop.signature:
+        try:
+            stop.signature.open("rb")
+            photo_bytes = stop.signature.read()
+            stop.signature.close()
+            photo_stream = BytesIO(photo_bytes)
+            pod_photo = ReportLabImage(
+                photo_stream,
+                width=125 * mm,
+                height=78 * mm,
+                kind="proportional",
+                hAlign="LEFT",
+            )
+            story.extend([pod_photo, Spacer(1, 4 * mm)])
+        except Exception:
+            story.append(Paragraph(
+                "A proof-of-delivery file is recorded, but the image could not be embedded in this PDF.",
+                styles["BodyText"],
+            ))
+    else:
+        story.append(Paragraph(
+            "No proof-of-delivery photo/file was uploaded for this stop.",
+            styles["BodyText"],
+        ))
+
+    story.extend([
+        Spacer(1, 3 * mm),
+        Paragraph("Delivery notes", styles["Heading3"]),
+        Paragraph(
+            (stop.delivery_notes or "No additional delivery notes recorded.")
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\\n", "<br/>"),
+            styles["BodyText"],
+        ),
+        Spacer(1, 6 * mm),
+    ])
+    doc.build(story)
+    return buffer.getvalue()
+
+
+@login_required
+def delivery_stop_note_pdf(request, stop_id):
+    """View or download the delivery-note PDF for a stop linked to an order."""
+    stop = get_object_or_404(
+        DeliveryStop.objects.select_related("order", "order__client", "run", "run__driver").prefetch_related("items"),
+        pk=stop_id,
+    )
+    if not stop.order_id:
+        return HttpResponseForbidden("This delivery stop is not linked to an order.")
+    # Reuse the same order access rules as the sales order view.
+    try:
+        profile = SalesRepProfile.objects.prefetch_related("roles").get(user=request.user)
+        roles = {(r.code or "").strip().upper() for r in profile.roles.all()}
+        if roles == {"REP"} and stop.order.client.account_manager_id != request.user.id:
+            return HttpResponseForbidden("You do not have access to this order.")
+    except SalesRepProfile.DoesNotExist:
+        pass
+    if stop.status != "delivered":
+        messages.warning(request, "The delivery note is available once the stop is marked delivered.")
+        return redirect("sales:view-order", pk=stop.order_id)
+    pdf = _build_delivery_note_pdf(stop)
+    response = HttpResponse(pdf, content_type="application/pdf")
+    disposition = "attachment" if request.GET.get("download") == "1" else "inline"
+    response["Content-Disposition"] = f'{disposition}; filename="TDM-delivery-note-stop-{stop.pk}.pdf"'
+    return response
+
+
+@login_required
+@require_POST
+def send_delivery_note_email(request, stop_id):
+    stop = get_object_or_404(
+        DeliveryStop.objects.select_related("order", "order__client", "run", "run__driver").prefetch_related("items"),
+        pk=stop_id, status="delivered", order__isnull=False,
+    )
+    email_to = (request.POST.get("email") or stop.email or getattr(stop.order.client, "email", "") or "").strip()
+    if not email_to:
+        messages.error(request, "No customer email address is available. Add one before sending.")
+        return redirect("sales:view-order", pk=stop.order_id)
+
+    pdf = _build_delivery_note_pdf(stop)
+    subject = f"The Daily Market – Delivery Note for Order #{stop.order_id}"
+    body = (
+        f"Dear {stop.customer_name or getattr(stop.order.client, 'name', 'Customer')},\n\n"
+        f"Please find attached the delivery note for order #{stop.order_id}.\n\n"
+        "Kind regards,\nThe Daily Market"
+    )
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=body,
+        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "accounts@thedailymarket.co.za"),
+        to=[email_to],
+    )
+    msg.attach(f"TDM-delivery-note-stop-{stop.pk}.pdf", pdf, "application/pdf")
+    msg.send(fail_silently=False)
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_EMAIL,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=stop.customer_name or getattr(stop.order.client, "name", "Customer"),
+        recipient_contact=email_to,
+        subject=subject,
+        message=body,
+        related_model="DeliveryStop",
+        related_object_id=stop.pk,
+        provider="Django email",
+        sent_by=request.user,
+        sent_at=timezone.now(),
+    )
+    messages.success(request, f"Delivery note emailed to {email_to}.")
+    return redirect("sales:view-order", pk=stop.order_id)
+
+
+@login_required
+@require_POST
+def send_delivery_note_sms(request, stop_id):
+    stop = get_object_or_404(
+        DeliveryStop.objects.select_related("order", "order__client").prefetch_related("items"),
+        pk=stop_id, status="delivered", order__isnull=False,
+    )
+    phone = (request.POST.get("phone") or stop.phone or getattr(stop.order.client, "phone", "") or getattr(stop.order.client, "whatsapp", "") or "").strip()
+    if not phone:
+        messages.error(request, "No customer mobile number is available. Add one before sending.")
+        return redirect("sales:view-order", pk=stop.order_id)
+
+    # Signed URL allows the recipient to open the PDF without a staff login.
+    token = signing.dumps({"stop_id": stop.pk}, salt="tdm-delivery-note")
+    link = request.build_absolute_uri(reverse("sales:public-delivery-note-pdf", args=[token]))
+    message = (
+        f"Hi {stop.customer_name or getattr(stop.order.client, 'name', 'Customer')}, "
+        f"your The Daily Market delivery note for order #{stop.order_id} is ready: {link}"
+    )
+    result = send_sms(to=phone, message=message)
+    success = bool(result.get("success"))
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_SMS,
+        status=CommunicationLog.STATUS_SENT if success else CommunicationLog.STATUS_FAILED,
+        recipient_name=stop.customer_name or getattr(stop.order.client, "name", "Customer"),
+        recipient_contact=phone,
+        subject=f"Delivery note for order #{stop.order_id}",
+        message=message,
+        related_model="DeliveryStop",
+        related_object_id=stop.pk,
+        provider="SMSPortal",
+        provider_response=result,
+        error_message="" if success else str(result.get("response") or result.get("error") or "SMS failed"),
+        sent_by=request.user,
+        sent_at=timezone.now() if success else None,
+    )
+    if success:
+        messages.success(request, f"Delivery note link sent by SMS to {phone}.")
+    else:
+        messages.error(request, "SMS failed to send. Please try again.")
+    return redirect("sales:view-order", pk=stop.order_id)
+
+
+def public_delivery_note_pdf(request, token):
+    """Public, time-limited signed link used in SMS; expires after 14 days."""
+    try:
+        data = signing.loads(token, salt="tdm-delivery-note", max_age=14 * 24 * 60 * 60)
+        stop_id = int(data["stop_id"])
+    except (signing.BadSignature, signing.SignatureExpired, KeyError, TypeError, ValueError):
+        return HttpResponse("This delivery-note link is invalid or has expired.", status=410)
+    stop = get_object_or_404(
+        DeliveryStop.objects.select_related("order", "order__client", "run", "run__driver").prefetch_related("items"),
+        pk=stop_id, status="delivered", order__isnull=False,
+    )
+    response = HttpResponse(_build_delivery_note_pdf(stop), content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="TDM-delivery-note-stop-{stop.pk}.pdf"'
+    return response
 
 
 @login_required

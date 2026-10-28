@@ -1,7 +1,6 @@
 # clients/admin.py
-# clients/admin.py
 from django.contrib import admin
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 
 from .models import (
     Client,
@@ -19,10 +18,12 @@ from .models import (
     EndUser,
     SampleRequest,
     SampleRequestItem,
-
+    Campaign,
+    CampaignQuestion,
+    CampaignResponse,
+    CampaignResponseAnswer,
+    CampaignSMSConfirmation,
 )
-
-
 
 # ============================================================
 # GEOGRAPHY
@@ -1082,6 +1083,7 @@ class LeadAdmin(admin.ModelAdmin):
         "is_converted_display",
         "age_days",
         "location_captured_at",
+        "campaign_questions_answers",
     )
 
     fieldsets = (
@@ -1185,6 +1187,19 @@ class LeadAdmin(admin.ModelAdmin):
         ),
 
         # =====================================================
+        # CAMPAIGN QUESTIONS & ANSWERS
+        # =====================================================
+
+        (
+            "Campaign Questions & Answers",
+            {
+                "fields": (
+                    "campaign_questions_answers",
+                )
+            },
+        ),
+
+        # =====================================================
         # CONVERSION
         # =====================================================
 
@@ -1236,6 +1251,65 @@ class LeadAdmin(admin.ModelAdmin):
     # =========================================================
     # GPS STATUS
     # =========================================================
+
+    @admin.display(description="Campaign Questions & Answers")
+    def campaign_questions_answers(self, obj):
+        """Display questionnaire answers directly on the Lead admin record."""
+        responses = (
+            obj.campaign_responses
+            .all()
+            .prefetch_related("answers")
+            .order_by("-submitted_at", "-id")
+        )
+
+        if not responses.exists():
+            return "No campaign questionnaire responses recorded for this lead."
+
+        response_blocks = []
+        for response in responses:
+            answer_rows = []
+            for answer in response.answers.all():
+                question = (
+                    answer.question_text_snapshot
+                    or answer.question.question_text
+                    or "Question"
+                )
+                value = answer.answer_value
+
+                if value in (None, "", [], {}):
+                    display_value = "—"
+                elif isinstance(value, list):
+                    display_value = ", ".join(map(str, value))
+                elif isinstance(value, dict):
+                    display_value = str(value)
+                else:
+                    display_value = str(value)
+
+                answer_rows.append((question, display_value))
+
+            if answer_rows:
+                answer_html = format_html_join(
+                    "",
+                    '<div style="padding:6px 0;border-bottom:1px solid #eee;">'
+                    '<strong>{}</strong><br>{}</div>',
+                    answer_rows,
+                )
+            else:
+                answer_html = format_html(
+                    '<p style="color:#777;">No answers were saved for this submission.</p>'
+                )
+
+            response_blocks.append(
+                format_html(
+                    '<div style="margin:0 0 18px;padding:12px;border:1px solid #ddd;'
+                    'border-radius:6px;">'
+                    '<div style="font-weight:600;margin-bottom:8px;">{}</div>{}</div>',
+                    f"{response.campaign.name} — {response.submitted_at:%d %b %Y, %H:%M}",
+                    answer_html,
+                )
+            )
+
+        return format_html_join(" ", "{}", ((block,) for block in response_blocks))
 
     @admin.display(
         boolean=True,
@@ -1587,5 +1661,442 @@ class EndUserAdmin(admin.ModelAdmin):
             obj.longitude,
         )
 
+# ============================================================
+# MARKETING CAMPAIGNS
+# ============================================================
+
+class CampaignQuestionInline(admin.StackedInline):
+    """Configure each campaign question, including its dropdown options."""
+    model = CampaignQuestion
+    extra = 0
+    fields = (
+        ("sort_order", "is_active"),
+        "question_text",
+        "question_key",
+        "question_type",
+        "options",
+        "is_required",
+        "help_text",
+    )
+    show_change_link = True
+    ordering = ("sort_order", "id")
 
 
+@admin.register(Campaign)
+class CampaignAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "code",
+        "campaign_type",
+        "objective",
+        "status",
+        "display_channels",
+        # date_hierarchy = "start_date"
+        "end_date",
+        "budget",
+        "response_count",
+        "created_at",
+    )
+    list_filter = (
+        "campaign_type",
+        "objective",
+        "status",
+        "start_date",
+        "end_date",
+        ("created_at", admin.DateFieldListFilter),
+    )
+    search_fields = (
+        "name",
+        "code",
+        "description",
+        "target_audience",
+        "offer",
+        "form_title",
+    )
+    ordering = ("-created_at",)
+    # Date hierarchy intentionally omitted here. Campaigns can have nullable
+    # start/end dates; the date filters above remain available in the sidebar.
+    list_per_page = 50
+    save_on_top = True
+    autocomplete_fields = ("created_by",)
+    readonly_fields = ("created_at", "updated_at", "response_count")
+    inlines = (CampaignQuestionInline,)
+    fieldsets = (
+        ("Campaign identity", {
+            "fields": (
+                ("name", "code"),
+                ("campaign_type", "objective", "status"),
+                "description",
+                "target_audience",
+            )
+        }),
+        ("Channels and offer", {
+            "fields": (
+                "channels",
+                "offer",
+            )
+        }),
+        ("Schedule and budget", {
+            "fields": (
+                ("start_date", "end_date"),
+                "budget",
+            )
+        }),
+        ("Landing page form", {
+            "fields": (
+                "form_title",
+                "form_description",
+            )
+        }),
+        ("Administration", {
+            "fields": (
+                "created_by",
+                "response_count",
+                ("created_at", "updated_at"),
+            ),
+            "classes": ("collapse",),
+        }),
+    )
+
+    @admin.display(description="Channels")
+    def display_channels(self, obj):
+        if not obj.channels:
+            return "-"
+        labels = dict(Campaign.CHANNEL_CHOICES)
+        return ", ".join(labels.get(channel, str(channel)) for channel in obj.channels)
+
+    @admin.display(description="Responses")
+    def response_count(self, obj):
+        if not obj.pk:
+            return 0
+        return obj.responses.count()
+
+
+# ============================================================
+# CAMPAIGN QUESTIONS
+# ============================================================
+
+@admin.register(CampaignQuestion)
+class CampaignQuestionAdmin(admin.ModelAdmin):
+    list_display = (
+        "question_text",
+        "campaign",
+        "question_key",
+        "question_type",
+        "is_required",
+        "is_active",
+        "sort_order",
+        "updated_at",
+    )
+    list_filter = (
+        "campaign",
+        "question_type",
+        "is_required",
+        "is_active",
+    )
+    search_fields = (
+        "question_text",
+        "question_key",
+        "campaign__name",
+        "campaign__code",
+    )
+    ordering = ("campaign__name", "sort_order", "id")
+    autocomplete_fields = ("campaign",)
+    list_select_related = ("campaign",)
+    list_per_page = 50
+    save_on_top = True
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        ("Question", {
+            "fields": (
+                "campaign",
+                "question_text",
+                "question_key",
+                "question_type",
+                "options",
+            )
+        }),
+        ("Form behaviour", {
+            "fields": (
+                ("is_required", "is_active"),
+                ("sort_order",),
+                "help_text",
+            )
+        }),
+        ("Meta", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",),
+        }),
+    )
+
+
+# ============================================================
+# CAMPAIGN RESPONSES / ATTRIBUTION
+# ============================================================
+
+class CampaignResponseAnswerInline(admin.TabularInline):
+    model = CampaignResponseAnswer
+    extra = 0
+    fields = (
+        "question",
+        "question_text_snapshot",
+        "answer_value",
+        "created_at",
+    )
+    readonly_fields = ("question_text_snapshot", "created_at")
+    autocomplete_fields = ("question",)
+    show_change_link = True
+
+
+class CampaignSMSConfirmationInline(admin.StackedInline):
+    model = CampaignSMSConfirmation
+    extra = 0
+    max_num = 1
+    can_delete = False
+    fields = (
+        "phone_number",
+        "provider",
+        "status",
+        "provider_message_id",
+        "attempt_count",
+        "idempotency_key",
+        "queued_at",
+        "last_attempt_at",
+        "sent_at",
+        "delivered_at",
+        "last_error",
+        "message",
+    )
+    readonly_fields = (
+        "phone_number",
+        "provider",
+        "status",
+        "provider_message_id",
+        "attempt_count",
+        "idempotency_key",
+        "queued_at",
+        "last_attempt_at",
+        "sent_at",
+        "delivered_at",
+        "last_error",
+        "message",
+    )
+
+
+@admin.register(CampaignResponse)
+class CampaignResponseAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "campaign",
+        "lead",
+        "channel",
+        "consent_to_contact",
+        "submitted_at",
+        "utm_source",
+        "utm_campaign",
+        "sms_status",
+    )
+    list_filter = (
+        "campaign",
+        "channel",
+        "consent_to_contact",
+        ("submitted_at", admin.DateFieldListFilter),
+        "utm_source",
+        "utm_medium",
+    )
+    search_fields = (
+        "campaign__name",
+        "campaign__code",
+        "lead__lead_number",
+        "lead__business_name",
+        "lead__contact_person",
+        "lead__phone",
+        "lead__email",
+        "advert_reference",
+        "utm_source",
+        "utm_campaign",
+        "fbclid",
+        "ttclid",
+    )
+    ordering = ("-submitted_at", "-id")
+    date_hierarchy = "submitted_at"
+    list_select_related = ("campaign", "lead")
+    autocomplete_fields = ("campaign", "lead")
+    readonly_fields = ("submitted_at", "created_at", "sms_status")
+    inlines = (CampaignResponseAnswerInline, CampaignSMSConfirmationInline)
+    list_per_page = 50
+    save_on_top = True
+    fieldsets = (
+        ("Submission", {
+            "fields": (
+                ("campaign", "lead"),
+                ("channel", "advert_reference"),
+                "landing_page",
+                ("submitted_at", "created_at"),
+            )
+        }),
+        ("Contact consent", {
+            "fields": (
+                "consent_to_contact",
+                "consent_text",
+            )
+        }),
+        ("Advertising attribution", {
+            "fields": (
+                ("utm_source", "utm_medium"),
+                ("utm_campaign", "utm_content", "utm_term"),
+                ("fbclid", "ttclid"),
+                "metadata",
+            ),
+            "classes": ("collapse",),
+        }),
+        ("SMS confirmation", {
+            "fields": ("sms_status",),
+        }),
+    )
+
+    @admin.display(description="SMS status")
+    def sms_status(self, obj):
+        if not obj.pk:
+            return "-"
+        try:
+            sms = obj.sms_confirmation
+        except CampaignSMSConfirmation.DoesNotExist:
+            return "Not queued"
+        return sms.get_status_display()
+
+
+# ============================================================
+# CAMPAIGN RESPONSE ANSWERS
+# ============================================================
+
+@admin.register(CampaignResponseAnswer)
+class CampaignResponseAnswerAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "response",
+        "question",
+        "short_answer",
+        "created_at",
+    )
+    list_filter = (
+        "question__campaign",
+        "question__question_type",
+        ("created_at", admin.DateFieldListFilter),
+    )
+    search_fields = (
+        "response__campaign__name",
+        "response__lead__lead_number",
+        "response__lead__business_name",
+        "question__question_text",
+        "question_text_snapshot",
+    )
+    ordering = ("-created_at",)
+    autocomplete_fields = ("response", "question")
+    list_select_related = ("response", "question", "question__campaign")
+    readonly_fields = ("question_text_snapshot", "created_at", "updated_at")
+    list_per_page = 50
+
+    @admin.display(description="Answer")
+    def short_answer(self, obj):
+        value = obj.answer_value
+        if value in (None, "", [], {}):
+            return "-"
+        answer = str(value)
+        return answer if len(answer) <= 90 else answer[:87] + "..."
+
+
+# ============================================================
+# SMS CONFIRMATIONS
+# ============================================================
+
+@admin.register(CampaignSMSConfirmation)
+class CampaignSMSConfirmationAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "response",
+        "phone_number",
+        "provider",
+        "status",
+        "attempt_count",
+        "provider_message_id",
+        "queued_at",
+        "sent_at",
+        "delivered_at",
+    )
+    list_filter = (
+        "status",
+        "provider",
+        ("queued_at", admin.DateFieldListFilter),
+        ("sent_at", admin.DateFieldListFilter),
+        ("delivered_at", admin.DateFieldListFilter),
+    )
+    search_fields = (
+        "phone_number",
+        "idempotency_key",
+        "provider_message_id",
+        "response__campaign__name",
+        "response__lead__lead_number",
+        "response__lead__business_name",
+        "response__lead__phone",
+        "last_error",
+    )
+    ordering = ("-queued_at", "-id")
+    date_hierarchy = "queued_at"
+    autocomplete_fields = ("response",)
+    list_select_related = ("response", "response__campaign", "response__lead")
+    readonly_fields = (
+        "response",
+        "phone_number",
+        "message",
+        "provider",
+        "status",
+        "idempotency_key",
+        "provider_message_id",
+        "attempt_count",
+        "last_error",
+        "queued_at",
+        "last_attempt_at",
+        "sent_at",
+        "delivered_at",
+        "created_at",
+        "updated_at",
+    )
+    fieldsets = (
+        ("Confirmation", {
+            "fields": (
+                "response",
+                "phone_number",
+                "provider",
+                "status",
+                "message",
+            )
+        }),
+        ("Provider and retry tracking", {
+            "fields": (
+                "idempotency_key",
+                "provider_message_id",
+                "attempt_count",
+                "last_error",
+            )
+        }),
+        ("Timestamps", {
+            "fields": (
+                "queued_at",
+                "last_attempt_at",
+                "sent_at",
+                "delivered_at",
+                "created_at",
+                "updated_at",
+            ),
+            "classes": ("collapse",),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        # SMS records should be created by the campaign submission/SMS service.
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # Preserve the SMS audit trail.
+        return False

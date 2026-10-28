@@ -1,0 +1,115 @@
+{% load static %}
+<!doctype html>
+<html lang="en-ZA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b5c39">
+  <title>{{ page_title|default:"Quick Business Enquiry" }} | The Daily Market</title>
+  <meta name="description" content="{{ page_description|default:'Tell The Daily Market about your business.'|striptags }}">
+  <style>
+    :root{--green:#0b5c39;--green-dark:#08482d;--ink:#18251d;--muted:#6d7971;--line:#dfe7e1;--soft:#f3f7f4}
+    *{box-sizing:border-box}body{margin:0;background:#eef3ef;color:var(--ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+    input,select,textarea,button{font:inherit}.page{max-width:680px;min-height:100dvh;margin:0 auto;background:#fff;box-shadow:0 12px 45px #0f32200d}
+    header{padding:22px 22px 28px;background:var(--green);color:#fff;border-radius:0 0 25px 25px}
+    .brand{display:flex;align-items:center;gap:11px;margin-bottom:26px;color:#fff;text-decoration:none}.brand img{height:42px;width:auto;max-width:155px;object-fit:contain}
+    .brand strong{display:block;font-size:15px}.brand small{display:block;margin-top:4px;color:#d8eee0;font-size:10px;letter-spacing:1.1px;text-transform:uppercase}
+    .eyebrow{margin:0 0 9px;color:#d2eadb;font-size:11px;letter-spacing:1.3px;text-transform:uppercase;font-weight:800}
+    h1{font-size:clamp(28px,6vw,36px);line-height:1.08;letter-spacing:-1px;margin:0}
+    .intro{margin:12px 0 0;color:#e5f2e9;font-size:14px;line-height:1.6}
+    main{padding:24px 18px 30px}.progress{display:flex;align-items:center;gap:10px;margin-bottom:22px}.track{height:5px;flex:1;background:#e8eee9;border-radius:99px;overflow:hidden}.track span{display:block;width:35%;height:100%;background:var(--green)}
+    .progress-label{font-size:11px;color:var(--muted);font-weight:700;white-space:nowrap}h2{font-size:20px;letter-spacing:-.4px;margin:0 0 6px}.sub{margin:0 0 20px;color:var(--muted);font-size:13px;line-height:1.5}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:15px 12px}.field{min-width:0}.field.full{grid-column:1/-1}
+    label{display:block;margin:0 0 7px;font-size:12px;font-weight:750;color:#304238}
+    input,select,textarea{display:block;width:100%;min-height:48px;padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);outline:none;font-size:14px}
+    textarea{min-height:78px;resize:vertical}input:focus,select:focus,textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px #0b5c391a}
+    .help{display:block;margin-top:6px;font-size:11px;line-height:1.4;color:var(--muted)}.errors{color:#a12e2e;font-size:12px;margin-top:6px}
+    .error-summary,.notice{padding:12px 13px;border-radius:12px;margin-bottom:15px;font-size:13px}.error-summary{background:#fff0ef;color:#8a2828}.notice{background:#edf8f0;color:#155d3d}
+    .question-section{margin-top:22px;padding-top:20px;border-top:1px solid #edf1ed}.question-section h3{font-size:15px;margin:0 0 13px}
+    .consent{display:flex;align-items:flex-start;gap:10px;margin:19px 0 0;color:#59675f;font-size:11px;line-height:1.55}.consent input{width:18px;height:18px;min-height:18px;padding:0;margin:1px 0 0;flex:0 0 auto;accent-color:var(--green)}
+    .submit{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:52px;margin-top:18px;padding:13px 16px;border:0;border-radius:13px;background:var(--green);color:#fff;font-size:14px;font-weight:800;cursor:pointer}.submit:hover{background:var(--green-dark)}
+    .privacy{margin:12px 0 0;text-align:center;color:var(--muted);font-size:10px;line-height:1.5}.reassurance{display:flex;gap:10px;margin-top:21px;padding:13px;border-radius:13px;background:var(--soft);color:#53665a;font-size:12px;line-height:1.5}
+    footer{padding:0 18px 24px;text-align:center;color:#7b867e;font-size:10px;line-height:1.6}footer a{color:var(--green);font-weight:700;text-decoration:none}
+    @media(max-width:420px){header{padding:19px 17px 24px}main{padding:20px 15px 26px}.grid{grid-template-columns:1fr}.field.full{grid-column:auto}}
+    @media(min-width:681px){body{padding:20px 0}.page{border-radius:25px;overflow:hidden}header{padding:25px 30px 30px}main{padding:26px 30px 32px}}
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <a class="brand" href="/" aria-label="The Daily Market home">
+      <img src="{% static 'images/logo.png' %}" alt="The Daily Market">
+      <span><strong>The Daily Market</strong><small>Business food supply</small></span>
+    </a>
+    <p class="eyebrow">A quick business enquiry</p>
+    <h1>{{ campaign.form_title|default:"Let’s talk about supplying your business." }}</h1>
+    <p class="intro">{{ campaign.form_description|default:"Answer a few short questions. It should take around 2 minutes, and our team will call you to discuss your needs." }}</p>
+  </header>
+
+  <main>
+    <div class="progress"><div class="track"><span></span></div><span class="progress-label">About 2 minutes</span></div>
+    <h2>Tell us about your business</h2>
+    <p class="sub">Fields marked * are required.</p>
+
+    {% if form.non_field_errors or question_form.non_field_errors %}
+      <div class="error-summary" role="alert">
+        {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+        {% if question_form.non_field_errors %}{{ question_form.non_field_errors }}{% endif %}
+      </div>
+    {% endif %}
+
+    <form method="post" action="" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="utm_source" value="{{ attribution.utm_source|default:'' }}">
+      <input type="hidden" name="utm_medium" value="{{ attribution.utm_medium|default:'' }}">
+      <input type="hidden" name="utm_campaign" value="{{ attribution.utm_campaign|default:'' }}">
+      <input type="hidden" name="utm_content" value="{{ attribution.utm_content|default:'' }}">
+      <input type="hidden" name="utm_term" value="{{ attribution.utm_term|default:'' }}">
+      <input type="hidden" name="fbclid" value="{{ attribution.fbclid|default:'' }}">
+      <input type="hidden" name="ttclid" value="{{ attribution.ttclid|default:'' }}">
+      <input type="hidden" name="ad_name" value="{{ attribution.ad_name|default:'' }}">
+
+      <div class="grid">
+        {% for field in form %}
+          {% if field.name != "contact_consent" %}
+            <div class="field {% if field.name == 'suburb' or field.name == 'email' %}full{% endif %}">
+              <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span style="color:#b44335">*</span>{% endif %}</label>
+              {{ field }}
+              {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+              {% if field.errors %}<div class="errors">{{ field.errors|striptags }}</div>{% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      {% if question_form.fields %}
+        <section class="question-section" aria-labelledby="campaign-questions-heading">
+          <h3 id="campaign-questions-heading">A few more details</h3>
+          <div class="grid">
+            {% for field in question_form %}
+              <div class="field {% if field.field.widget.input_type == 'textarea' %}full{% endif %}">
+                <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span style="color:#b44335">*</span>{% endif %}</label>
+                {{ field }}
+                {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+                {% if field.errors %}<div class="errors">{{ field.errors|striptags }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
+      <label class="consent" for="{{ form.contact_consent.id_for_label }}">
+        {{ form.contact_consent }}
+        <span>{{ form.contact_consent.label }} <span style="color:#b44335">*</span>{% if form.contact_consent.errors %}<span class="errors">{{ form.contact_consent.errors|striptags }}</span>{% endif %}</span>
+      </label>
+
+      <button class="submit" type="submit">Submit my enquiry <span aria-hidden="true">→</span></button>
+      <p class="privacy">We’ll use your details to respond to this enquiry. Confirmation is by SMS, not WhatsApp.</p>
+    </form>
+
+    <div class="reassurance"><span aria-hidden="true">✓</span><span><strong>Your next step:</strong> our team will review your enquiry and contact you to discuss your business and product requirements.</span></div>
+  </main>
+  <footer>© {% now "Y" %} The Daily Market · <a href="/privacy-policy/">Privacy policy</a> · <a href="/">Back to our website</a></footer>
+</div>
+</body>
+</html>
