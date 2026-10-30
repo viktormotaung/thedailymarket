@@ -1,6 +1,3 @@
-
-from io import BytesIO
-
 from django.core.files.base import ContentFile
 from django.core.mail import EmailMultiAlternatives
 from django.db.models.signals import pre_save, post_save
@@ -67,17 +64,17 @@ def client_post_save(sender, instance, created, **kwargs):
     Send the Client activation SMS and welcome email after
     the Client has successfully been saved.
 
-    The welcome email uses the welcome HTML template.
+    The HTML email and PDF attachment are both generated from
+    the same rendered welcome.html template.
 
-    The same rendered HTML is converted into a PDF.
+    The template contains:
+        1. An email layout, shown in normal screen rendering.
+        2. A PDF layout, shown by the template's print CSS.
 
-    The PDF is:
+    The generated PDF is:
         1. Attached to the welcome email.
         2. Saved in CommunicationDocs.
         3. Linked to the welcome email CommunicationLog.
-
-    Duplicate welcome PDFs are prevented by checking whether
-    a welcome document already exists for this Client.
     """
 
     # --------------------------------------------------
@@ -220,123 +217,54 @@ def client_post_save(sender, instance, created, **kwargs):
     )
 
     # ==================================================
-    # WELCOME PDF
+    # GENERATE WELCOME PDF FROM THE SAME HTML
     # ==================================================
 
     welcome_filename = f"Welcome, {customer_name}.pdf"
 
-    welcome_pdf = None
-    existing_welcome_document = None
+    try:
+        # Generate the PDF from the same rendered HTML used by
+        # the actual email. xhtml2pdf uses print-oriented rendering.
+        pdf_buffer = BytesIO()
 
-    # --------------------------------------------------
-    # CHECK FOR EXISTING WELCOME DOCUMENT
-    # --------------------------------------------------
-
-    existing_welcome_document = (
-        CommunicationDocs.objects
-        .filter(
-            communication__channel=CommunicationLog.CHANNEL_EMAIL,
-            communication__related_model="Client",
-            communication__related_object_id=instance.pk,
-            filename__istartswith="Welcome,",
+        pdf_status = pisa.CreatePDF(
+            src=html_content,
+            dest=pdf_buffer,
+            encoding="UTF-8",
         )
-        .order_by("-created_at")
-        .first()
-    )
 
-    # ==================================================
-    # REUSE EXISTING PDF
-    # ==================================================
-
-    if existing_welcome_document:
-
-        try:
-
-            existing_welcome_document.file.open("rb")
-
-            welcome_pdf = (
-                existing_welcome_document.file.read()
+        if pdf_status.err:
+            raise Exception(
+                "xhtml2pdf reported an error while "
+                "generating the welcome PDF."
             )
 
-            existing_welcome_document.file.close()
+        welcome_pdf = pdf_buffer.getvalue()
+        pdf_buffer.close()
 
-        except Exception as exc:
-
-            email_log.status = CommunicationLog.STATUS_FAILED
-            email_log.error_message = (
-                f"Could not read existing welcome PDF: {exc}"
-            )
-            email_log.failed_at = timezone.now()
-
-            email_log.save(
-                update_fields=[
-                    "status",
-                    "error_message",
-                    "failed_at",
-                    "updated_at",
-                ]
+        if not welcome_pdf:
+            raise Exception(
+                "xhtml2pdf generated an empty welcome PDF."
             )
 
-            return
+    except Exception as exc:
 
-    # ==================================================
-    # GENERATE PDF IF ONE DOES NOT EXIST
-    # ==================================================
+        email_log.status = CommunicationLog.STATUS_FAILED
+        email_log.error_message = (
+            f"Welcome PDF generation failed: {exc}"
+        )
+        email_log.failed_at = timezone.now()
 
-    if welcome_pdf is None:
+        email_log.save(
+            update_fields=[
+                "status",
+                "error_message",
+                "failed_at",
+                "updated_at",
+            ]
+        )
 
-        try:
-
-            # ------------------------------------------
-            # xhtml2pdf
-            # ------------------------------------------
-
-            pdf_buffer = BytesIO()
-
-            pdf_status = pisa.CreatePDF(
-                src=html_content,
-                dest=pdf_buffer,
-                encoding="UTF-8",
-            )
-
-            # xhtml2pdf reports PDF generation errors
-            # through pdf_status.err rather than raising
-            # an exception in all cases.
-            if pdf_status.err:
-
-                raise Exception(
-                    "xhtml2pdf reported an error while "
-                    "generating the welcome PDF."
-                )
-
-            welcome_pdf = pdf_buffer.getvalue()
-
-            pdf_buffer.close()
-
-            if not welcome_pdf:
-
-                raise Exception(
-                    "The generated welcome PDF is empty."
-                )
-
-        except Exception as exc:
-
-            email_log.status = CommunicationLog.STATUS_FAILED
-            email_log.error_message = (
-                f"Welcome PDF generation failed: {exc}"
-            )
-            email_log.failed_at = timezone.now()
-
-            email_log.save(
-                update_fields=[
-                    "status",
-                    "error_message",
-                    "failed_at",
-                    "updated_at",
-                ]
-            )
-
-            return
+        return
 
     # ==================================================
     # SEND EMAIL
@@ -399,26 +327,24 @@ def client_post_save(sender, instance, created, **kwargs):
         # SAVE PDF TO COMMUNICATIONDOCS
         # ==================================================
 
-        # Only create a CommunicationDocs record if one
-        # does not already exist.
+        # Save a fresh PDF for this activation communication.
+        # Do not reuse an older PDF: it may have been generated
+        # from an earlier version of the welcome template.
+        communication_doc = CommunicationDocs(
+            communication=email_log,
+            filename=welcome_filename,
+        )
 
-        if not existing_welcome_document:
-
-            communication_doc = CommunicationDocs(
-                communication=email_log,
-                filename=welcome_filename,
-            )
-
-            communication_doc.file.save(
-                welcome_filename,
-                ContentFile(welcome_pdf),
-                save=True,
-            )
+        communication_doc.file.save(
+            welcome_filename,
+            ContentFile(welcome_pdf),
+            save=True,
+        )
 
     except Exception as exc:
 
         # --------------------------------------------------
-        # Log email failure
+        # Log email / document failure
         # --------------------------------------------------
 
         email_log.status = CommunicationLog.STATUS_FAILED
@@ -433,6 +359,3 @@ def client_post_save(sender, instance, created, **kwargs):
                 "updated_at",
             ]
         )
-
-
-

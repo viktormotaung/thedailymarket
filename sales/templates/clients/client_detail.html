@@ -1707,6 +1707,7 @@
                         <th>Channel</th>
                         <th>Recipient contact</th>
                         <th>Status</th>
+                        <th class="text-end pe-4">Details</th>
                       </tr>
                     </thead>
 
@@ -1762,6 +1763,15 @@
                                 {{ log.get_status_display }}
                               </span>
                             {% endif %}
+                          </td>
+
+                          <td class="text-end pe-4">
+                            <a
+                              href="{% url 'sales:communication-detail' log.pk %}"
+                              class="btn btn-outline-success btn-sm"
+                            >
+                              View communication
+                            </a>
                           </td>
 
                         </tr>

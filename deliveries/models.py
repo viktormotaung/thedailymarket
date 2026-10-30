@@ -1339,11 +1339,25 @@ class PickingItem(models.Model):
         self.sku = self.sku or product.sku or ""
         self.uom = self.uom or product.uom or ""
 
-        # New picking rows are fulfilled from warehouse inventory.
-        # Supplier / supplier-price fields are deliberately left blank
-        # so a price-list change can never redirect a warehouse pick.
-        self.supplier = None
-        self.expected_supplier_price = None
+        # Snapshot the cheapest active supplier price when this picking
+        # line is first created. The supplier and expected price are then
+        # preserved by the update logic above, so later price-list changes
+        # do not rewrite an existing picking record.
+        ProductPricing = apps.get_model("products", "ProductPricing")
+        pricing = (
+            ProductPricing.objects.using(self._state.db or "default")
+            .filter(product_id=product.pk, is_active=True)
+            .select_related("supplier")
+            .order_by("supplier_price_excl", "id")
+            .first()
+        )
+
+        if pricing:
+            self.supplier_id = pricing.supplier_id
+            self.expected_supplier_price = pricing.supplier_price_incl
+        else:
+            self.supplier = None
+            self.expected_supplier_price = None
 
         self.full_clean()
         super().save(*args, **kwargs)

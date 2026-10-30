@@ -67,6 +67,23 @@ urlpatterns = [
     path("clients/", views.clients, name="sales-clients"),
     path("clients/<int:pk>/edit/", views.edit_client, name="edit-client"),
     path("clients/<int:pk>/view/", views.view_client, name="client-detail"),
+    # Communication history and document access
+    path(
+        "clients/communications/<int:pk>/",
+        views.communication_detail,
+        name="communication-detail",
+    ),
+    path(
+        "clients/communication-documents/<int:pk>/view/",
+        views.communication_document_view,
+        name="communication-document-view",
+    ),
+    path(
+        "clients/communication-documents/<int:pk>/download/",
+        views.communication_document_download,
+        name="communication-document-download",
+    ),
+
 
 
     path("quotations/", views.quotations, name="sales-quotations"), 

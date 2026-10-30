@@ -1,0 +1,184 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Communication Details - The Daily Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root { --tdm-green: #0b5c39; }
+    body { background: #f5f7f6; color: #212529; }
+    .topbar { background: var(--tdm-green); color: #fff; }
+    .brand-logo { max-height: 48px; width: auto; }
+    .page-wrap { max-width: 1100px; }
+    .card { border: 0; box-shadow: 0 2px 12px rgba(0,0,0,.055); }
+    .section-label { color: #6c757d; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+    .message-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
+    .document-preview { width: 100%; min-height: 650px; border: 1px solid #dee2e6; border-radius: .5rem; background: #f8f9fa; }
+    @media (max-width: 767.98px) { .document-preview { min-height: 480px; } }
+  </style>
+</head>
+<body>
+  <nav class="navbar topbar">
+    <div class="container-fluid px-3 px-lg-4">
+      <a class="navbar-brand text-white d-flex align-items-center gap-2" href="{% url 'sales:client-detail' client.pk %}">
+        <img src="{% static 'images/logo.png' %}" alt="The Daily Market" class="brand-logo">
+        <span class="fw-semibold">The Daily Market</span>
+      </a>
+      <div class="text-white-50 small d-none d-sm-block">Sales Staff Platform</div>
+    </div>
+  </nav>
+
+  <main class="container page-wrap py-4 py-lg-5">
+    <div class="mb-4">
+      <a href="{% url 'sales:client-detail' client.pk %}" class="btn btn-link px-0 text-decoration-none">
+        &larr; Back to {{ client.organization|default:client.name }}
+      </a>
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mt-2">
+        <div>
+          <h1 class="h3 fw-semibold mb-1">Communication details</h1>
+          <div class="text-muted">{{ client.organization|default:client.name }} · {{ client.client_number }}</div>
+        </div>
+        <span class="badge rounded-pill
+          {% if communication.status == 'sent' %}text-bg-primary
+          {% elif communication.status == 'delivered' or communication.status == 'read' %}text-bg-success
+          {% elif communication.status == 'failed' %}text-bg-danger
+          {% elif communication.status == 'pending' %}text-bg-warning
+          {% else %}text-bg-secondary{% endif %}">
+          {{ communication.get_status_display|default:communication.status|title }}
+        </span>
+      </div>
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="card mb-4">
+      <div class="card-header bg-white fw-semibold py-3">Message information</div>
+      <div class="card-body">
+        <div class="row g-4">
+          <div class="col-md-4">
+            <div class="section-label mb-1">Channel</div>
+            <div class="fw-semibold">{{ communication.get_channel_display|default:communication.channel|title }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="section-label mb-1">Date created</div>
+            <div class="fw-semibold">{{ communication.created_at|date:"d M Y, H:i"|default:"—" }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="section-label mb-1">Sent at</div>
+            <div class="fw-semibold">{{ communication.sent_at|date:"d M Y, H:i"|default:"—" }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="section-label mb-1">Recipient</div>
+            <div class="fw-semibold">{{ communication.recipient_name|default:client.contact_person|default:client.name|default:"—" }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="section-label mb-1">Recipient contact</div>
+            <div class="fw-semibold">{{ communication.recipient_contact|default:"—" }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="section-label mb-1">Sent by</div>
+            <div class="fw-semibold">
+              {% if communication.sent_by %}
+                {{ communication.sent_by.get_full_name|default:communication.sent_by.username }}
+              {% else %}
+                System
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="section-label mb-1">Provider</div>
+            <div class="fw-semibold">{{ communication.provider|default:"—" }}</div>
+          </div>
+          {% if communication.delivered_at %}
+            <div class="col-md-6">
+              <div class="section-label mb-1">Delivered at</div>
+              <div class="fw-semibold">{{ communication.delivered_at|date:"d M Y, H:i" }}</div>
+            </div>
+          {% endif %}
+          {% if communication.read_at %}
+            <div class="col-md-6">
+              <div class="section-label mb-1">Read at</div>
+              <div class="fw-semibold">{{ communication.read_at|date:"d M Y, H:i" }}</div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header bg-white fw-semibold py-3">Message content</div>
+      <div class="card-body">
+        {% if communication.subject %}
+          <div class="mb-3">
+            <div class="section-label mb-1">Subject</div>
+            <div class="fw-semibold">{{ communication.subject }}</div>
+          </div>
+        {% endif %}
+        <div class="message-body">{{ communication.message|default:"No message content was saved for this communication." }}</div>
+      </div>
+    </div>
+
+    {% if communication.error_message %}
+      <div class="alert alert-danger mb-4">
+        <div class="fw-semibold mb-1">Sending error</div>
+        {{ communication.error_message }}
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
+        <span class="fw-semibold">Attached documents</span>
+        <span class="badge text-bg-secondary">{{ documents|length }} document{{ documents|length|pluralize }}</span>
+      </div>
+      <div class="card-body">
+        {% for doc in documents %}
+          <div class="border rounded p-3 mb-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <span class="fs-4" aria-hidden="true">📄</span>
+                <div>
+                  <div class="fw-semibold">{{ doc.filename|default:doc.file.name|default:"Attached document" }}</div>
+                  <div class="small text-muted">Added {{ doc.created_at|date:"d M Y, H:i"|default:"—" }}</div>
+                </div>
+              </div>
+              <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-outline-primary btn-sm" href="{% url 'sales:communication-document-view' doc.pk %}" target="_blank" rel="noopener noreferrer">View PDF</a>
+                <a class="btn btn-primary btn-sm" href="{% url 'sales:communication-document-download' doc.pk %}">Download PDF</a>
+              </div>
+            </div>
+            <div class="mt-3">
+              <iframe
+                class="document-preview"
+                src="{% url 'sales:communication-document-view' doc.pk %}"
+                title="PDF preview: {{ doc.filename|default:'Communication attachment' }}"
+                loading="lazy">
+              </iframe>
+            </div>
+          </div>
+        {% empty %}
+          <div class="text-center text-muted py-4">
+            <div class="fs-2 mb-2">📎</div>
+            <div class="fw-semibold">No documents attached</div>
+            <div class="small">This communication does not have any saved attachments.</div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end mt-4">
+      <a href="{% url 'sales:client-detail' client.pk %}" class="btn btn-outline-secondary">Back to client profile</a>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

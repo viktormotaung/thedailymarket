@@ -15650,3 +15650,199 @@ def funeral_quotation_change_status(request, pk):
         "sales:funeral-quotation-detail",
         pk=quotation.pk,
     )
+
+# ============================================================
+# CLIENT COMMUNICATION HISTORY
+# ============================================================
+
+@login_required
+def communication_detail(request, pk):
+    """
+    Display one communication sent to a Client.
+
+    Access follows the same Representative-only restriction
+    used by the client profile.
+    """
+    communication = get_object_or_404(
+        CommunicationLog.objects.select_related("sent_by"),
+        pk=pk,
+        related_model="Client",
+    )
+
+    client = get_object_or_404(
+        Client,
+        pk=communication.related_object_id,
+    )
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=request.user)
+        )
+        current_role_names = {
+            role.name for role in current_profile.roles.all()
+        }
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    if rep_only and client.account_manager_id != request.user.id:
+        messages.error(
+            request,
+            "You do not have access to this communication.",
+        )
+        return redirect("sales:clients")
+
+    documents = (
+        CommunicationDocs.objects
+        .filter(communication=communication)
+        .order_by("-created_at")
+    )
+
+    return render(
+        request,
+        "clients/communication_detail.html",
+        {
+            "client": client,
+            "communication": communication,
+            "documents": documents,
+        },
+    )
+
+
+@login_required
+def communication_document_view(request, pk):
+    """
+    Open a communication PDF in the browser.
+    """
+    from django.http import FileResponse
+
+    document = get_object_or_404(
+        CommunicationDocs.objects.select_related("communication"),
+        pk=pk,
+        communication__related_model="Client",
+    )
+
+    communication = document.communication
+    client = get_object_or_404(
+        Client,
+        pk=communication.related_object_id,
+    )
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=request.user)
+        )
+        current_role_names = {
+            role.name for role in current_profile.roles.all()
+        }
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    if rep_only and client.account_manager_id != request.user.id:
+        return HttpResponseForbidden(
+            "You do not have permission to view this document."
+        )
+
+    if not document.file:
+        raise Http404("The requested document is unavailable.")
+
+    filename = (
+        document.filename
+        or document.file.name.rsplit("/", 1)[-1]
+    )
+
+    if not filename.lower().endswith(".pdf"):
+        raise Http404("This attachment is not a PDF document.")
+
+    try:
+        file_handle = document.file.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404("The requested document could not be found.")
+
+    return FileResponse(
+        file_handle,
+        content_type="application/pdf",
+        as_attachment=False,
+        filename=filename,
+    )
+
+
+@login_required
+def communication_document_download(request, pk):
+    """
+    Download a communication PDF attachment.
+    """
+    from django.http import FileResponse
+
+    document = get_object_or_404(
+        CommunicationDocs.objects.select_related("communication"),
+        pk=pk,
+        communication__related_model="Client",
+    )
+
+    communication = document.communication
+    client = get_object_or_404(
+        Client,
+        pk=communication.related_object_id,
+    )
+
+    try:
+        current_profile = (
+            SalesRepProfile.objects
+            .prefetch_related("roles")
+            .get(user=request.user)
+        )
+        current_role_names = {
+            role.name for role in current_profile.roles.all()
+        }
+    except SalesRepProfile.DoesNotExist:
+        current_profile = None
+        current_role_names = set()
+
+    rep_only = (
+        current_profile is not None
+        and current_role_names == {"Representative"}
+    )
+
+    if rep_only and client.account_manager_id != request.user.id:
+        return HttpResponseForbidden(
+            "You do not have permission to download this document."
+        )
+
+    if not document.file:
+        raise Http404("The requested document is unavailable.")
+
+    filename = (
+        document.filename
+        or document.file.name.rsplit("/", 1)[-1]
+    )
+
+    if not filename.lower().endswith(".pdf"):
+        raise Http404("This attachment is not a PDF document.")
+
+    try:
+        file_handle = document.file.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404("The requested document could not be found.")
+
+    return FileResponse(
+        file_handle,
+        content_type="application/pdf",
+        as_attachment=True,
+        filename=filename,
+    )
