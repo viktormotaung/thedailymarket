@@ -1,3 +1,6 @@
+from io import BytesIO
+import logging
+
 from django.core.files.base import ContentFile
 from django.core.mail import EmailMultiAlternatives
 from django.db.models.signals import pre_save, post_save
@@ -11,6 +14,9 @@ from xhtml2pdf import pisa
 from clients.models import Client
 from communications.models import CommunicationLog, CommunicationDocs
 from communications.services.smsportal import send_sms
+
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -112,6 +118,7 @@ def client_post_save(sender, instance, created, **kwargs):
     # WELCOME SMS
     # ==================================================
 
+
     if instance.phone:
 
         sms_message = (
@@ -128,18 +135,25 @@ def client_post_save(sender, instance, created, **kwargs):
             f"Thank you for choosing The Daily Market."
         )
 
-        send_sms(
-            to=instance.phone,
-            message=sms_message,
-            client=instance,
-        )
-
+        try:
+            send_sms(
+                to=instance.phone,
+                message=sms_message,
+                client=instance,
+            )
+        except Exception:
+            logger.exception(
+                "Welcome SMS sending failed for Client ID %s",
+                instance.pk,
+            )
+            raise
     # ==================================================
     # WELCOME EMAIL
     # ==================================================
 
     if not instance.email:
         return
+
 
     email_subject = "Welcome to The Daily Market"
 
@@ -157,19 +171,33 @@ def client_post_save(sender, instance, created, **kwargs):
     # Render plain-text email
     # --------------------------------------------------
 
-    text_content = render_to_string(
-        "emails/client/welcome.txt",
-        email_context,
-    )
+    try:
+        text_content = render_to_string(
+            "emails/client/welcome.txt",
+            email_context,
+        )
+    except Exception:
+        logger.exception(
+            "Welcome plain-text email template rendering failed for Client ID %s",
+            instance.pk,
+        )
+        raise
 
     # --------------------------------------------------
     # Render HTML email
     # --------------------------------------------------
 
-    html_content = render_to_string(
-        "emails/client/welcome.html",
-        email_context,
-    )
+    try:
+        html_content = render_to_string(
+            "emails/client/welcome.html",
+            email_context,
+        )
+    except Exception:
+        logger.exception(
+            "Welcome HTML email template rendering failed for Client ID %s",
+            instance.pk,
+        )
+        raise
 
     # ==================================================
     # FROM EMAIL
@@ -204,6 +232,7 @@ def client_post_save(sender, instance, created, **kwargs):
     # CREATE EMAIL COMMUNICATION LOG
     # ==================================================
 
+
     email_log = CommunicationLog.objects.create(
         channel=CommunicationLog.CHANNEL_EMAIL,
         status=CommunicationLog.STATUS_PENDING,
@@ -222,9 +251,11 @@ def client_post_save(sender, instance, created, **kwargs):
 
     welcome_filename = f"Welcome, {customer_name}.pdf"
 
+    # --------------------------------------------------
+    # PDF GENERATION
+    # --------------------------------------------------
+
     try:
-        # Generate the PDF from the same rendered HTML used by
-        # the actual email. xhtml2pdf uses print-oriented rendering.
         pdf_buffer = BytesIO()
 
         pdf_status = pisa.CreatePDF(
@@ -235,8 +266,8 @@ def client_post_save(sender, instance, created, **kwargs):
 
         if pdf_status.err:
             raise Exception(
-                "xhtml2pdf reported an error while "
-                "generating the welcome PDF."
+                "xhtml2pdf reported an error while generating "
+                "the welcome PDF."
             )
 
         welcome_pdf = pdf_buffer.getvalue()
@@ -247,19 +278,32 @@ def client_post_save(sender, instance, created, **kwargs):
                 "xhtml2pdf generated an empty welcome PDF."
             )
 
+
     except Exception as exc:
+        error_detail = (
+            f"PDF generation failed ({type(exc).__name__}): {exc}"
+        )
+
+        logger.exception(
+            "Welcome email PDF generation failed for Client ID %s",
+            instance.pk,
+        )
 
         email_log.status = CommunicationLog.STATUS_FAILED
-        email_log.error_message = (
-            f"Welcome PDF generation failed: {exc}"
-        )
+        email_log.error_message = error_detail
         email_log.failed_at = timezone.now()
+        email_log.provider_response = {
+            "stage": "pdf_generation",
+            "exception_type": type(exc).__name__,
+            "exception": str(exc),
+        }
 
         email_log.save(
             update_fields=[
                 "status",
                 "error_message",
                 "failed_at",
+                "provider_response",
                 "updated_at",
             ]
         )
@@ -271,7 +315,6 @@ def client_post_save(sender, instance, created, **kwargs):
     # ==================================================
 
     try:
-
         email = EmailMultiAlternatives(
             subject=email_subject,
             body=text_content,
@@ -279,18 +322,10 @@ def client_post_save(sender, instance, created, **kwargs):
             to=[instance.email],
         )
 
-        # --------------------------------------------------
-        # HTML EMAIL
-        # --------------------------------------------------
-
         email.attach_alternative(
             html_content,
             "text/html",
         )
-
-        # --------------------------------------------------
-        # ATTACH WELCOME PDF
-        # --------------------------------------------------
 
         email.attach(
             welcome_filename,
@@ -298,38 +333,75 @@ def client_post_save(sender, instance, created, **kwargs):
             "application/pdf",
         )
 
-        # --------------------------------------------------
-        # SEND
-        # --------------------------------------------------
 
-        email.send(
-            fail_silently=False,
+        # fail_silently=False is intentional: capture provider errors.
+        sent_count = email.send(fail_silently=False)
+
+
+    except Exception as exc:
+        error_detail = (
+            f"Email sending failed ({type(exc).__name__}): {exc}"
         )
 
-        # ==================================================
-        # EMAIL SENT SUCCESSFULLY
-        # ==================================================
+        logger.exception(
+            "Welcome email sending failed for Client ID %s to %s",
+            instance.pk,
+            instance.email,
+        )
 
-        email_log.status = CommunicationLog.STATUS_SENT
-        email_log.sent_at = timezone.now()
-        email_log.error_message = None
+        email_log.status = CommunicationLog.STATUS_FAILED
+        email_log.error_message = error_detail
+        email_log.failed_at = timezone.now()
+        email_log.provider_response = {
+            "stage": "email_send",
+            "exception_type": type(exc).__name__,
+            "exception": str(exc),
+            "recipient": instance.email,
+        }
 
         email_log.save(
             update_fields=[
                 "status",
-                "sent_at",
                 "error_message",
+                "failed_at",
+                "provider_response",
                 "updated_at",
             ]
         )
 
-        # ==================================================
-        # SAVE PDF TO COMMUNICATIONDOCS
-        # ==================================================
+        return
 
-        # Save a fresh PDF for this activation communication.
-        # Do not reuse an older PDF: it may have been generated
-        # from an earlier version of the welcome template.
+    # ==================================================
+    # EMAIL SENT SUCCESSFULLY
+    # ==================================================
+
+    email_log.status = CommunicationLog.STATUS_SENT
+    email_log.sent_at = timezone.now()
+    email_log.error_message = None
+    email_log.provider_response = {
+        "stage": "email_sent",
+        "recipient": instance.email,
+        "pdf_attached": True,
+    }
+
+    email_log.save(
+        update_fields=[
+            "status",
+            "sent_at",
+            "error_message",
+            "provider_response",
+            "updated_at",
+        ]
+    )
+
+
+    # ==================================================
+    # SAVE PDF TO COMMUNICATIONDOCS
+    # ==================================================
+    # Archiving is deliberately separate from sending. If storage
+    # fails, do not incorrectly mark an email that was sent as FAILED.
+
+    try:
         communication_doc = CommunicationDocs(
             communication=email_log,
             filename=welcome_filename,
@@ -342,20 +414,31 @@ def client_post_save(sender, instance, created, **kwargs):
         )
 
     except Exception as exc:
+        error_detail = (
+            "Email was sent successfully, but saving the PDF to "
+            f"CommunicationDocs failed ({type(exc).__name__}): {exc}"
+        )
 
-        # --------------------------------------------------
-        # Log email / document failure
-        # --------------------------------------------------
+        logger.exception(
+            "Welcome email was sent, but PDF archiving failed "
+            "for Client ID %s",
+            instance.pk,
+        )
 
-        email_log.status = CommunicationLog.STATUS_FAILED
-        email_log.error_message = str(exc)
-        email_log.failed_at = timezone.now()
+        email_log.error_message = error_detail
+        email_log.provider_response = {
+            "stage": "pdf_archive",
+            "email_sent": True,
+            "exception_type": type(exc).__name__,
+            "exception": str(exc),
+        }
 
         email_log.save(
             update_fields=[
-                "status",
                 "error_message",
-                "failed_at",
+                "provider_response",
                 "updated_at",
             ]
         )
+
+

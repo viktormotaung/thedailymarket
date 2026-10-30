@@ -1,13 +1,12 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-
-    <title>Welcome to The Daily Market</title>
-
-    <style>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="IE=edge" http-equiv="X-UA-Compatible"/>
+<title>Welcome to The Daily Market</title>
+<style>
 
         /* =========================================================
            GENERAL
@@ -662,76 +661,47 @@
 
     </style>
 </head>
-
-<body>
-
-
+<body style="margin:0; padding:0; background-color:#f5f6f4; font-family:Arial,Helvetica,sans-serif; color:#252525;">
 <!-- =============================================================
      EMAIL VERSION
      ============================================================= -->
-
-<div class="email-version">
-
-    <table role="presentation" width="100%">
-        <tr>
-            <td class="email-wrapper">
-
-                <table
-                    role="presentation"
-                    class="email-container"
-                    align="center"
-                    width="100%"
-                    cellpadding="0"
-                    cellspacing="0"
-                >
-
-                    <!-- HEADER -->
-
-                    <tr>
-                        <td class="email-header">
-
-                            <p class="email-brand">
+<div class="email-version" style="display: block;">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse; border-spacing:0;" width="100%">
+<tr>
+<td bgcolor="#f5f6f4" class="email-wrapper" style="width: 100%; background-color: #f5f6f4; padding: 35px 15px; box-sizing: border-box;">
+<table align="center" bgcolor="#ffffff" border="0" cellpadding="0" cellspacing="0" class="email-container" role="presentation" style="width: 100%; max-width: 680px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e1e4e1; border-radius: 14px; overflow: hidden; border-collapse:collapse; border-spacing:0; width:100%; max-width:680px;" width="100%">
+<!-- HEADER -->
+<tr>
+<td bgcolor="#ffffff" class="email-header" style="background-color: #ffffff; padding: 35px 40px 25px 40px; text-align: center;">
+<p class="email-brand" style="font-size: 30px; font-weight: 800; letter-spacing: -1px; color: #08683f; margin: 0;">
                                 The
-                                <span class="email-brand-highlight">Daily</span>
-                                <span class="email-brand-highlight">Market</span>
-                            </p>
-
-                            <p class="email-tagline">
+                                <span class="email-brand-highlight" style="background-color: transparent; color: #252525; padding: 0;">Daily</span>
+<span class="email-brand-highlight" style="background-color: transparent; color: #252525; padding: 0;">Market</span>
+</p>
+<p class="email-tagline" style="margin: 10px 0 0 0; color: #68716d; font-size: 15px; line-height: 1.5;">
                                 Your kitchen. Our supply. Growing together.
                             </p>
-
-                        </td>
-                    </tr>
-
-
-                    <!-- HERO -->
-
-                    <tr>
-                        <td class="email-hero">
-
-                            <h1 class="email-hero-title">
+</td>
+</tr>
+<!-- HERO -->
+<tr>
+<td bgcolor="#08683f" class="email-hero" style="background-color: #08683f; padding: 32px 40px; color: #ffffff;">
+<h1 class="email-hero-title" style="margin: 0 0 10px 0; font-size: 28px; line-height: 1.2; font-weight: 700;">
                                 Welcome to The Daily Market.
                             </h1>
-
-                            <p class="email-hero-text">
+<p class="email-hero-text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #eef8f3;">
                                 Your kitchen is now active, and we're ready to
                                 partner with you for the journey ahead.
                             </p>
-
-                        </td>
-                    </tr>
-
-
-                    <!-- CONTENT -->
-
-                    <tr>
-                        <td class="email-content">
-
-                            <p class="email-greeting">
+</td>
+</tr>
+<!-- CONTENT -->
+<tr>
+<td class="email-content" style="padding: 35px 40px 40px 40px;">
+<p class="email-greeting" style="font-size: 17px; margin: 0 0 20px 0;">
                                 Hi {{ customer_name }},
                             </p>
-
-                            <p class="email-paragraph">
+<p class="email-paragraph" style="font-size: 15px; line-height: 1.7; color: #444b48; margin: 0 0 18px 0;">
                                 Welcome to <strong>The Daily Market</strong>.
                                 We're pleased to have you with us and look
                                 forward to partnering with you to help your
@@ -739,106 +709,67 @@
                                 <strong>
                                     trade better, stay stocked and grow.
                                 </strong>
-                            </p>
-
-                            <p class="email-paragraph">
+</p>
+<p class="email-paragraph" style="font-size: 15px; line-height: 1.7; color: #444b48; margin: 0 0 18px 0;">
                                 Our aim is to make getting your everyday
                                 kitchen essentials as simple and reliable as
                                 possible — from placing your order, to
                                 preparing your goods, to getting them
                                 delivered to your kitchen.
                             </p>
-
-
-                            <!-- CUSTOMER CODE -->
-
-                            <div class="email-highlight-box">
-
-                                <p class="email-highlight-label">
+<!-- CUSTOMER CODE -->
+<div class="email-highlight-box" style="background-color: #f8f4e7; border-left: 4px solid #f1cc5b; padding: 18px 20px; margin: 25px 0 30px 0; border-radius: 0 8px 8px 0;">
+<p class="email-highlight-label" style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; color: #68716d; margin: 0 0 6px 0;">
                                     Your Customer Code
                                 </p>
-
-                                <p class="email-customer-code">
+<p class="email-customer-code" style="font-size: 22px; font-weight: 700; color: #08683f; margin: 0; letter-spacing: 0.5px;">
                                     {{ client.client_number }}
                                 </p>
-
-                            </div>
-
-
-                            <!-- ACCOUNT MANAGER -->
-
-                            <div class="email-section">
-
-                                <h2 class="email-section-title">
+</div>
+<!-- ACCOUNT MANAGER -->
+<div class="email-section" style="margin-top: 34px;">
+<h2 class="email-section-title" style="font-size: 20px; line-height: 1.3; font-weight: 700; color: #08683f; margin: 0 0 12px 0;">
                                     Your Account Manager
                                 </h2>
-
-                                <p class="email-section-intro">
-                                    Your first point of contact for orders
-                                    and product enquiries is your
-                                    <strong>
-                                        Account Manager,
-                                        {{ account_manager_name }}
-                                    </strong>.
-                                </p>
-
-                                <p class="email-paragraph">
+<p class="email-section-intro" style="font-size: 15px; line-height: 1.7; color: #444b48; margin: 0 0 18px 0;">Your first point of contact for orders and product enquiries is {% if client.account_manager and client.account_manager.first_name %}your Account Manager, {{ account_manager_name }}{% else %}our customer support team{% endif %}.</p>
+<p class="email-paragraph" style="font-size: 15px; line-height: 1.7; color: #444b48; margin: 0 0 18px 0;">
                                     To place an order, discuss products,
                                     check availability or enquire about
                                     pricing, please communicate directly
                                     with your Account Manager.
                                 </p>
-
-                                <p class="email-paragraph">
+<p class="email-paragraph" style="font-size: 15px; line-height: 1.7; color: #444b48; margin: 0 0 18px 0;">
                                     If your Account Manager is unavailable,
                                     an alternative contact number will be
                                     provided so that your order or enquiry
                                     can still be assisted.
                                 </p>
-
-                            </div>
-
-
-                            <div class="email-rule"></div>
-
-
-                            <!-- ORDERING -->
-
-                            <div class="email-section">
-
-                                <h2 class="email-section-title">
+</div>
+<div class="email-rule" style="border-top: 1px solid #e5e8e5; margin: 32px 0;"></div>
+<!-- ORDERING -->
+<div class="email-section" style="margin-top: 34px;">
+<h2 class="email-section-title" style="font-size: 20px; line-height: 1.3; font-weight: 700; color: #08683f; margin: 0 0 12px 0;">
                                     How Ordering Works
                                 </h2>
-
-                                <div class="email-info-card">
-
-                                    <p class="email-info-card-title">
+<div class="email-info-card" style="background-color: #f7f8f7; border: 1px solid #e3e7e4; border-radius: 10px; padding: 20px; margin: 14px 0;">
+<p class="email-info-card-title" style="font-size: 15px; font-weight: 700; color: #252525; margin: 0 0 8px 0;">
                                         🕢 Orders must be placed and confirmed
                                         by 7:30 AM
                                     </p>
-
-                                    <p class="email-info-card-text">
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0;">
                                         To keep our delivery operation running
                                         on schedule, orders must be
                                         <strong>
                                             placed and confirmed by 7:30 AM
                                             each day.
                                         </strong>
-                                    </p>
-
-                                    <p
-                                        class="email-info-card-text"
-                                        style="margin-top: 10px;"
-                                    >
+</p>
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0; margin-top: 10px;">
                                         To keep our delivery operation running
                                         on schedule, orders must be placed and
                                         confirmed by 7:30 AM each day.
                                     </p>
-
-                                    <p
-                                        class="email-info-card-text"
-                                        style="margin-top: 10px;"
-                                    >
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0; margin-top: 10px;">
                                         This gives our team enough time to
                                         prepare your order and organise the
                                         day's deliveries. Orders confirmed
@@ -846,57 +777,42 @@
                                         accommodated for the same day's
                                         delivery.
                                     </p>
-
-                                </div>
-
-                            </div>
-
-
-                            <!-- PAYMENT -->
-
-                            <div class="email-section">
-
-                                <h2 class="email-section-title">
+</div>
+</div>
+<!-- PAYMENT -->
+<div class="email-section" style="margin-top: 34px;">
+<h2 class="email-section-title" style="font-size: 20px; line-height: 1.3; font-weight: 700; color: #08683f; margin: 0 0 12px 0;">
                                     Payment Terms
                                 </h2>
-
-                                <p class="email-section-intro">
+<p class="email-section-intro" style="font-size: 15px; line-height: 1.7; color: #444b48; margin: 0 0 18px 0;">
                                     Payment must be confirmed before delivery.
                                     The applicable payment arrangement depends
                                     on whether you are trading on standard
                                     prepaid terms or have been approved for
                                     TradeAssist buying power.
                                 </p>
-
-                                <div class="email-info-card">
-
-                                    <p class="email-info-card-title">
+<div class="email-info-card" style="background-color: #f7f8f7; border: 1px solid #e3e7e4; border-radius: 10px; padding: 20px; margin: 14px 0;">
+<p class="email-info-card-title" style="font-size: 15px; font-weight: 700; color: #252525; margin: 0 0 8px 0;">
                                         Standard Prepaid Customers
                                     </p>
-
-                                    <p class="email-info-card-text">
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0;">
                                         The full invoice amount must be paid,
                                         and the funds must reflect in
                                         <strong>The Daily Market's business
                                         account by 8:00 AM on your scheduled
                                         delivery day.</strong>
-                                    </p>
-
-                                    <p class="email-info-card-text" style="margin-top: 10px;">
+</p>
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0; margin-top: 10px;">
                                         Your order will proceed for delivery
                                         once the required payment has been
                                         confirmed.
                                     </p>
-
-                                </div>
-
-                                <div class="email-info-card" style="background-color:#f0f6f1; border:2px solid #08683f;">
-
-                                    <p class="email-info-card-title" style="color:#08683f;">
+</div>
+<div class="email-info-card" style="background-color: #f7f8f7; border: 1px solid #e3e7e4; border-radius: 10px; padding: 20px; margin: 14px 0; background-color:#f0f6f1; border:2px solid #08683f;">
+<p class="email-info-card-title" style="font-size: 15px; font-weight: 700; color: #252525; margin: 0 0 8px 0; color:#08683f;">
                                         An Opportunity to Access TradeAssist Buying Power
                                     </p>
-
-                                    <p class="email-info-card-text">
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0;">
                                         You do not start with buying power.
                                         Customers begin by trading with
                                         The Daily Market on prepaid terms.
@@ -905,70 +821,53 @@
                                         business may qualify for an assessment
                                         for TradeAssist.
                                     </p>
-
-                                    <p class="email-info-card-text" style="margin-top: 10px;">
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0; margin-top: 10px;">
                                         Depending on your trading activity
                                         and approval, you may qualify for one
                                         of the following arrangements:
                                     </p>
-
-                                    <p class="email-info-card-text" style="margin-top: 10px;">
-                                        <strong>1. One-in-one-out</strong><br>
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0; margin-top: 10px;">
+<strong>1. One-in-one-out</strong><br/>
                                         You settle one purchase before making
                                         the next purchase under the
                                         arrangement. This allows you to
                                         continue trading while keeping each
                                         purchase linked to its settlement.
                                     </p>
-
-                                    <p class="email-info-card-text" style="margin-top: 10px;">
-                                        <strong>2. 3-day buying power</strong><br>
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0; margin-top: 10px;">
+<strong>2. 3-day buying power</strong><br/>
                                         You pay the approved upfront portion
                                         by <strong>8:00 AM on your scheduled
                                         delivery day</strong>. The remaining
                                         balance is then due within the
                                         approved three-day payment term.
                                     </p>
-
-                                    <p class="email-info-card-text" style="margin-top: 10px;">
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0; margin-top: 10px;">
                                         TradeAssist is a separate business
                                         that partners with The Daily Market.
                                         Buying power is subject to assessment,
                                         approval and the terms confirmed for
                                         your food business.
                                     </p>
-
-                                </div>
-
-                            </div>
-
-
-                            <!-- DELIVERY -->
-
-                            <div class="email-section">
-
-                                <h2 class="email-section-title">
+</div>
+</div>
+<!-- DELIVERY -->
+<div class="email-section" style="margin-top: 34px;">
+<h2 class="email-section-title" style="font-size: 20px; line-height: 1.3; font-weight: 700; color: #08683f; margin: 0 0 12px 0;">
                                     Delivery
                                 </h2>
-
-                                <div class="email-info-card">
-
-                                    <p class="email-info-card-title">
+<div class="email-info-card" style="background-color: #f7f8f7; border: 1px solid #e3e7e4; border-radius: 10px; padding: 20px; margin: 14px 0;">
+<p class="email-info-card-title" style="font-size: 15px; font-weight: 700; color: #252525; margin: 0 0 8px 0;">
                                         Monday to Friday · 9:00 AM – 12:00 PM
                                     </p>
-
-                                    <p class="email-info-card-text">
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0;">
                                         Deliveries take place
                                         <strong>
                                             Monday to Friday between
                                             9:00 AM and 12:00 PM.
                                         </strong>
-                                    </p>
-
-                                    <p
-                                        class="email-info-card-text"
-                                        style="margin-top: 10px;"
-                                    >
+</p>
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0; margin-top: 10px;">
                                         On the morning of your delivery, you
                                         will receive an
                                         <strong>
@@ -979,62 +878,42 @@
                                         <strong>
                                             8:00 AM and 8:30 AM.
                                         </strong>
-                                    </p>
-
-                                </div>
-
-
-                                <div class="email-info-card">
-
-                                    <p class="email-info-card-title">
+</p>
+</div>
+<div class="email-info-card" style="background-color: #f7f8f7; border: 1px solid #e3e7e4; border-radius: 10px; padding: 20px; margin: 14px 0;">
+<p class="email-info-card-title" style="font-size: 15px; font-weight: 700; color: #252525; margin: 0 0 8px 0;">
                                         Please make sure someone is available
                                     </p>
-
-                                    <p class="email-info-card-text">
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0;">
                                         Please ensure that
                                         <strong>
                                             someone is present at your kitchen
                                             to receive the delivery.
                                         </strong>
-                                    </p>
-
-                                    <p
-                                        class="email-info-card-text"
-                                        style="margin-top: 10px;"
-                                    >
+</p>
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0; margin-top: 10px;">
                                         Our delivery schedule is planned
                                         around multiple kitchens, and delays
                                         at one delivery can negatively affect
                                         the schedule for the kitchens that
                                         follow.
                                     </p>
-
-                                    <p
-                                        class="email-info-card-text"
-                                        style="margin-top: 10px;"
-                                    >
+<p class="email-info-card-text" style="font-size: 14px; line-height: 1.65; color: #555e5a; margin: 0; margin-top: 10px;">
                                         Having someone ready to receive and
                                         check your goods helps us keep
                                         deliveries
                                         <strong>
                                             on time and efficient for everyone.
                                         </strong>
-                                    </p>
-
-                                </div>
-
-                            </div>
-
-
-                            <!-- PARTNERSHIP -->
-
-                            <div class="email-partnership">
-
-                                <h2 class="email-partnership-title">
+</p>
+</div>
+</div>
+<!-- PARTNERSHIP -->
+<div class="email-partnership" style="background-color: #08683f; color: #ffffff; border-radius: 10px; padding: 25px; margin-top: 25px;">
+<h2 class="email-partnership-title" style="margin: 0 0 10px 0; font-size: 19px; font-weight: 700;">
                                     We're here to help your kitchen grow.
                                 </h2>
-
-                                <p class="email-partnership-text">
+<p class="email-partnership-text" style="margin: 0; font-size: 14px; line-height: 1.7; color: #eef8f3;">
                                     At The Daily Market, we don't just want to
                                     deliver products to your kitchen.
                                     We want to become a reliable trading
@@ -1042,355 +921,231 @@
                                     the products you use most and the way your
                                     business operates.
                                 </p>
-
-                                <p
-                                    class="email-partnership-text"
-                                    style="margin-top: 12px;"
-                                >
+<p class="email-partnership-text" style="margin: 0; font-size: 14px; line-height: 1.7; color: #eef8f3; margin-top: 12px;">
                                     As we trade together, our team can better
                                     understand your needs and help you make
                                     smarter purchasing decisions.
                                 </p>
-
-                            </div>
-
-
-                            <!-- CONTACT -->
-
-                            <div class="email-contact-box">
-
-                                <p class="email-contact-title">
+</div>
+<!-- CONTACT -->
+<div class="email-contact-box" style="background-color: #f8f4e7; border-radius: 10px; padding: 22px; margin-top: 28px;">
+<p class="email-contact-title" style="margin: 0 0 8px 0; font-size: 17px; font-weight: 700; color: #252525;">
                                     Need assistance?
                                 </p>
-
-                                <p class="email-contact-text">
-                                    Your first point of contact is
-                                    <strong>
-                                        {{ account_manager_name }}
-                                    </strong>,
-                                    your Account Manager.
-                                </p>
-
-                                <p
-                                    class="email-contact-text"
-                                    style="margin-top: 8px;"
-                                >
+<p class="email-contact-text" style="margin: 0; font-size: 14px; line-height: 1.6; color: #555e5a;">Your first point of contact is {% if client.account_manager and client.account_manager.first_name %}{{ account_manager_name }}, your Account Manager{% else %}our customer support team{% endif %}.</p>
+<p class="email-contact-text" style="margin: 0; font-size: 14px; line-height: 1.6; color: #555e5a; margin-top: 8px;">
                                     For urgent queries, please contact
                                     <strong>
                                         087 265 5488
                                     </strong>.
                                 </p>
-
-                            </div>
-
-
-                            <!-- CLOSING -->
-
-                            <p class="email-paragraph" style="margin-top: 30px;">
-                                <strong>
+</div>
+<!-- CLOSING -->
+<p class="email-paragraph" style="font-size: 15px; line-height: 1.7; color: #444b48; margin: 0 0 18px 0; margin-top: 30px;">
+<strong>
                                     Welcome to The Daily Market.
                                 </strong>
-                                <br>
+<br/>
                                 Let's grow your kitchen together.
                             </p>
-
-                            <p class="email-paragraph">
+<p class="email-paragraph" style="font-size: 15px; line-height: 1.7; color: #444b48; margin: 0 0 18px 0;">
                                 — The Daily Market Team
                             </p>
-
-                        </td>
-                    </tr>
-
-
-                    <!-- FOOTER -->
-
-                    <tr>
-                        <td class="email-footer">
-
-                            <p class="email-footer-brand">
+</td>
+</tr>
+<!-- FOOTER -->
+<tr>
+<td bgcolor="#252525" class="email-footer" style="background-color: #252525; padding: 25px 35px; text-align: center;">
+<p class="email-footer-brand" style="color: #ffffff; font-size: 16px; font-weight: 700; margin: 0 0 7px 0;">
                                 The Daily Market
                             </p>
-
-                            <p class="email-footer-tagline">
+<p class="email-footer-tagline" style="color: #bfc6c2; font-size: 12px; margin: 0; line-height: 1.5;">
                                 Your kitchen. Our supply. Growing together.
                             </p>
-
-                            <p class="email-footer-note">
+<p class="email-footer-note" style="color: #8f9893; font-size: 11px; line-height: 1.5; margin: 15px 0 0 0;">
                                 Please keep this email for future reference.
                                 It contains important information about our
                                 ordering, payment and delivery procedures.
                             </p>
-
-                        </td>
-                    </tr>
-
-                </table>
-
-            </td>
-        </tr>
-    </table>
-
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
 </div>
-
-
-
 <!-- =============================================================
      PDF VERSION
      ============================================================= -->
-
 <div class="pdf-version">
-
-    <div class="pdf-page">
-
-        <!-- PDF HEADER -->
-
-        <div class="pdf-header">
-
-            <p class="pdf-brand">
+<div class="pdf-page">
+<!-- PDF HEADER -->
+<div class="pdf-header">
+<p class="pdf-brand">
                 The
                 <span class="pdf-brand-highlight">Daily</span>
-                <span class="pdf-brand-highlight">Market</span>
-            </p>
-
-            <p class="pdf-tagline">
+<span class="pdf-brand-highlight">Market</span>
+</p>
+<p class="pdf-tagline">
                 Your kitchen. Our supply. Growing together.
             </p>
-
-        </div>
-
-
-        <!-- PDF HERO -->
-
-        <div class="pdf-hero">
-
-            <h1 class="pdf-hero-title">
+</div>
+<!-- PDF HERO -->
+<div class="pdf-hero">
+<h1 class="pdf-hero-title">
                 Welcome to The Daily Market.
             </h1>
-
-            <p class="pdf-hero-text">
+<p class="pdf-hero-text">
                 Your kitchen is now active, and we're ready to partner
                 with you for the journey ahead.
             </p>
-
-        </div>
-
-
-        <!-- PDF GREETING -->
-
-        <p class="pdf-greeting">
+</div>
+<!-- PDF GREETING -->
+<p class="pdf-greeting">
             Hi {{ customer_name }},
         </p>
-
-
-        <p class="pdf-paragraph">
+<p class="pdf-paragraph">
             Welcome to <strong>The Daily Market</strong>.
             We're pleased to have you with us and look forward to
             partnering with you to help your kitchen
             <strong>
                 trade better, stay stocked and grow.
             </strong>
-        </p>
-
-        <p class="pdf-paragraph">
+</p>
+<p class="pdf-paragraph">
             Our aim is to make getting your everyday kitchen essentials
             as simple and reliable as possible — from placing your order,
             to preparing your goods, to getting them delivered to your
             kitchen.
         </p>
-
-
-        <!-- CUSTOMER CODE -->
-
-        <div class="pdf-highlight-box">
-
-            <p class="pdf-highlight-label">
+<!-- CUSTOMER CODE -->
+<div class="pdf-highlight-box">
+<p class="pdf-highlight-label">
                 Your Customer Code
             </p>
-
-            <p class="pdf-customer-code">
+<p class="pdf-customer-code">
                 {{ client.client_number }}
             </p>
-
-        </div>
-
-
-        <!-- ACCOUNT MANAGER -->
-
-        <div class="pdf-section">
-
-            <h2 class="pdf-section-title">
+</div>
+<!-- ACCOUNT MANAGER -->
+<div class="pdf-section">
+<h2 class="pdf-section-title">
                 Your Account Manager
             </h2>
-
-            <p class="pdf-section-intro">
-                Your first point of contact for orders and product
-                enquiries is your
-                <strong>
-                    Account Manager, {{ account_manager_name }}
-                </strong>.
-            </p>
-
-            <p class="pdf-paragraph">
+<p class="pdf-section-intro">Your first point of contact for orders and product enquiries is {% if client.account_manager and client.account_manager.first_name %}your Account Manager, {{ account_manager_name }}{% else %}our customer support team{% endif %}.</p>
+<p class="pdf-paragraph">
                 To place an order, discuss products, check availability
                 or enquire about pricing, please communicate directly
                 with your Account Manager.
             </p>
-
-            <p class="pdf-paragraph">
+<p class="pdf-paragraph">
                 If your Account Manager is unavailable, an alternative
                 contact number will be provided so that your order or
                 enquiry can still be assisted.
             </p>
-
-        </div>
-
-
-        <div class="pdf-rule"></div>
-
-
-        <!-- ORDERING -->
-
-        <div class="pdf-section">
-
-            <h2 class="pdf-section-title">
+</div>
+<div class="pdf-rule"></div>
+<!-- ORDERING -->
+<div class="pdf-section">
+<h2 class="pdf-section-title">
                 How Ordering Works
             </h2>
-
-            <div class="pdf-info-card">
-
-                <p class="pdf-info-card-title">
+<div class="pdf-info-card">
+<p class="pdf-info-card-title">
                     🕢 Orders must be placed and confirmed by 7:30 AM
                 </p>
-
-                <p class="pdf-info-card-text">
+<p class="pdf-info-card-text">
                     To keep our delivery operation running on schedule,
                     orders must be
                     <strong>
                         placed and confirmed by 7:30 AM each day.
                     </strong>
-                </p>
-
-                <p
-                    class="pdf-info-card-text"
-                    style="margin-top: 8px;"
-                >
+</p>
+<p class="pdf-info-card-text" style="margin-top: 8px;">
                     This gives our team enough time to prepare your order
                     and organise the day's deliveries. Orders confirmed
                     after the daily cut-off may not be accommodated for
                     the same day's delivery.
                 </p>
-
-            </div>
-
-        </div>
-
-
-        <!-- PAYMENT -->
-
-        <div class="pdf-section">
-
-            <h2 class="pdf-section-title">
+</div>
+</div>
+<!-- PAYMENT -->
+<div class="pdf-section">
+<h2 class="pdf-section-title">
                 Payment Terms
             </h2>
-
-            <p class="pdf-section-intro">
+<p class="pdf-section-intro">
                 Payment must be confirmed before delivery. The applicable
                 payment arrangement depends on whether you are trading on
                 standard prepaid terms or have been approved for TradeAssist
                 buying power.
             </p>
-
-            <div class="pdf-info-card">
-
-                <p class="pdf-info-card-title">
+<div class="pdf-info-card">
+<p class="pdf-info-card-title">
                     Standard Prepaid Customers
                 </p>
-
-                <p class="pdf-info-card-text">
+<p class="pdf-info-card-text">
                     The full invoice amount must be paid, and the funds must
                     reflect in <strong>The Daily Market's business account
                     by 8:00 AM on your scheduled delivery day.</strong>
-                </p>
-
-                <p class="pdf-info-card-text" style="margin-top: 8px;">
+</p>
+<p class="pdf-info-card-text" style="margin-top: 8px;">
                     Your order will proceed for delivery once the required
                     payment has been confirmed.
                 </p>
-
-            </div>
-
-            <div class="pdf-info-card" style="background-color:#f0f6f1; border:2px solid #08683f;">
-
-                <p class="pdf-info-card-title" style="color:#08683f;">
+</div>
+<div class="pdf-info-card" style="background-color:#f0f6f1; border:2px solid #08683f;">
+<p class="pdf-info-card-title" style="color:#08683f;">
                     An Opportunity to Access TradeAssist Buying Power
                 </p>
-
-                <p class="pdf-info-card-text">
+<p class="pdf-info-card-text">
                     You do not start with buying power. Customers begin by
                     trading with The Daily Market on prepaid terms. After
                     <strong>two consecutive weeks of trading</strong>, your
                     food business may qualify for an assessment for
                     TradeAssist.
                 </p>
-
-                <p class="pdf-info-card-text" style="margin-top: 8px;">
+<p class="pdf-info-card-text" style="margin-top: 8px;">
                     Depending on your trading activity and approval, you may
                     qualify for one of the following arrangements:
                 </p>
-
-                <p class="pdf-info-card-text" style="margin-top: 8px;">
-                    <strong>1. One-in-one-out</strong><br>
+<p class="pdf-info-card-text" style="margin-top: 8px;">
+<strong>1. One-in-one-out</strong><br/>
                     You settle one purchase before making the next purchase
                     under the arrangement. This allows you to continue
                     trading while keeping each purchase linked to its
                     settlement.
                 </p>
-
-                <p class="pdf-info-card-text" style="margin-top: 8px;">
-                    <strong>2. 3-day buying power</strong><br>
+<p class="pdf-info-card-text" style="margin-top: 8px;">
+<strong>2. 3-day buying power</strong><br/>
                     You pay the approved upfront portion by
                     <strong>8:00 AM on your scheduled delivery day</strong>.
                     The remaining balance is then due within the approved
                     three-day payment term.
                 </p>
-
-                <p class="pdf-info-card-text" style="margin-top: 8px;">
+<p class="pdf-info-card-text" style="margin-top: 8px;">
                     TradeAssist is a separate business that partners with
                     The Daily Market. Buying power is subject to assessment,
                     approval and the terms confirmed for your food business.
                 </p>
-
-            </div>
-
-        </div>
-
-
-        <!-- DELIVERY -->
-
-        <div class="pdf-section">
-
-            <h2 class="pdf-section-title">
+</div>
+</div>
+<!-- DELIVERY -->
+<div class="pdf-section">
+<h2 class="pdf-section-title">
                 Delivery
             </h2>
-
-
-            <div class="pdf-info-card">
-
-                <p class="pdf-info-card-title">
+<div class="pdf-info-card">
+<p class="pdf-info-card-title">
                     Monday to Friday · 9:00 AM – 12:00 PM
                 </p>
-
-                <p class="pdf-info-card-text">
+<p class="pdf-info-card-text">
                     Deliveries take place
                     <strong>
                         Monday to Friday between 9:00 AM and 12:00 PM.
                     </strong>
-                </p>
-
-                <p
-                    class="pdf-info-card-text"
-                    style="margin-top: 8px;"
-                >
+</p>
+<p class="pdf-info-card-text" style="margin-top: 8px;">
                     On the morning of your delivery, you will receive an
                     <strong>
                         SMS when your kitchen essentials leave our depot
@@ -1399,131 +1154,79 @@
                     <strong>
                         8:00 AM and 8:30 AM.
                     </strong>
-                </p>
-
-            </div>
-
-
-            <div class="pdf-info-card">
-
-                <p class="pdf-info-card-title">
+</p>
+</div>
+<div class="pdf-info-card">
+<p class="pdf-info-card-title">
                     Please make sure someone is available
                 </p>
-
-                <p class="pdf-info-card-text">
+<p class="pdf-info-card-text">
                     Please ensure that
                     <strong>
                         someone is present at your kitchen to receive
                         the delivery.
                     </strong>
-                </p>
-
-                <p
-                    class="pdf-info-card-text"
-                    style="margin-top: 8px;"
-                >
+</p>
+<p class="pdf-info-card-text" style="margin-top: 8px;">
                     Our delivery schedule is planned around multiple
                     kitchens, and delays at one delivery can negatively
                     affect the schedule for the kitchens that follow.
                 </p>
-
-                <p
-                    class="pdf-info-card-text"
-                    style="margin-top: 8px;"
-                >
+<p class="pdf-info-card-text" style="margin-top: 8px;">
                     Having someone ready to receive and check your goods
                     helps us keep deliveries
                     <strong>
                         on time and efficient for everyone.
                     </strong>
-                </p>
-
-            </div>
-
-        </div>
-
-
-        <!-- PARTNERSHIP -->
-
-        <div class="pdf-partnership">
-
-            <h2 class="pdf-partnership-title">
+</p>
+</div>
+</div>
+<!-- PARTNERSHIP -->
+<div class="pdf-partnership">
+<h2 class="pdf-partnership-title">
                 We're here to help your kitchen grow.
             </h2>
-
-            <p class="pdf-partnership-text">
+<p class="pdf-partnership-text">
                 At The Daily Market, we don't just want to deliver
                 products to your kitchen. We want to become a reliable
                 trading partner that understands your kitchen, the
                 products you use most and the way your business operates.
             </p>
-
-            <p
-                class="pdf-partnership-text"
-                style="margin-top: 8px;"
-            >
+<p class="pdf-partnership-text" style="margin-top: 8px;">
                 As we trade together, our team can better understand
                 your needs and help you make smarter purchasing decisions.
             </p>
-
-        </div>
-
-
-        <!-- CONTACT -->
-
-        <div class="pdf-contact-box">
-
-            <p class="pdf-contact-title">
+</div>
+<!-- CONTACT -->
+<div class="pdf-contact-box">
+<p class="pdf-contact-title">
                 Need assistance?
             </p>
-
-            <p class="pdf-contact-text">
-                Your first point of contact is
-                <strong>{{ account_manager_name }}</strong>,
-                your Account Manager.
-            </p>
-
-            <p
-                class="pdf-contact-text"
-                style="margin-top: 6px;"
-            >
+<p class="pdf-contact-text">Your first point of contact is {% if client.account_manager and client.account_manager.first_name %}{{ account_manager_name }}, your Account Manager{% else %}our customer support team{% endif %}.</p>
+<p class="pdf-contact-text" style="margin-top: 6px;">
                 For urgent queries, please contact
                 <strong>087 265 5488</strong>.
             </p>
-
-        </div>
-
-
-        <!-- CLOSING -->
-
-        <p class="pdf-closing">
-            <strong>Welcome to The Daily Market.</strong>
-            <br>
+</div>
+<!-- CLOSING -->
+<p class="pdf-closing">
+<strong>Welcome to The Daily Market.</strong>
+<br/>
             Let's grow your kitchen together.
         </p>
-
-        <p class="pdf-closing">
+<p class="pdf-closing">
             — The Daily Market Team
         </p>
-
-
-        <!-- PDF FOOTER -->
-
-        <div class="pdf-footer">
-
-            <p class="pdf-footer-brand">
+<!-- PDF FOOTER -->
+<div class="pdf-footer">
+<p class="pdf-footer-brand">
                 The Daily Market
             </p>
-
-            <p class="pdf-footer-text">
+<p class="pdf-footer-text">
                 Your kitchen. Our supply. Growing together.
             </p>
-
-        </div>
-
-    </div>
-
 </div>
-
+</div>
+</div>
 </body>
 </html>
