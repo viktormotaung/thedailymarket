@@ -32,6 +32,7 @@ from communications.services.whatsapp import (
 from communications.services.smsportal import send_sms
 from .models import Order, OrderItem, Quotation, QuotationItem
 from clients.models import Client
+from credit.models import CreditAccount
 from products.models import Category, Product
 from django.forms import ModelForm, inlineformset_factory, widgets
 from django.forms.models import inlineformset_factory
@@ -442,6 +443,16 @@ def order_edit(request, pk):
 @login_required
 @staff_required
 def order_view(request, pk):
+    """
+    Display an order and its linked Trade Assist account position.
+
+    This view is READ-ONLY:
+    - It does not create an invoice.
+    - It does not allocate or reserve buying power.
+    - It does not change CreditAccount.credit_used.
+    - The payment/allocation workflow remains responsible for verifying
+      the upfront contribution and making an atomic TA allocation.
+    """
     order = get_object_or_404(
         Order.objects
         .select_related("client", "created_by", "reviewed_by", "approved_by")
@@ -456,12 +467,75 @@ def order_view(request, pk):
     except Exception:
         invoice = None
 
-    invoice_paid = False
-    if invoice and invoice.status == "paid":
-        invoice_paid = True
+    invoice_paid = bool(invoice and invoice.status == "paid")
+
+    # ---------------------------------------------------------
+    # Trade Assist account snapshot (read-only)
+    # ---------------------------------------------------------
+    credit_account = None
+    credit_account_available = Decimal("0.00")
+    credit_contribution_pct = Decimal("100.00")
+    credit_can_allocate = False
+
+    try:
+        credit_account = (
+            order.client.credit_account
+        )
+    except Exception:
+        credit_account = None
+
+    order_total = Decimal(str(order.grand_total_inc or "0.00"))
+
+    if credit_account:
+        credit_account_available = (
+            credit_account.credit_available
+            if hasattr(credit_account, "credit_available")
+            else (
+                Decimal(str(credit_account.credit_limit or "0.00"))
+                - Decimal(str(credit_account.credit_used or "0.00"))
+            )
+        )
+        credit_account_available = max(
+            Decimal("0.00"),
+            Decimal(str(credit_account_available))
+        )
+
+        try:
+            credit_contribution_pct = Decimal(
+                str(credit_account.credit_deposit_pct or "100.00")
+            )
+        except Exception:
+            credit_contribution_pct = Decimal("100.00")
+
+        # Eligibility shown here is informative only. The actual allocation
+        # process must repeat these checks under transaction.atomic/select_for_update.
+        credit_can_allocate = bool(
+            credit_account.status == "ACTIVE"
+            and getattr(credit_account, "can_allocate", False)
+            and credit_account_available > Decimal("0.00")
+        )
+
+    # If an invoice already exists, display its saved financial snapshots.
+    # Otherwise show an indicative split using the current account terms.
+    if invoice:
+        order_upfront_amount = Decimal(
+            str(getattr(invoice, "deposit_required", "0.00") or "0.00")
+        )
+        order_deferred_amount = Decimal(
+            str(getattr(invoice, "credit_used", "0.00") or "0.00")
+        )
+    elif credit_account and credit_account.status == "ACTIVE":
+        order_upfront_amount = (
+            order_total * credit_contribution_pct / Decimal("100.00")
+        ).quantize(Decimal("0.01"))
+        order_deferred_amount = (
+            order_total - order_upfront_amount
+        ).quantize(Decimal("0.01"))
+    else:
+        order_upfront_amount = order_total.quantize(Decimal("0.01"))
+        order_deferred_amount = Decimal("0.00")
 
     items = order.items.all().order_by("id")
-
     item_rows = []
 
     for item in items:
@@ -478,7 +552,9 @@ def order_view(request, pk):
 
         discount_pct = Decimal("0.00")
         if unit_excl > 0 and discount_per_unit > 0:
-            discount_pct = (discount_per_unit / unit_excl) * Decimal("100.00")
+            discount_pct = (
+                discount_per_unit / unit_excl
+            ) * Decimal("100.00")
 
         item_rows.append({
             "item": item,
@@ -513,6 +589,14 @@ def order_view(request, pk):
             "invoice_paid": invoice_paid,
             "audits": audits,
             "delivery_stop": delivery_stop,
+
+            # Trade Assist display context
+            "credit_account": credit_account,
+            "credit_account_available": credit_account_available,
+            "credit_contribution_pct": credit_contribution_pct,
+            "credit_can_allocate": credit_can_allocate,
+            "order_upfront_amount": order_upfront_amount,
+            "order_deferred_amount": order_deferred_amount,
         },
     )
 
@@ -1198,17 +1282,12 @@ def quotation_view(request, pk):
     for item in quotation.items.all().order_by("id"):
 
         qty = item.quantity or Decimal("0.00")
-
         unit_excl = item.unit_price_excl or Decimal("0.00")
-
         discount_per_unit = item.discount_excl or Decimal("0.00")
-
         vat_pct = item.vat_percent or Decimal("0.00")
 
         gross_excl = unit_excl * qty
-
         discount_total = discount_per_unit * qty
-
         line_excl = gross_excl - discount_total
 
         vat_amount = line_excl * (
@@ -1237,15 +1316,47 @@ def quotation_view(request, pk):
             "line_inc": line_inc,
         })
 
+    # Read-only Trade Assist snapshot. A quotation never reserves buying power.
+    credit_account = None
+    credit_account_available = Decimal("0.00")
+    credit_contribution_pct = Decimal("100.00")
+
+    if quotation.client_id:
+        try:
+            credit_account = quotation.client.credit_account
+        except Exception:
+            credit_account = None
+
+    if credit_account:
+        available = getattr(credit_account, "credit_available", None)
+
+        if available is None:
+            available = (
+                (getattr(credit_account, "credit_limit", Decimal("0.00")) or Decimal("0.00"))
+                - (getattr(credit_account, "credit_used", Decimal("0.00")) or Decimal("0.00"))
+            )
+
+        credit_account_available = max(
+            Decimal("0.00"),
+            Decimal(str(available or "0.00"))
+        )
+
+        credit_contribution_pct = Decimal(str(
+            getattr(credit_account, "credit_deposit_pct", Decimal("100.00"))
+            or Decimal("100.00")
+        ))
+
     return render(
         request,
         "orders/quotation_view.html",
         {
             "quotation": quotation,
             "item_rows": item_rows,
+            "credit_account": credit_account,
+            "credit_account_available": credit_account_available,
+            "credit_contribution_pct": credit_contribution_pct,
         }
     )
-
 
 # =========================================================
 # EDIT
@@ -1431,6 +1542,34 @@ def quotation_edit(request, pk):
             prefix="items"
         )
 
+    # ---------------------------------------------------------
+    # TradeAssist facility snapshot (read-only)
+    # ---------------------------------------------------------
+    trade_assist_account = None
+    trade_assist_available = Decimal("0.00")
+
+    if quotation.client_id:
+        trade_assist_account = (
+            CreditAccount.objects
+            .filter(client_id=quotation.client_id)
+            .first()
+        )
+
+    if trade_assist_account:
+        trade_assist_available = max(
+            Decimal("0.00"),
+            Decimal(str(
+                getattr(
+                    trade_assist_account,
+                    "credit_available",
+                    (
+                        (trade_assist_account.credit_limit or Decimal("0.00"))
+                        - (trade_assist_account.credit_used or Decimal("0.00"))
+                    ),
+                ) or "0.00"
+            ))
+        )
+
     return render(
         request,
         "orders/quotation_edit.html",
@@ -1439,14 +1578,22 @@ def quotation_edit(request, pk):
             "form": form,
             "formset": formset,
             "prefix": "items",
+            "trade_assist_account": trade_assist_account,
+            "trade_assist_available": trade_assist_available,
         },
     )
 
 
 def public_quotation_view(request, token):
+    """
+    Public, read-only quotation page.
 
+    TradeAssist information is displayed as an indicative payment breakdown
+    only. Viewing a quotation never reserves buying power, changes credit_used,
+    creates an invoice, or allocates a facility.
+    """
     quotation = get_object_or_404(
-        Quotation.objects.prefetch_related(
+        Quotation.objects.select_related("client", "prospect").prefetch_related(
             "items",
             "items__product",
         ),
@@ -1456,40 +1603,111 @@ def public_quotation_view(request, token):
     items = list(quotation.items.all())
 
     for item in items:
-
-        unit_price_excl = (
-            item.unit_price_excl
-            or Decimal("0.00")
-        )
-
-        vat_percent = (
-            item.vat_percent
-            or Decimal("0.00")
-        )
-
-        line_total_excl = (
-            item.line_total_excl
-            or Decimal("0.00")
-        )
-
-        line_vat_amount = (
-            item.line_vat_amount
-            or Decimal("0.00")
-        )
+        unit_price_excl = item.unit_price_excl or Decimal("0.00")
+        vat_percent = item.vat_percent or Decimal("0.00")
+        line_total_excl = item.line_total_excl or Decimal("0.00")
+        line_vat_amount = item.line_vat_amount or Decimal("0.00")
 
         item.display_unit_price_inc = (
             unit_price_excl
             + (
                 unit_price_excl
                 * vat_percent
-                / Decimal("100")
+                / Decimal("100.00")
             )
         )
 
-        item.display_line_total_inc = (
-            line_total_excl
-            + line_vat_amount
+        item.display_line_total_inc = line_total_excl + line_vat_amount
+
+    # ---------------------------------------------------------
+    # TradeAssist account snapshot (READ-ONLY / INDICATIVE)
+    # ---------------------------------------------------------
+    trade_assist_account = None
+    trade_assist_available = Decimal("0.00")
+    trade_assist_contribution_pct = Decimal("100.00")
+    trade_assist_upfront_amount = Decimal(str(
+        quotation.grand_total_inc or "0.00"
+    )).quantize(Decimal("0.01"))
+    trade_assist_deferred_amount = Decimal("0.00")
+    trade_assist_payment_available = False
+    trade_assist_account_active = False
+    trade_assist_insufficient = False
+
+    quotation_total = Decimal(str(
+        quotation.grand_total_inc or "0.00"
+    )).quantize(Decimal("0.01"))
+
+    # A prospect or quotation without a linked client cannot have an
+    # account-specific TradeAssist split displayed.
+    if quotation.client_id:
+        trade_assist_account = (
+            CreditAccount.objects
+            .filter(client_id=quotation.client_id)
+            .first()
         )
+
+    if trade_assist_account:
+        available = getattr(trade_assist_account, "credit_available", None)
+
+        if available is None:
+            available = (
+                (getattr(trade_assist_account, "credit_limit", None) or Decimal("0.00"))
+                - (getattr(trade_assist_account, "credit_used", None) or Decimal("0.00"))
+            )
+
+        trade_assist_available = max(
+            Decimal("0.00"),
+            Decimal(str(available or "0.00")),
+        ).quantize(Decimal("0.01"))
+
+        try:
+            trade_assist_contribution_pct = Decimal(str(
+                getattr(
+                    trade_assist_account,
+                    "credit_deposit_pct",
+                    Decimal("100.00"),
+                ) or Decimal("100.00")
+            ))
+        except (TypeError, ValueError, ArithmeticError):
+            trade_assist_contribution_pct = Decimal("100.00")
+
+        # Guard against invalid account configuration.
+        trade_assist_contribution_pct = min(
+            Decimal("100.00"),
+            max(Decimal("0.00"), trade_assist_contribution_pct),
+        )
+
+        trade_assist_account_active = (
+            getattr(trade_assist_account, "status", "") == "ACTIVE"
+            and bool(getattr(trade_assist_account, "can_allocate", False))
+        )
+
+        if trade_assist_account_active:
+            indicative_upfront = (
+                quotation_total
+                * trade_assist_contribution_pct
+                / Decimal("100.00")
+            ).quantize(Decimal("0.01"))
+
+            indicative_deferred = (
+                quotation_total - indicative_upfront
+            ).quantize(Decimal("0.01"))
+
+            # Display the split only if the account has enough available
+            # buying power for the deferred portion. This is not a reservation.
+            if (
+                indicative_deferred > Decimal("0.00")
+                and indicative_deferred <= trade_assist_available
+            ):
+                trade_assist_upfront_amount = indicative_upfront
+                trade_assist_deferred_amount = indicative_deferred
+                trade_assist_payment_available = True
+            elif indicative_deferred == Decimal("0.00"):
+                trade_assist_upfront_amount = quotation_total
+                trade_assist_deferred_amount = Decimal("0.00")
+                trade_assist_payment_available = True
+            else:
+                trade_assist_insufficient = True
 
     return render(
         request,
@@ -1497,9 +1715,16 @@ def public_quotation_view(request, token):
         {
             "quotation": quotation,
             "items": items,
+            "trade_assist_account": trade_assist_account,
+            "trade_assist_available": trade_assist_available,
+            "trade_assist_contribution_pct": trade_assist_contribution_pct,
+            "trade_assist_upfront_amount": trade_assist_upfront_amount,
+            "trade_assist_deferred_amount": trade_assist_deferred_amount,
+            "trade_assist_payment_available": trade_assist_payment_available,
+            "trade_assist_account_active": trade_assist_account_active,
+            "trade_assist_insufficient": trade_assist_insufficient,
         },
     )
-
 @login_required
 @staff_required
 def send_quotation_whatsapp_view(request, pk):

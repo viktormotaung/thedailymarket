@@ -942,6 +942,112 @@
       </div>
     </div>
 
+    <!-- TRADE ASSIST BUYING POWER -->
+    {% if credit_account %}
+    <div class="card mt-3 border-0">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <strong>Trade Assist Buying Power</strong>
+          <div class="small text-muted">The customer's approved account position and this order's indicative payment split.</div>
+        </div>
+        {% if credit_account.status == "ACTIVE" %}
+          <span class="badge bg-success">ACTIVE</span>
+        {% elif credit_account.status == "PENDING" %}
+          <span class="badge bg-warning text-dark">PENDING</span>
+        {% elif credit_account.status == "OVERDUE" %}
+          <span class="badge bg-danger">OVERDUE</span>
+        {% elif credit_account.status == "SUSPENDED" %}
+          <span class="badge bg-danger">SUSPENDED</span>
+        {% elif credit_account.status == "CLOSED" %}
+          <span class="badge bg-secondary">CLOSED</span>
+        {% else %}
+          <span class="badge bg-secondary">{{ credit_account.status }}</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <div class="row g-3 mb-3">
+          <div class="col-6 col-lg-3">
+            <div class="p-3 bg-light rounded h-100">
+              <div class="small text-muted">Approved limit</div>
+              <div class="fs-5 fw-semibold">R{{ credit_account.credit_limit|floatformat:2 }}</div>
+            </div>
+          </div>
+          <div class="col-6 col-lg-3">
+            <div class="p-3 bg-light rounded h-100">
+              <div class="small text-muted">Available buying power</div>
+              <div class="fs-5 fw-semibold text-success">R{{ credit_account_available|floatformat:2 }}</div>
+            </div>
+          </div>
+          <div class="col-6 col-lg-3">
+            <div class="p-3 bg-light rounded h-100">
+              <div class="small text-muted">Outstanding exposure</div>
+              <div class="fs-5 fw-semibold">R{{ credit_account.credit_used|floatformat:2 }}</div>
+            </div>
+          </div>
+          <div class="col-6 col-lg-3">
+            <div class="p-3 bg-light rounded h-100">
+              <div class="small text-muted">Customer contribution</div>
+              <div class="fs-5 fw-semibold">{{ credit_contribution_pct|floatformat:0 }}%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-lg-7">
+            <h6 class="mb-2">This order's payment breakdown</h6>
+            <dl class="row mb-0">
+              <dt class="col-7">Order total</dt>
+              <dd class="col-5 text-end fw-semibold">R{{ order.grand_total_inc|floatformat:2 }}</dd>
+              <dt class="col-7">Customer upfront contribution</dt>
+              <dd class="col-5 text-end">R{{ order_upfront_amount|floatformat:2 }}</dd>
+              <dt class="col-7">Potential Trade Assist portion</dt>
+              <dd class="col-5 text-end">R{{ order_deferred_amount|floatformat:2 }}</dd>
+              <dt class="col-7">Settlement term</dt>
+              <dd class="col-5 text-end">{{ credit_account.get_payment_term_display|default:credit_account.payment_term }}</dd>
+              {% if invoice and invoice.due_date %}
+              <dt class="col-7">Invoice settlement due date</dt>
+              <dd class="col-5 text-end">{{ invoice.due_date|date:"d M Y" }}</dd>
+              {% endif %}
+            </dl>
+          </div>
+          <div class="col-lg-5">
+            {% if credit_account.status != "ACTIVE" %}
+              <div class="alert alert-warning mb-0">
+                <strong>Trade Assist unavailable.</strong><br>
+                This account is {{ credit_account.get_status_display|default:credit_account.status|lower }}. A new Trade Assist allocation cannot be made.
+              </div>
+            {% elif not credit_can_allocate %}
+              <div class="alert alert-warning mb-0">
+                <strong>No new Trade Assist allocation available.</strong><br>
+                The account currently has no available buying power or is otherwise restricted.
+              </div>
+            {% elif order_deferred_amount > credit_account_available %}
+              <div class="alert alert-warning mb-0">
+                <strong>Insufficient available buying power.</strong><br>
+                This order's indicative Trade Assist portion exceeds the currently available amount. Do not allocate until the shortfall is resolved and verified.
+              </div>
+            {% else %}
+              <div class="alert alert-success mb-0">
+                <strong>Account currently eligible.</strong><br>
+                This is an indicative calculation only. Buying power is not consumed by viewing or creating the order. Allocation occurs only through the verified payment and allocation workflow.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="small text-muted mt-3">
+          The upfront amount must be received and verified before the Trade Assist-funded portion is allocated. Available buying power is replenished only after settlement is verified and allocated.
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="card mt-3">
+      <div class="card-body">
+        <strong>Trade Assist</strong>
+        <div class="text-muted small mt-1">This client does not currently have a linked Trade Assist buying-power account. Orders must follow the normal payment process.</div>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- ITEMS -->
     <div class="card mt-3">
       <div class="card-header bg-white d-flex justify-content-between align-items-center">

@@ -1,12 +1,7 @@
 # credit/models.py
 from __future__ import annotations
-from django.db.models import Sum, Q
-from django.db.models.functions import Coalesce
 from decimal import Decimal
-from typing import Dict, Tuple, Optional
-from django.dispatch import receiver
-from django.db.models.signals import post_save, post_delete
-
+from typing import Tuple, Optional
 from datetime import date, timedelta
 
 from django.conf import settings
@@ -14,8 +9,11 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
+from django.db import transaction as db_transaction
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
 from django.utils.timezone import now
 
 from clients.models import Client
@@ -37,6 +35,12 @@ def r2(x: Decimal | None) -> Decimal:
 def monday_of(d: date) -> date:
     """Return ISO-week Monday for a given date."""
     return d - timedelta(days=d.weekday())
+
+
+def settlement_due_date(start_date: date, payment_term: str) -> date:
+    """Calculate a fixed invoice due date; invoice date is Day 1."""
+    days = {"0D": 1, "1D": 1, "3D": 3, "7D": 7}.get(payment_term, 1)
+    return start_date + timedelta(days=days - 1)
 
 def update_funder_week_summary(entry):
     """
@@ -180,6 +184,15 @@ class Funder(models.Model):
         help_text="Indicates whether this funder is for internal/dummy use only."
     )
 
+    is_active_for_new_business = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=(
+            "Only funders explicitly activated here may support new buying-power "
+            "approvals. Existing historical funder records are preserved."
+        ),
+    )
+
     allocated_clients = models.ManyToManyField(
         Client,
         through="FunderAllocation",
@@ -206,6 +219,13 @@ class Funder(models.Model):
 
     class Meta:
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["is_active_for_new_business"],
+                condition=models.Q(is_active_for_new_business=True),
+                name="uniq_active_new_business_funder",
+            )
+        ]
 
     def __str__(self) -> str:
         return f"{self.name} · Balance R{self.balance:.2f}"
@@ -228,28 +248,14 @@ class Funder(models.Model):
 
     def allocation_for(self, client: Client) -> Decimal:
         db = self._state.db or "default"
-
-        amt = (
+        amount = (
             self.allocations.using(db)
             .filter(client=client)
             .values_list("amount", flat=True)
             .first()
         )
-        return r2(amt or Decimal("0.00"))
+        return r2(amount or Decimal("0.00"))
 
-    @property
-    def allocatable_balance(self) -> Decimal:
-        return r2(self.balance - self.total_allocated())
-
-    def allocation_for(self, client: Client) -> Decimal:
-        amt = (
-            self.allocations
-            .filter(client=client)
-            .values_list("amount", flat=True)
-            .first()
-        )
-        return r2(amt or Decimal("0.00"))
-    
     def total_allocated(self):
         db = self._state.db or "default"
 
@@ -398,51 +404,63 @@ class FunderAllocation(models.Model):
                 "Allocation exceeds available funder balance."
             )
 
+        # An allocation cannot be reduced below money already outstanding.
+        existing_account = (
+            CreditAccount.objects.using(db)
+            .filter(client=self.client)
+            .first()
+        )
+        if (
+            existing_account
+            and r2(self.amount) < r2(existing_account.credit_used)
+        ):
+            raise ValidationError(
+                "Allocation cannot be lower than the client's outstanding "
+                "buying-power usage."
+            )
+
     # --------------------------------------------------
-    # APPLY TO CREDIT ACCOUNT (CORE LOGIC)
+    # LINK ACCOUNT TO FUNDER AND SYNCHRONISE BUYING POWER
     # --------------------------------------------------
     def apply_to_credit_account(self):
+        """
+        Link the account to its funder and synchronise its limit to the
+        reserved allocation. This does not activate a pending account or
+        change its contribution percentage or settlement term.
+        """
         db = self._state.db or "default"
-
-        from credit.models import CreditAccount
-
         ca, _ = CreditAccount.objects.using(db).get_or_create(
-            client=self.client
+            client=self.client,
+            defaults={"status": CreditAccount.STATUS_PENDING},
         )
 
-        # ---------------------------------------------
-        # 1. Link funder
-        # ---------------------------------------------
-        if ca.funder != self.funder:
+        if ca.funder_id != self.funder_id:
             ca.funder = self.funder
-            ca.save(update_fields=["funder", "updated_at"])
+            ca.save(using=db, update_fields=["funder", "updated_at"])
 
-        # ---------------------------------------------
-        # 2. 🔥 ALWAYS use ledger system
-        # ---------------------------------------------
-        ca.set_limit(
-            new_limit=self.amount,
-            authorised_by=None,
-            note=f"Auto allocation from funder {self.funder.name}",
-        )
+        allocation_amount = r2(self.amount)
+        current_limit = r2(ca.credit_limit)
 
-    # --------------------------------------------------
+        # Idempotent: do not create duplicate audit/ledger entries if the
+        # allocation and approved account limit already agree.
+        if current_limit != allocation_amount:
+            ca.set_limit(
+                new_limit=allocation_amount,
+                note=(
+                    f"Buying-power limit synchronised from FunderAllocation "
+                    f"#{self.pk}."
+                ),
+            )
+
     # SAVE (ENTRY POINT)
     # --------------------------------------------------
-    @transaction.atomic
+    @db_transaction.atomic
     def save(self, *args, **kwargs):
         db = kwargs.pop("using", None) or self._state.db or "default"
-
         self.full_clean()
-
-        super().save(*args, **kwargs)
-
-        # 🔥 Ensure correct DB context
+        super().save(*args, using=db, **kwargs)
         self._state.db = db
-
-        # 🔥 Apply allocation AFTER save
         self.apply_to_credit_account()
-
 
 
 # ============================================================
@@ -493,7 +511,7 @@ class FunderMovement(models.Model):
             return -amt
         return amt
 
-    @transaction.atomic
+    @db_transaction.atomic
     def save(self, *args, **kwargs):
         creating = self.pk is None
         previous = None
@@ -510,7 +528,7 @@ class FunderMovement(models.Model):
             if delta:
                 self.funder.apply_delta(delta)
 
-    @transaction.atomic
+    @db_transaction.atomic
     def delete(self, *args, **kwargs):
         self.funder.apply_delta(-self.signed_amount())
         super().delete(*args, **kwargs)
@@ -522,6 +540,20 @@ class FunderMovement(models.Model):
 
 
 class CreditAccount(models.Model):
+    STATUS_PENDING = "PENDING"
+    STATUS_ACTIVE = "ACTIVE"
+    STATUS_OVERDUE = "OVERDUE"
+    STATUS_SUSPENDED = "SUSPENDED"
+    STATUS_CLOSED = "CLOSED"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending Approval"),
+        (STATUS_ACTIVE, "Active"),
+        (STATUS_OVERDUE, "Overdue"),
+        (STATUS_SUSPENDED, "Suspended"),
+        (STATUS_CLOSED, "Closed"),
+    ]
+
     TERM_CHOICES = [
         ("0D", "0 Day (Cash)"),
         ("1D", "1 Day Credit"),
@@ -533,6 +565,7 @@ class CreditAccount(models.Model):
         (Decimal("0.00"), "0%"),
         (Decimal("30.00"), "30%"),
         (Decimal("50.00"), "50%"),
+        (Decimal("60.00"), "60%"),
         (Decimal("70.00"), "70%"),
         (Decimal("100.00"), "100%"),
     ]
@@ -582,7 +615,23 @@ class CreditAccount(models.Model):
         default=Decimal("0.00"),
     )
 
+    # Legacy account-level date retained for compatibility. New settlement
+    # deadlines must be stored per invoice/allocation, not here.
     next_due_date = models.DateField(null=True, blank=True)
+
+    status = models.CharField(
+        max_length=12,
+        choices=STATUS_CHOICES,
+        default=STATUS_ACTIVE,
+        db_index=True,
+        help_text=(
+            "ACTIVE is retained as the model default for existing workflows. "
+            "Newly opened accounts should explicitly start as PENDING."
+        ),
+    )
+    activated_at = models.DateTimeField(null=True, blank=True)
+    last_assessed_at = models.DateTimeField(null=True, blank=True)
+    status_reason = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -606,6 +655,10 @@ class CreditAccount(models.Model):
     @property
     def outstanding(self):
         return r2(self.credit_used)
+
+    @property
+    def can_allocate(self) -> bool:
+        return self.status == self.STATUS_ACTIVE and self.credit_available > 0
 
     # =====================================================
     # VALIDATION (🔥 FIXED)
@@ -633,7 +686,7 @@ class CreditAccount(models.Model):
     # =====================================================
     # LIMIT CONTROL (AUDIT ONLY)
     # =====================================================
-    @transaction.atomic
+    @db_transaction.atomic
     def set_limit(
         self,
         new_limit: Decimal,
@@ -692,6 +745,280 @@ class CreditAccount(models.Model):
             models.Model.save(self, update_fields=["credit_used", "updated_at"])
 
 # ============================================================
+# ============================================================
+# CREDIT ASSESSMENT (HISTORICAL CUSTOMER RISK SNAPSHOT)
+# ============================================================
+
+class CreditAssessment(models.Model):
+    """Dated snapshot of a client's suitability for buying power."""
+
+    STATUS_CHOICES = [
+        ("DRAFT", "Draft"), ("SUBMITTED", "Submitted"),
+        ("ASSESSED", "Assessed"), ("APPROVED", "Approved"),
+        ("DECLINED", "Declined"), ("WITHDRAWN", "Withdrawn"),
+    ]
+    RISK_CHOICES = [
+        ("LOW", "Low"), ("MEDIUM", "Medium"),
+        ("HIGH", "High"), ("UNRATED", "Not Rated"),
+    ]
+
+    credit_account = models.ForeignKey(
+        "credit.CreditAccount", on_delete=models.PROTECT,
+        related_name="assessments",
+    )
+    assessment_date = models.DateField(default=now)
+    trading_period_start = models.DateField(null=True, blank=True)
+    trading_period_end = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES,
+                              default="DRAFT", db_index=True)
+
+    business_registration_number = models.CharField(max_length=80, blank=True)
+    business_registered = models.BooleanField(default=False)
+    active_business_bank_account = models.BooleanField(default=False)
+    banking_verified = models.BooleanField(default=False)
+    documents_verified = models.BooleanField(default=False)
+    compliance_notes = models.TextField(blank=True)
+
+    estimated_daily_spend = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    estimated_weekly_spend = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    estimated_monthly_spend = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    estimated_purchases_per_week = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+
+    # Trading-system metrics frozen at the time of assessment.
+    system_invoice_count = models.PositiveIntegerField(default=0)
+    system_invoice_value = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0.00")
+    )
+    system_average_invoice = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0.00")
+    )
+    system_average_weekly_spend = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0.00")
+    )
+    on_time_payment_pct = models.DecimalField(
+        max_digits=6, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Verified payment performance percentage, from 0 to 100.",
+    )
+    overdue_invoice_count = models.PositiveIntegerField(default=0)
+    average_days_to_settle = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    trading_data_notes = models.TextField(blank=True)
+
+    risk_rating = models.CharField(max_length=10, choices=RISK_CHOICES,
+                                   default="UNRATED")
+    recommended_limit = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    recommended_customer_contribution_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Customer's upfront contribution percentage.",
+    )
+    recommended_settlement_term = models.CharField(
+        max_length=3, choices=CreditAccount.TERM_CHOICES, blank=True
+    )
+    recommendation_notes = models.TextField(blank=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="credit_assessments_created",
+    )
+    assessed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="credit_assessments_reviewed",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    assessed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-assessment_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["credit_account", "assessment_date"]),
+            models.Index(fields=["status", "assessment_date"]),
+        ]
+
+    def __str__(self):
+        return (f"Assessment #{self.pk} · {self.credit_account.client} · "
+                f"{self.assessment_date} · {self.status}")
+
+    def clean(self):
+        super().clean()
+        if (self.trading_period_start and self.trading_period_end
+                and self.trading_period_end < self.trading_period_start):
+            raise ValidationError({
+                "trading_period_end": "Trading period end cannot be before start."
+            })
+        if (self.recommended_customer_contribution_pct is not None
+                and self.recommended_customer_contribution_pct > 100):
+            raise ValidationError({
+                "recommended_customer_contribution_pct":
+                    "Customer contribution cannot exceed 100%."
+            })
+        if self.on_time_payment_pct is not None and self.on_time_payment_pct > 100:
+            raise ValidationError({
+                "on_time_payment_pct": "Payment percentage cannot exceed 100%."
+            })
+
+
+# ============================================================
+# CREDIT APPROVAL (FORMAL AUTHORISATION OF COMMERCIAL TERMS)
+# ============================================================
+
+class CreditApproval(models.Model):
+    """Formal approval; an assessment or recommendation never activates buying power."""
+
+    STATUS_CHOICES = [
+        ("PENDING", "Pending Approval"), ("APPROVED", "Approved"),
+        ("DECLINED", "Declined"), ("REVOKED", "Revoked"),
+    ]
+
+    credit_account = models.ForeignKey(
+        "credit.CreditAccount", on_delete=models.PROTECT,
+        related_name="approvals",
+    )
+    assessment = models.ForeignKey(
+        "credit.CreditAssessment", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="approval_records",
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES,
+                              default="PENDING", db_index=True)
+    requested_limit = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    approved_limit = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    customer_contribution_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal("70.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Percentage of each invoice payable upfront by the customer.",
+    )
+    settlement_term = models.CharField(max_length=3,
+        choices=CreditAccount.TERM_CHOICES, default="3D")
+    decision_notes = models.TextField(blank=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="credit_approvals_requested",
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="credit_approvals_authorised",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    effective_from = models.DateTimeField(null=True, blank=True)
+    effective_until = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["credit_account", "status"]),
+            models.Index(fields=["status", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"Approval #{self.pk} · {self.credit_account.client} · {self.status}"
+
+    def clean(self):
+        super().clean()
+        if self.customer_contribution_pct > 100:
+            raise ValidationError({
+                "customer_contribution_pct":
+                    "Customer contribution cannot exceed 100%."
+            })
+        if (self.assessment_id
+                and self.assessment.credit_account_id != self.credit_account_id):
+            raise ValidationError({
+                "assessment": "Assessment must belong to this credit account."
+            })
+        if (self.effective_from and self.effective_until
+                and self.effective_until < self.effective_from):
+            raise ValidationError({
+                "effective_until": "End date cannot be before start date."
+            })
+
+    @db_transaction.atomic
+    def approve(self, *, authorised_by, using=None):
+        """Approve terms after verifying funder allocation; do not create allocation."""
+        if not authorised_by:
+            raise ValidationError("An authorised approver is required.")
+        db = using or self._state.db or "default"
+        account = (CreditAccount.objects.using(db).select_for_update()
+                   .get(pk=self.credit_account_id))
+
+        if self.status != "PENDING":
+            raise ValidationError("Only pending approvals can be approved.")
+        if self.approved_limit is None or self.approved_limit <= 0:
+            raise ValidationError("Enter an approved buying-power amount.")
+        if not account.funder_id:
+            raise ValidationError("Assign a funder before approval.")
+        if not account.funder.is_active_for_new_business:
+            raise ValidationError("This funder is not active for new business.")
+        if account.funder.weekly_rate_pct != Decimal("0.00"):
+            raise ValidationError(
+                "The active buying-power funder must have a 0% weekly rate. "
+                "Legacy profit settings must not apply to new approvals."
+            )
+
+        allocation = FunderAllocation.objects.using(db).filter(
+            funder_id=account.funder_id, client_id=account.client_id
+        ).first()
+        if not allocation or r2(allocation.amount) < r2(self.approved_limit):
+            raise ValidationError(
+                "Approved limit exceeds the capital allocated to this client."
+            )
+        if r2(self.approved_limit) < r2(account.credit_used):
+            raise ValidationError(
+                "Approved limit cannot be lower than current outstanding usage."
+            )
+
+        self.status = "APPROVED"
+        self.approved_by = authorised_by
+        self.decided_at = now()
+        self.effective_from = self.effective_from or now()
+        self.full_clean()
+        self.save(using=db)
+
+        account.payment_term = self.settlement_term
+        account.credit_deposit_pct = self.customer_contribution_pct
+        account.status = CreditAccount.STATUS_ACTIVE
+        account.activated_at = account.activated_at or now()
+        account.status_reason = f"Activated through CreditApproval #{self.pk}."
+        account.save(update_fields=[
+            "payment_term", "credit_deposit_pct", "status",
+            "activated_at", "status_reason", "updated_at",
+        ])
+        if r2(account.credit_limit) != r2(self.approved_limit):
+            account.set_limit(
+                new_limit=self.approved_limit,
+                authorised_by=authorised_by,
+                note=f"Approved under CreditApproval #{self.pk}",
+            )
+        return account
+
+
 # CREDIT LOG (limit audit trail)
 # ============================================================
 
@@ -756,7 +1083,7 @@ class CreditLog(models.Model):
 
         allocated = (
             FunderAllocation.objects.using(db)
-            .filter(client=ca.client)
+            .filter(client=ca.client, funder=ca.funder)
             .aggregate(
                 s=Coalesce(Sum("amount"), Decimal("0.00"))
             )["s"]
@@ -768,7 +1095,7 @@ class CreditLog(models.Model):
                 f"R{allocated:.2f}."
             )
 
-    @transaction.atomic
+    @db_transaction.atomic
     def save(self, *args, **kwargs):
         is_create = self.pk is None
 
@@ -852,6 +1179,9 @@ class CreditEntry(models.Model):
     )
 
     posted_at = models.DateTimeField(default=now, db_index=True)
+
+    # Immutable snapshot of the account term at the time buying power was used.
+    due_date = models.DateField(null=True, blank=True, db_index=True)
 
     # Optional traceability
     invoice = models.ForeignKey(
@@ -951,6 +1281,7 @@ class CreditEntry(models.Model):
 
 
     @classmethod
+    @db_transaction.atomic
     def record_usage(
         cls,
         *,
@@ -964,35 +1295,24 @@ class CreditEntry(models.Model):
     ) -> "CreditEntry":
 
         db = using or "default"
+        amount = r2(amount)
+        if amount <= Decimal("0.00"):
+            raise ValidationError("Usage amount must be greater than zero.")
 
         ca, _ = CreditAccount.objects.using(db).get_or_create(client=client)
+        ca = CreditAccount.objects.using(db).select_for_update().get(pk=ca.pk)
 
-        amount = r2(amount)
+        if ca.status != CreditAccount.STATUS_ACTIVE:
+            raise ValidationError(
+                f"Buying-power account is {ca.get_status_display().lower()}."
+            )
 
-        # Get latest ledger balance (available credit)
-        last_entry = (
-            ca.entries.using(db)
-            .order_by("-id")
-            .first()
-        )
-
-        current_available = last_entry.balance if last_entry else Decimal("0.00")
-
-        # Calculate new available after this usage
-        new_available = r2(current_available - amount)
-
-        # 🚨 OPTIONAL LIMIT ENFORCEMENT
-        # If you still want to prevent going beyond assigned limit:
-        #
-        # outstanding = ca.credit_limit - new_available
-        # if outstanding > ca.credit_limit:
-        #     raise ValidationError(
-        #         f"Credit limit exceeded. "
-        #         f"Limit: R{ca.credit_limit:.2f}, "
-        #         f"Available: R{current_available:.2f}"
-        #     )
-        #
-        # Since you allowed negative balance, we are not blocking it.
+        available = ca.credit_available
+        if amount > available:
+            raise ValidationError(
+                f"Insufficient buying power. Available: R{available:.2f}; "
+                f"requested: R{amount:.2f}."
+            )
 
         return cls.objects.using(db).create(
             credit_account=ca,
@@ -1006,6 +1326,7 @@ class CreditEntry(models.Model):
 
 
     @classmethod
+    @db_transaction.atomic
     def record_repayment(
         cls,
         *,
@@ -1020,13 +1341,16 @@ class CreditEntry(models.Model):
     ) -> "CreditEntry":
 
         db = using or "default"
+        amount = r2(amount)
+        if amount <= Decimal("0.00"):
+            raise ValidationError("Repayment amount must be greater than zero.")
 
         ca, _ = CreditAccount.objects.using(db).get_or_create(client=client)
 
         return cls.objects.using(db).create(
             credit_account=ca,
             kind=cls.REPAYMENT,
-            amount=r2(amount),
+            amount=amount,
             invoice=invoice,
             transaction=transaction,
             reference=reference,
@@ -1039,6 +1363,15 @@ class CreditEntry(models.Model):
 
         if is_create:
             db = self._state.db or "default"
+
+            # Snapshot the agreed settlement deadline when usage is posted.
+            # Existing terms are never recalculated if the account is edited later.
+            if self.kind == self.USAGE and self.due_date is None:
+                account = self.credit_account
+                term = account.payment_term or "0D"
+                self.due_date = settlement_due_date(
+                    self.posted_at.date(), term
+                )
 
             last_entry = (
                 CreditEntry.objects.using(db)
@@ -1069,6 +1402,21 @@ class CreditEntry(models.Model):
         # Recalculate credit account usage
         self.credit_account.save()
 
+        # Every usage entry creates one invoice-level settlement obligation.
+        # get_or_create makes this safe if the save path is retried.
+        if is_create and self.kind == self.USAGE:
+            CreditSettlement.objects.using(self._state.db or "default").get_or_create(
+                usage_entry=self,
+                defaults={
+                    "credit_account": self.credit_account,
+                    "invoice": self.invoice,
+                    "original_amount": self.amount,
+                    "due_date": self.due_date,
+                    "grace_date": self.due_date + timedelta(days=1),
+                    "status": CreditSettlement.STATUS_OUTSTANDING,
+                },
+            )
+
         # ---------------------------------------------------
         # Update weekly funder summary
         # ---------------------------------------------------
@@ -1077,8 +1425,256 @@ class CreditEntry(models.Model):
 
 
 
+# ============================================================
+# CREDIT SETTLEMENT (ONE OBLIGATION PER USAGE / INVOICE)
+# ============================================================
+
+class CreditSettlement(models.Model):
+    STATUS_OUTSTANDING = "OUTSTANDING"
+    STATUS_PARTIAL = "PARTIAL"
+    STATUS_OVERDUE = "OVERDUE"
+    STATUS_SETTLED = "SETTLED"
+    STATUS_CANCELLED = "CANCELLED"
+
+    STATUS_CHOICES = [
+        (STATUS_OUTSTANDING, "Outstanding"),
+        (STATUS_PARTIAL, "Partially Settled"),
+        (STATUS_OVERDUE, "Overdue"),
+        (STATUS_SETTLED, "Settled"),
+        (STATUS_CANCELLED, "Cancelled"),
+    ]
+
+    credit_account = models.ForeignKey(
+        CreditAccount,
+        on_delete=models.PROTECT,
+        related_name="settlements",
+    )
+    usage_entry = models.OneToOneField(
+        CreditEntry,
+        on_delete=models.PROTECT,
+        related_name="settlement",
+    )
+    invoice = models.ForeignKey(
+        "invoices.Invoice",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="credit_settlements",
+    )
+    original_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    repaid_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    outstanding_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    due_date = models.DateField(db_index=True)
+    grace_date = models.DateField(db_index=True)
+    status = models.CharField(
+        max_length=16,
+        choices=STATUS_CHOICES,
+        default=STATUS_OUTSTANDING,
+        db_index=True,
+    )
+    settled_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["due_date", "created_at", "id"]
+        indexes = [
+            models.Index(fields=["credit_account", "status", "due_date"]),
+            models.Index(fields=["status", "grace_date"]),
+            models.Index(fields=["invoice"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"Settlement #{self.pk} · {self.credit_account.client} · "
+            f"R{self.outstanding_amount:.2f} · {self.status}"
+        )
+
+    @property
+    def is_fully_settled(self):
+        return self.outstanding_amount <= Decimal("0.00")
+
+    def clean(self):
+        super().clean()
+        if self.grace_date < self.due_date:
+            raise ValidationError("Grace date cannot be before the due date.")
+        if self.repaid_amount > self.original_amount:
+            raise ValidationError("Repaid amount cannot exceed the original amount.")
+
+    def refresh_amounts(self, *, save=True):
+        self.original_amount = r2(self.original_amount)
+        self.repaid_amount = min(r2(self.repaid_amount), self.original_amount)
+        self.outstanding_amount = r2(self.original_amount - self.repaid_amount)
+
+        if self.outstanding_amount <= Decimal("0.00"):
+            self.outstanding_amount = Decimal("0.00")
+            self.status = self.STATUS_SETTLED
+            self.settled_at = self.settled_at or now()
+        elif self.repaid_amount > Decimal("0.00"):
+            self.status = self.STATUS_PARTIAL
+            self.settled_at = None
+        elif self.status not in {self.STATUS_OVERDUE, self.STATUS_CANCELLED}:
+            self.status = self.STATUS_OUTSTANDING
+
+        if save:
+            self.save(update_fields=[
+                "original_amount", "repaid_amount", "outstanding_amount",
+                "status", "settled_at", "updated_at",
+            ])
+        return self.outstanding_amount
+
+    @db_transaction.atomic
+    def allocate_repayment(self, amount: Decimal, *, using=None):
+        """Allocate a verified repayment to this invoice settlement."""
+        db = using or self._state.db or "default"
+        settlement = (
+            CreditSettlement.objects.using(db)
+            .select_for_update()
+            .get(pk=self.pk)
+        )
+        amount = r2(amount)
+        if amount <= Decimal("0.00"):
+            raise ValidationError("Repayment must be greater than zero.")
+        if settlement.status == self.STATUS_CANCELLED:
+            raise ValidationError("A cancelled settlement cannot receive repayment.")
+        applied = min(amount, settlement.outstanding_amount)
+        settlement.repaid_amount = r2(settlement.repaid_amount + applied)
+        settlement.refresh_amounts(save=True)
+        self.refresh_from_db(using=db)
+        return applied
+
+    @classmethod
+    @db_transaction.atomic
+    def allocate_account_repayment(cls, *, credit_account, amount, invoice=None, using=None):
+        """Allocate a verified account repayment to matching or oldest obligations."""
+        db = using or credit_account._state.db or "default"
+        remaining = r2(amount)
+        if remaining <= Decimal("0.00"):
+            raise ValidationError("Repayment must be greater than zero.")
+
+        qs = cls.objects.using(db).select_for_update().filter(
+            credit_account=credit_account,
+            status__in=[
+                cls.STATUS_OUTSTANDING,
+                cls.STATUS_PARTIAL,
+                cls.STATUS_OVERDUE,
+            ],
+            outstanding_amount__gt=0,
+        )
+        if invoice is not None:
+            qs = qs.filter(invoice=invoice)
+        settlements = list(qs.order_by("due_date", "created_at", "id"))
+        if invoice is not None and not settlements:
+            raise ValidationError("No outstanding Trade Assist settlement exists for this invoice.")
+
+        applied_total = Decimal("0.00")
+        for settlement in settlements:
+            if remaining <= 0:
+                break
+            applied = min(remaining, settlement.outstanding_amount)
+            settlement.repaid_amount = r2(settlement.repaid_amount + applied)
+            settlement.refresh_amounts(save=True)
+            remaining = r2(remaining - applied)
+            applied_total = r2(applied_total + applied)
+
+        if applied_total <= 0:
+            raise ValidationError("There are no outstanding Trade Assist settlements to allocate this payment to.")
+        return applied_total
+
+    @classmethod
+    def assess_overdue(cls, *, today=None, using="default"):
+        """Update settlement and account statuses; call from a daily scheduled task."""
+        today = today or now().date()
+        db = using or "default"
+        assessed = 0
+        overdue_accounts = set()
+        suspended_accounts = set()
+
+        settlements = cls.objects.using(db).select_related("credit_account").filter(
+            outstanding_amount__gt=0,
+            status__in=[cls.STATUS_OUTSTANDING, cls.STATUS_PARTIAL, cls.STATUS_OVERDUE],
+        )
+
+        for settlement in settlements.iterator():
+            if today > settlement.grace_date:
+                new_status = cls.STATUS_OVERDUE
+                suspended_accounts.add(settlement.credit_account_id)
+            elif today > settlement.due_date:
+                new_status = cls.STATUS_OVERDUE
+                overdue_accounts.add(settlement.credit_account_id)
+            else:
+                new_status = (
+                    cls.STATUS_PARTIAL
+                    if settlement.repaid_amount > 0
+                    else cls.STATUS_OUTSTANDING
+                )
+
+            if settlement.status != new_status:
+                cls.objects.using(db).filter(pk=settlement.pk).update(
+                    status=new_status, updated_at=now()
+                )
+                assessed += 1
+
+        # Do not automatically reactivate overdue/suspended accounts after payment.
+        for account_id in overdue_accounts:
+            CreditAccount.objects.using(db).filter(
+                pk=account_id, status=CreditAccount.STATUS_ACTIVE
+            ).update(
+                status=CreditAccount.STATUS_OVERDUE,
+                status_reason="At least one Trade Assist invoice settlement is overdue.",
+                updated_at=now(),
+            )
+
+        for account_id in suspended_accounts:
+            CreditAccount.objects.using(db).filter(
+                pk=account_id,
+                status__in=[CreditAccount.STATUS_ACTIVE, CreditAccount.STATUS_OVERDUE],
+            ).update(
+                status=CreditAccount.STATUS_SUSPENDED,
+                status_reason="An outstanding Trade Assist settlement passed its grace date.",
+                updated_at=now(),
+            )
+
+        return {
+            "settlements_updated": assessed,
+            "accounts_marked_overdue": len(overdue_accounts),
+            "accounts_suspended": len(suspended_accounts),
+        }
+
+
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
+
+
+@receiver(post_save, sender=CreditEntry)
+def allocate_repayment_to_settlements(sender, instance, created, **kwargs):
+    if not created or instance.kind != CreditEntry.REPAYMENT:
+        return
+    try:
+        CreditSettlement.allocate_account_repayment(
+            credit_account=instance.credit_account,
+            amount=instance.amount,
+            invoice=instance.invoice,
+            using=instance._state.db or "default",
+        )
+    except ValidationError:
+        logger.exception(
+            "Could not allocate repayment CreditEntry #%s to a Trade Assist settlement.",
+            instance.pk,
+        )
 
 
 @receiver(post_delete, sender=CreditEntry)
@@ -1302,7 +1898,7 @@ class FunderProfit(models.Model):
             })
 
     @classmethod
-    @transaction.atomic
+    @db_transaction.atomic
     def process_monthly_reinvestment(cls, *, using="default", run_date=None):
         """
         Process MONTHLY + REINVEST funders for the previous full calendar month.

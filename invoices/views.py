@@ -216,6 +216,37 @@ def invoice_view(request, pk):
         and invoice.due_date < today
     )
 
+    # --------------------------------------------------
+    # Trade Assist account snapshot (read-only)
+    # Invoice viewing must not reserve or consume buying power.
+    # Actual allocation belongs in the verified-contribution workflow.
+    # --------------------------------------------------
+    credit_account = None
+    credit_account_available = Decimal("0.00")
+    credit_contribution_pct = Decimal("100.00")
+
+    try:
+        credit_account = client.credit_account
+    except Exception:
+        credit_account = None
+
+    if credit_account:
+        available = getattr(credit_account, "credit_available", None)
+        if available is None:
+            available = (
+                (getattr(credit_account, "credit_limit", Decimal("0.00")) or Decimal("0.00"))
+                - (getattr(credit_account, "credit_used", Decimal("0.00")) or Decimal("0.00"))
+            )
+
+        credit_account_available = max(
+            Decimal("0.00"),
+            Decimal(str(available or "0.00"))
+        )
+        credit_contribution_pct = Decimal(str(
+            getattr(credit_account, "credit_deposit_pct", Decimal("100.00"))
+            or Decimal("100.00")
+        ))
+
     # deposit balance
     deposit_outstanding = max(invoice.amount_due - (invoice.deposit_paid or 0), 0)
 
@@ -244,6 +275,9 @@ def invoice_view(request, pk):
             "is_overdue": is_overdue,
             "deposit_outstanding": deposit_outstanding,
             "credit_outstanding": credit_outstanding,
+            "credit_account": credit_account,
+            "credit_account_available": credit_account_available,
+            "credit_contribution_pct": credit_contribution_pct,
             "merchant_id": client.id,          # use client ID as merchant ID
             "merchant_name": client.name,      # use client name as merchant name
         },

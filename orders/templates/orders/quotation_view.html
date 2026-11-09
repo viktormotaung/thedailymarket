@@ -1085,7 +1085,7 @@
 
                         <dt class="col-6">Discounts</dt>
                         <dd class="col-6 text-end">
-                            -R{{ quotation.discount_total_excl|floatformat:2 }}
+                            -R{{ total_discounts_excl|floatformat:2 }}
                         </dd>
 
                         <dt class="col-6">VAT Total</dt>
@@ -1106,6 +1106,65 @@
             </div>
         </div>
 
+    </div>
+
+
+    <!-- Trade Assist account snapshot (read-only; quotation does not allocate buying power) -->
+    <div class="card mt-3 mb-3 border-success">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <strong><i class="bi bi-wallet2 me-2 text-success"></i>Trade Assist</strong>
+            <span class="badge bg-light text-dark">Indicative account snapshot</span>
+        </div>
+        <div class="card-body">
+            {% if quotation.client %}
+                {% if credit_account %}
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <div class="text-muted small">Account status</div>
+                            <div class="fw-semibold">
+                                {% if credit_account.status == "ACTIVE" %}
+                                    <span class="badge bg-success">Active</span>
+                                {% elif credit_account.status == "PENDING" %}
+                                    <span class="badge bg-secondary">Pending</span>
+                                {% elif credit_account.status == "OVERDUE" %}
+                                    <span class="badge bg-warning text-dark">Overdue</span>
+                                {% elif credit_account.status == "SUSPENDED" %}
+                                    <span class="badge bg-danger">Suspended</span>
+                                {% elif credit_account.status == "CLOSED" %}
+                                    <span class="badge bg-dark">Closed</span>
+                                {% else %}
+                                    {{ credit_account.status }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted small">Approved buying power</div>
+                            <div class="fw-semibold">R{{ credit_account.credit_limit|floatformat:2 }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted small">Available buying power</div>
+                            <div class="fw-semibold">R{{ credit_account_available|floatformat:2 }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted small">Customer contribution</div>
+                            <div class="fw-semibold">{{ credit_contribution_pct|floatformat:0 }}%</div>
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="mb-0">No Trade Assist account is currently linked to this client.</p>
+                {% endif %}
+            {% elif quotation.prospect %}
+                <p class="mb-0">This quotation is for a prospect. Trade Assist account details can only be assessed once the prospect has been converted into a client and an account has been approved.</p>
+            {% else %}
+                <p class="mb-0">A client or prospect has not been linked to this quotation.</p>
+            {% endif %}
+            <hr>
+            <p class="small text-muted mb-0">
+                Informational snapshot only. This quotation does not reserve buying power, create an allocation
+                or guarantee funding. Account status, available buying power and approved terms must be rechecked
+                when the quotation is converted into an order and the upfront contribution is verified.
+            </p>
+        </div>
     </div>
 
     <!-- Items -->

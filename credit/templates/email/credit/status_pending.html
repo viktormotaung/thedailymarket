@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your account is under review – The Daily Market</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f6f4;font-family:Arial,Helvetica,sans-serif;color:#252525;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f6f4;padding:30px 12px;border-collapse:collapse;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:680px;background:#ffffff;border:1px solid #e1e4e1;border-radius:14px;overflow:hidden;border-collapse:separate;">
+<tr><td align="center" style="padding:32px 28px 24px;">
+<p style="margin:0;font-size:29px;font-weight:800;letter-spacing:-1px;color:#08683f;">The <span style="color:#252525;">Daily Market</span></p>
+<p style="margin:9px 0 0;color:#68716d;font-size:14px;line-height:1.5;">Your kitchen. Our supply. Growing together.</p>
+</td></tr>
+<tr><td style="background:#47778a;padding:30px 36px;color:#ffffff;">
+<p style="margin:0 0 8px;font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#e4f2e9;">TRADE ASSIST ACCOUNT UPDATE</p>
+<h1 style="margin:0 0 10px;font-size:27px;line-height:1.25;color:#ffffff;">Your account is under review</h1>
+<p style="margin:0;font-size:15px;line-height:1.65;color:#eef8f3;">We have received your account status update. Your Trade Assist buying power is not active at this stage.</p>
+</td></tr>
+<tr><td style="padding:32px 36px 36px;">
+<p style="font-size:16px;margin:0 0 18px;">Hi {{ customer_name }},</p>
+<p style="font-size:15px;line-height:1.7;color:#444b48;">Your Trade Assist account is currently <strong>pending review</strong>. This means buying power is not yet available for use.</p>
+<p style="font-size:15px;line-height:1.7;color:#444b48;">Our team will review the account and communicate any next steps or outcome. Until activation is confirmed, please continue placing orders on your existing approved payment arrangement.</p>
+{% include "email/credit/_account_summary.html" %}
+<div style="background:#f8f4e7;border-radius:10px;padding:20px 22px;margin-top:28px;">
+<p style="margin:0 0 7px;font-size:16px;font-weight:bold;color:#252525;">Need assistance?</p>
+<p style="margin:0;font-size:14px;line-height:1.65;color:#555e5a;">Your first point of contact is {% if account_manager_name %}<strong>{{ account_manager_name }}</strong>, your Account Manager{% else %}our customer support team{% endif %}. For urgent queries, call <strong>087 265 5488</strong> or email <a href="mailto:{{ support_email }}" style="color:#08683f;">{{ support_email }}</a>.</p>
+</div>
+<p style="margin:28px 0 0;font-size:14px;line-height:1.7;color:#444b48;">Regards,<br><strong>The Daily Market Team</strong></p>
+</td></tr>
+<tr><td align="center" style="background:#252525;padding:23px 25px;">
+<p style="margin:0 0 6px;color:#ffffff;font-size:15px;font-weight:bold;">The Daily Market</p>
+<p style="margin:0;color:#bfc6c2;font-size:12px;line-height:1.5;">Your kitchen. Our supply. Growing together.</p>
+<p style="margin:13px 0 0;color:#8f9893;font-size:11px;line-height:1.5;">This email contains an update about your Trade Assist account. Please keep it for your records.</p>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>

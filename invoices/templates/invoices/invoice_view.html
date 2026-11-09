@@ -841,7 +841,24 @@
             </div>
             <div class="mt-2">
               Account: {{ client.get_account_type_display }}<br/>
-              Credit status: {{ client.get_credit_status_display }}
+              Trade Assist:
+              {% if credit_account %}
+                {% if credit_account.status == "ACTIVE" %}
+                  <span class="badge bg-success">Active</span>
+                {% elif credit_account.status == "PENDING" %}
+                  <span class="badge bg-secondary">Pending</span>
+                {% elif credit_account.status == "OVERDUE" %}
+                  <span class="badge bg-warning text-dark">Overdue</span>
+                {% elif credit_account.status == "SUSPENDED" %}
+                  <span class="badge bg-danger">Suspended</span>
+                {% elif credit_account.status == "CLOSED" %}
+                  <span class="badge bg-dark">Closed</span>
+                {% else %}
+                  {{ credit_account.status }}
+                {% endif %}
+              {% else %}
+                <span class="text-muted">No account</span>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -853,11 +870,11 @@
           <div class="card-header bg-white"><strong>Payment Summary</strong></div>
           <div class="card-body">
             <div class="d-flex justify-content-between"><span>Order Total (Inc):</span><strong>R{{ invoice.order_total_inc|floatformat:2 }}</strong></div>
-            <div class="d-flex justify-content-between"><span>Deposit Required:</span><strong>R{{ invoice.deposit_required|floatformat:2 }}</strong></div>
-            <div class="d-flex justify-content-between"><span>Deposit Paid:</span><strong>R{{ invoice.deposit_paid|floatformat:2 }}</strong></div>
-            <div class="d-flex justify-content-between"><span>Deposit Outstanding:</span><strong>R{{ deposit_outstanding|floatformat:2 }}</strong></div>
+            <div class="d-flex justify-content-between"><span>Customer Contribution Required:</span><strong>R{{ invoice.deposit_required|floatformat:2 }}</strong></div>
+            <div class="d-flex justify-content-between"><span>Customer Contribution Received:</span><strong>R{{ invoice.deposit_paid|floatformat:2 }}</strong></div>
+            <div class="d-flex justify-content-between"><span>Contribution Outstanding:</span><strong>R{{ deposit_outstanding|floatformat:2 }}</strong></div>
             <hr/>
-            <div class="d-flex justify-content-between"><span>Credit Used (if any):</span><strong>R{{ invoice.credit_used|floatformat:2 }}</strong></div>
+            <div class="d-flex justify-content-between"><span>Trade Assist Funded Portion:</span><strong>R{{ invoice.credit_used|floatformat:2 }}</strong></div>
             <div class="mt-2">
               {% if is_overdue %}
                 <span class="badge badge-overdue">Overdue</span>
@@ -907,6 +924,45 @@
             {% endif %}
           </div>
         </div>
+      </div>
+    </div>
+
+
+    <!-- TRADE ASSIST ACCOUNT SNAPSHOT (READ ONLY) -->
+    <div class="card mt-3">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <strong><i class="bi bi-wallet2 me-2 text-success"></i>Trade Assist Buying Power</strong>
+        <span class="badge bg-light text-dark">Current account snapshot</span>
+      </div>
+      <div class="card-body">
+        {% if credit_account %}
+          <div class="row g-3">
+            <div class="col-md-3">
+              <div class="meta">Approved buying power</div>
+              <strong>R{{ credit_account.credit_limit|floatformat:2 }}</strong>
+            </div>
+            <div class="col-md-3">
+              <div class="meta">Available buying power</div>
+              <strong>R{{ credit_account_available|floatformat:2 }}</strong>
+            </div>
+            <div class="col-md-3">
+              <div class="meta">Outstanding exposure</div>
+              <strong>R{{ credit_account.outstanding|default:credit_account.credit_used|floatformat:2 }}</strong>
+            </div>
+            <div class="col-md-3">
+              <div class="meta">Customer contribution</div>
+              <strong>{{ credit_contribution_pct|floatformat:0 }}%</strong>
+            </div>
+          </div>
+        {% else %}
+          <p class="mb-0 text-muted">No Trade Assist account is linked to this client.</p>
+        {% endif %}
+        <hr>
+        <p class="small text-muted mb-0">
+          This snapshot does not allocate buying power. Allocation is only made after the customer's
+          required contribution is verified and the account is rechecked. Trade Assist settlement
+          reduces the outstanding exposure and replenishes buying power once verified and posted.
+        </p>
       </div>
     </div>
 
@@ -1440,7 +1496,7 @@
                      id="confirmReferenceInput"
                      value="INV-{{ invoice.id }}: deposit">
               <div class="form-text">
-                Suggested format: <code>INV-{{ invoice.id }}: deposit</code> or <code>INV-{{ invoice.id }}: credit</code>.
+                Suggested format: <code>INV-{{ invoice.id }}: deposit</code> or <code>INV-{{ invoice.id }}: TA settlement</code>.
               </div>
             </div>
 

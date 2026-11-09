@@ -710,6 +710,10 @@
                   Acct
                 </th>
 
+                <th style="width:13%; font-size:13px;">
+                  TradeAssist
+                </th>
+
                 <th style="width:8%; font-size:13px;">
                   Status
                 </th>
@@ -834,6 +838,25 @@
                     </td>
 
 
+                    <!-- TRADEASSIST -->
+                    <td style="font-size:13px;">
+                      {% if cl.trade_assist_account %}
+                        <span class="badge
+                          {% if cl.trade_assist_account.status == 'ACTIVE' %}bg-success
+                          {% elif cl.trade_assist_account.status == 'PENDING' %}bg-warning text-dark
+                          {% elif cl.trade_assist_account.status == 'OVERDUE' %}bg-danger
+                          {% elif cl.trade_assist_account.status == 'SUSPENDED' %}bg-dark
+                          {% else %}bg-secondary{% endif %}">
+                          {{ cl.trade_assist_account.get_status_display|default:cl.trade_assist_account.status }}
+                        </span>
+                        <div class="small mt-1">
+                          Available: R{{ cl.trade_assist_account.credit_available|default:0|floatformat:0|intcomma }}
+                        </div>
+                      {% else %}
+                        <span class="text-muted">Not enrolled</span>
+                      {% endif %}
+                    </td>
+
                     <!-- Status -->
                     <td style="font-size:13px;">
 
@@ -860,7 +883,7 @@
 
                 <tr>
 
-                  <td colspan="9" class="text-center text-muted py-4">
+                  <td colspan="10" class="text-center text-muted py-4">
                     No clients found.
                   </td>
 

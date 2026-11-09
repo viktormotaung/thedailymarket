@@ -1,0 +1,24 @@
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e3e7e4;border-radius:10px;background:#f7f8f7;border-collapse:separate;margin:22px 0;">
+<tr><td colspan="2" style="padding:18px 20px 8px;font-size:15px;font-weight:bold;color:#252525;">Your Trade Assist account</td></tr>
+<tr>
+<td width="50%" style="padding:12px 20px;">
+<p style="margin:0 0 5px;font-size:10px;letter-spacing:.8px;color:#68716d;text-transform:uppercase;">Approved buying power</p>
+<p style="margin:0;font-size:23px;font-weight:bold;color:#08683f;">R{{ credit_limit|floatformat:2 }}</p>
+</td>
+<td width="50%" style="padding:12px 20px;">
+<p style="margin:0 0 5px;font-size:10px;letter-spacing:.8px;color:#68716d;text-transform:uppercase;">Available buying power</p>
+<p style="margin:0;font-size:23px;font-weight:bold;color:#08683f;">{% if buying_power_available %}R{{ available_buying_power|floatformat:2 }}{% else %}Unavailable{% endif %}</p>
+</td></tr>
+<tr>
+<td width="50%" style="padding:12px 20px 18px;">
+<p style="margin:0 0 5px;font-size:10px;letter-spacing:.8px;color:#68716d;text-transform:uppercase;">Outstanding balance</p>
+<p style="margin:0;font-size:19px;font-weight:bold;color:#252525;">R{{ outstanding_balance|floatformat:2 }}</p>
+</td>
+<td width="50%" style="padding:12px 20px 18px;">
+<p style="margin:0 0 5px;font-size:10px;letter-spacing:.8px;color:#68716d;text-transform:uppercase;">Your upfront contribution</p>
+<p style="margin:0;font-size:19px;font-weight:bold;color:#252525;">{{ contribution_pct|floatformat:0 }}%</p>
+</td></tr>
+<tr><td colspan="2" style="padding:0 20px 18px;">
+<p style="margin:0;font-size:12px;color:#68716d;">Settlement term: <strong style="color:#252525;">{{ payment_term_label }}</strong></p>
+</td></tr>
+</table>

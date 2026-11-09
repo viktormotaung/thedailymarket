@@ -1345,117 +1345,155 @@ class Order(models.Model):
 
             client = self.client
 
-            credit_status = (
-                getattr(
-                    client,
-                    "credit_status",
-                    ""
-                )
-                or ""
-            ).upper()
+            # =================================================
+            # BUYING-POWER CHECK
+            # Uses the new CreditAccount model only.
+            #
+            # The account row is locked while checking available
+            # buying power so two orders cannot pass the same
+            # balance check concurrently.
+            # =================================================
 
-            credit_account = getattr(
-                client,
-                "credit_account",
-                None,
+            CreditAccount = apps.get_model("credit", "CreditAccount")
+
+            credit_account = (
+                CreditAccount.objects.using(db)
+                .select_for_update()
+                .filter(client_id=client.pk)
+                .first()
+            )
+
+            account_status = (
+                (getattr(credit_account, "status", "") or "")
+                .upper()
             )
 
             print(
-                f"[DEBUG] Credit status: "
-                f"{credit_status}"
+                f"[DEBUG] Buying-power account status: "
+                f"{account_status or 'NO ACCOUNT'}"
             )
 
-            # =================================================
-            # CREDIT CHECK
-            # =================================================
+            # Overdue, suspended and closed accounts may not
+            # place further orders, including prepaid orders.
+            # A pending account has no active buying power and
+            # therefore proceeds on the normal prepaid route.
+            restricted_statuses = {
+                "OVERDUE",
+                "SUSPENDED",
+                "CLOSED",
+            }
 
-            if (
-                self.status == "awaiting_payment"
-                and credit_status == "ACTIVE"
-                and credit_account
-            ):
+            if credit_account and account_status in restricted_statuses:
 
-                total = (
-                    self.grand_total_inc
-                    or Decimal("0.00")
+                self.status = "credit_blocked"
+
+                super().save(
+                    update_fields=[
+                        "status",
+                        "updated_at",
+                    ]
                 )
 
-                # -------------------------------------------------
-                # Deposit percentage
-                # -------------------------------------------------
+                OrderAudit.objects.using(db).create(
+                    order=self,
+                    action=OrderAudit.CREDIT_BLOCKED,
+                    performed_by=(
+                        self.approved_by
+                        or self.reviewed_by
+                        or self.created_by
+                    ),
+                    status_before="awaiting_payment",
+                    status_after="credit_blocked",
+                    amount_before=self.grand_total_inc,
+                    amount_after=self.grand_total_inc,
+                    snapshot_before=before_snapshot,
+                    snapshot_after=self._audit_snapshot(),
+                    description=(
+                        "Order blocked because the Trade Assist "
+                        f"buying-power account is {account_status.lower()}."
+                    ),
+                )
 
-                raw_deposit_pct = getattr(
+                print(
+                    "[DEBUG] ORDER BLOCKED — "
+                    f"buying-power account is {account_status}"
+                )
+
+                return
+
+            # Only an ACTIVE account may use buying power.
+            # No account or a PENDING account follows the
+            # normal fully-prepaid order route.
+            if credit_account and account_status == "ACTIVE":
+
+                total = r2(
+                    self.grand_total_inc or Decimal("0.00")
+                )
+
+                # Customer contribution percentage is the
+                # upfront portion. The balance is the proposed
+                # TA-funded buying-power usage.
+                raw_contribution_pct = getattr(
                     credit_account,
                     "credit_deposit_pct",
-                    None,
+                    Decimal("100.00"),
                 )
 
-                if raw_deposit_pct is None:
-
-                    deposit_pct = Decimal(
-                        "100.00"
+                contribution_pct = Decimal(
+                    str(
+                        raw_contribution_pct
+                        if raw_contribution_pct is not None
+                        else "100.00"
                     )
+                )
 
-                else:
-
-                    deposit_pct = Decimal(
-                        str(raw_deposit_pct)
+                if contribution_pct < Decimal("0.00") or contribution_pct > Decimal("100.00"):
+                    raise ValidationError(
+                        "The approved customer contribution percentage "
+                        "must be between 0% and 100%."
                     )
 
                 deposit_required = r2(
                     total
-                    * (
-                        deposit_pct
-                        / Decimal("100")
+                    * (contribution_pct / Decimal("100.00"))
+                )
+
+                buying_power_required = r2(
+                    total - deposit_required
+                )
+
+                buying_power_available = r2(
+                    getattr(
+                        credit_account,
+                        "credit_available",
+                        Decimal("0.00"),
                     )
-                )
-
-                credit_required = r2(
-                    total
-                    - deposit_required
-                )
-
-                credit_available = (
-                    credit_account.credit_available
                     or Decimal("0.00")
                 )
 
                 print(
-                    f"[DEBUG] Deposit %: "
-                    f"{deposit_pct}"
+                    f"[DEBUG] Customer contribution: "
+                    f"{contribution_pct}%"
                 )
-
                 print(
-                    f"[DEBUG] Deposit Required: "
+                    f"[DEBUG] Customer deposit required: "
                     f"{deposit_required}"
                 )
-
                 print(
-                    f"[DEBUG] Credit Required: "
-                    f"{credit_required}"
+                    f"[DEBUG] Buying power required: "
+                    f"{buying_power_required}"
+                )
+                print(
+                    f"[DEBUG] Buying power available: "
+                    f"{buying_power_available}"
                 )
 
-                print(
-                    f"[DEBUG] Credit Available: "
-                    f"{credit_available}"
-                )
+                # This is a pre-check only. Buying power is not
+                # consumed here; activation and ledger posting
+                # remain part of the invoice/deposit workflow.
+                if buying_power_required > buying_power_available:
 
-                # -------------------------------------------------
-                # BLOCK IF CREDIT EXCEEDED
-                # -------------------------------------------------
-
-                if (
-                    credit_required
-                    > credit_available
-                ):
-
-                    print(
-                        "[DEBUG] CREDIT BLOCKED"
-                    )
-
-                    self.status = (
-                        "credit_blocked"
-                    )
+                    self.status = "credit_blocked"
 
                     super().save(
                         update_fields=[
@@ -1464,56 +1502,30 @@ class Order(models.Model):
                         ]
                     )
 
-                    OrderAudit.objects.using(
-                        db
-                    ).create(
+                    OrderAudit.objects.using(db).create(
                         order=self,
-
-                        action=(
-                            OrderAudit.CREDIT_BLOCKED
-                        ),
-
+                        action=OrderAudit.CREDIT_BLOCKED,
                         performed_by=(
                             self.approved_by
+                            or self.reviewed_by
                             or self.created_by
                         ),
-
-                        status_before=(
-                            "awaiting_payment"
-                        ),
-
-                        status_after=(
-                            "credit_blocked"
-                        ),
-
-                        amount_before=(
-                            self.grand_total_inc
-                        ),
-
-                        amount_after=(
-                            self.grand_total_inc
-                        ),
-
-                        snapshot_before=(
-                            before_snapshot
-                        ),
-
-                        snapshot_after=(
-                            self._audit_snapshot()
-                        ),
-
+                        status_before="awaiting_payment",
+                        status_after="credit_blocked",
+                        amount_before=self.grand_total_inc,
+                        amount_after=self.grand_total_inc,
+                        snapshot_before=before_snapshot,
+                        snapshot_after=self._audit_snapshot(),
                         description=(
-                            f"Credit insufficient. "
-                            f"Required: "
-                            f"{credit_required}, "
-                            f"Available: "
-                            f"{credit_available}"
+                            "Insufficient available buying power. "
+                            f"Required: R{buying_power_required:.2f}; "
+                            f"Available: R{buying_power_available:.2f}."
                         ),
                     )
 
                     print(
-                        "================ ORDER SAVE END "
-                        "(BLOCKED) ================\n"
+                        "[DEBUG] ORDER BLOCKED — "
+                        "insufficient available buying power"
                     )
 
                     return

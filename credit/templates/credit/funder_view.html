@@ -475,470 +475,378 @@
     {% endwith %}
 
     <main class="content py-4">
-        <div class="container">
+      <div class="page-container">
 
-            <!-- HEADER -->
-            <div class="d-flex justify-content-between align-items-start mb-4">
-
-            <div>
-                <h2 class="fw-semibold mb-1">{{ funder.name }}</h2>
-                <div class="text-muted">
-                    Weekly rate: {{ funder.weekly_rate_pct }}% ·
-                    Duration: {{ duration_display }} active
-                </div>
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+          <div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <h2 class="fw-semibold mb-0">{{ funder.name }}</h2>
+              {% if is_active_funder %}
+                <span class="badge bg-success">Active funder</span>
+              {% else %}
+                <span class="badge bg-secondary">Historical funder</span>
+              {% endif %}
             </div>
-
-
-
-            <!-- Actions -->
-            <div class="d-flex gap-2">
-                <a
-                    href="{% url 'funder-edit' funder.id %}"
-                    class="btn btn-outline-primary btn-sm"
-                >
-                    <i class="bi bi-pencil"></i> Edit Funder
-                </a>
-
-                <button
-                    type="button"
-                    class="btn btn-outline-success btn-sm"
-                    data-bs-toggle="modal"
-                    data-bs-target="#updateFundsModal"
-                >
-                    <i class="bi bi-wallet2"></i> Update Funds
-                </button>
-
-                <button
-                    type="button"
-                    class="btn btn-outline-secondary btn-sm"
-                    disabled
-                    title="Email fund performance report (coming soon)"
-                >
-                    <i class="bi bi-envelope-paper"></i> Email Report
-                </button>
+            <div class="text-muted">
+              {% if is_active_funder %}
+                Trade Assist funding control centre
+              {% else %}
+                Historical funder record · Read-only for new programme activity
+              {% endif %}
+              <span class="mx-1">·</span> Operating history: {{ duration_display }}
             </div>
+          </div>
 
+          <div class="d-flex flex-wrap gap-2">
+            {% if is_active_funder %}
+              <a href="{% url 'funder-edit' funder.id %}" class="btn btn-outline-primary btn-sm">
+                Edit funder settings
+              </a>
+              <button type="button" class="btn btn-success btn-sm"
+                      data-bs-toggle="modal" data-bs-target="#updateFundsModal">
+                <i class="bi bi-wallet2"></i> Record fund movement
+              </button>
+            {% endif %}
+            <a href="{% url 'funder-list' %}" class="btn btn-outline-secondary btn-sm">
+              Back to funders
+            </a>
+          </div>
+        </div>
 
+        {% if not is_active_funder %}
+          <div class="alert alert-secondary">
+            This funder is retained for historical records. It is not available for new
+            Trade Assist facilities, reservations or funding activity.
+          </div>
+        {% endif %}
+
+        <!-- Capital position: reserved funds are commitments, not current exposure. -->
+        <div class="row g-3 mb-4">
+          <div class="col-sm-6 col-xl-3">
+            <div class="card h-100 border-0 shadow-sm">
+              <div class="card-body">
+                <div class="small text-muted mb-1">Funder capital balance</div>
+                <div class="fs-4 fw-semibold">R{{ funder.balance|floatformat:2|intcomma }}</div>
+                <div class="small text-muted">Capital currently held</div>
+              </div>
             </div>
-
-            <!-- KPI ROW -->
-            <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="card p-3">
-                <div class="text-muted">Balance</div>
-                <div class="fs-4 fw-semibold">
-                    R{{ funder.balance|floatformat:2|intcomma }}
-                </div>
-                </div>
+          </div>
+          <div class="col-sm-6 col-xl-3">
+            <div class="card h-100 border-0 shadow-sm">
+              <div class="card-body">
+                <div class="small text-muted mb-1">Reserved for facilities</div>
+                <div class="fs-4 fw-semibold">R{{ total_reserved|floatformat:2|intcomma }}</div>
+                <div class="small text-muted">Committed customer facility reservations</div>
+              </div>
             </div>
-
-            <div class="col-md-3">
-                <div class="card p-3">
-                <div class="text-muted">Allocated</div>
-                <div class="fs-4 fw-semibold">
-                    R{{ total_allocated|floatformat:2|intcomma }}
-                </div>
-                </div>
+          </div>
+          <div class="col-sm-6 col-xl-3">
+            <div class="card h-100 border-0 shadow-sm">
+              <div class="card-body">
+                <div class="small text-muted mb-1">Unallocated funder capital</div>
+                <div class="fs-4 fw-semibold text-success">R{{ unallocated_capital|floatformat:2|intcomma }}</div>
+                <div class="small text-muted">Available for new reservations</div>
+              </div>
             </div>
-
-            <div class="col-md-3">
-                <div class="card p-3">
-                <div class="text-muted">Available</div>
-                <div class="fs-4 fw-semibold text-success">
-                    R{{ available|floatformat:2|intcomma }}
-                </div>
-                </div>
+          </div>
+          <div class="col-sm-6 col-xl-3">
+            <div class="card h-100 border-0 shadow-sm">
+              <div class="card-body">
+                <div class="small text-muted mb-1">Current customer exposure</div>
+                <div class="fs-4 fw-semibold">R{{ total_exposure|floatformat:2|intcomma }}</div>
+                <div class="small text-muted">Outstanding TA-funded balances</div>
+              </div>
             </div>
+          </div>
+        </div>
 
-            <div class="col-md-3">
-                <div class="card p-3">
-                <div class="text-muted">Weekly Rate</div>
-                <div class="fs-4 fw-semibold">
-                    {{ funder.weekly_rate_pct }}%
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+              <div class="card-body">
+                <div class="small text-muted mb-1">Unused reserved facility capacity</div>
+                <div class="fs-4 fw-semibold text-success">R{{ unused_reserved_capacity|floatformat:2|intcomma }}</div>
+                <div class="small text-muted">
+                  Reserved capital not currently represented by outstanding customer exposure
                 </div>
-                </div>
+              </div>
             </div>
-            </div>
-
-            <!-- OVERALL FUND PERFORMANCE -->
-            <div class="row g-3 mb-4">
-
-            <div class="col-md-3">
-                <div class="card p-3 h-100">
-                <div class="text-muted small">Overall Funded</div>
-                <div class="fs-4 fw-semibold">
-                    R{{ overall_funded|floatformat:2|intcomma }}
+          </div>
+          <div class="col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+              <div class="card-body">
+                <div class="small text-muted mb-1">Exposure above reservations</div>
+                <div class="fs-4 fw-semibold {% if exposure_above_reservations > 0 %}text-danger{% endif %}">
+                  R{{ exposure_above_reservations|floatformat:2|intcomma }}
                 </div>
                 <div class="small text-muted">
-                    Total capital injected
+                  Any amount here needs review; exposure and reserved capital should be reconciled
                 </div>
-                </div>
+              </div>
             </div>
+          </div>
+        </div>
 
-            <div class="col-md-3">
-                <div class="card p-3 h-100">
-                <div class="text-muted small">Overall Allocation</div>
-                <div class="fs-4 fw-semibold">
-                    R{{ total_allocated|floatformat:2|intcomma }}
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between gap-2">
+              <div>
+                <h5 class="fw-semibold mb-1">How the funder position works</h5>
+                <p class="text-muted small mb-0">
+                  Reservations commit capital to customer facilities. Invoice usage creates
+                  actual exposure against those facilities. Verified invoice repayments reduce
+                  exposure and restore the customer's available buying power; they do not release
+                  the underlying reservation.
+                </p>
+              </div>
+              <div class="small text-muted text-md-end">
+                <div>Operating history: {{ duration_display }}</div>
+                {% if show_legacy_performance %}
+                  <div>Historical weekly rate: {{ funder.weekly_rate_pct }}%</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <ul class="nav nav-tabs mb-3" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#allocations" type="button">
+              Customer reservations
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#movements" type="button">
+              Capital movements
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#members" type="button">
+              Access members
+            </button>
+          </li>
+          {% if show_legacy_performance %}
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#weekly" type="button">
+                Historical performance
+              </button>
+            </li>
+          {% endif %}
+        </ul>
+
+        <div class="tab-content">
+          <!-- CUSTOMER RESERVATIONS -->
+          <div class="tab-pane fade show active" id="allocations">
+            <div class="card border-0 shadow-sm">
+              <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                  <div class="fw-semibold">Reserved customer facilities</div>
+                  <div class="small text-muted">The reserved amount is separate from the customer's current usage.</div>
                 </div>
                 <div class="small text-muted">
-                    Capital deployed to clients
+                  Total reserved: <strong>R{{ total_reserved|floatformat:2|intcomma }}</strong>
                 </div>
-                </div>
-            </div>
-
-            <div class="col-md-3">
-                <div class="card p-3 h-100">
-                <div class="text-muted small">Overall Returns</div>
-                <div class="fs-4 fw-semibold text-success">
-                    R{{ overall_returns|floatformat:2|intcomma }}
-                </div>
-                <div class="small text-muted">
-                    Earned to date
-                </div>
-                </div>
-            </div>
-
-            <div class="col-md-3">
-                <div class="card p-3 h-100 border-success">
-                <div class="text-muted small">Overall Return (%)</div>
-                <div class="fs-4 fw-semibold text-success">
-                    {{ overall_return_pct|floatformat:2 }}%
-                </div>
-                <div class="small text-muted">
-                    Return on total funded capital
-                </div>
-                </div>
-            </div>
-
-            </div>
-
-
-            <!-- TABS -->
-            <ul class="nav nav-tabs mb-4" role="tablist">
-            <li class="nav-item">
-                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#allocations">
-                Allocations
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#movements">
-                Movements
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#members">
-                Members
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#weekly">
-                Weekly Performance
-                </button>
-            </li>
-            </ul>
-
-
-            <div class="tab-content">
-
-            <!-- ALLOCATIONS TAB -->
-            <div class="tab-pane fade show active" id="allocations">
-                <!-- ALLOCATIONS -->
-                <div class="card shadow-sm mb-4">
-                <div class="card-header fw-semibold">
-                    Client Allocations
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                        <th>Client</th>
-                        <th class="text-end">Amount (R)</th>
-                        <th class="text-end">Allocated At</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for a in allocations %}
-                        <tr>
-                        <td>{{ a.client.name }}</td>
-                        <td class="text-end">
-                            R{{ a.amount|floatformat:2|intcomma }}
-                        </td>
-                        <td class="text-end text-muted small">
-                            {{ a.created_at|date:"Y-m-d" }}
-                        </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                        <td colspan="3" class="text-center text-muted py-3">
-                            No allocations yet.
-                        </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                    </table>
-                </div>
-                </div>
-
-            </div>
-
-            <!-- MOVEMENTS TAB -->
-            <div class="tab-pane fade" id="movements">
-                <!-- MOVEMENTS -->
-                <div class="card shadow-sm mb-4">
-                <div class="card-header fw-semibold">
-                    Fund Movements
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                        <th>Date</th>
-                        <th>Type</th>
-                        <th class="text-end">Amount (R)</th>
-                        <th>Reference</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for m in movements %}
-                        <tr>
-                        <td class="small text-muted">
-                            {{ m.created_at|date:"Y-m-d H:i" }}
-                        </td>
-                        <td>
-                            <span class="badge
-                            {% if m.kind == 'topup' %}bg-success
-                            {% elif m.kind == 'payout' %}bg-danger
-                            {% else %}bg-secondary{% endif %}">
-                            {{ m.get_kind_display }}
-                            </span>
-                        </td>
-                        <td class="text-end fw-semibold">
-                            {% if m.kind == 'payout' %}-{% endif %}
-                            R{{ m.amount|floatformat:2|intcomma }}
-                        </td>
-                        <td class="text-muted small">
-                            {{ m.reference|default:"—" }}
-                        </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                        <td colspan="4" class="text-center text-muted py-3">
-                            No movements recorded.
-                        </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                    </table>
-                </div>
-                </div>
-
-            </div>
-
-            <!-- MEMBERS TAB -->
-            <div class="tab-pane fade" id="members">
-                <!-- MEMBERS -->
-                <div class="card shadow-sm mb-4">
-                <div class="card-header fw-semibold">
-                    Funder Members
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                        <th>User</th>
-                        <th>Role</th>
-                        <th>Status</th>
-                        <th class="text-end">Added</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for m in members %}
-                        <tr>
-                        <td>{{ m.user.get_full_name|default:m.user.username }}</td>
-                        <td>
-                            <span class="badge bg-secondary">
-                            {{ m.get_role_display }}
-                            </span>
-                        </td>
-                        <td>
-                            {% if m.is_active %}
-                            <span class="badge bg-success">Active</span>
-                            {% else %}
-                            <span class="badge bg-danger">Inactive</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-end text-muted small">
-                            {{ m.created_at|date:"Y-m-d" }}
-                        </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                        <td colspan="4" class="text-center text-muted py-3">
-                            No members assigned.
-                        </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                    </table>
-                </div>
-                </div>
-
-            </div>
-
-            
-            <!-- WEEKLY PERFORMANCE -->
-            <div class="tab-pane fade" id="weekly">
-
-            <div class="card shadow-sm">
-                <div class="card-header fw-semibold">
-                Weekly Funder Performance
-                </div>
-
-                <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                    <thead class="table-light">
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light">
                     <tr>
-                        <th>Week Start</th>
-                        <th class="text-end">Utilization (R)</th>
-                        <th class="text-end">Rate (%)</th>
-                        <th class="text-end">Weekly Return (R)</th>
+                      <th>Customer</th>
+                      <th class="text-end">Reserved facility</th>
+                      <th class="text-end">Approved limit</th>
+                      <th class="text-end">Outstanding exposure</th>
+                      <th class="text-end">Unused reservation</th>
+                      <th>Account status</th>
+                      <th>Last updated</th>
                     </tr>
-                    </thead>
-                    <tbody>
-
-                    {% for w in week_summaries %}
-                    <tr>
-                        <td class="fw-semibold">
-                        {{ w.week_start }}
+                  </thead>
+                  <tbody>
+                    {% for allocation in allocations %}
+                      <tr>
+                        <td>
+                          <div class="fw-semibold">{{ allocation.client.name }}</div>
+                          <div class="small text-muted">Client #{{ allocation.client_id }}</div>
                         </td>
-
+                        <td class="text-end">R{{ allocation.amount|floatformat:2|intcomma }}</td>
                         <td class="text-end">
-                        R{{ w.visible_utilization_total|floatformat:2|intcomma }}
+                          {% if allocation.facility_limit is not None %}
+                            R{{ allocation.facility_limit|floatformat:2|intcomma }}
+                          {% else %}—{% endif %}
                         </td>
-
-                        <td class="text-end">
-                        {{ w.weekly_rate_pct_snapshot|floatformat:2 }}%
+                        <td class="text-end">R{{ allocation.current_exposure|floatformat:2|intcomma }}</td>
+                        <td class="text-end">R{{ allocation.unused_reservation|floatformat:2|intcomma }}</td>
+                        <td>
+                          {% if allocation.account_status %}
+                            <span class="badge {% if allocation.account_status == 'ACTIVE' %}bg-success{% elif allocation.account_status == 'OVERDUE' %}bg-warning text-dark{% elif allocation.account_status == 'SUSPENDED' or allocation.account_status == 'CLOSED' %}bg-danger{% else %}bg-secondary{% endif %}">
+                              {{ allocation.account_status }}
+                            </span>
+                          {% else %}
+                            <span class="text-muted small">No facility account</span>
+                          {% endif %}
                         </td>
-
-                        <td class="text-end fw-semibold text-success">
-                        R{{ w.weekly_return|floatformat:2|intcomma }}
-                        </td>
-                    </tr>
+                        <td class="small text-muted">{{ allocation.updated_at|date:"Y-m-d" }}</td>
+                      </tr>
                     {% empty %}
-                    <tr>
-                        <td colspan="4" class="text-center text-muted py-3">
-                        No weekly summaries available.
+                      <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                          No customer capital reservations have been recorded.
                         </td>
-                    </tr>
+                      </tr>
                     {% endfor %}
-
-                    </tbody>
+                  </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- CAPITAL MOVEMENTS -->
+          <div class="tab-pane fade" id="movements">
+            <div class="card border-0 shadow-sm">
+              <div class="card-header bg-white fw-semibold">Funder capital movements</div>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Date</th><th>Movement</th><th class="text-end">Amount</th><th>Reference</th><th>Note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for movement in movements %}
+                      <tr>
+                        <td class="small text-muted">{{ movement.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>{{ movement.get_kind_display }}</td>
+                        <td class="text-end fw-semibold">
+                          {% if movement.kind == 'payout' %}−{% else %}+{% endif %}
+                          R{{ movement.amount|floatformat:2|intcomma }}
+                        </td>
+                        <td class="small">{{ movement.reference|default:"—" }}</td>
+                        <td class="small text-muted">{{ movement.note|default:"—"|truncatechars:90 }}</td>
+                      </tr>
+                    {% empty %}
+                      <tr><td colspan="5" class="text-center text-muted py-4">No capital movements recorded.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ACCESS MEMBERS -->
+          <div class="tab-pane fade" id="members">
+            <div class="card border-0 shadow-sm">
+              <div class="card-header bg-white fw-semibold">Users with funder access</div>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr><th>User</th><th>Role</th><th>Status</th><th>Added</th></tr>
+                  </thead>
+                  <tbody>
+                    {% for member in members %}
+                      <tr>
+                        <td>{{ member.user.get_full_name|default:member.user.username }}</td>
+                        <td>{{ member.get_role_display }}</td>
+                        <td>
+                          {% if member.is_active %}
+                            <span class="badge bg-success">Active</span>
+                          {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                          {% endif %}
+                        </td>
+                        <td class="small text-muted">{{ member.created_at|date:"Y-m-d" }}</td>
+                      </tr>
+                    {% empty %}
+                      <tr><td colspan="4" class="text-center text-muted py-4">No members assigned.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {% if show_legacy_performance %}
+            <!-- LEGACY REPORTING ONLY: this is not the current Trade Assist pricing model. -->
+            <div class="tab-pane fade" id="weekly">
+              <div class="alert alert-secondary small">
+                These are retained historical reports from the previous funder model.
+                They are displayed for record-keeping only and do not define current Trade Assist
+                customer contributions, settlement terms or fees.
+              </div>
+              <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-semibold">Historical weekly summaries</div>
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                      <tr><th>Week starting</th><th class="text-end">Historical utilisation</th><th class="text-end">Historical rate</th><th class="text-end">Historical recorded return</th></tr>
+                    </thead>
+                    <tbody>
+                      {% for summary in week_summaries %}
+                        <tr>
+                          <td>{{ summary.week_start|date:"Y-m-d" }}</td>
+                          <td class="text-end">R{{ summary.visible_utilization_total|floatformat:2|intcomma }}</td>
+                          <td class="text-end">{{ summary.weekly_rate_pct_snapshot|floatformat:2 }}%</td>
+                          <td class="text-end">R{{ summary.weekly_return|floatformat:2|intcomma }}</td>
+                        </tr>
+                      {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-4">No historical weekly summaries.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
                 </div>
-
-                <div class="card-footer small text-muted">
-                Weekly returns are calculated from capped client utilization.
-                </div>
-
+              </div>
             </div>
-
-            </div>
-
-
-            </div>
-
-            </div>
-
+          {% endif %}
         </div>
-        </main>
+      </div>
+    </main>
 
-        <!-- UPDATE FUNDS MODAL -->
-        <div class="modal fade" id="updateFundsModal" tabindex="-1">
-
+    {% if is_active_funder %}
+      <!-- RECORD CAPITAL MOVEMENT -->
+      <div class="modal fade" id="updateFundsModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content">
-
+          <div class="modal-content">
             <form method="post" action="{% url 'funder-movement' funder.id %}">
-            {% csrf_token %}
-
-            <div class="modal-header">
-                <h5 class="modal-title">Update Funder Balance</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <div class="modal-body">
-
+              {% csrf_token %}
+              <div class="modal-header">
+                <h5 class="modal-title">Record funder capital movement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <div class="alert alert-light small">
+                  A capital movement changes the funder's cash balance. It does not create,
+                  increase or release a customer's reserved facility.
+                </div>
                 <div class="mb-3">
-                <label class="form-label">Movement Type</label>
-                <select name="kind" class="form-select" required>
+                  <label class="form-label" for="movementKind">Movement type</label>
+                  <select id="movementKind" name="kind" class="form-select" required>
                     <option value="">Select movement</option>
-                    <option value="topup">Top-up (Add Capital)</option>
-                    <option value="payout">Payout (Withdraw Capital)</option>
-                    <option value="adjustment">Manual Adjustment</option>
-                </select>
+                    <option value="topup">Top-up — add capital</option>
+                    <option value="payout">Payout — withdraw unallocated capital</option>
+                    <option value="adjustment">Manual adjustment</option>
+                  </select>
                 </div>
-
                 <div class="mb-3">
-                <label class="form-label">Amount</label>
-                <input
-                    type="number"
-                    step="0.01"
-                    name="amount"
-                    class="form-control"
-                    required
-                >
+                  <label class="form-label" for="movementAmount">Amount (R)</label>
+                  <input id="movementAmount" type="number" min="0.01" step="0.01" name="amount" class="form-control" required>
                 </div>
-
                 <div class="mb-3">
-                <label class="form-label">Reference</label>
-                <input
-                    type="text"
-                    name="reference"
-                    class="form-control"
-                    placeholder="Bank reference or note"
-                >
+                  <label class="form-label" for="movementReference">Reference</label>
+                  <input id="movementReference" type="text" name="reference" maxlength="120" class="form-control" placeholder="Bank reference or supporting reference">
                 </div>
-
                 <div class="mb-3">
-                <label class="form-label">Note</label>
-                <textarea
-                    name="note"
-                    rows="3"
-                    class="form-control"
-                    placeholder="Optional notes"
-                ></textarea>
+                  <label class="form-label" for="movementNote">Note</label>
+                  <textarea id="movementNote" name="note" rows="3" class="form-control"></textarea>
                 </div>
-
-            </div>
-
-            <div class="modal-footer">
-
-                <button
-                type="button"
-                class="btn btn-outline-secondary"
-                data-bs-dismiss="modal"
-                >
-                Cancel
-                </button>
-
-                <button type="submit" class="btn btn-success">
-                Save Movement
-                </button>
-
-            </div>
-
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-success">Save movement</button>
+              </div>
             </form>
-
-            </div>
+          </div>
         </div>
-
-        </div>
-
+      </div>
+    {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+  </body>
 </html>

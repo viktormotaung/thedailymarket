@@ -1299,6 +1299,152 @@
 
 
                   <!-- =============================================
+                      TRADEASSIST FACILITY
+                      ============================================= -->
+
+                  {% if trade_assist_account %}
+                      <div class="order-section mb-3">
+                          <div class="order-section-header">
+                              <div class="d-flex align-items-center gap-2">
+                                  <div class="order-section-icon">
+                                      <i class="bi bi-shield-check"></i>
+                                  </div>
+                                  <div>
+                                      <h5 class="order-section-title">TradeAssist</h5>
+                                      <div class="order-section-subtitle">
+                                          Current buying-power facility and settlement information
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div class="order-section-body">
+                              <div class="row g-3">
+                                  <div class="col-6 col-md-4">
+                                      <div class="small text-muted">Facility status</div>
+                                      <div class="fw-semibold">
+                                          {% if trade_assist_account.status %}
+                                              {{ trade_assist_account.get_status_display|default:trade_assist_account.status }}
+                                          {% else %}
+                                              Facility recorded
+                                          {% endif %}
+                                      </div>
+                                  </div>
+
+                                  <div class="col-6 col-md-4">
+                                      <div class="small text-muted">Approved buying power</div>
+                                      <div class="fw-semibold">
+                                          R{{ trade_assist_account.credit_limit|default:0|floatformat:2|intcomma }}
+                                      </div>
+                                  </div>
+
+                                  <div class="col-6 col-md-4">
+                                      <div class="small text-muted">Available buying power</div>
+                                      <div class="fw-semibold text-success">
+                                          R{{ trade_assist_account.credit_available|default:0|floatformat:2|intcomma }}
+                                      </div>
+                                  </div>
+
+                                  <div class="col-6 col-md-4">
+                                      <div class="small text-muted">Outstanding</div>
+                                      <div class="fw-semibold">
+                                          R{{ trade_assist_account.credit_used|default:0|floatformat:2|intcomma }}
+                                      </div>
+                                  </div>
+
+                                  <div class="col-6 col-md-4">
+                                      <div class="small text-muted">Customer contribution</div>
+                                      <div class="fw-semibold">
+                                          {{ trade_assist_account.credit_deposit_pct|default:100|floatformat:0 }}%
+                                      </div>
+                                  </div>
+
+                                  <div class="col-6 col-md-4">
+                                      <div class="small text-muted">Settlement term</div>
+                                      <div class="fw-semibold">
+                                          {{ trade_assist_account.get_payment_term_display|default:trade_assist_account.payment_term }}
+                                      </div>
+                                  </div>
+
+                                  <div class="col-6 col-md-4">
+                                      <div class="small text-muted">Next account due date</div>
+                                      <div class="fw-semibold">
+                                          {% if trade_assist_account.next_due_date %}
+                                              {{ trade_assist_account.next_due_date|date:"d M Y" }}
+                                          {% else %}
+                                              No date recorded
+                                          {% endif %}
+                                      </div>
+                                  </div>
+                              </div>
+
+                              {% if invoice and invoice.credit_used and invoice.credit_used > 0 %}
+                                  <hr class="my-3">
+
+                                  <div class="fw-semibold mb-2">TradeAssist on this order's invoice</div>
+                                  <div class="row g-3">
+                                      <div class="col-6 col-md-4">
+                                          <div class="small text-muted">TA-funded portion</div>
+                                          <div class="fw-semibold">
+                                              R{{ invoice.credit_used|floatformat:2|intcomma }}
+                                          </div>
+                                      </div>
+
+                                      <div class="col-6 col-md-4">
+                                          <div class="small text-muted">TA settlement status</div>
+                                          <div class="fw-semibold">
+                                              {% if invoice.settlement_status %}
+                                                  {{ invoice.get_settlement_status_display|default:invoice.settlement_status }}
+                                              {% else %}
+                                                  Not recorded
+                                              {% endif %}
+                                          </div>
+                                      </div>
+
+                                      <div class="col-6 col-md-4">
+                                          <div class="small text-muted">TA settlement due date</div>
+                                          <div class="fw-semibold">
+                                              {% if invoice.settlement_due_date %}
+                                                  {{ invoice.settlement_due_date|date:"d M Y" }}
+                                              {% else %}
+                                                  Not applicable / not recorded
+                                              {% endif %}
+                                          </div>
+                                      </div>
+
+                                      <div class="col-6 col-md-4">
+                                          <div class="small text-muted">TA settlement outstanding</div>
+                                          <div class="fw-semibold">
+                                              R{{ invoice.settlement_outstanding|default:0|floatformat:2|intcomma }}
+                                          </div>
+                                      </div>
+
+                                      <div class="col-6 col-md-4">
+                                          <div class="small text-muted">TA settlement paid</div>
+                                          <div class="fw-semibold">
+                                              R{{ invoice.settlement_paid|default:0|floatformat:2|intcomma }}
+                                          </div>
+                                      </div>
+                                  </div>
+                              {% elif invoice %}
+                                  <div class="alert alert-light border small mt-3 mb-0">
+                                      No TradeAssist-funded portion is recorded on this invoice. The facility snapshot above does not mean buying power has been used.
+                                  </div>
+                              {% else %}
+                                  <div class="alert alert-light border small mt-3 mb-0">
+                                      No invoice has been created for this order yet. TradeAssist allocation is not created by viewing an order.
+                                  </div>
+                              {% endif %}
+
+                              <div class="alert alert-light border small mt-3 mb-0">
+                                  This section is a read-only snapshot. Opening or viewing an order does not reserve or consume buying power. The account and available buying power are checked again during the invoice allocation process.
+                              </div>
+                          </div>
+                      </div>
+                  {% endif %}
+
+
+                  <!-- =============================================
                       ORDER ITEMS
                       ============================================= -->
 

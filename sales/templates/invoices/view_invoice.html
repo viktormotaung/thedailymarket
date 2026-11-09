@@ -1803,6 +1803,25 @@
                   Total including VAT
                 </div>
 
+                <!-- TRADEASSIST / CUSTOMER PAYMENT SPLIT -->
+                <div class="mt-3 p-3 rounded-3"
+                     style="background:rgba(255,255,255,.10);">
+                  <div class="d-flex justify-content-between gap-3 mb-2">
+                    <span class="invoice-payment-label">Customer contribution required</span>
+                    <strong>R{{ invoice.deposit_required|default:0|floatformat:2 }}</strong>
+                  </div>
+
+                  <div class="d-flex justify-content-between gap-3 mb-2">
+                    <span class="invoice-payment-label">TradeAssist funded portion</span>
+                    <strong>R{{ invoice.credit_used|default:0|floatformat:2 }}</strong>
+                  </div>
+
+                  <div class="d-flex justify-content-between gap-3 pt-2"
+                       style="border-top:1px solid rgba(255,255,255,.22);">
+                    <span class="invoice-payment-label">Customer contribution outstanding</span>
+                    <strong>R{{ deposit_outstanding|default:0|floatformat:2 }}</strong>
+                  </div>
+                </div>
 
                 <div class="invoice-payment-status">
 
@@ -1853,7 +1872,7 @@
                     {% endif %}
                   >
                     <i class="bi bi-cash-coin me-1"></i>
-                    Pay Deposit
+                    Record Customer Contribution
                   </button>
 
 
@@ -1909,7 +1928,7 @@
                   <div class="invoice-summary-row">
 
                     <span class="invoice-summary-label">
-                      Deposit Required
+                      Customer Contribution Required
                     </span>
 
                     <span class="invoice-summary-value">
@@ -1922,7 +1941,7 @@
                   <div class="invoice-summary-row">
 
                     <span class="invoice-summary-label">
-                      Deposit Paid
+                      Customer Contribution Received
                     </span>
 
                     <span class="invoice-summary-value">
@@ -1935,7 +1954,7 @@
                   <div class="invoice-summary-row">
 
                     <span class="invoice-summary-label">
-                      Deposit Outstanding
+                      Customer Contribution Outstanding
                     </span>
 
                     <span class="invoice-summary-value">
@@ -1948,7 +1967,7 @@
                   <div class="invoice-summary-row">
 
                     <span class="invoice-summary-label">
-                      Credit Used
+                      TradeAssist Funded Portion
                     </span>
 
                     <span class="invoice-summary-value">
@@ -1956,6 +1975,15 @@
                     </span>
 
                   </div>
+
+                  {% if invoice.credit_used and invoice.credit_used > 0 %}
+                    <div class="invoice-note mt-3">
+                      <div class="invoice-note-label">TradeAssist Settlement</div>
+                      <div class="invoice-note-text">
+                        TradeAssist covers the funded portion shown above. The customer is responsible for the required contribution, while the TradeAssist portion is settled separately under the applicable TradeAssist settlement terms. Customer contribution payments do not settle the TradeAssist obligation.
+                      </div>
+                    </div>
+                  {% endif %}
 
 
                   <div class="mt-3">
@@ -1977,8 +2005,131 @@
 
                   </div>
 
+                  {% if invoice.credit_used and invoice.credit_used > 0 %}
+                    <hr class="my-3">
+
+                    <div class="invoice-summary-row">
+                      <span class="invoice-summary-label">TA Settlement Due Date</span>
+                      <span class="invoice-summary-value">
+                        {{ invoice.settlement_due_date|date:"d M Y"|default:"—" }}
+                      </span>
+                    </div>
+
+                    <div class="invoice-summary-row">
+                      <span class="invoice-summary-label">TA Settlement Status</span>
+                      <span class="invoice-summary-value">
+                        {{ invoice.get_settlement_status_display|default:invoice.settlement_status|default:"Pending" }}
+                      </span>
+                    </div>
+
+                    <div class="invoice-summary-row">
+                      <span class="invoice-summary-label">TA Settlement Outstanding</span>
+                      <span class="invoice-summary-value">
+                        R{{ invoice.settlement_outstanding|default:0|floatformat:2 }}
+                      </span>
+                    </div>
+
+                    <div class="invoice-summary-row">
+                      <span class="invoice-summary-label">TA Amount Settled</span>
+                      <span class="invoice-summary-value">
+                        R{{ invoice.settlement_paid|default:0|floatformat:2 }}
+                      </span>
+                    </div>
+                  {% endif %}
+
                 </div>
 
+              </div>
+
+
+              <!-- =============================================
+                  TRADEASSIST FACILITY
+                  ============================================= -->
+
+              <div class="invoice-section">
+
+                <div class="invoice-section-header">
+                  <div class="invoice-section-icon">
+                    <i class="bi bi-arrow-left-right"></i>
+                  </div>
+                  <div>
+                    <h2 class="invoice-section-title">TradeAssist Facility</h2>
+                    <div class="invoice-section-subtitle">
+                      Client buying-power position
+                    </div>
+                  </div>
+                </div>
+
+                <div class="invoice-section-body">
+
+                  {% if trade_assist_account %}
+
+                    <div class="invoice-info-row">
+                      <span class="invoice-info-label">Facility Status</span>
+                      <span class="invoice-info-value">
+                        {% if trade_assist_account.status %}
+                          {{ trade_assist_account.get_status_display|default:trade_assist_account.status }}
+                        {% else %}
+                          Facility recorded
+                        {% endif %}
+                      </span>
+                    </div>
+
+                    <div class="invoice-info-row">
+                      <span class="invoice-info-label">Approved Buying Power</span>
+                      <span class="invoice-info-value">
+                        R{{ trade_assist_account.credit_limit|default:0|floatformat:2 }}
+                      </span>
+                    </div>
+
+                    <div class="invoice-info-row">
+                      <span class="invoice-info-label">Available Buying Power</span>
+                      <span class="invoice-info-value">
+                        R{{ trade_assist_account.credit_available|default:0|floatformat:2 }}
+                      </span>
+                    </div>
+
+                    <div class="invoice-info-row">
+                      <span class="invoice-info-label">Outstanding</span>
+                      <span class="invoice-info-value">
+                        R{{ trade_assist_account.outstanding|default:0|floatformat:2 }}
+                      </span>
+                    </div>
+
+                    <div class="invoice-info-row">
+                      <span class="invoice-info-label">Customer Contribution</span>
+                      <span class="invoice-info-value">
+                        {{ trade_assist_account.credit_deposit_pct|default:100 }}%
+                      </span>
+                    </div>
+
+                    <div class="invoice-info-row">
+                      <span class="invoice-info-label">Settlement Term</span>
+                      <span class="invoice-info-value">
+                        {{ trade_assist_account.get_payment_term_display|default:trade_assist_account.payment_term|default:"—" }}
+                      </span>
+                    </div>
+
+                    <div class="invoice-info-row">
+                      <span class="invoice-info-label">Next Account Due Date</span>
+                      <span class="invoice-info-value">
+                        {{ trade_assist_account.next_due_date|date:"d M Y"|default:"—" }}
+                      </span>
+                    </div>
+
+                  {% else %}
+
+                    <div class="text-muted small">
+                      This client does not currently have a TradeAssist facility recorded.
+                    </div>
+
+                  {% endif %}
+
+                  <div class="small text-muted mt-3">
+                    This is a read-only account snapshot. It does not reserve or consume buying power. The invoice settlement details below remain specific to this invoice.
+                  </div>
+
+                </div>
               </div>
 
 

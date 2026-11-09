@@ -46,6 +46,34 @@
       text-align: center;
     }
 
+    .tradeassist-panel {
+      border: 1px solid #dbe7f2;
+      background: linear-gradient(135deg, #f5f9fd 0%, #ffffff 100%);
+      border-radius: 14px;
+      padding: 20px;
+    }
+
+    .tradeassist-kicker {
+      color: #52718f;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    .tradeassist-mark {
+      width: 42px;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      background: #e5eff8;
+      color: #244e73;
+      font-size: 20px;
+      flex: 0 0 auto;
+    }
+
     @media print {
       body {
         background: #fff;
@@ -53,6 +81,13 @@
 
       .no-print {
         display: none !important;
+      }
+
+      .tradeassist-panel {
+        break-inside: avoid;
+        background: #f5f9fd !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
       }
     }
   </style>
@@ -194,7 +229,7 @@
               </td>
 
               <td class="text-end fw-semibold">
-                R{{ item.line_total_inc|floatformat:2|intcomma }}
+                R{{ item.display_line_total_inc|floatformat:2|intcomma }}
               </td>
             </tr>
             {% empty %}
@@ -246,6 +281,59 @@
         <div class="small">{{ quotation.customer_notes|linebreaks }}</div>
       </div>
       {% endif %}
+
+      <!-- TRADEASSIST INFORMATION -->
+      <section class="tradeassist-panel mt-4 mb-4">
+        <div class="d-flex align-items-start gap-3">
+          <div class="tradeassist-mark">
+            <i class="bi bi-shop"></i>
+          </div>
+          <div class="flex-grow-1">
+            <div class="tradeassist-kicker mb-1">More support as you grow with us</div>
+            <h5 class="fw-bold mb-2">Introducing TradeAssist</h5>
+            <p class="mb-3">
+              The Daily Market (TDM) supplies your business with the products it needs.
+              TradeAssist is a separate buying-power support arrangement designed to help
+              qualifying TDM customers manage and grow their regular stock purchases.
+            </p>
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="d-flex align-items-start gap-2">
+                  <i class="bi bi-calendar-check text-primary mt-1"></i>
+                  <div>
+                    <strong>Build a trading history</strong>
+                    <div class="small text-muted">
+                      Trade with The Daily Market consistently for two consecutive weeks
+                      to begin the TradeAssist eligibility process.
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="d-flex align-items-start gap-2">
+                  <i class="bi bi-clipboard-check text-primary mt-1"></i>
+                  <div>
+                    <strong>Assessment comes first</strong>
+                    <div class="small text-muted">
+                      After the two-week trading period, your account may be assessed.
+                      Buying power is not active or guaranteed simply because you receive
+                      this quotation.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-3">
+            <div class="small text-muted">
+              TradeAssist supports qualifying purchases from The Daily Market. It is not
+              a cash loan, and no interest is charged. Any buying-power arrangement is
+              subject to eligibility, assessment and approval.
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- PUBLIC DECISION ACTIONS -->
       {% if quotation.status == "accepted" %}

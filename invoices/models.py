@@ -9,6 +9,7 @@ from collections import defaultdict
 from typing import Callable, Optional
 import calendar
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Sum
 from django.db.models.signals import post_save
@@ -56,70 +57,93 @@ class Invoice(models.Model):
     client = models.ForeignKey(
         Client, on_delete=models.CASCADE, related_name="invoices"
     )
-
     end_user = models.ForeignKey(
-        "clients.EndUser",
-        on_delete=models.SET_NULL,
-        related_name="invoices",
-        null=True,
-        blank=True,
+        "clients.EndUser", on_delete=models.SET_NULL,
+        related_name="invoices", null=True, blank=True,
         help_text="End user receiving or benefiting from this invoice.",
     )
 
     STATUS_CHOICES = [
         ("unpaid", "Unpaid"),
         ("partial", "Partially Paid"),
-        ("paid", "Paid"),
+        ("paid", "Customer Contribution Paid"),
+        ("overdue", "Customer Contribution Overdue"),
+    ]
+    ALLOCATION_STATUS_CHOICES = [
+        ("not_required", "Not Required"),
+        ("pending", "Pending Contribution"),
+        ("active", "Active"),
+        ("settled", "Settled"),
+        ("cancelled", "Cancelled"),
+    ]
+    SETTLEMENT_STATUS_CHOICES = [
+        ("not_applicable", "Not Applicable"),
+        ("pending", "Pending Activation"),
+        ("outstanding", "Outstanding"),
+        ("partial", "Partially Settled"),
+        ("settled", "Settled"),
         ("overdue", "Overdue"),
+        ("suspended", "Suspended"),
     ]
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="unpaid")
     invoice_date = models.DateField(default=localdate)
+    # Customer contribution due date. The upfront contribution is due on invoice.
     due_date = models.DateField(null=True, blank=True)
-
     paid_date = models.DateField(
         null=True, blank=True, db_index=True,
-        help_text="Date invoice reached fully-paid deposit status.",
+        help_text="Date the customer's required contribution was fully paid.",
     )
 
-    # Snapshots
     order_total_inc = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     amount_due = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal("0.00"),
-        help_text="Deposit due (cash portion).",
+        help_text="Customer contribution required before fulfilment.",
     )
     deposit_required = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     deposit_paid = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     credit_used = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal("0.00"),
-        help_text="Portion going onto credit (after deposit).",
+        help_text="TA-funded portion activated after verified customer contribution.",
     )
 
-    # Deprecated shim (kept for migrations/backwards compatibility)
+    # Immutable commercial snapshots for this invoice.
+    contribution_pct_snapshot = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal("100.00"),
+        help_text="Customer contribution percentage approved when this invoice was created.",
+    )
+    settlement_term_snapshot = models.CharField(
+        max_length=3, default="0D",
+        help_text="Approved settlement term snapshot: 0D, 1D, 3D or 7D.",
+    )
+    settlement_due_date = models.DateField(null=True, blank=True, db_index=True)
+    settlement_grace_end_date = models.DateField(null=True, blank=True)
+    allocation_status = models.CharField(
+        max_length=20, choices=ALLOCATION_STATUS_CHOICES, default="not_required",
+        db_index=True,
+    )
+    settlement_status = models.CharField(
+        max_length=20, choices=SETTLEMENT_STATUS_CHOICES, default="not_applicable",
+        db_index=True,
+    )
+    settlement_paid = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    settlement_outstanding = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+
+    # Deprecated shim retained for compatibility with existing code/data.
     credit_usage_applied = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal("0.00"),
-        help_text="(Deprecated) Old delta tracker when pushing to ledger directly.",
+        help_text="Deprecated legacy delta tracker.",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    public_token = models.UUIDField(
-        default=uuid.uuid4,
-        unique=True,
-        editable=False,
-    )
-
+    public_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     segment = models.ForeignKey(
-        "UtilizationSegment",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
+        "UtilizationSegment", on_delete=models.PROTECT, null=True, blank=True,
         related_name="invoices",
-        help_text="Utilization segment this invoice belongs to (Daily / 3-Day / 7-Day)."
+        help_text="Utilization segment this invoice belongs to (Daily / 3-Day / 7-Day).",
     )
 
-    # Only customer cash toward deposit counts here (exclude funder cash/credit events).
     PAYMENT_TYPES = {"payment", "refund"}
 
     class Meta:
@@ -129,532 +153,459 @@ class Invoice(models.Model):
             models.Index(fields=["invoice_date"]),
             models.Index(fields=["client", "status"]),
             models.Index(fields=["end_user", "status"]),
+            models.Index(fields=["settlement_status", "settlement_due_date"]),
+            models.Index(fields=["allocation_status"]),
         ]
 
-    def __str__(self) -> str:
+    def __str__(self):
         if self.end_user:
-            return (
-                f"Invoice #{self.id or '—'} · "
-                f"{self.client} · "
-                f"{self.end_user.full_name} · "
-                f"{self.status}"
-            )
-
+            return f"Invoice #{self.id or '—'} · {self.client} · {self.end_user.full_name} · {self.status}"
         return f"Invoice #{self.id or '—'} · {self.client} · {self.status}"
 
     def clean(self):
         super().clean()
+        if self.end_user and self.end_user.client_id != self.client_id:
+            raise ValidationError("The selected end user does not belong to the selected client.")
+        if self.end_user and self.order_id and self.order.end_user_id != self.end_user_id:
+            raise ValidationError("The invoice end user must match the order end user.")
 
-        if self.end_user and not self.client:
-            raise ValidationError(
-                "An end user can only be linked to a client invoice."
-            )
+    @staticmethod
+    def _term_days(term_code):
+        return {"0D": 0, "1D": 1, "3D": 3, "7D": 7}.get(
+            (term_code or "0D").upper(), 0
+        )
 
-        if (
-            self.end_user
-            and self.client
-            and self.end_user.client_id != self.client_id
-        ):
-            raise ValidationError(
-                "The selected end user does not belong to the selected client."
-            )
+    def _get_credit_account(self, lock=False):
+        CreditAccount = apps.get_model("credit", "CreditAccount")
+        qs = CreditAccount.objects.using(self._state.db or "default")
+        if lock:
+            qs = qs.select_for_update()
+        return qs.filter(client_id=self.client_id).first()
 
-        if (
-            self.end_user
-            and self.order_id
-            and self.order.end_user_id != self.end_user_id
-        ):
-            raise ValidationError(
-                "The invoice end user must match the order end user."
-            )
-
-    # ---------- Core logic (deposit + credit) ----------
-
-    def calculate_totals(self) -> None:
+    def calculate_totals(self):
         """
-        Compute deposit/credit snapshots from the linked order & client.
-
-        For CREDIT clients (account_type='CREDIT' and credit_status='ACTIVE'):
-        - Use the client's CreditAccount.credit_deposit_pct (0, 30, 50 or 100)
-          to decide the cash deposit.
-        - The remaining portion goes onto credit (credit_used).
-        - Due date is invoice_date + payment_term days (0D, 3D, 7D).
-
-        For non-credit clients (or if no CreditAccount exists):
-        - 100% upfront cash deposit, 0 credit.
-        - Due date is invoice_date (0-day account).
+        Snapshot invoice terms from the current approved CreditAccount.
+        This method does not consume buying power or create ledger entries.
         """
         total = r2(self.order.grand_total_inc)
         self.order_total_inc = total
 
-        # Defaults: non-credit behaviour
-        deposit_pct = Decimal("100.00")  # 100% cash upfront
-        term_days = 0                    # due today
-
-        is_credit_client = (
-            self.client.account_type == "CREDIT"
-            and self.client.credit_status == "ACTIVE"
+        # Once an allocation is active, or money has been received, do not
+        # silently rewrite the commercial terms of this issued invoice.
+        frozen = (
+            self.pk and (
+                self.allocation_status in {"active", "settled"}
+                or (self.deposit_paid or Decimal("0.00")) > 0
+            )
         )
+        if frozen:
+            return
 
-        if is_credit_client:
-            # Try to read settings from the client's CreditAccount
-            ca = getattr(self.client, "credit_account", None)
+        deposit_pct = Decimal("100.00")
+        term_code = "0D"
+        ca = self._get_credit_account() if self.client_id else None
 
-            if ca is not None:
-                # 1) Deposit percentage (0, 30, 50, 100)
-                try:
-                    if ca.credit_deposit_pct is not None:
-                        deposit_pct = Decimal(str(ca.credit_deposit_pct))
-                except Exception:
-                    # If anything is weird, fall back to full deposit
-                    deposit_pct = Decimal("100.00")
-
-                # 2) Payment term → due date offset
-                term_code = (getattr(ca, "payment_term", "0D") or "0D").upper()
-                if term_code == "3D":
-                    term_days = 3
-                elif term_code == "7D":
-                    term_days = 7
-                else:
-                    term_days = 0  # treat anything else as 0-day
+        if ca and ca.status == "ACTIVE":
+            configured_term = (ca.payment_term or "0D").upper()
+            if configured_term in {"1D", "3D", "7D"}:
+                deposit_pct = Decimal(str(ca.credit_deposit_pct))
+                term_code = configured_term
             else:
-                # CREDIT client but no CreditAccount yet:
-                # You can customise this behaviour if you want different defaults.
-                pass
+                # 0D or an invalid/legacy term is cash-only, fail-safe.
+                deposit_pct = Decimal("100.00")
+                term_code = "0D"
+        else:
+            # Pending, missing, overdue, suspended or closed accounts do not
+            # receive a new TA-funded allocation.
+            term_code = "0D"
 
-        UtilizationSegment = apps.get_model("invoices", "UtilizationSegment")
+        if not Decimal("0") <= deposit_pct <= Decimal("100"):
+            raise ValidationError("Customer contribution percentage must be between 0 and 100.")
 
-        cycle_days = term_days if term_days > 0 else 1
-        db = self._state.db or self.order._state.db or "default"
-
-        self.segment = (
-            UtilizationSegment.objects.using(db)
-            .filter(cycle_days=cycle_days, is_active=True)
-            .first()
-        )
-
-        # Compute deposit + credit portions
-        self.deposit_required = r2(total * (deposit_pct / Decimal("100")))
+        self.contribution_pct_snapshot = deposit_pct
+        self.settlement_term_snapshot = term_code
+        self.deposit_required = r2(total * deposit_pct / Decimal("100"))
+        self.amount_due = self.deposit_required
         self.credit_used = r2(total - self.deposit_required)
 
-        # For non-credit clients, ensure no credit is used (safety clamp)
-        if not is_credit_client:
+        if self.credit_used > 0:
+            self.allocation_status = "pending"
+            self.settlement_status = "pending"
+            days = self._term_days(term_code)
+            # Invoice date is Day 1: a 1D term is due on invoice date.
+            self.settlement_due_date = (self.invoice_date or localdate()) + timedelta(days=max(days - 1, 0))
+            self.settlement_grace_end_date = self.settlement_due_date + timedelta(days=1)
+        else:
+            self.allocation_status = "not_required"
+            self.settlement_status = "not_applicable"
             self.credit_used = Decimal("0.00")
+            self.settlement_due_date = None
+            self.settlement_grace_end_date = None
 
-        # Amount currently due is always the deposit portion
-        self.amount_due = self.deposit_required
-
-        # Set due_date only if not already set
-        if not self.due_date:
-            base_date = self.invoice_date or localdate()
-            self.due_date = base_date + timedelta(days=term_days)
+        self.due_date = self.invoice_date or localdate()
+        UtilizationSegment = apps.get_model("invoices", "UtilizationSegment")
+        cycle_days = max(self._term_days(term_code), 1)
+        self.segment = (
+            UtilizationSegment.objects.using(self._state.db or "default")
+            .filter(cycle_days=cycle_days, is_active=True).first()
+        )
 
     @classmethod
-    def create_for_order(cls, order: Order) -> "Invoice":
-        db = order._state.db  # 🔥 KEY LINE
-
-        if hasattr(order, "invoice"):
-            inv: "Invoice" = order.invoice
-
-            # Keep invoice End User aligned with the Order
-            inv.end_user = order.end_user
-
-            inv.calculate_totals()
-            inv.save(
-                using=db,
-                update_fields=[
-                    "end_user",
-                    "order_total_inc",
-                    "amount_due",
-                    "deposit_required",
-                    "credit_used",
-                    "due_date",
-                    "updated_at",
-                ],
-            )
+    def create_for_order(cls, order):
+        db = order._state.db or "default"
+        with transaction.atomic(using=db):
+            inv = cls.objects.using(db).filter(order=order).first()
+            if inv:
+                # Existing invoices are immutable financial snapshots. Only
+                # keep the operational end-user link aligned with the order.
+                if inv.end_user_id != order.end_user_id:
+                    inv.end_user = order.end_user
+                    inv.save(using=db, update_fields=["end_user", "updated_at"])
+            else:
+                inv = cls(order=order, client=order.client, end_user=order.end_user)
+                inv.calculate_totals()
+                inv.save(using=db)
 
             inv.ensure_invoice_out_txn()
-            inv.ensure_credit_after_deposit()
+            # Deliberately do not activate or consume BP here.
             return inv
 
-        with transaction.atomic(using=db):  # 🔥 IMPORTANT
-            invoice = cls(
-                order=order,
-                client=order.client,
-                end_user=order.end_user,
-            )
-
-            invoice.calculate_totals()
-
-            invoice.save(using=db)  # 🔥 IMPORTANT
-
-            invoice.ensure_invoice_out_txn()
-            invoice.ensure_credit_after_deposit()
-
-            return invoice
-
-    # ---------- Credit release gating ----------
-
-    def can_release_credit(self) -> bool:
-        """
-        Only release/post credit (usage ledger + funder cash-in) when:
-         - client is an ACTIVE credit client, AND
-         - the invoice deposit is fully paid (status==paid or deposit_paid >= amount_due).
-        """
-        is_credit_client = (
-            self.client.account_type == "CREDIT"
-            and self.client.credit_status == "ACTIVE"
+    def can_release_credit(self):
+        return (
+            self.allocation_status == "pending"
+            and self.credit_used > 0
+            and self.deposit_paid >= self.deposit_required
         )
-        return is_credit_client and self.is_fully_paid()
 
     def ensure_credit_after_deposit(self):
         """
-        Create/update OR remove credit artefacts to match the current deposit state:
-         - If can_release_credit() -> ensure usage ledger + credit_issue txn exist at 'credit_used'.
-         - Else                   -> remove any existing usage ledger + credit_issue txn.
+        Activate a pending allocation only after the customer's contribution
+        has been received and verified. The account is locked and rechecked.
         """
-        if self.can_release_credit():
-            self.ensure_credit_issue_txn()
-            self.ensure_credit_usage_entry()
-        else:
-            self.remove_credit_issue_txn()
-            self.remove_credit_usage_entry()
+        if not self.can_release_credit():
+            return None
+        return self.activate_credit_allocation()
 
-    # ---------- Transaction helpers (lazy imports to avoid circulars) ----------
+    @transaction.atomic
+    def activate_credit_allocation(self):
+        db = self._state.db or "default"
+        if self.allocation_status != "pending":
+            return None
+        if self.deposit_paid < self.deposit_required:
+            return None
+        if self.credit_used <= 0:
+            self.allocation_status = "not_required"
+            self.settlement_status = "not_applicable"
+            self.save(using=db, update_fields=[
+                "allocation_status", "settlement_status", "updated_at"
+            ])
+            return None
 
+        CreditAccount = apps.get_model("credit", "CreditAccount")
+        ca = (
+            CreditAccount.objects.using(db)
+            .select_for_update()
+            .filter(client_id=self.client_id)
+            .first()
+        )
+        if not ca or ca.status != CreditAccount.STATUS_ACTIVE:
+            raise ValidationError("The buying-power account is not active; allocation cannot be activated.")
+
+        available = r2(ca.credit_available)
+        target = r2(self.credit_used)
+        if target > available:
+            raise ValidationError(
+                f"Insufficient buying power. Available: R{available:.2f}; required: R{target:.2f}."
+            )
+
+        entry = self.ensure_credit_usage_entry()
+        if not entry:
+            raise ValidationError("The TA-funded ledger allocation could not be created.")
+
+        self.allocation_status = "active"
+        self.settlement_status = "outstanding"
+        self.settlement_outstanding = target
+        self.save(using=db, update_fields=[
+            "allocation_status", "settlement_status",
+            "settlement_outstanding", "updated_at",
+        ])
+        self.ensure_credit_issue_txn()
+        self.sync_account_next_due()
+        return entry
+
+    # ---------- TDM transaction bookkeeping (intentionally retained) ----------
     def ensure_invoice_out_txn(self):
         from transactions.models import Transaction
-
-        db = self._state.db  # 🔥
-
+        db = self._state.db or "default"
         if not self.pk:
             self.save(using=db)
-
         txn, created = Transaction.objects.using(db).get_or_create(
-            invoice=self,
-            transaction_type="invoice",
+            invoice=self, transaction_type="invoice",
             defaults={
-                "client": self.client,
-                "amount": self.order_total_inc,
-                "reference": f"INV-{self.id}",
-                "note": "Invoice issued",
+                "client": self.client, "amount": self.order_total_inc,
+                "reference": f"INV-{self.id}", "note": "Invoice issued",
             },
         )
-
         if not created and txn.amount != self.order_total_inc:
             txn.amount = self.order_total_inc
             txn.save(using=db, update_fields=["amount"])
-
         return txn
 
     def ensure_credit_issue_txn(self):
         from transactions.models import Transaction
-
-        db = self._state.db  # 🔥 IMPORTANT
-
-        if not self.pk:
-            self.save(using=db)
-
-        if not self.can_release_credit():
-            self.remove_credit_issue_txn()
+        db = self._state.db or "default"
+        if self.allocation_status not in {"active", "settled"} or self.credit_used <= 0:
             return None
-
-        target = r2(self.credit_used or Decimal("0.00"))
-        if target == Decimal("0.00"):
-            self.remove_credit_issue_txn()
-            return None
-
-        tx = Transaction.objects.using(db).filter(
-            invoice=self,
-            transaction_type="credit_issue",
-        ).first()
-
-        if tx:
-            changed = False
-            if r2(tx.amount) != target:
-                tx.amount = target
-                changed = True
-            if not tx.reference:
-                tx.reference = f"INV-{self.id} credit funded"
-                changed = True
-            if not tx.note:
-                tx.note = "Funder covered credit portion"
-                changed = True
-            if changed:
-                tx.save(using=db, update_fields=["amount", "reference", "note"])
-            return tx
-
-        return Transaction.objects.using(db).create(
-            client=self.client,
-            invoice=self,
-            transaction_type="credit_issue",
-            amount=target,
-            reference=f"INV-{self.id} credit funded",
-            note="Funder covered credit portion",
+        tx, created = Transaction.objects.using(db).get_or_create(
+            invoice=self, transaction_type="credit_issue",
+            defaults={
+                "client": self.client, "amount": self.credit_used,
+                "reference": f"INV-{self.id} credit funded",
+                "note": "TradeAssist funded portion of invoice",
+            },
         )
+        if not created and r2(tx.amount) != r2(self.credit_used):
+            tx.amount = self.credit_used
+            tx.save(using=db, update_fields=["amount"])
+        return tx
 
     def remove_credit_issue_txn(self):
-        from transactions.models import Transaction
+        # Retain historical duplicate bookkeeping; do not erase a posted
+        # funding transaction merely because account settings later change.
+        return None
 
-        db = self._state.db
-
-        q = Transaction.objects.using(db).filter(
-            invoice=self,
-            transaction_type="credit_issue"
-        )
-
-        for tx in q.order_by("-created_at", "-id"):
-            tx.delete()
-
-    # ---- Ledger-first: maintain a single USAGE entry per invoice ----
-
-    def ensure_credit_usage_entry(self):
-        """
-        Ensure exactly one CreditEntry.USAGE exists for this invoice whose amount equals
-        invoice.credit_used, BUT ONLY when can_release_credit() is True; else ensure none.
-        Adjusting/deleting the entry auto-updates CreditAccount via CreditEntry signals.
-        """
-        if not self.pk:
-            self.save()
-
-        if not self.can_release_credit():
-            self.remove_credit_usage_entry()
-            return None
-
-        target = r2(self.credit_used or Decimal("0.00"))
-        if target == Decimal("0.00"):
-            self.remove_credit_usage_entry()
-            return None
-
-        entry = (
-            CreditEntry.objects.using(self._state.db)
+    def sync_account_next_due(self):
+        CreditAccount = apps.get_model("credit", "CreditAccount")
+        db = self._state.db or "default"
+        ca = CreditAccount.objects.using(db).filter(client_id=self.client_id).first()
+        if not ca:
+            return
+        next_due = (
+            Invoice.objects.using(db)
             .filter(
-                invoice=self,
-                kind=CreditEntry.USAGE,
-                credit_account__client=self.client
+                client_id=self.client_id,
+                allocation_status="active",
+                settlement_outstanding__gt=0,
+                settlement_due_date__isnull=False,
             )
-            .order_by("-posted_at", "-id")
+            .order_by("settlement_due_date")
+            .values_list("settlement_due_date", flat=True)
             .first()
         )
+        ca.next_due_date = next_due
+        ca.save(using=db, update_fields=["next_due_date", "updated_at"])
 
-        if entry:
-            if r2(entry.amount) != target:
-                entry.amount = target
-                entry.posted_at = now()
-                entry.save(update_fields=["amount", "posted_at"])
-            return entry
-
+    def ensure_credit_usage_entry(self):
+        db = self._state.db or "default"
+        existing = CreditEntry.objects.using(db).filter(
+            invoice=self, kind=CreditEntry.USAGE,
+        ).order_by("-posted_at", "-id").first()
+        if existing:
+            return existing
         return CreditEntry.record_usage(
-            client=self.client,
-            amount=target,
-            invoice=self,
+            client=self.client, amount=r2(self.credit_used), invoice=self,
             reference=f"INV-{self.id} credit usage",
-            note="Credit portion of invoice (released after deposit paid)",
-            using=self._state.db
+            note="TradeAssist buying-power allocation after verified contribution",
+            using=db,
         )
 
     def remove_credit_usage_entry(self):
-        db = self._state.db
+        # Activated ledger entries are financial history. Reverse them with
+        # an explicit repayment/reversal process, never by ordinary recalculation.
+        return None
 
-        for ce in self.credit_entries.using(db).filter(
-            kind=CreditEntry.USAGE
-        ).order_by("-posted_at", "-id"):
-            ce.delete()
-
-    # --- payments & status (cash deposit side) ---
-
-    def recalc_deposit_from_transactions(self, save: bool = True) -> None:
-        """
-        Recompute deposit_paid from all *cash-like* transactions on this invoice,
-        then update status accordingly, and sync credit release/removal.
-        """
+    # ---------- Customer contribution payments ----------
+    def recalc_deposit_from_transactions(self, save=True):
         total_in = (
-            self.transactions
-            .filter(transaction_type__in=self.PAYMENT_TYPES)
-            .aggregate(s=Sum("amount"))["s"]
-            or Decimal("0.00")
+            self.transactions.filter(transaction_type__in=self.PAYMENT_TYPES)
+            .aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
         )
         self.deposit_paid = r2(total_in)
         self.update_status(save=save)
-
-        # After status change, ensure credit artefacts match current state.
         self.ensure_credit_after_deposit()
 
-    def record_payment(
-        self,
-        amount: Decimal,
-        *,
-        reference: str = "",
-        note: str = "",
-        when=None,
-    ) -> None:
-        """
-        Create a 'payment' (cash) transaction toward the deposit, then recompute
-        deposit_paid/status and (if now fully paid) release credit.
-        """
-        from transactions.models import Transaction  # lazy import
-
+    def record_payment(self, amount, *, reference="", note="", when=None):
+        from transactions.models import Transaction
         amt = r2(Decimal(amount))
         if amt <= 0:
             raise ValueError("Amount must be a positive decimal.")
-
-        # Ensure the invoice-out row exists first
+        if self.deposit_paid + amt > self.deposit_required and self.deposit_required > 0:
+            # Allow overpayment to be recorded; the excess remains visible in
+            # cash transactions, but does not increase TA buying power.
+            pass
         self.ensure_invoice_out_txn()
-
-        Transaction.objects.using(self._state.db).create(
-            client=self.client,
-            invoice=self,
-            transaction_type="payment",
-            amount=amt,
-            reference=reference or f"INV-{self.id} payment",
-            note=note,
-            created_at=when or now(),
+        Transaction.objects.using(self._state.db or "default").create(
+            client=self.client, invoice=self, transaction_type="payment",
+            amount=amt, reference=reference or f"INV-{self.id} payment",
+            note=note, created_at=when or now(),
         )
-
-        # Refresh deposit snapshot & status
         self.recalc_deposit_from_transactions(save=True)
-
-        # If now fully paid (deposit side), persist paid_date to the actual calendar day
-        if self.status == "paid":
-
+        if self.is_fully_paid():
             payment_day = (when or now()).date()
-
-            # ---------------------------------------
-            # 1️⃣ Persist paid_date (calendar day)
-            # ---------------------------------------
             if self.paid_date != payment_day:
                 self.paid_date = payment_day
                 self.save(update_fields=["paid_date", "updated_at"])
-
-            # ---------------------------------------
-            # 2️⃣ Update CreditAccount next_due_date
-            # ---------------------------------------
-            ca = getattr(self.client, "credit_account", None)
-            if ca:
-                ca.next_due_date = payment_day + timedelta(days=1)
-                ca.save(update_fields=["next_due_date"])
-
-            # ---------------------------------------
-            # 3️⃣ Move Order to "at_warehouse"
-            # ---------------------------------------
-            order = getattr(self, "order", None)
-
+            # Customer contribution paid = fulfilment may proceed. The TA
+            # settlement remains a separate obligation.
+            order = self.order
             if order:
-
                 order.refresh_from_db()
-
-                # Prevent moving orders that are already past warehouse
-                terminal_statuses = [
-                    "at_warehouse",
-                    "ready_for_delivery",
-                    "out_for_delivery",
-                    "complete",
-                    "cancelled",
-                ]
-
-                if order.status not in terminal_statuses:
-
-                    print(f"📦 Moving order {order.id} to AT_WAREHOUSE")
-                    print(f"Previous order status: {order.status}")
-
+                terminal = {"at_warehouse", "ready_for_delivery", "out_for_delivery", "complete", "cancelled"}
+                if order.status not in terminal:
                     order.status = "at_warehouse"
                     order.save(update_fields=["status", "updated_at"])
 
-                    print(f"✅ Order {order.id} moved to AT_WAREHOUSE")
+    # ---------- TA settlement / repayments ----------
+    def _recalculate_settlement_from_ledger(self):
+        db = self._state.db or "default"
+        repayments = CreditEntry.objects.using(db).filter(
+            invoice=self, kind=CreditEntry.REPAYMENT
+        ).aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
+        self.settlement_paid = r2(repayments)
+        self.settlement_outstanding = max(
+            r2(self.credit_used - self.settlement_paid), Decimal("0.00")
+        )
+        if self.allocation_status == "active" and self.settlement_outstanding == 0:
+            self.allocation_status = "settled"
+            self.settlement_status = "settled"
+        elif self.allocation_status == "active" and self.settlement_paid > 0:
+            self.settlement_status = "partial"
+        elif self.allocation_status == "active":
+            self.settlement_status = "outstanding"
+        self.save(using=db, update_fields=[
+            "settlement_paid", "settlement_outstanding",
+            "allocation_status", "settlement_status", "updated_at",
+        ])
 
-        # Ensure credit artefacts reflect the (possibly new) state
-        self.ensure_credit_after_deposit()
-
-    # --- credit repayments (ledger side only) ---
-
-    def record_credit_repayment(
-        self,
-        amount: Decimal,
-        *,
-        reference: str = "",
-        note: str = "",
-        when=None,
-    ):
-        """
-        Ledger-only: record a repayment against the CREDIT portion (not the cash deposit).
-        No business Transaction is created (money flows to funder, not us).
-        """
+    def record_credit_repayment(self, amount, *, reference="", note="", when=None):
         amt = r2(Decimal(amount))
         if amt <= 0:
             raise ValueError("Amount must be a positive decimal.")
-
-        return CreditEntry.record_repayment(
-            client=self.client,
-            amount=amt,
-            invoice=self,
-            transaction=None,
-            reference=reference or f"INV-{self.id} credit repayment",
-            note=note,
-            when=when,
-            using=self._state.db  # 🔥 ADD THIS
+        if self.allocation_status != "active":
+            raise ValidationError("This invoice has no active TA-funded balance.")
+        if amt > self.settlement_outstanding:
+            raise ValidationError("Repayment exceeds this invoice's outstanding TA balance.")
+        entry = CreditEntry.record_repayment(
+            client=self.client, amount=amt, invoice=self,
+            transaction=None, reference=reference or f"INV-{self.id} credit repayment",
+            note=note, using=self._state.db or "default",
         )
+        self._recalculate_settlement_from_ledger()
+        self.sync_account_next_due()
+        self.refresh_settlement_status()
+        return entry
 
-    # --- status helpers (cash deposit dimension) ---
+    def refresh_settlement_status(self, today=None):
+        """
+        Refresh this invoice's due/grace state and the account's aggregate
+        overdue/suspension state. Call from a daily scheduled sweep as well
+        as from payment workflows.
+        """
+        today = today or localdate()
+        if self.allocation_status not in {"active", "settled"}:
+            return self.settlement_status
 
-    def is_fully_paid(self) -> bool:
+        if self.settlement_outstanding <= 0:
+            self.settlement_status = "settled"
+        elif self.settlement_due_date and today > self.settlement_due_date:
+            if self.settlement_grace_end_date and today > self.settlement_grace_end_date:
+                self.settlement_status = "suspended"
+            else:
+                self.settlement_status = "overdue"
+        elif self.settlement_paid > 0:
+            self.settlement_status = "partial"
+        else:
+            self.settlement_status = "outstanding"
+        self.save(update_fields=["settlement_status", "updated_at"])
+
+        CreditAccount = apps.get_model("credit", "CreditAccount")
+        db = self._state.db or "default"
+        ca = CreditAccount.objects.using(db).filter(client_id=self.client_id).first()
+        if ca and ca.status not in {CreditAccount.STATUS_CLOSED}:
+            invoices = Invoice.objects.using(db).filter(
+                client_id=self.client_id, allocation_status="active",
+                settlement_outstanding__gt=0,
+            )
+            suspended = any(
+                inv.settlement_grace_end_date and today > inv.settlement_grace_end_date
+                for inv in invoices
+            )
+            overdue = any(
+                inv.settlement_due_date and today > inv.settlement_due_date
+                for inv in invoices
+            )
+            target_status = (
+                CreditAccount.STATUS_SUSPENDED
+                if ca.status == CreditAccount.STATUS_SUSPENDED or suspended else
+                CreditAccount.STATUS_OVERDUE if overdue else
+                CreditAccount.STATUS_ACTIVE
+            )
+            if ca.status != target_status:
+                ca.status = target_status
+                ca.status_reason = (
+                    "One or more invoice settlements passed the grace period."
+                    if suspended else
+                    "One or more invoice settlements are overdue."
+                    if overdue else
+                    "All invoice settlements are within their approved terms."
+                )
+                ca.save(update_fields=["status", "status_reason", "updated_at"])
+        return self.settlement_status
+
+    @classmethod
+    def refresh_all_settlement_statuses(cls, today=None, using="default"):
+        """
+        Daily sweep entry point. Schedule this from the existing task/beat
+        configuration so due dates and account suspensions update even when
+        no payment event occurs.
+        """
+        today = today or localdate()
+        invoice_ids = cls.objects.using(using).filter(
+            allocation_status="active",
+            settlement_outstanding__gt=0,
+        ).values_list("pk", flat=True)
+        for invoice in cls.objects.using(using).filter(pk__in=invoice_ids).iterator():
+            invoice.refresh_settlement_status(today=today)
+
+    # ---------- Status helpers: customer contribution ----------
+    def is_fully_paid(self):
         return self.deposit_paid >= self.amount_due
 
     @property
-    def is_overdue(self) -> bool:
-        return (
-            self.due_date is not None
-            and localdate() > self.due_date
-            and not self.is_fully_paid()
+    def is_overdue(self):
+        return bool(
+            self.due_date and localdate() > self.due_date and not self.is_fully_paid()
         )
 
-    def update_status(self, save: bool = False) -> None:
-        """
-        Decide status from current deposit snapshots and keep paid_date consistent:
-        - Set paid_date the first time it becomes fully paid.
-        - Clear paid_date if it drops below fully paid (refund/adjustment).
-        """
+    def update_status(self, save=False):
         today = localdate()
-
         if self.is_fully_paid():
             new_status = "paid"
-        elif self.due_date and today > self.due_date and self.deposit_paid < self.amount_due:
-            new_status = "overdue"
-        elif self.deposit_paid > 0:
-            new_status = "partial"
-        else:
-            new_status = "unpaid"
-
-        if new_status == "paid":
             if self.paid_date is None:
                 self.paid_date = today
+        elif self.due_date and today > self.due_date:
+            new_status = "overdue"
+            self.paid_date = None
+        elif self.deposit_paid > 0:
+            new_status = "partial"
+            self.paid_date = None
         else:
-            if self.paid_date is not None:
-                self.paid_date = None
-
+            new_status = "unpaid"
+            self.paid_date = None
         self.status = new_status
         if save:
             self.save(update_fields=["status", "deposit_paid", "paid_date", "updated_at"])
 
-    # --- cascading delete of related transactions & ledger rollback via signals ---
-
     @transaction.atomic
     def delete(self, *args, **kwargs):
-        """
-        1) Delete all related Transaction rows so their own delete() logic runs.
-        2) Delete any ledger entries (CreditEntry) tied to this invoice.
-           CreditEntry signals will reverse their effect on CreditAccount.
-        """
-        from transactions.models import Transaction  # lazy import
-
-        # 1) delete TX rows first
+        if self.allocation_status in {"active", "settled"} or self.credit_entries.exists():
+            raise ValidationError(
+                "This invoice has TA ledger history. It cannot be deleted; use a controlled reversal process."
+            )
         for tx in self.transactions.all().order_by("-created_at", "-id"):
             tx.delete()
-
-        # 2) delete any ledger entries tied to this invoice (signals reverse effects)
-        for ce in self.credit_entries.all().order_by("-posted_at", "-id"):
-            ce.delete()
-
         super().delete(*args, **kwargs)
+
 
 @receiver(post_save, sender=Invoice)
 def ensure_order_progress_after_payment(sender, instance, **kwargs):
@@ -689,33 +640,44 @@ def ensure_order_progress_after_payment(sender, instance, **kwargs):
 @receiver(post_save, sender=CreditEntry)
 def update_credit_next_due(sender, instance, **kwargs):
     ca = instance.credit_account
-    # Recalculate total credit_used
-    ca.credit_used = ca.entries.filter(kind=CreditEntry.USAGE).aggregate(
-        s=Coalesce(Sum("amount"), Decimal("0.00"))
-    )["s"] or Decimal("0.00")
-
-    # Update next_due_date based on invoice due date + 1 day
-    invoice_due = getattr(instance.invoice, "due_date", None)
-    if invoice_due:
-        ca.next_due_date = invoice_due + timedelta(days=1)
-
-    ca.save(update_fields=["credit_used", "next_due_date"])
+    # CreditAccount/CreditEntry owns the net exposure calculation.
+    # This invoice signal only synchronises the earliest settlement date.
+    next_due = (
+        Invoice.objects.using(instance._state.db or "default")
+        .filter(
+            client_id=ca.client_id,
+            allocation_status="active",
+            settlement_outstanding__gt=0,
+            settlement_due_date__isnull=False,
+        )
+        .order_by("settlement_due_date")
+        .values_list("settlement_due_date", flat=True)
+        .first()
+    )
+    ca.next_due_date = next_due
+    ca.save(update_fields=["next_due_date"])
 
 
 
 @receiver(post_delete, sender=CreditEntry)
 def reverse_credit_next_due(sender, instance, **kwargs):
     ca = instance.credit_account
-    # Recalculate total credit_used after deletion
-    ca.credit_used = ca.entries.filter(kind=CreditEntry.USAGE).aggregate(
-        s=Coalesce(Sum("amount"), Decimal("0.00"))
-    )["s"] or Decimal("0.00")
-
-    # Clear next_due_date if no remaining credit
-    if ca.credit_used == 0:
-        ca.next_due_date = None
-
-    ca.save(update_fields=["credit_used", "next_due_date"])
+    # CreditAccount/CreditEntry owns the net exposure calculation.
+    # This signal only synchronises the earliest settlement date.
+    next_due = (
+        Invoice.objects.using(instance._state.db or "default")
+        .filter(
+            client_id=ca.client_id,
+            allocation_status="active",
+            settlement_outstanding__gt=0,
+            settlement_due_date__isnull=False,
+        )
+        .order_by("settlement_due_date")
+        .values_list("settlement_due_date", flat=True)
+        .first()
+    )
+    ca.next_due_date = next_due
+    ca.save(update_fields=["next_due_date"])
 
 
 

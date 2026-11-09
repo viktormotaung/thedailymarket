@@ -202,21 +202,21 @@
 
           {% if invoice.deposit_required > 0 %}
           <div class="d-flex justify-content-between mb-2">
-            <span>Deposit Required</span>
+            <span>Customer Contribution Required</span>
             <span>R {{ invoice.deposit_required|floatformat:2|intcomma }}</span>
           </div>
           {% endif %}
 
           {% if invoice.deposit_paid > 0 %}
           <div class="d-flex justify-content-between mb-2">
-            <span>Deposit Paid</span>
+            <span>Customer Contribution Received</span>
             <span>-R {{ invoice.deposit_paid|floatformat:2|intcomma }}</span>
           </div>
           {% endif %}
 
           {% if invoice.credit_used > 0 %}
           <div class="d-flex justify-content-between mb-2">
-            <span>Credit Used</span>
+            <span>Trade Assist Funded Portion</span>
             <span>R {{ invoice.credit_used|floatformat:2|intcomma }}</span>
           </div>
           {% endif %}
@@ -230,6 +230,15 @@
 
         </div>
       </div>
+
+
+          <div class="alert alert-light border small mt-3 mb-0">
+            <strong>Trade Assist:</strong> Where Trade Assist has been approved for this order,
+            the funded portion is managed separately under the customer's approved Trade Assist
+            terms. The customer contribution shown above is the amount payable by the customer.
+            Trade Assist funding is subject to account status, available buying power and
+            verification of the required contribution.
+          </div>
 
       <!-- PAYMENT ACTION -->
       <div class="no-print mt-4">

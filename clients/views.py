@@ -107,7 +107,18 @@ def client_list(request):
         qs = qs.filter(status=status)
     
 
-    clients = qs.distinct()
+    clients = list(qs.distinct())
+
+    # TradeAssist facility snapshot.
+    # Keep this independent of the legacy Client.account_type field:
+    # a TradeAssist facility can exist without changing that field.
+    client_ids = [cl.pk for cl in clients]
+    trade_assist_accounts = {
+        account.client_id: account
+        for account in CreditAccount.objects.filter(client_id__in=client_ids)
+    }
+    for cl in clients:
+        cl.trade_assist_account = trade_assist_accounts.get(cl.pk)
 
     return render(request, "clients/client_list.html", {
         "clients": clients,
@@ -547,26 +558,31 @@ def client_view(request, pk):
         .first()
     )
 
-    credit_account = None
+    # TradeAssist facility is loaded independently of the legacy
+    # Client.account_type value so existing client records remain intact.
+    credit_account = (
+        CreditAccount.objects
+        .filter(client=client)
+        .first()
+    )
+    trade_assist_account = credit_account
+
     credit_utilization_pct = None
     credit_utilization_status = None
 
-    if client.account_type == "CREDIT":
-        credit_account = CreditAccount.objects.filter(client=client).first()
+    if credit_account and credit_account.credit_limit > 0:
+        credit_utilization_pct = (
+            credit_account.credit_used / credit_account.credit_limit
+        ) * Decimal("100.00")
 
-        if credit_account and credit_account.credit_limit > 0:
-            credit_utilization_pct = (
-                credit_account.credit_used / credit_account.credit_limit
-            ) * Decimal("100.00")
-
-            if credit_utilization_pct < 50:
-                credit_utilization_status = "Healthy"
-            elif credit_utilization_pct < 80:
-                credit_utilization_status = "Watch"
-            elif credit_utilization_pct <= 100:
-                credit_utilization_status = "High Risk"
-            else:
-                credit_utilization_status = "Over Limit"
+        if credit_utilization_pct < 50:
+            credit_utilization_status = "Healthy"
+        elif credit_utilization_pct < 80:
+            credit_utilization_status = "Watch"
+        elif credit_utilization_pct <= 100:
+            credit_utilization_status = "High Risk"
+        else:
+            credit_utilization_status = "Over Limit"
 
     compliance = getattr(client, "compliance", None)
 
@@ -644,6 +660,7 @@ def client_view(request, pk):
         "latest_order": latest_order,
 
         "credit_account": credit_account,
+        "trade_assist_account": trade_assist_account,
         "credit_utilization_pct": credit_utilization_pct,
         "credit_utilization_status": credit_utilization_status,
 

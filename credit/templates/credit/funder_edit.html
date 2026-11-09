@@ -28,7 +28,21 @@
 
 
 
-    html, body { height: 100%; }
+
+
+    /* Funder edit form controls */
+    .content input:not([type="checkbox"]):not([type="hidden"]),
+    .content select,
+    .content textarea {
+      width: 100%;
+      max-width: 100%;
+      padding: .55rem .7rem;
+      border: 1px solid #ced4da;
+      border-radius: .375rem;
+      background: #fff;
+    }
+    .content input[type="checkbox"] { width: auto; }
+\n    html, body { height: 100%; }
 
     /* Sidebar skin */
     .sidebar-skin{
@@ -475,255 +489,224 @@
     {% endwith %}
 
     <main class="content py-4">
-        <div class="page-container">
+      <div class="page-container">
 
-            <!-- Header -->
-            <div class="text-center mb-4">
-            <h2 class="fw-semibold mb-1">Edit Funder</h2>
-            </div>
-
-            <form method="post">
-            {% csrf_token %}
-
-            <!-- 🔥 GLOBAL ERROR SUMMARY -->
-            {% if form.errors or member_formset.errors or allocation_formset.errors %}
-                <div class="alert alert-danger">
-
-                <strong>We couldn’t save this funder:</strong>
-
-                <ul class="mt-2 mb-0 ps-3">
-
-                    <!-- FUND FORM ERRORS -->
-                    {% for field in form %}
-                    {% for error in field.errors %}
-                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
-                    {% endfor %}
-                    {% endfor %}
-
-                    {% for error in form.non_field_errors %}
-                    <li>{{ error }}</li>
-                    {% endfor %}
-
-                    <!-- MEMBER FORMSET ERRORS -->
-                    {% for f in member_formset %}
-                    {% for field in f %}
-                        {% for error in field.errors %}
-                        <li><strong>Member {{ field.label }}:</strong> {{ error }}</li>
-                        {% endfor %}
-                    {% endfor %}
-                    {% endfor %}
-
-                    {% for error in member_formset.non_form_errors %}
-                    <li>{{ error }}</li>
-                    {% endfor %}
-
-                    <!-- ALLOCATION FORMSET ERRORS -->
-                    {% for f in allocation_formset %}
-                    {% for field in f %}
-                        {% for error in field.errors %}
-                        <li><strong>Allocation {{ field.label }}:</strong> {{ error }}</li>
-                        {% endfor %}
-                    {% endfor %}
-                    {% endfor %}
-
-                    {% for error in allocation_formset.non_form_errors %}
-                    <li>{{ error }}</li>
-                    {% endfor %}
-
-                </ul>
-
-                </div>
-            {% endif %}
-
-            <!-- ================= FUNDER DETAILS ================= -->
-            <div class="card mb-4 shadow-sm">
-                <div class="card-header bg-light fw-semibold">
-                Funder Details
-                </div>
-
-                <div class="card-body">
-                <div class="row g-3">
-
-                    <div class="col-md-6">
-                    <label class="form-label fw-semibold">Funder Name</label>
-                    {{ form.name }}
-                    {% for e in form.name.errors %}
-                        <div class="invalid-feedback d-block">{{ e }}</div>
-                    {% endfor %}
-                    </div>
-
-                    <div class="col-md-6">
-                    <label class="form-label fw-semibold">Weekly Rate (%)</label>
-                    {{ form.weekly_rate_pct }}
-                    {% for e in form.weekly_rate_pct.errors %}
-                        <div class="invalid-feedback d-block">{{ e }}</div>
-                    {% endfor %}
-                    </div>
-
-                </div>
-                </div>
-            </div>
-
-
-            <!-- ================= MEMBERS ================= -->
-            <div class="card mb-4 shadow-sm">
-
-                <div class="card-header bg-light fw-semibold">
-                Funder Members
-                </div>
-
-                <div class="card-body">
-
-                {{ member_formset.management_form }}
-
-                {% if member_formset.non_form_errors %}
-                    <div class="alert alert-danger">
-                    {{ member_formset.non_form_errors }}
-                    </div>
-                {% endif %}
-
-                <table class="table table-sm align-middle">
-                    <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Role</th>
-                        <th>Active</th>
-                        <th>Delete</th>
-                    </tr>
-                    </thead>
-
-                    <tbody>
-                    {% for form in member_formset %}
-                    <tr>
-
-                        <td>
-                        {{ form.user }}
-                        {% for e in form.user.errors %}
-                            <div class="invalid-feedback d-block">{{ e }}</div>
-                        {% endfor %}
-                        </td>
-
-                        <td>
-                        {{ form.role }}
-                        {% for e in form.role.errors %}
-                            <div class="invalid-feedback d-block">{{ e }}</div>
-                        {% endfor %}
-                        </td>
-
-                        <td>{{ form.is_active }}</td>
-                        <td>{{ form.DELETE }}</td>
-
-                    </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-
-                </div>
-
-            </div>
-
-
-            <!-- ================= ALLOCATIONS ================= -->
-            <div class="card mb-4 shadow-sm">
-
-                <div class="card-header bg-light fw-semibold">
-                Allocate Funder Capital to Clients
-                </div>
-
-                <div class="card-body">
-
-                <!-- Capital Summary -->
-                <div class="row mb-4">
-
-                    <div class="col-md-4">
-                    <small class="text-muted">Total Capital</small>
-                    <div class="fw-semibold">
-                        R{{ funder.balance|floatformat:2|intcomma }}
-                    </div>
-                    </div>
-
-                    <div class="col-md-4">
-                    <small class="text-muted">Allocated Capital</small>
-                    <div class="fw-semibold">
-                        R{{ allocated_total|floatformat:2|intcomma }}
-                    </div>
-                    </div>
-
-                    <div class="col-md-4">
-                    <small class="text-muted">Available for Allocation</small>
-                    <div class="fw-semibold text-success">
-                        R{{ available_for_allocation|floatformat:2|intcomma }}
-                    </div>
-                    </div>
-
-                </div>
-
-                {{ allocation_formset.management_form }}
-
-                {% if allocation_formset.non_form_errors %}
-                    <div class="alert alert-danger">
-                    {{ allocation_formset.non_form_errors }}
-                    </div>
-                {% endif %}
-
-                <table class="table table-sm align-middle">
-
-                    <thead class="table-light">
-                    <tr>
-                        <th style="width:50%">Client</th>
-                        <th style="width:30%">Allocated Amount</th>
-                        <th style="width:20%">Delete</th>
-                    </tr>
-                    </thead>
-
-                    <tbody>
-                    {% for form in allocation_formset %}
-                    <tr>
-
-                        <td>
-                        {{ form.client }}
-                        {% for e in form.client.errors %}
-                            <div class="invalid-feedback d-block">{{ e }}</div>
-                        {% endfor %}
-                        </td>
-
-                        <td>
-                        {{ form.amount }}
-                        {% for e in form.amount.errors %}
-                            <div class="invalid-feedback d-block">{{ e }}</div>
-                        {% endfor %}
-                        </td>
-
-                        <td>{{ form.DELETE }}</td>
-
-                    </tr>
-                    {% endfor %}
-                    </tbody>
-
-                </table>
-
-                </div>
-
-            </div>
-
-
-            <!-- ================= ACTIONS ================= -->
-            <div class="d-flex justify-content-between">
-
-                <a href="{% url 'funder-view' funder.id %}" class="btn btn-outline-secondary">
-                Cancel
-                </a>
-
-                <button type="submit" class="btn btn-success">
-                Save Changes
-                </button>
-
-            </div>
-
-            </form>
-
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+          <div>
+            <div class="text-muted small mb-1">Finance / Funders</div>
+            <h2 class="fw-semibold mb-1">Edit Trade Assist Funder</h2>
+            <p class="text-muted mb-0">
+              Manage the funder's access members and the capital reserved for customer facilities.
+            </p>
+          </div>
+          <a href="{% url 'funder-view' funder.id %}" class="btn btn-outline-secondary">
+            Back to funder
+          </a>
         </div>
-        </main>
+
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        {% if form.errors or member_formset.errors or allocation_formset.errors %}
+          <div class="alert alert-danger">
+            <strong>We couldn't save these changes.</strong>
+            <ul class="mb-0 mt-2">
+              {% for field in form %}
+                {% for error in field.errors %}
+                  <li>{{ field.label }}: {{ error }}</li>
+                {% endfor %}
+              {% endfor %}
+              {% for error in form.non_field_errors %}
+                <li>{{ error }}</li>
+              {% endfor %}
+              {% for member_form in member_formset %}
+                {% for field in member_form %}
+                  {% for error in field.errors %}
+                    <li>Member – {{ field.label }}: {{ error }}</li>
+                  {% endfor %}
+                {% endfor %}
+              {% endfor %}
+              {% for error in member_formset.non_form_errors %}
+                <li>Members: {{ error }}</li>
+              {% endfor %}
+              {% for allocation_form in allocation_formset %}
+                {% for field in allocation_form %}
+                  {% for error in field.errors %}
+                    <li>Reservation – {{ field.label }}: {{ error }}</li>
+                  {% endfor %}
+                {% endfor %}
+              {% endfor %}
+              {% for error in allocation_formset.non_form_errors %}
+                <li>Reservations: {{ error }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+
+        <div class="card shadow-sm border-0 mb-4">
+          <div class="card-header bg-white fw-semibold">Capital position</div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <div class="small text-muted">Funder capital balance</div>
+                <div class="fs-4 fw-semibold">R{{ funder.balance|default:0|floatformat:2|intcomma }}</div>
+              </div>
+              <div class="col-md-4">
+                <div class="small text-muted">Capital reserved for customer facilities</div>
+                <div class="fs-4 fw-semibold">R{{ allocated_total|default:0|floatformat:2|intcomma }}</div>
+              </div>
+              <div class="col-md-4">
+                <div class="small text-muted">Unallocated capital available</div>
+                <div class="fs-4 fw-semibold text-success">R{{ available_for_allocation|default:0|floatformat:2|intcomma }}</div>
+              </div>
+            </div>
+            <hr>
+            <p class="small text-muted mb-0">
+              A reservation earmarks part of the funder's capital for a customer facility.
+              It is not the customer's approved buying-power limit and it is not the amount
+              currently outstanding. Those are managed separately on the customer's account.
+            </p>
+          </div>
+        </div>
+
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {{ member_formset.management_form }}
+          {{ allocation_formset.management_form }}
+
+          <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white fw-semibold">Funder details</div>
+            <div class="card-body">
+              {% for field in form %}
+                {% if field.name == "name" %}
+                  <div class="row">
+                    <div class="col-lg-7">
+                      <label class="form-label fw-semibold" for="{{ field.id_for_label }}">Funder name</label>
+                      {{ field }}
+                      {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                      {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                    </div>
+                  </div>
+                {% else %}
+                  {{ field.as_hidden }}
+                {% endif %}
+              {% endfor %}
+              <div class="form-text mt-3">
+                Trade Assist does not charge customers interest or funder fees. Historical weekly-rate
+                and profit settings are retained in the database for legacy records and are not
+                configured from this screen.
+              </div>
+            </div>
+          </div>
+
+          <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">Funder access members</div>
+                <div class="small text-muted">Control which platform users can access funder information.</div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="min-width:220px">User</th>
+                      <th style="min-width:150px">Role</th>
+                      <th class="text-center">Active</th>
+                      <th class="text-center">Remove</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for member_form in member_formset %}
+                      <tr>
+                        <td>
+                          {% for hidden in member_form.hidden_fields %}{{ hidden }}{% endfor %}
+                          {{ member_form.user }}
+                          {% for error in member_form.user.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </td>
+                        <td>
+                          {{ member_form.role }}
+                          {% for error in member_form.role.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </td>
+                        <td class="text-center">{{ member_form.is_active }}</td>
+                        <td class="text-center">{{ member_form.DELETE }}</td>
+                      </tr>
+                    {% empty %}
+                      <tr><td colspan="4" class="text-muted text-center py-3">No access members configured.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <div class="form-text mt-2">Use the blank row, if provided, to add another member.</div>
+            </div>
+          </div>
+
+          <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white">
+              <div class="fw-semibold">Customer capital reservations</div>
+              <div class="small text-muted">
+                Set the amount of funder capital reserved against each customer's facility.
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-info small">
+                Reservations cannot exceed total funder capital, and cannot be reduced below a
+                customer's current outstanding Trade Assist exposure. Changing a reservation does
+                not change the customer's approved buying-power limit, contribution percentage or
+                settlement term.
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="min-width:260px">Customer</th>
+                      <th style="min-width:180px">Reserved capital (R)</th>
+                      <th class="text-center">Remove</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for allocation_form in allocation_formset %}
+                      <tr>
+                        <td>
+                          {% for hidden in allocation_form.hidden_fields %}{{ hidden }}{% endfor %}
+                          {{ allocation_form.client }}
+                          {% for error in allocation_form.client.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </td>
+                        <td>
+                          {{ allocation_form.amount }}
+                          {% for error in allocation_form.amount.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </td>
+                        <td class="text-center">{{ allocation_form.DELETE }}</td>
+                      </tr>
+                    {% empty %}
+                      <tr><td colspan="3" class="text-muted text-center py-3">No customer reservations configured.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <div class="form-text">
+                The reservation is a capital allocation record. Actual usage is tracked through
+                the customer's Credit Account and invoice-linked Trade Assist ledger.
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap justify-content-between gap-2 mb-5">
+            <a href="{% url 'funder-view' funder.id %}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-success px-4">Save changes</button>
+          </div>
+        </form>
+      </div>
+    </main>
+
         <!-- SWITCH PLATFORM MODAL -->
         <div class="modal fade"
             id="switchPlatformModal"

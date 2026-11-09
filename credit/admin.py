@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.db.models import Sum
 from django.utils.html import format_html
+from django.utils.timezone import now
 from django.contrib.auth import get_user_model
 from credit.models import bypass_ledger
 from clients.models import Client
@@ -15,6 +16,8 @@ from .models import (
     CreditEntry,
     FunderWeekSummary,
     FunderProfit,
+    CreditAssessment,
+    CreditApproval,
 )
 from django import forms
 from django.db import transaction
@@ -23,6 +26,7 @@ from django.urls import path
 from django.http import HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.contrib import messages
+from .models import Funder
 
 # ============================================================
 # INLINES
@@ -103,9 +107,10 @@ class FunderAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "is_dummy",
+        "is_active_for_new_business",
         "balance",
         "total_allocated_display",
-        "allocatable_balance",
+        "allocatable_balance_display",
         "weekly_rate_pct",
         "profit_mode",
         "profit_frequency",
@@ -122,6 +127,7 @@ class FunderAdmin(admin.ModelAdmin):
 
     list_filter = (
         "is_dummy",
+        "is_active_for_new_business",
         "profit_mode",
         "profit_frequency",
     )
@@ -131,6 +137,7 @@ class FunderAdmin(admin.ModelAdmin):
             "fields": (
                 "name",
                 "is_dummy",
+                "is_active_for_new_business",
                 "weekly_rate_pct",
                 "profit_mode",
                 "profit_frequency",
@@ -147,6 +154,10 @@ class FunderAdmin(admin.ModelAdmin):
     def total_allocated_display(self, obj):
         return obj.total_allocated()
     total_allocated_display.short_description = "Total Allocated"
+
+    def allocatable_balance_display(self, obj):
+        return obj.balance - obj.total_allocated()
+    allocatable_balance_display.short_description = "Allocatable Balance"
 
 
 # ============================================================
@@ -351,9 +362,10 @@ class CreditAccountAdmin(admin.ModelAdmin):
         "credit_used",
         "credit_available_display",
         "payment_term",
+        "status",
     )
 
-    list_filter = ("payment_term",)
+    list_filter = ("payment_term", "status")
     search_fields = ("client__name",)
     autocomplete_fields = ("client", "funder")
 
@@ -374,7 +386,7 @@ class CreditAccountAdmin(admin.ModelAdmin):
             "fields": ("client", "funder"),
         }),
         ("Terms", {
-            "fields": ("payment_term", "credit_deposit_pct"),
+            "fields": ("payment_term", "credit_deposit_pct", "status", "activated_at", "last_assessed_at", "status_reason"),
         }),
         ("Balances (Ledger Controlled)", {
             "fields": ("credit_limit", "credit_used"),
@@ -426,6 +438,126 @@ class CreditAccountAdmin(admin.ModelAdmin):
         return obj.credit_available
 
     credit_available_display.short_description = "Available Credit"
+
+
+# ============================================================
+# CREDIT ASSESSMENT ADMIN (HISTORICAL SNAPSHOTS)
+# ============================================================
+
+@admin.register(CreditAssessment)
+class CreditAssessmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "assessment_date",
+        "credit_account",
+        "status",
+        "risk_rating",
+        "system_average_weekly_spend",
+        "recommended_limit",
+        "assessed_by",
+    )
+    list_filter = ("status", "risk_rating", "assessment_date")
+    search_fields = (
+        "credit_account__client__name",
+        "business_registration_number",
+        "compliance_notes",
+    )
+    autocomplete_fields = ("credit_account", "created_by", "assessed_by")
+    readonly_fields = ("created_at", "updated_at")
+    date_hierarchy = "assessment_date"
+    fieldsets = (
+        ("Assessment", {
+            "fields": (
+                "credit_account", "assessment_date", "trading_period_start",
+                "trading_period_end", "status",
+            )
+        }),
+        ("Business Verification", {
+            "fields": (
+                "business_registration_number", "business_registered",
+                "active_business_bank_account", "banking_verified",
+                "documents_verified", "compliance_notes",
+            )
+        }),
+        ("Estimated Trading", {
+            "fields": (
+                "estimated_daily_spend", "estimated_weekly_spend",
+                "estimated_monthly_spend", "estimated_purchases_per_week",
+            )
+        }),
+        ("Verified TDM Trading History", {
+            "fields": (
+                "system_invoice_count", "system_invoice_value",
+                "system_average_invoice", "system_average_weekly_spend",
+                "on_time_payment_pct", "overdue_invoice_count",
+                "average_days_to_settle", "trading_data_notes",
+            )
+        }),
+        ("Risk Assessment & Recommendation", {
+            "fields": (
+                "risk_rating", "recommended_limit",
+                "recommended_customer_contribution_pct",
+                "recommended_settlement_term", "recommendation_notes",
+            )
+        }),
+        ("Review & Audit", {
+            "fields": (
+                "created_by", "assessed_by", "submitted_at", "assessed_at",
+                "created_at", "updated_at",
+            )
+        }),
+    )
+
+
+# ============================================================
+# CREDIT APPROVAL ADMIN (FORMAL AUTHORISATION)
+# ============================================================
+
+@admin.register(CreditApproval)
+class CreditApprovalAdmin(admin.ModelAdmin):
+    list_display = (
+        "created_at",
+        "credit_account",
+        "assessment",
+        "status",
+        "requested_limit",
+        "approved_limit",
+        "customer_contribution_pct",
+        "settlement_term",
+        "approved_by",
+        "decided_at",
+    )
+    list_filter = ("status", "settlement_term", "created_at")
+    search_fields = ("credit_account__client__name", "decision_notes")
+    autocomplete_fields = (
+        "credit_account", "assessment", "created_by", "approved_by",
+    )
+    readonly_fields = ("created_at", "updated_at", "decided_at")
+    fieldsets = (
+        ("Approval Request", {
+            "fields": (
+                "credit_account", "assessment", "status", "requested_limit",
+            )
+        }),
+        ("Approved Commercial Terms", {
+            "fields": (
+                "approved_limit", "customer_contribution_pct",
+                "settlement_term", "effective_from", "effective_until",
+            )
+        }),
+        ("Decision", {
+            "fields": (
+                "decision_notes", "created_by", "approved_by", "decided_at",
+            )
+        }),
+        ("System", {
+            "fields": ("created_at", "updated_at"),
+        }),
+    )
+
+    def save_model(self, request, obj, form, change):
+        if not obj.pk and not obj.created_by_id:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
 
 
 # ============================================================

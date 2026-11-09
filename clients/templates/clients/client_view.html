@@ -1241,9 +1241,9 @@
                       </div>
                     </div>
 
-                    {% if credit_account %}
+                    {% if trade_assist_account %}
                       <div class="mb-2">
-                        <div class="text-muted small">Credit Utilisation</div>
+                        <div class="text-muted small">TradeAssist Buying Power Utilisation</div>
                         <div class="fw-semibold">
                           {{ credit_utilization_pct|floatformat:2 }}%
                         </div>
@@ -1252,16 +1252,19 @@
                       <div class="progress" style="height: 8px;">
                         <div class="progress-bar"
                             role="progressbar"
-                            style="width: {{ credit_utilization_pct|default:0 }}%;">
+                            style="width: {{ credit_utilization_pct|default:0 }}%;"
+                            aria-valuenow="{{ credit_utilization_pct|default:0 }}"
+                            aria-valuemin="0"
+                            aria-valuemax="100">
                         </div>
                       </div>
 
                       <div class="small text-muted mt-2">
-                        Status: {{ credit_utilization_status|default:"—" }}
+                        Utilisation indicator: {{ credit_utilization_status|default:"—" }}
                       </div>
                     {% else %}
                       <div class="small text-muted">
-                        No credit account data available.
+                        No TradeAssist facility is currently recorded.
                       </div>
                     {% endif %}
 
@@ -1367,69 +1370,105 @@
             </div>
           </div>
 
-          <!-- ================= CREDIT TAB ================= -->
+          <!-- ================= TRADEASSIST TAB ================= -->
           <div class="tab-pane fade" id="credit" role="tabpanel">
             <div class="card shadow-sm">
+              <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                <span>TradeAssist Facility</span>
+                {% if trade_assist_account %}
+                  <span class="badge bg-success">Facility recorded</span>
+                {% else %}
+                  <span class="badge bg-secondary">Not enrolled</span>
+                {% endif %}
+              </div>
+
               <div class="card-body">
 
-                {% if credit_account %}
+                {% if trade_assist_account %}
 
-                  <!-- CREDIT KPIs -->
                   <div class="row g-3 mb-3">
-
-                    <!-- Credit Limit -->
                     <div class="col-md-4">
                       <div class="card h-100 p-3">
-                        <div class="text-muted small">Credit Limit</div>
+                        <div class="text-muted small">Approved Buying Power</div>
                         <div class="fs-5 fw-semibold">
-                          R{{ credit_account.credit_limit|floatformat:2|intcomma }}
+                          R{{ trade_assist_account.credit_limit|default:0|floatformat:2|intcomma }}
                         </div>
                       </div>
                     </div>
 
-                    <!-- Outstanding -->
+                    <div class="col-md-4">
+                      <div class="card h-100 p-3">
+                        <div class="text-muted small">Available Buying Power</div>
+                        <div class="fs-5 fw-semibold text-success">
+                          R{{ trade_assist_account.credit_available|default:0|floatformat:2|intcomma }}
+                        </div>
+                      </div>
+                    </div>
+
                     <div class="col-md-4">
                       <div class="card h-100 p-3">
                         <div class="text-muted small">Outstanding</div>
                         <div class="fs-5 fw-semibold text-danger">
-                          R{{ credit_account.credit_used|default:"0.00"|floatformat:2|intcomma }}
+                          R{{ trade_assist_account.outstanding|default:0|floatformat:2|intcomma }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <div class="border rounded p-3 h-100">
+                        <div class="text-muted small">Customer Contribution</div>
+                        <div class="fw-semibold">
+                          {{ trade_assist_account.credit_deposit_pct|default:100 }}%
                         </div>
                       </div>
                     </div>
 
-                    <!-- Utilisation -->
-                    <div class="col-md-4">
-                      <div class="card h-100 p-3">
-                        <div class="text-muted small">Utilisation</div>
-
-                        {% if credit_utilization_pct is not None %}
-                          <div class="fs-5 fw-semibold
-                            {% if credit_utilization_status == 'Healthy' %}text-success
-                            {% elif credit_utilization_status == 'Watch' %}text-warning
-                            {% elif credit_utilization_status == 'High Risk' %}text-danger
-                            {% else %}text-danger fw-bold{% endif %}">
-                            {{ credit_utilization_pct|floatformat:1 }}%
-                          </div>
-
-                          <div class="small text-muted">
-                            {{ credit_utilization_status }}
-                          </div>
-                        {% else %}
-                          <div class="text-muted">—</div>
-                        {% endif %}
+                    <div class="col-md-6">
+                      <div class="border rounded p-3 h-100">
+                        <div class="text-muted small">Settlement Term</div>
+                        <div class="fw-semibold">
+                          {{ trade_assist_account.get_payment_term_display|default:trade_assist_account.payment_term|default:"—" }}
+                        </div>
                       </div>
                     </div>
 
+                    <div class="col-md-6">
+                      <div class="border rounded p-3 h-100">
+                        <div class="text-muted small">Next Account Due Date</div>
+                        <div class="fw-semibold">
+                          {{ trade_assist_account.next_due_date|date:"d M Y"|default:"—" }}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="col-md-6">
+                      <div class="border rounded p-3 h-100">
+                        <div class="text-muted small">Buying Power Utilisation</div>
+                        <div class="fw-semibold">
+                          {{ credit_utilization_pct|floatformat:2|default:"0.00" }}%
+                        </div>
+                        <div class="small text-muted">
+                          {{ credit_utilization_status|default:"—" }}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  
-                  
+                  <div class="alert alert-light border mt-3 mb-0">
+                    <strong>Important:</strong> This section displays the client's TradeAssist facility position. It does not itself allocate, reserve, or consume buying power. Invoice-level settlement records remain the source of truth for each transaction.
+                  </div>
 
                 {% else %}
-                  <!-- NO CREDIT ACCOUNT -->
-                  <div class="alert alert-light text-muted text-center mb-0">
-                    This client does not have a credit account.
+
+                  <div class="text-center py-4">
+                    <div class="fw-semibold mb-1">No TradeAssist facility recorded</div>
+                    <div class="text-muted small">
+                      This client does not currently have a TradeAssist buying-power facility.
+                    </div>
                   </div>
+
                 {% endif %}
 
               </div>

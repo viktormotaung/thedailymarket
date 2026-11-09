@@ -1219,7 +1219,7 @@
               <!-- ================= CREDIT SNAPSHOT ================= -->
               <div class="card shadow-sm mb-4">
                 <div class="card-header fw-semibold">
-                  Credit Snapshot
+                  TradeAssist Snapshot
                 </div>
 
                 <div class="card-body">
@@ -1229,7 +1229,7 @@
                   </div>
 
                   <div class="mb-3">
-                    <div class="text-muted small">Credit Status</div>
+                    <div class="text-muted small">TradeAssist Status</div>
                     {% if client.credit_status == "ACTIVE" %}
                       <span class="badge bg-success">Active</span>
                     {% elif client.credit_status == "PENDING" %}
@@ -1250,9 +1250,43 @@
                     </div>
                   </div>
 
+                  {% if trade_assist_account %}
+                    <div class="mb-3">
+                      <div class="text-muted small">Facility Status</div>
+                      <span class="badge
+                        {% if trade_assist_account.status == 'ACTIVE' %}bg-success
+                        {% elif trade_assist_account.status == 'PENDING' %}bg-warning text-dark
+                        {% elif trade_assist_account.status == 'OVERDUE' %}bg-danger
+                        {% elif trade_assist_account.status == 'SUSPENDED' %}bg-dark
+                        {% else %}bg-secondary{% endif %}">
+                        {{ trade_assist_account.get_status_display|default:trade_assist_account.status }}
+                      </span>
+                    </div>
+                    <div class="mb-3">
+                      <div class="text-muted small">Approved Buying Power</div>
+                      <div class="fw-semibold">R{{ trade_assist_account.credit_limit|default:0|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="mb-3">
+                      <div class="text-muted small">Available Buying Power</div>
+                      <div class="fw-semibold text-success">R{{ trade_assist_account.credit_available|default:0|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="mb-3">
+                      <div class="text-muted small">Customer Contribution</div>
+                      <div class="fw-semibold">{{ trade_assist_account.credit_deposit_pct|default:100 }}%</div>
+                    </div>
+                    <div class="mb-3">
+                      <div class="text-muted small">Settlement Term</div>
+                      <div class="fw-semibold">{{ trade_assist_account.get_payment_term_display|default:trade_assist_account.payment_term|default:"—" }}</div>
+                    </div>
+                    <div class="mb-3">
+                      <div class="text-muted small">Next Settlement Due</div>
+                      <div class="fw-semibold">{{ trade_assist_account.next_due_date|date:"d M Y"|default:"—" }}</div>
+                    </div>
+                  {% endif %}
+
                   {% if credit_account %}
                     <div class="mb-2">
-                      <div class="text-muted small">Credit Utilisation</div>
+                      <div class="text-muted small">Buying Power Utilisation</div>
                       <div class="fw-semibold">
                         {{ credit_utilization_pct|default:0|floatformat:2 }}%
                       </div>
@@ -1374,7 +1408,7 @@
           </div>
         </div>
 
-        <!-- ================= CREDIT TAB ================= -->
+        <!-- ================= TRADEASSIST TAB ================= -->
         <div class="tab-pane fade" id="credit" role="tabpanel">
           <div class="card shadow-sm">
             <div class="card-body">
@@ -1384,7 +1418,7 @@
                 <div class="row g-3 mb-4">
                   <div class="col-md-3">
                     <div class="card p-3 h-100">
-                      <div class="text-muted small">Credit Limit</div>
+                      <div class="text-muted small">Approved Buying Power</div>
                       <div class="fs-5 fw-semibold">
                         R{{ credit_account.credit_limit|default:0|floatformat:2|intcomma }}
                       </div>
@@ -1393,7 +1427,7 @@
 
                   <div class="col-md-3">
                     <div class="card p-3 h-100">
-                      <div class="text-muted small">Credit Used</div>
+                      <div class="text-muted small">Buying Power Used</div>
                       <div class="fs-5 fw-semibold">
                         R{{ credit_account.credit_used|default:0|floatformat:2|intcomma }}
                       </div>
@@ -1402,7 +1436,7 @@
 
                   <div class="col-md-3">
                     <div class="card p-3 h-100">
-                      <div class="text-muted small">Available</div>
+                      <div class="text-muted small">Available Buying Power</div>
                       <div class="fs-5 fw-semibold">
                         R{{ credit_account.credit_available|default:0|floatformat:2|intcomma }}
                       </div>
@@ -1411,7 +1445,7 @@
 
                   <div class="col-md-3">
                     <div class="card p-3 h-100">
-                      <div class="text-muted small">Utilisation</div>
+                      <div class="text-muted small">Buying Power Utilisation</div>
                       <div class="fs-5 fw-semibold">
                         {{ credit_utilization_pct|default:0|floatformat:2 }}%
                       </div>
@@ -1421,7 +1455,7 @@
 
                 <div class="card shadow-sm">
                   <div class="card-header fw-semibold">
-                    Credit Utilisation
+                    Buying Power Utilisation
                   </div>
                   <div class="card-body">
                     <div class="progress mb-2" style="height: 12px;">
@@ -1439,10 +1473,37 @@
                   </div>
                 </div>
 
+                <div class="card shadow-sm mt-3">
+                  <div class="card-header fw-semibold">TradeAssist Terms & Settlement</div>
+                  <div class="card-body">
+                    <div class="row g-3">
+                      <div class="col-md-4">
+                        <div class="text-muted small">Facility Status</div>
+                        <div class="fw-semibold">{{ trade_assist_account.get_status_display|default:trade_assist_account.status }}</div>
+                      </div>
+                      <div class="col-md-4">
+                        <div class="text-muted small">Customer Contribution</div>
+                        <div class="fw-semibold">{{ trade_assist_account.credit_deposit_pct|default:100 }}%</div>
+                      </div>
+                      <div class="col-md-4">
+                        <div class="text-muted small">Settlement Term</div>
+                        <div class="fw-semibold">{{ trade_assist_account.get_payment_term_display|default:trade_assist_account.payment_term|default:"—" }}</div>
+                      </div>
+                      <div class="col-md-4">
+                        <div class="text-muted small">Next Settlement Due</div>
+                        <div class="fw-semibold">{{ trade_assist_account.next_due_date|date:"d M Y"|default:"—" }}</div>
+                      </div>
+                    </div>
+                    <div class="small text-muted mt-3">
+                      Buying power is replenished when TradeAssist repayments are verified and allocated.
+                    </div>
+                  </div>
+                </div>
+
               {% else %}
 
                 <div class="text-center text-muted py-4">
-                  No credit account data available for this client.
+                  No TradeAssist facility has been set up for this client.
                 </div>
 
               {% endif %}

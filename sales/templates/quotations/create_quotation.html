@@ -206,6 +206,29 @@
         font-size: .875rem;
     }
 
+    .quotation-table .discount-input-group {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+    }
+
+    .quotation-table .discount-rand-field,
+    .quotation-table .discount-percent-field {
+        width: 50%;
+        min-width: 0;
+        text-align: left;
+    }
+
+    .quotation-table .discount-help {
+        display: block;
+        margin-top: 4px;
+        font-size: .68rem;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
     .quotation-table input[readonly] {
         background: #f8f9fa;
     }
@@ -1022,6 +1045,51 @@
                                         Select the client receiving this quotation.
                                     </div>
 
+                                    <div id="quotation-ta-panel" class="mt-3 p-3 rounded border bg-light">
+                                        <div class="d-flex align-items-start gap-2">
+                                            <i class="bi bi-shield-check text-success fs-5"></i>
+                                            <div class="flex-grow-1">
+                                                <div class="fw-semibold">TradeAssist facility</div>
+                                                <div id="quotation-ta-message" class="small text-muted">
+                                                    Select an existing client to view their TradeAssist facility.
+                                                </div>
+                                                <div id="quotation-ta-details" class="row g-2 mt-2 d-none">
+                                                    <div class="col-6 col-md-4">
+                                                        <div class="small text-muted">Facility status</div>
+                                                        <div id="quotation-ta-status" class="fw-semibold">—</div>
+                                                    </div>
+                                                    <div class="col-6 col-md-4">
+                                                        <div class="small text-muted">Approved buying power</div>
+                                                        <div id="quotation-ta-limit" class="fw-semibold">—</div>
+                                                    </div>
+                                                    <div class="col-6 col-md-4">
+                                                        <div class="small text-muted">Available buying power</div>
+                                                        <div id="quotation-ta-available" class="fw-semibold text-success">—</div>
+                                                    </div>
+                                                    <div class="col-6 col-md-4">
+                                                        <div class="small text-muted">Outstanding</div>
+                                                        <div id="quotation-ta-used" class="fw-semibold">—</div>
+                                                    </div>
+                                                    <div class="col-6 col-md-4">
+                                                        <div class="small text-muted">Customer contribution</div>
+                                                        <div id="quotation-ta-contribution" class="fw-semibold">—</div>
+                                                    </div>
+                                                    <div class="col-6 col-md-4">
+                                                        <div class="small text-muted">Settlement term</div>
+                                                        <div id="quotation-ta-term" class="fw-semibold">—</div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="small text-muted">Next account due date (if recorded)</div>
+                                                        <div id="quotation-ta-due" class="fw-semibold">—</div>
+                                                    </div>
+                                                </div>
+                                                <div class="small text-muted mt-2">
+                                                    This is an indicative account snapshot only. A quotation does not reserve buying power or guarantee TradeAssist approval. The facility and available buying power are checked again when an order/invoice is processed.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                 </div>
 
 
@@ -1249,8 +1317,8 @@
                                                 Unit Excl
                                             </th>
 
-                                            <th style="width:10%;" class="text-end">
-                                                Disc %
+                                            <th style="width:18%;" class="text-center">
+                                                Discount (R / %)
                                             </th>
 
                                             <th style="width:8%;" class="text-end">
@@ -1335,17 +1403,28 @@
 
 
                                                 <td>
-
-                                                    <input
-                                                        type="number"
-                                                        class="form-control discount-percent-field"
-                                                        value="0.00"
-                                                        min="0"
-                                                        max="100"
-                                                        step="0.01"
-                                                        placeholder="0"
-                                                    >
-
+                                                    <div class="discount-input-group">
+                                                        <input
+                                                            type="number"
+                                                            class="form-control discount-rand-field"
+                                                            value="0.00"
+                                                            min="0"
+                                                            step="0.01"
+                                                            placeholder="R"
+                                                            aria-label="Rand discount per unit excluding VAT"
+                                                        >
+                                                        <input
+                                                            type="number"
+                                                            class="form-control discount-percent-field"
+                                                            value="0.00"
+                                                            min="0"
+                                                            max="100"
+                                                            step="0.01"
+                                                            placeholder="%"
+                                                            aria-label="Discount percentage"
+                                                        >
+                                                    </div>
+                                                    <small class="text-muted discount-help">Rand discount per unit excl. VAT</small>
                                                     <div class="d-none">
                                                         {{ item_form.discount_excl }}
                                                     </div>
@@ -1934,12 +2013,15 @@
             <td>{{ formset.empty_form.unit_price_excl }}</td>
 
             <td>
-                <input type="number"
-                    class="form-control discount-percent-field"
-                    value="0.00"
-                    min="0"
-                    max="100"
-                    step="0.01">
+                <div class="discount-input-group">
+                    <input type="number" class="form-control discount-rand-field"
+                        value="0.00" min="0" step="0.01" placeholder="R"
+                        aria-label="Rand discount per unit excluding VAT">
+                    <input type="number" class="form-control discount-percent-field"
+                        value="0.00" min="0" max="100" step="0.01" placeholder="%"
+                        aria-label="Discount percentage">
+                </div>
+                <small class="text-muted discount-help">Rand discount per unit excl. VAT</small>
                 <div class="d-none">{{ formset.empty_form.discount_excl }}</div>
             </td>
 
@@ -1950,8 +2032,65 @@
         </tr>
     </script>
     
+    {{ trade_assist_accounts_json|json_script:"quotation-trade-assist-data" }}
+
     <script>
     document.addEventListener("DOMContentLoaded", function () {
+
+        // -------------------------------
+        // TRADEASSIST CLIENT SNAPSHOT
+        // -------------------------------
+        const clientSelect = document.getElementById("id_client");
+        const taDataElement = document.getElementById("quotation-trade-assist-data");
+        const taAccounts = taDataElement ? JSON.parse(taDataElement.textContent || "{}") : {};
+
+        const taMessage = document.getElementById("quotation-ta-message");
+        const taDetails = document.getElementById("quotation-ta-details");
+
+        function setText(id, value) {
+            const element = document.getElementById(id);
+            if (element) element.textContent = value || "—";
+        }
+
+        function money(value) {
+            const amount = Number(value || 0);
+            return "R" + (Number.isFinite(amount) ? amount.toLocaleString("en-ZA", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }) : "0.00");
+        }
+
+        function updateTradeAssistSnapshot() {
+            if (!clientSelect || !clientSelect.value) {
+                taMessage.textContent = "Select an existing client to view their TradeAssist facility.";
+                taDetails.classList.add("d-none");
+                return;
+            }
+
+            const account = taAccounts[String(clientSelect.value)];
+
+            if (!account) {
+                taMessage.textContent = "This client does not currently have a TradeAssist facility recorded.";
+                taDetails.classList.add("d-none");
+                return;
+            }
+
+            taMessage.textContent = "Current TradeAssist account information for the selected client:";
+            taDetails.classList.remove("d-none");
+
+            setText("quotation-ta-status", account.status);
+            setText("quotation-ta-limit", money(account.limit));
+            setText("quotation-ta-available", money(account.available));
+            setText("quotation-ta-used", money(account.used));
+            setText("quotation-ta-contribution", account.contribution_pct + "%");
+            setText("quotation-ta-term", account.payment_term);
+            setText("quotation-ta-due", account.next_due_date || "No date recorded");
+        }
+
+        if (clientSelect) {
+            clientSelect.addEventListener("change", updateTradeAssistSnapshot);
+            updateTradeAssistSnapshot();
+        }
 
         // -------------------------------
         // CLIENT / PROSPECT TOGGLE
@@ -2000,27 +2139,21 @@
             let itemsVat = 0;
 
             tbody.querySelectorAll("tr").forEach(tr => {
-                const qty = parseFloat(tr.querySelector('[name$="-quantity"]')?.value || "0");
-                const unit = parseFloat(tr.querySelector('[name$="-unit_price_excl"]')?.value || "0");
-                const discPct = parseFloat(tr.querySelector('[name$="-discount_excl"]')?.value || "0");
-                const vatPct = parseFloat(tr.querySelector('[name$="-vat_percent"]')?.value || "0");
-
-                const discountPerUnit = unit * (discPct / 100);
-                const lineExcl = Math.max(0, (unit - discountPerUnit) * qty);
-                const vat = lineExcl * (vatPct / 100);
-
+                if (tr.querySelector('[name$="-DELETE"]')?.checked) return;
+                const qty = Math.max(0, parseFloat(tr.querySelector('[name$="-quantity"]')?.value || "0"));
+                const unit = Math.max(0, parseFloat(tr.querySelector('[name$="-unit_price_excl"]')?.value || "0"));
+                const discount = Math.max(0, parseFloat(tr.querySelector('[name$="-discount_excl"]')?.value || "0"));
+                const vatPct = Math.max(0, parseFloat(tr.querySelector('[name$="-vat_percent"]')?.value || "0"));
+                const lineExcl = Math.max(0, unit - discount) * qty;
                 itemsExcl += lineExcl;
-                itemsVat += vat;
+                itemsVat += lineExcl * (vatPct / 100);
             });
 
-            const discountTotal = parseFloat(document.querySelector('[name="discount_total_excl"]')?.value || "0");
-            const deliveryFee = parseFloat(document.querySelector('[name="delivery_fee_excl"]')?.value || "0");
-            const deliveryVatPct = parseFloat(document.querySelector('[name="delivery_fee_vat_percent"]')?.value || "0");
-
-            const deliveryVat = deliveryFee * (deliveryVatPct / 100);
-
+            const discountTotal = Math.max(0, parseFloat(document.querySelector('[name="discount_total_excl"]')?.value || "0"));
+            const deliveryFee = Math.max(0, parseFloat(document.querySelector('[name="delivery_fee_excl"]')?.value || "0"));
+            const deliveryVatPct = Math.max(0, parseFloat(document.querySelector('[name="delivery_fee_vat_percent"]')?.value || "0"));
             const finalExcl = Math.max(0, itemsExcl - discountTotal) + deliveryFee;
-            const finalVat = itemsVat + deliveryVat;
+            const finalVat = itemsVat + deliveryFee * (deliveryVatPct / 100);
             const finalInc = finalExcl + finalVat;
 
             document.getElementById("total-excl").textContent = "R" + money(finalExcl);
@@ -2028,23 +2161,36 @@
             document.getElementById("total-inc").textContent = "R" + money(finalInc);
         }
 
-        function calculateRow(tr) {
-            const qty = parseFloat(tr.querySelector('[name$="-quantity"]')?.value || "0");
-            const unit = parseFloat(tr.querySelector('[name$="-unit_price_excl"]')?.value || "0");
-            const discPct = parseFloat(tr.querySelector('[name$="-discount_excl"]')?.value || "0");
-            const vatPct = parseFloat(tr.querySelector('[name$="-vat_percent"]')?.value || "0");
+        function calculateRow(tr, source = "hydrate") {
+            const qty = Math.max(0, parseFloat(tr.querySelector('[name$="-quantity"]')?.value || "0"));
+            const unit = Math.max(0, parseFloat(tr.querySelector('[name$="-unit_price_excl"]')?.value || "0"));
+            const vatPct = Math.max(0, parseFloat(tr.querySelector('[name$="-vat_percent"]')?.value || "0"));
+            const randField = tr.querySelector(".discount-rand-field");
+            const percentField = tr.querySelector(".discount-percent-field");
+            const storedDiscount = tr.querySelector('[name$="-discount_excl"]');
+            let discount = Math.max(0, parseFloat(storedDiscount?.value || "0"));
 
-            const discountPerUnit = unit * (discPct / 100);
-            const lineExcl = Math.max(0, (unit - discountPerUnit) * qty);
-            const vat = lineExcl * (vatPct / 100);
+            if (source === "rand") {
+                discount = Math.min(unit, Math.max(0, parseFloat(randField?.value || "0")));
+                if (percentField) percentField.value = unit ? money(discount / unit * 100) : "0.00";
+            } else if (source === "percent") {
+                const pct = Math.min(100, Math.max(0, parseFloat(percentField?.value || "0")));
+                discount = unit * pct / 100;
+                if (randField) randField.value = money(discount);
+            } else {
+                discount = Math.min(unit, discount);
+                if (randField) randField.value = money(discount);
+                if (percentField) percentField.value = unit ? money(discount / unit * 100) : "0.00";
+            }
+
+            if (storedDiscount) storedDiscount.value = money(discount);
+            const lineExcl = Math.max(0, unit - discount) * qty;
+            const vat = lineExcl * vatPct / 100;
             const lineInc = lineExcl + vat;
-
             const vatEl = tr.querySelector(".vat-amount");
             const totalEl = tr.querySelector(".line-total");
-
             if (vatEl) vatEl.textContent = money(vat);
             if (totalEl) totalEl.textContent = money(lineInc);
-
             calculateTotals();
         }
 
@@ -2137,41 +2283,39 @@
         function wireRow(tr) {
             const cat = tr.querySelector('[name$="-category"]');
             const prod = tr.querySelector('[name$="-product"]');
-
             const qty = tr.querySelector('[name$="-quantity"]');
-            const disc = tr.querySelector('[name$="-discount_excl"]');
+            const discRand = tr.querySelector(".discount-rand-field");
+            const discPercent = tr.querySelector(".discount-percent-field");
             const unit = tr.querySelector('[name$="-unit_price_excl"]');
             const vat = tr.querySelector('[name$="-vat_percent"]');
+            const deleteBox = tr.querySelector('[name$="-DELETE"]');
 
             if (unit) unit.readOnly = true;
             if (vat) vat.readOnly = true;
-
-            [qty, disc].forEach(input => {
-                if (input) {
-                    input.addEventListener("input", () => calculateRow(tr));
-                }
+            if (qty) qty.addEventListener("input", () => calculateRow(tr));
+            if (discRand) discRand.addEventListener("input", () => calculateRow(tr, "rand"));
+            if (discPercent) discPercent.addEventListener("input", () => calculateRow(tr, "percent"));
+            if (deleteBox) deleteBox.addEventListener("change", () => {
+                tr.classList.toggle("text-muted", deleteBox.checked);
+                calculateTotals();
             });
 
             if (cat && prod) {
                 cat.addEventListener("change", () => {
                     prod.value = "";
-
-                    if (cat.value) {
-                        loadProducts(cat.value, prod, false);
-                    } else {
-                        setOptions(prod, []);
-                    }
-
+                    if (cat.value) loadProducts(cat.value, prod, false);
+                    else setOptions(prod, []);
+                    if (unit) unit.value = "";
+                    if (vat) vat.value = "0.00";
+                    if (discRand) discRand.value = "0.00";
+                    if (discPercent) discPercent.value = "0.00";
+                    const storedDiscount = tr.querySelector('[name$="-discount_excl"]');
+                    if (storedDiscount) storedDiscount.value = "0.00";
                     calculateRow(tr);
                 });
 
-                prod.addEventListener("change", () => {
-                    applyProductPricing(tr);
-                });
-
-                if (cat.value) {
-                    loadProducts(cat.value, prod, true);
-                }
+                prod.addEventListener("change", () => applyProductPricing(tr));
+                if (cat.value) loadProducts(cat.value, prod, true);
             }
 
             calculateRow(tr);

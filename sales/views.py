@@ -3200,7 +3200,17 @@ def clients(request):
     if area_id.isdigit():
         qs = qs.filter(area_id=int(area_id))
 
-    clients = qs
+    clients = list(qs)
+
+    # TradeAssist facility snapshot for the client list.
+    # Keep this separate from the legacy Client.account_type / credit_status fields.
+    client_ids = [cl.pk for cl in clients]
+    trade_assist_accounts = {
+        account.client_id: account
+        for account in CreditAccount.objects.filter(client_id__in=client_ids)
+    }
+    for cl in clients:
+        cl.trade_assist_account = trade_assist_accounts.get(cl.pk)
 
     return render(
         request,
@@ -3298,36 +3308,30 @@ def view_client(request, pk):
     # ---------------------------
     # Credit (tab)
     # ---------------------------
-    credit_account = None
+    credit_account = (
+        CreditAccount.objects
+        .filter(client=client)
+        .first()
+    )
+    trade_assist_account = credit_account
     credit_utilization_pct = None
     credit_utilization_status = None
 
-    if client.account_type == "CREDIT":
+    if credit_account and credit_account.credit_limit > 0:
 
-        credit_account = (
-            CreditAccount.objects
-            .filter(client=client)
-            .first()
-        )
+        credit_utilization_pct = (
+            credit_account.credit_used
+            / credit_account.credit_limit
+        ) * Decimal("100.00")
 
-        if credit_account and credit_account.credit_limit > 0:
-
-            credit_utilization_pct = (
-                credit_account.credit_used
-                / credit_account.credit_limit
-            ) * Decimal("100.00")
-
-            if credit_utilization_pct < 50:
-                credit_utilization_status = "Healthy"
-
-            elif credit_utilization_pct < 80:
-                credit_utilization_status = "Watch"
-
-            elif credit_utilization_pct <= 100:
-                credit_utilization_status = "High Risk"
-
-            else:
-                credit_utilization_status = "Over Limit"
+        if credit_utilization_pct < 50:
+            credit_utilization_status = "Healthy"
+        elif credit_utilization_pct < 80:
+            credit_utilization_status = "Watch"
+        elif credit_utilization_pct <= 100:
+            credit_utilization_status = "High Risk"
+        else:
+            credit_utilization_status = "Over Limit"
 
     # ---------------------------
     # Compliance (tab)
@@ -3457,6 +3461,7 @@ def view_client(request, pk):
 
         # Credit
         "credit_account": credit_account,
+        "trade_assist_account": trade_assist_account,
         "credit_utilization_pct": credit_utilization_pct,
         "credit_utilization_status": credit_utilization_status,
 
@@ -3986,6 +3991,18 @@ def view_quotation(request, pk):
         )
 
     # -------------------------------------------------
+    # TRADEASSIST SNAPSHOT (READ ONLY)
+    # -------------------------------------------------
+
+    trade_assist_account = None
+
+    if quotation.client_id:
+        try:
+            trade_assist_account = quotation.client.credit_account
+        except CreditAccount.DoesNotExist:
+            trade_assist_account = None
+
+    # -------------------------------------------------
     # RENDER
     # -------------------------------------------------
 
@@ -3996,6 +4013,7 @@ def view_quotation(request, pk):
             "quotation": quotation,
             "item_rows": item_rows,
             "rep_only": rep_only,
+            "trade_assist_account": trade_assist_account,
         },
     )
 
@@ -4134,12 +4152,18 @@ class QuotationCreateForm(forms.ModelForm):
             "client",
             "prospect",
             "customer_notes",
+            "discount_total_excl",
+            "delivery_fee_excl",
+            "delivery_fee_vat_percent",
         ]
 
         widgets = {
             "client": forms.Select(attrs={"class": "form-select"}),
             "prospect": forms.Select(attrs={"class": "form-select"}),
             "customer_notes": forms.Textarea(attrs={"class": "form-control", "rows": 4}),
+            "discount_total_excl": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
+            "delivery_fee_excl": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
+            "delivery_fee_vat_percent": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0", "max": "100"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -4197,9 +4221,9 @@ class QuotationItemForm(forms.ModelForm):
             "category": forms.Select(attrs={"class": "form-select quotation-category"}),
             "product": forms.Select(attrs={"class": "form-select quotation-product"}),
             "quantity": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0.01"}),
-            "unit_price_excl": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
+            "unit_price_excl": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0", "readonly": "readonly"}),
             "discount_excl": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
-            "vat_percent": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0", "max": "100"}),
+            "vat_percent": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0", "max": "100", "readonly": "readonly"}),
         }
 
 
@@ -4220,6 +4244,40 @@ QuotationItemFormSet = inlineformset_factory(
     validate_min=True,
     min_num=1,
 )
+
+
+
+def _quotation_trade_assist_accounts():
+    """
+    Return a JSON-serialisable snapshot of TradeAssist facilities for the
+    active clients available in the quotation form.
+
+    This is display-only. It does not reserve or consume buying power.
+    """
+    accounts = CreditAccount.objects.filter(
+        client__status="ACTIVE"
+    ).select_related("client")
+
+    result = {}
+
+    for account in accounts:
+        result[str(account.client_id)] = {
+            "status": account.get_status_display(),
+            "status_code": account.status,
+            "limit": str(account.credit_limit or Decimal("0.00")),
+            "used": str(account.credit_used or Decimal("0.00")),
+            "available": str(account.credit_available or Decimal("0.00")),
+            "contribution_pct": str(
+                account.credit_deposit_pct or Decimal("0.00")
+            ),
+            "payment_term": account.get_payment_term_display(),
+            "next_due_date": (
+                account.next_due_date.isoformat()
+                if account.next_due_date else ""
+            ),
+        }
+
+    return result
 
 
 @login_required
@@ -4254,6 +4312,10 @@ def create_quotation(request):
 
                     for item in items:
                         item.quotation = quotation
+                        item.unit_price_inc = (
+                            item.unit_price_excl
+                            * (Decimal("1.00") + (item.vat_percent / Decimal("100.00")))
+                        ).quantize(Decimal("0.01"))
                         item.save()
 
                     for deleted in formset.deleted_objects:
@@ -4297,6 +4359,7 @@ def create_quotation(request):
             "form": form,
             "formset": formset,
             "prefix": "items",
+            "trade_assist_accounts_json": _quotation_trade_assist_accounts(),
         },
     )
 
@@ -4355,6 +4418,10 @@ def edit_quotation(request, pk):
 
                     for item in items:
                         item.quotation = quotation
+                        item.unit_price_inc = (
+                            item.unit_price_excl
+                            * (Decimal("1.00") + (item.vat_percent / Decimal("100.00")))
+                        ).quantize(Decimal("0.01"))
                         item.save()
 
                     for deleted in formset.deleted_objects:
@@ -4403,12 +4470,13 @@ def edit_quotation(request, pk):
 
     return render(
         request,
-        "quotations/create_quotation.html",
+        "quotations/edit_quotation.html",
         {
             "form": form,
             "formset": formset,
             "quotation": quotation,
             "is_edit": True,
+            "trade_assist_accounts_json": _quotation_trade_assist_accounts(),
         },
     )
 
@@ -5432,6 +5500,22 @@ def view_order(request, pk):
         invoice = None
 
     # -------------------------------------------------
+    # TRADEASSIST ACCOUNT SNAPSHOT (READ ONLY)
+    # -------------------------------------------------
+
+    trade_assist_account = None
+
+    if order.client_id:
+        try:
+            trade_assist_account = (
+                CreditAccount.objects
+                .select_related("client")
+                .get(client_id=order.client_id)
+            )
+        except CreditAccount.DoesNotExist:
+            trade_assist_account = None
+
+    # -------------------------------------------------
     # ORDER ITEMS
     # -------------------------------------------------
 
@@ -5490,6 +5574,7 @@ def view_order(request, pk):
             "items": items,
             "invoice": invoice,
             "delivery_stops": delivery_stops,
+            "trade_assist_account": trade_assist_account,
 
             # Existing access information
             "rep_only": rep_only,
@@ -6058,13 +6143,27 @@ def view_invoice(request, pk):
     )
 
     # -------------------------------------------------
-    # DEPOSIT OUTSTANDING
+    # CUSTOMER CONTRIBUTION OUTSTANDING
     # -------------------------------------------------
 
     deposit_outstanding = max(
         invoice.amount_due
         - (invoice.deposit_paid or 0),
         0,
+    )
+
+    # -------------------------------------------------
+    # TRADEASSIST FACILITY SNAPSHOT (READ ONLY)
+    # -------------------------------------------------
+    # This is informational only. Viewing an invoice does not
+    # reserve, consume, or release TradeAssist buying power.
+    # The invoice's own settlement snapshots remain the source
+    # of truth for the TradeAssist-funded portion of this invoice.
+
+    trade_assist_account = (
+        CreditAccount.objects
+        .filter(client=client)
+        .first()
     )
 
     # -------------------------------------------------
@@ -6081,6 +6180,7 @@ def view_invoice(request, pk):
             "items": items,
             "is_overdue": is_overdue,
             "deposit_outstanding": deposit_outstanding,
+            "trade_assist_account": trade_assist_account,
             "rep_only": rep_only,
         },
     )

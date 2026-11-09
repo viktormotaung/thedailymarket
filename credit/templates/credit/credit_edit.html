@@ -860,7 +860,7 @@
               <dd class="col-6 col-sm-7">
                 {% if account.funder %}
                   {{ account.funder.name }}
-                  · Bal R{{ account.funder.allocatable_balance|floatformat:2|intcomma }}
+                  · Available unallocated capital: R{{ funder_unallocated|floatformat:2|intcomma }}
                 {% else %}
                   <span class="text-muted">None</span>
                 {% endif %}
@@ -901,6 +901,11 @@
             <form method="post" novalidate>
               {% csrf_token %}
               {{ form.non_field_errors }}
+              {% if form.errors %}
+                <div class="alert alert-danger" role="alert">
+                  Please correct the highlighted fields and review any allocation warning above.
+                </div>
+              {% endif %}
 
               <div class="row g-3">
                 <div class="col-md-6">
@@ -936,43 +941,21 @@
                   {{ form.credit_limit.errors }}
                 </div>
 
-                {# ---------- Funder controls ---------- #}
                 <div class="col-md-6">
-                  <label class="form-label" for="{{ form.funder.id_for_label }}">Funder</label>
+                  <label class="form-label" for="{{ form.funder.id_for_label }}">Funding source</label>
                   {{ form.funder }}
-                  <div class="form-text">
-                    Choose an existing funder or
-                    <a class="text-decoration-underline" data-bs-toggle="collapse" href="#newFunderBlock" role="button" aria-expanded="false" aria-controls="newFunderBlock">
-                      add a new one
-                    </a>.
-                  </div>
                   {{ form.funder.errors }}
-                </div>
-
-                <div class="col-md-6">
-                  <label class="form-label" for="{{ form.edit_funder_weekly_rate_pct.id_for_label }}">Update Selected Funder Weekly %</label>
-                  {{ form.edit_funder_weekly_rate_pct }}
-                  <div class="form-text">Leave blank to keep the current rate.</div>
-                  {{ form.edit_funder_weekly_rate_pct.errors }}
+                  <div class="form-text">The selected funder's reserved allocation is kept in sync with this customer's buying-power limit. New funders are managed from the funder administration screen.</div>
                 </div>
 
                 <div class="col-12">
-                  <div class="collapse" id="newFunderBlock">
-                    <div class="card card-body border-0 shadow-sm">
-                      <div class="row g-3">
-                        <div class="col-md-6">
-                          <label class="form-label" for="{{ form.new_funder_name.id_for_label }}">New Funder Name</label>
-                          {{ form.new_funder_name }}
-                          {{ form.new_funder_name.errors }}
-                        </div>
-                        <div class="col-md-6">
-                          <label class="form-label" for="{{ form.new_funder_weekly_rate_pct.id_for_label }}">New Funder Weekly %</label>
-                          {{ form.new_funder_weekly_rate_pct }}
-                          <div class="form-text">Optional — defaults to 0.00%.</div>
-                          {{ form.new_funder_weekly_rate_pct.errors }}
-                        </div>
-                      </div>
-                    </div>
+                  <div class="rounded border bg-light p-3 small">
+                    <strong>Allocation control</strong>
+                    <div class="mt-1">Current customer reservation: <strong>R{{ allocation.amount|default:0|floatformat:2|intcomma }}</strong></div>
+                    <div>Funder balance: R{{ funder_balance|floatformat:2|intcomma }}</div>
+                    <div>Total reserved: R{{ funder_reserved|floatformat:2|intcomma }}</div>
+                    <div>Unallocated capital: R{{ funder_unallocated|floatformat:2|intcomma }}</div>
+                    <div class="text-muted mt-1">Changing the customer limit updates the matching reservation. The system will not allow an allocation beyond the funder's available balance or a limit below the customer's current outstanding amount.</div>
                   </div>
                 </div>
 

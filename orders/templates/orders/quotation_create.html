@@ -816,7 +816,24 @@
         </a>
     </div>
 
-    <form method="post">
+    
+    <!-- Trade Assist information: quotation stage -->
+    <div class="alert alert-info border-0 shadow-sm mb-3">
+        <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-info-circle-fill mt-1"></i>
+            <div>
+                <strong>Trade Assist is assessed at order stage</strong>
+                <div class="small mt-1">
+                    This quotation does not reserve or use buying power and does not confirm Trade Assist approval.
+                    If accepted and converted into an order, the customer's current Trade Assist account status,
+                    available buying power and approved contribution terms will be checked at the appropriate
+                    payment/allocation stage. No buying-power amount is committed by creating or editing this quotation.
+                </div>
+            </div>
+        </div>
+    </div>
+
+<form method="post">
 
         {% csrf_token %}
 
@@ -991,9 +1008,9 @@
                                     Unit Price (Incl VAT)
                                 </th>
 
-                                <th style="width:10%"
+                                <th style="width:14%"
                                     class="text-end">
-                                    Disc %
+                                    Discount (R / %)
                                 </th>
 
                                 <th style="width:8%"
@@ -1045,16 +1062,18 @@
                                     <!-- DISCOUNT % -->
                                     <td>
 
-                                        <input type="number"
-                                               class="form-control discount-percent-field"
-                                               value="0.00"
-                                               min="0"
-                                               max="100"
-                                               step="0.01">
-
-                                        <div class="d-none">
-                                            {{ form.discount_excl }}
+                                        <div class="d-flex gap-1">
+                                            <input type="number"
+                                                   class="form-control discount-rand-field"
+                                                   value="0.00" min="0" step="0.01"
+                                                   placeholder="R">
+                                            <input type="number"
+                                                   class="form-control discount-percent-field"
+                                                   value="0.00" min="0" max="100"
+                                                   step="0.01" placeholder="%">
                                         </div>
+                                        <small class="text-muted">Rand discount excl. VAT</small>
+                                        <div class="d-none">{{ form.discount_excl }}</div>
 
                                     </td>
 
@@ -1261,12 +1280,13 @@
             <td>{{ formset.empty_form.unit_price_excl }}</td>
 
             <td>
-                <input type="number"
-                    class="form-control discount-percent-field"
-                    value="0.00"
-                    min="0"
-                    max="100"
-                    step="0.01">
+                <div class="d-flex gap-1">
+                    <input type="number" class="form-control discount-rand-field"
+                           value="0.00" min="0" step="0.01" placeholder="R">
+                    <input type="number" class="form-control discount-percent-field"
+                           value="0.00" min="0" max="100" step="0.01" placeholder="%">
+                </div>
+                <small class="text-muted">Rand discount excl. VAT</small>
                 <div class="d-none">{{ formset.empty_form.discount_excl }}</div>
             </td>
 
@@ -1309,26 +1329,18 @@
                   tr.querySelector('[name$="-unit_price_excl"]')?.value || "0"
               );
 
-              const discPct = parseFloat(
-                  tr.querySelector('.discount-percent-field')?.value || "0"
+              const discountExcl = parseFloat(
+                  tr.querySelector('[name$="-discount_excl"]')?.value || "0"
               );
-
               const vatPct = parseFloat(
                   tr.querySelector('[name$="-vat_percent"]')?.value || "0"
               );
-
-              const discountedInc =
-                  unitInc * (1 - discPct / 100);
-
-              const unitExcl =
-                  discountedInc / (1 + vatPct / 100);
-
-              const vatPerUnit =
-                  discountedInc - unitExcl;
-
-              itemsExcl += unitExcl * qty;
-              itemsVat += vatPerUnit * qty;
-              itemsIncl += discountedInc * qty;
+              const unitExcl = unitInc / (1 + vatPct / 100);
+              const netExcl = Math.max(0, unitExcl - discountExcl) * qty;
+              const vatAmount = netExcl * vatPct / 100;
+              itemsExcl += netExcl;
+              itemsVat += vatAmount;
+              itemsIncl += netExcl + vatAmount;
 
           });
 
@@ -1363,55 +1375,45 @@
               "R" + money(finalInc);
       }
 
-        function calculateRow(tr) {
+        function calculateRow(tr, source = "percent") {
+          const qty = parseFloat(tr.querySelector('[name$="-quantity"]')?.value || "0");
+          const unitInc = parseFloat(tr.querySelector('[name$="-unit_price_excl"]')?.value || "0");
+          const vatPct = parseFloat(tr.querySelector('[name$="-vat_percent"]')?.value || "0");
+          const unitExcl = unitInc / (1 + vatPct / 100);
+          const randField = tr.querySelector(".discount-rand-field");
+          const percentField = tr.querySelector(".discount-percent-field");
+          const storedDiscount = tr.querySelector('[name$="-discount_excl"]');
 
-          const qty = parseFloat(
-              tr.querySelector('[name$="-quantity"]')?.value || "0"
-          );
+          let discountExcl = parseFloat(storedDiscount?.value || "0");
+          if (source === "rand") {
+              discountExcl = Math.max(0, parseFloat(randField?.value || "0"));
+              if (unitExcl > 0) discountExcl = Math.min(discountExcl, unitExcl);
+              if (percentField) percentField.value = unitExcl > 0 ? money(discountExcl / unitExcl * 100) : "0.00";
+          } else if (source === "percent") {
+              const pct = Math.min(100, Math.max(0, parseFloat(percentField?.value || "0")));
+              discountExcl = unitExcl * pct / 100;
+              if (randField) randField.value = money(discountExcl);
+          } else {
+              if (unitExcl > 0 && discountExcl > 0) {
+                  if (percentField) percentField.value = money(discountExcl / unitExcl * 100);
+                  if (randField) randField.value = money(discountExcl);
+              } else {
+                  if (percentField) percentField.value = "0.00";
+                  if (randField) randField.value = "0.00";
+              }
+          }
 
-          const unitInc = parseFloat(
-              tr.querySelector('[name$="-unit_price_excl"]')?.value || "0"
-          );
+          if (storedDiscount) storedDiscount.value = money(discountExcl);
 
-          const discPct = parseFloat(
-              tr.querySelector('.discount-percent-field')?.value || "0"
-          );
-
-          const vatPct = parseFloat(
-              tr.querySelector('[name$="-vat_percent"]')?.value || "0"
-          );
-
-          const discountedInc =
-              unitInc * (1 - discPct / 100);
-
-          const unitExcl =
-              discountedInc / (1 + vatPct / 100);
-
-          const vatPerUnit =
-              discountedInc - unitExcl;
-
-          const lineExcl =
-              unitExcl * qty;
-
-          const lineVat =
-              vatPerUnit * qty;
-
-          const lineInc =
-              discountedInc * qty;
-
-          // Store the EXCLUSIVE price for Django
-          tr.querySelector('[name$="-unit_price_excl"]').dataset.excl =
-              unitExcl.toFixed(2);
+          const netExcl = Math.max(0, unitExcl - discountExcl) * qty;
+          const vatAmount = netExcl * vatPct / 100;
+          const lineInc = netExcl + vatAmount;
+          tr.querySelector('[name$="-unit_price_excl"]').dataset.excl = money(unitExcl);
 
           const vatEl = tr.querySelector(".vat-amount");
           const totalEl = tr.querySelector(".line-total");
-
-          if (vatEl)
-              vatEl.textContent = money(lineVat);
-
-          if (totalEl)
-              totalEl.textContent = money(lineInc);
-
+          if (vatEl) vatEl.textContent = money(vatAmount);
+          if (totalEl) totalEl.textContent = money(lineInc);
           calculateTotals();
       }
 
@@ -1450,8 +1452,19 @@
                 const opt = document.createElement("option");
                 opt.value = p.id;
                 opt.textContent = p.text;
-                opt.dataset.priceIncl = p.price_inc || "0.00";
-                opt.dataset.vatPercent = p.vat_percent || "0.00";
+                // The AJAX endpoint returns price_excl (not price_inc).
+                // Keep the visible quotation field inclusive of VAT, while
+                // the model continues storing unit_price_excl.
+                const priceExcl = parseFloat(p.price_excl || "0");
+                const vatPercent = parseFloat(p.vat_percent || "0");
+                const priceIncl = priceExcl * (1 + vatPercent / 100);
+
+                opt.dataset.priceIncl = Number.isFinite(priceIncl)
+                    ? priceIncl.toFixed(2)
+                    : "0.00";
+                opt.dataset.vatPercent = Number.isFinite(vatPercent)
+                    ? vatPercent.toFixed(2)
+                    : "0.00";
                 select.appendChild(opt);
             });
 
@@ -1505,17 +1518,17 @@
 
             const qty = tr.querySelector('[name$="-quantity"]');
             const disc = tr.querySelector('[name$="-discount_excl"]');
+            const discRand = tr.querySelector('.discount-rand-field');
+            const discPercent = tr.querySelector('.discount-percent-field');
             const unit = tr.querySelector('[name$="-unit_price_excl"]');
             const vat = tr.querySelector('[name$="-vat_percent"]');
 
             if (unit) unit.readOnly = true;
             if (vat) vat.readOnly = true;
 
-            [qty, disc].forEach(input => {
-                if (input) {
-                    input.addEventListener("input", () => calculateRow(tr));
-                }
-            });
+            if (qty) qty.addEventListener("input", () => calculateRow(tr, "hydrate"));
+            if (discRand) discRand.addEventListener("input", () => calculateRow(tr, "rand"));
+            if (discPercent) discPercent.addEventListener("input", () => calculateRow(tr, "percent"));
 
             if (cat && prod) {
                 cat.addEventListener("change", () => {

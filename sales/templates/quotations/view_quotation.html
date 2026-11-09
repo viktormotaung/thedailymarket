@@ -259,7 +259,7 @@
     }
 
     .quotation-items-table {
-        min-width: 950px;
+        min-width: 1100px;
         margin-bottom: 0;
     }
 
@@ -1273,6 +1273,91 @@
 
 
                     <!-- =============================================
+                        TRADEASSIST FACILITY SNAPSHOT
+                        ============================================= -->
+
+                    {% if quotation.client %}
+                        <div class="quotation-section mb-3">
+                            <div class="quotation-section-header">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="quotation-section-icon">
+                                        <i class="bi bi-shield-check"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="quotation-section-title">TradeAssist</h5>
+                                        <div class="quotation-section-subtitle">
+                                            Current facility information for this client
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="quotation-section-body">
+                                {% if trade_assist_account %}
+                                    <div class="row g-3">
+                                        <div class="col-6 col-md-4">
+                                            <div class="small text-muted">Facility status</div>
+                                            <div class="fw-semibold">
+                                                {{ trade_assist_account.get_status_display }}
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <div class="small text-muted">Approved buying power</div>
+                                            <div class="fw-semibold">
+                                                R{{ trade_assist_account.credit_limit|floatformat:2|intcomma }}
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <div class="small text-muted">Available buying power</div>
+                                            <div class="fw-semibold text-success">
+                                                R{{ trade_assist_account.credit_available|floatformat:2|intcomma }}
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <div class="small text-muted">Outstanding</div>
+                                            <div class="fw-semibold">
+                                                R{{ trade_assist_account.credit_used|floatformat:2|intcomma }}
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <div class="small text-muted">Customer contribution</div>
+                                            <div class="fw-semibold">
+                                                {{ trade_assist_account.credit_deposit_pct|floatformat:0 }}%
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <div class="small text-muted">Settlement term</div>
+                                            <div class="fw-semibold">
+                                                {{ trade_assist_account.get_payment_term_display }}
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="small text-muted">Next account due date (if recorded)</div>
+                                            <div class="fw-semibold">
+                                                {% if trade_assist_account.next_due_date %}
+                                                    {{ trade_assist_account.next_due_date|date:"d M Y" }}
+                                                {% else %}
+                                                    No date recorded
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        This client does not currently have a TradeAssist facility recorded.
+                                    </div>
+                                {% endif %}
+
+                                <div class="alert alert-light border small mt-3 mb-0">
+                                    This is an account snapshot only. A quotation does not reserve buying power or guarantee TradeAssist approval. Facility availability and account status are checked again when an order/invoice is processed.
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+
+                    <!-- =============================================
                         QUOTATION ITEMS
                         ============================================= -->
 
@@ -1332,11 +1417,15 @@
                                         </th>
 
                                         <th class="text-end">
-                                            Disc %
+                                            Discount %
                                         </th>
 
                                         <th class="text-end">
-                                            Disc
+                                            Discount / Unit (R)
+                                        </th>
+
+                                        <th class="text-end">
+                                            Discount Total (R)
                                         </th>
 
                                         <th class="text-end">
@@ -1399,6 +1488,9 @@
                                                 {{ row.discount_pct|floatformat:2 }}%
                                             </td>
 
+                                            <td class="text-end">
+                                                R{{ row.discount_per_unit|floatformat:2 }}
+                                            </td>
 
                                             <td class="text-end">
                                                 R{{ row.discount_total|floatformat:2 }}
@@ -1433,7 +1525,7 @@
                                         <tr>
 
                                             <td
-                                                colspan="10"
+                                                colspan="11"
                                                 class="text-center text-muted py-5"
                                             >
                                                 <i class="bi bi-cart-x fs-3 d-block mb-2"></i>
@@ -1453,7 +1545,7 @@
 
                                         <tr class="quotation-grand-total-row">
 
-                                            <td colspan="9" class="text-end">
+                                            <td colspan="10" class="text-end">
                                                 Grand Total
                                             </td>
 
