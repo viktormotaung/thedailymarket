@@ -561,13 +561,27 @@ class CreditAccount(models.Model):
         ("7D", "7 Day Credit"),
     ]
 
+    # Customer contribution percentages available for buying-power terms.
+    # The remaining percentage of each invoice is the TradeAssist-funded portion.
     DEPOSIT_CHOICES = [
-        (Decimal("0.00"), "0%"),
-        (Decimal("30.00"), "30%"),
-        (Decimal("50.00"), "50%"),
-        (Decimal("60.00"), "60%"),
-        (Decimal("70.00"), "70%"),
         (Decimal("100.00"), "100%"),
+        (Decimal("85.00"), "85%"),
+        (Decimal("80.00"), "80%"),
+        (Decimal("75.00"), "75%"),
+        (Decimal("70.00"), "70%"),
+        (Decimal("65.00"), "65%"),
+        (Decimal("60.00"), "60%"),
+        (Decimal("55.00"), "55%"),
+        (Decimal("50.00"), "50%"),
+        (Decimal("45.00"), "45%"),
+        (Decimal("40.00"), "40%"),
+        (Decimal("35.00"), "35%"),
+        (Decimal("30.00"), "30%"),
+        (Decimal("25.00"), "25%"),
+        (Decimal("20.00"), "20%"),
+        (Decimal("15.00"), "15%"),
+        (Decimal("10.00"), "10%"),
+        (Decimal("0.00"), "0%"),
     ]
 
     client = models.OneToOneField(
@@ -826,9 +840,16 @@ class CreditAssessment(models.Model):
         validators=[MinValueValidator(Decimal("0.00"))],
     )
     recommended_customer_contribution_pct = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True,
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        choices=CreditAccount.DEPOSIT_CHOICES,
         validators=[MinValueValidator(Decimal("0.00"))],
-        help_text="Customer's upfront contribution percentage.",
+        help_text=(
+            "Recommended percentage of each invoice payable upfront by the "
+            "customer. The remaining percentage is the TradeAssist-funded portion."
+        ),
     )
     recommended_settlement_term = models.CharField(
         max_length=3, choices=CreditAccount.TERM_CHOICES, blank=True
@@ -909,9 +930,15 @@ class CreditApproval(models.Model):
         validators=[MinValueValidator(Decimal("0.00"))],
     )
     customer_contribution_pct = models.DecimalField(
-        max_digits=5, decimal_places=2, default=Decimal("70.00"),
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("70.00"),
+        choices=CreditAccount.DEPOSIT_CHOICES,
         validators=[MinValueValidator(Decimal("0.00"))],
-        help_text="Percentage of each invoice payable upfront by the customer.",
+        help_text=(
+            "Percentage of each invoice payable upfront by the customer. "
+            "The remaining percentage is the TradeAssist-funded portion."
+        ),
     )
     settlement_term = models.CharField(max_length=3,
         choices=CreditAccount.TERM_CHOICES, default="3D")
