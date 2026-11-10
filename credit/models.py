@@ -1021,6 +1021,8 @@ class CreditApproval(models.Model):
                 "Approved limit cannot be lower than current outstanding usage."
             )
 
+        previous_account_status = account.status or CreditAccount.STATUS_PENDING
+
         self.status = "APPROVED"
         self.approved_by = authorised_by
         self.decided_at = now()
@@ -1033,17 +1035,57 @@ class CreditApproval(models.Model):
         account.status = CreditAccount.STATUS_ACTIVE
         account.activated_at = account.activated_at or now()
         account.status_reason = f"Activated through CreditApproval #{self.pk}."
-        account.save(update_fields=[
+        account.save(using=db, update_fields=[
             "payment_term", "credit_deposit_pct", "status",
             "activated_at", "status_reason", "updated_at",
         ])
+
         if r2(account.credit_limit) != r2(self.approved_limit):
             account.set_limit(
                 new_limit=self.approved_limit,
                 authorised_by=authorised_by,
                 note=f"Approved under CreditApproval #{self.pk}",
             )
+
+        # Keep the client-facing status aligned with the formal facility status.
+        Client.objects.using(db).filter(pk=account.client_id).exclude(
+            credit_status__iexact="active"
+        ).update(credit_status="active")
+
+        # Send only after the approval transaction commits. The notification
+        # service writes a CommunicationLog record for both successful and
+        # failed email attempts.
+        from django.db import transaction as django_transaction
+
+        client_id = account.client_id
+        new_status = CreditAccount.STATUS_ACTIVE
+        django_transaction.on_commit(
+            lambda: _send_credit_approval_notification(
+                client_id=client_id,
+                previous_status=previous_account_status,
+                new_status=new_status,
+                sent_by=authorised_by,
+                using=db,
+            ),
+            using=db,
+            robust=True,
+        )
         return account
+
+
+def _send_credit_approval_notification(
+    *, client_id, previous_status, new_status, sent_by, using
+):
+    """Lazy import keeps the model layer independent of the notification implementation."""
+    from .communication_services import send_credit_status_notifications
+
+    send_credit_status_notifications(
+        client_id=client_id,
+        previous_status=previous_status,
+        new_status=new_status,
+        sent_by=sent_by,
+        using=using,
+    )
 
 
 # CREDIT LOG (limit audit trail)

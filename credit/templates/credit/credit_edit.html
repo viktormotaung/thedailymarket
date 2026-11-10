@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - The Daily Market</title>
+  <title>Buying Power Settings - The Daily Market</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <style>
@@ -303,7 +303,7 @@
 
           <a href="{% url 'staff-credit' %}"
             class="nav-link ps-4 {% if current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' %}active{% endif %}">
-            Credit
+            Buying Power
           </a>
 
           <a href="{% url 'funder-list' %}"
@@ -642,7 +642,7 @@
 
         <a href="{% url 'staff-credit' %}"
           class="nav-link ps-4 {% if current == 'staff-credit' or current == 'credit-view' or current == 'credit-edit' or current == 'credit-record-repayment' or current == 'credit-send-request' or current == 'credit-confirm-payment' %}active{% endif %}">
-          Credit
+          Buying Power
         </a>
 
         <a href="{% url 'funder-list' %}"
@@ -818,7 +818,7 @@
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
       <div>
         <h2 class="m-0">
-          Edit Credit · {{ client.client_number }} · {{ client.name }}
+          Edit Buying Power · {{ client.client_number }} · {{ client.name }}
           {% if client.organization %}<span class="text-muted">— {{ client.organization }}</span>{% endif %}
         </h2>
         <div class="meta mt-1">
@@ -826,8 +826,8 @@
         </div>
       </div>
       <div class="d-flex gap-2">
-        <a href="{% url 'credit-view' client.id %}" class="btn btn-outline-secondary">Back to Credit</a>
-        <a href="{% url 'staff-credit' %}" class="btn btn-outline-secondary">All Credit Accounts</a>
+        <a href="{% url 'credit-view' client.id %}" class="btn btn-outline-secondary">Back to Buying Power</a>
+        <a href="{% url 'staff-credit' %}" class="btn btn-outline-secondary">All Buying-Power Accounts</a>
       </div>
     </div>
 
@@ -844,10 +844,10 @@
       <!-- Snapshot -->
       <div class="col-lg-5">
         <div class="card h-100">
-          <div class="card-header bg-white"><strong>Current Credit Snapshot</strong></div>
+          <div class="card-header bg-white"><strong>Current Buying-Power Snapshot</strong></div>
           <div class="card-body">
             <dl class="row mb-3">
-              <dt class="col-6 col-sm-5">Credit Limit</dt>
+              <dt class="col-6 col-sm-5">Buying-Power Limit</dt>
               <dd class="col-6 col-sm-7">R{{ limit|floatformat:2|intcomma }}</dd>
 
               <dt class="col-6 col-sm-5">Used</dt>
@@ -870,23 +870,21 @@
             </dl>
 
 
-            {% if limit > 0 %}
-              {% widthratio used limit 100 as used_pct %}
-            {% else %}
-              {% with 0 as used_pct %}{% endwith %}
-            {% endif %}
-
-            <div class="mb-1 small text-muted">Usage</div>
+            <div class="mb-1 small text-muted">Buying-power utilisation</div>
             <div class="progress" style="height: 14px;">
-              {% if limit > 0 %}
-                <div class="progress-bar {% if used_pct|floatformat:0 >= 100 %}bg-danger{% elif used_pct|floatformat:0 >= 75 %}bg-warning text-dark{% else %}bg-success{% endif %}"
-                     role="progressbar"
-                     style="width: {{ used_pct|floatformat:0 }}%;"
-                     aria-valuenow="{{ used_pct|floatformat:0 }}" aria-valuemin="0" aria-valuemax="100">
-                  {{ used_pct|floatformat:0 }}%
+              {% if limit and limit > 0 %}
+                {% widthratio used limit 100 as used_pct %}
+                <div
+                  class="progress-bar {% if used_pct|add:'0' >= 100 %}bg-danger{% elif used_pct|add:'0' >= 75 %}bg-warning text-dark{% else %}bg-success{% endif %}"
+                  role="progressbar"
+                  style="width: {% if used_pct|add:'0' > 100 %}100{% else %}{{ used_pct }}{% endif %}%;"
+                  aria-valuenow="{% if used_pct|add:'0' > 100 %}100{% else %}{{ used_pct }}{% endif %}"
+                  aria-valuemin="0"
+                  aria-valuemax="100">
+                  {{ used_pct }}%
                 </div>
               {% else %}
-                <div class="progress-bar bg-secondary" role="progressbar" style="width: 0%;">0%</div>
+                <div class="progress-bar bg-secondary" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
               {% endif %}
             </div>
           </div>
@@ -896,7 +894,7 @@
       <!-- Edit Form -->
       <div class="col-lg-7">
         <div class="card h-100 shadow-sm">
-          <div class="card-header bg-white"><strong>Update Credit Settings</strong></div>
+          <div class="card-header bg-white"><strong>Update Buying-Power Settings</strong></div>
           <div class="card-body">
             <form method="post" novalidate>
               {% csrf_token %}
@@ -909,26 +907,26 @@
 
               <div class="row g-3">
                 <div class="col-md-6">
-                  <label class="form-label" for="{{ form.account_type.id_for_label }}">Account Type</label>
+                  <label class="form-label" for="{{ form.account_type.id_for_label }}">Buying-Power Arrangement</label>
                   {{ form.account_type }}
                   {{ form.account_type.errors }}
                 </div>
 
                 <div class="col-md-6">
-                  <label class="form-label" for="{{ form.credit_status.id_for_label }}">Credit Status</label>
+                  <label class="form-label" for="{{ form.credit_status.id_for_label }}">Buying-Power Status</label>
                   {{ form.credit_status }}
                   {{ form.credit_status.errors }}
                 </div>
 
                 <div class="col-md-6">
-                  <label class="form-label" for="{{ form.payment_term.id_for_label }}">Payment Term</label>
+                  <label class="form-label" for="{{ form.payment_term.id_for_label }}">Settlement Term</label>
                   {{ form.payment_term }}
                   {{ form.payment_term.errors }}
                 </div>
 
                 <div class="col-md-6">
                   <label class="form-label" for="{{ form.credit_deposit_pct.id_for_label }}">
-                    Deposit Required (%)
+                    Upfront Contribution (%)
                   </label>
                   {{ form.credit_deposit_pct }}
                   {{ form.credit_deposit_pct.errors }}
@@ -936,7 +934,7 @@
 
 
                 <div class="col-md-6">
-                  <label class="form-label" for="{{ form.credit_limit.id_for_label }}">Credit Limit (R)</label>
+                  <label class="form-label" for="{{ form.credit_limit.id_for_label }}">Buying-Power Limit (R)</label>
                   {{ form.credit_limit }}
                   {{ form.credit_limit.errors }}
                 </div>
@@ -945,7 +943,7 @@
                   <label class="form-label" for="{{ form.funder.id_for_label }}">Funding source</label>
                   {{ form.funder }}
                   {{ form.funder.errors }}
-                  <div class="form-text">The selected funder's reserved allocation is kept in sync with this customer's buying-power limit. New funders are managed from the funder administration screen.</div>
+                  <div class="form-text">The selected funding source's reserved allocation is kept in sync with this customer's buying-power limit. Funding sources are managed from the funder administration screen.</div>
                 </div>
 
                 <div class="col-12">
@@ -955,7 +953,7 @@
                     <div>Funder balance: R{{ funder_balance|floatformat:2|intcomma }}</div>
                     <div>Total reserved: R{{ funder_reserved|floatformat:2|intcomma }}</div>
                     <div>Unallocated capital: R{{ funder_unallocated|floatformat:2|intcomma }}</div>
-                    <div class="text-muted mt-1">Changing the customer limit updates the matching reservation. The system will not allow an allocation beyond the funder's available balance or a limit below the customer's current outstanding amount.</div>
+                    <div class="text-muted mt-1">Changing the customer limit updates the matching reservation. The system will not allow an allocation beyond the funding source's available balance or a limit below the customer's current outstanding amount.</div>
                   </div>
                 </div>
 

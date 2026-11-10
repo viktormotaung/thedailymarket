@@ -11,6 +11,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.core.paginator import Paginator
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from communications.models import CommunicationLog
 from django.db.models import (
     DecimalField, F, OuterRef, Q, Subquery, Sum, Value
 )
@@ -34,6 +35,8 @@ from .forms import (
     FunderMemberFormSet,
     FunderMovementForm,
 )
+from .communication_services import send_credit_status_notifications
+
 from .models import (
     CreditAccount,
     CreditEntry,
@@ -51,9 +54,6 @@ logger = logging.getLogger(__name__)
 def r2(value: Decimal) -> Decimal:
     return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-import logging
-
-logger = logging.getLogger(__name__)
 
 def staff_check(user):
     return user.is_authenticated and user.is_staff
@@ -174,7 +174,11 @@ def credit_edit(request, client_id):
     client = get_object_or_404(Client, pk=client_id)
     account, _ = CreditAccount.objects.get_or_create(client=client)
 
-    original_credit_status = (client.credit_status or "").upper()
+    # CreditAccount.status is the authoritative buying-power status.
+    # Client.credit_status is retained as a legacy/client-facing mirror.
+    original_account_status = (
+        account.status or CreditAccount.STATUS_PENDING
+    ).upper()
     zero = Decimal("0.00")
 
     if request.method == "POST":
@@ -182,8 +186,19 @@ def credit_edit(request, client_id):
 
         if form.is_valid():
             new_account_type = form.cleaned_data["account_type"]
-            new_credit_status = form.cleaned_data["credit_status"]
-            new_credit_status_norm = (new_credit_status or "").upper()
+            # The form uses Client.CREDIT_STATUS values (normally lowercase),
+            # while CreditAccount stores its status in uppercase.
+            new_credit_status = (form.cleaned_data["credit_status"] or "").strip().lower()
+            new_account_status = new_credit_status.upper()
+            valid_account_statuses = {
+                value for value, _label in CreditAccount.STATUS_CHOICES
+            }
+            if new_account_status not in valid_account_statuses:
+                form.add_error(
+                    "credit_status",
+                    "Select a valid buying-power status.",
+                )
+                raise ValueError("The selected buying-power status is invalid.")
             new_limit = r2(form.cleaned_data["credit_limit"] or zero)
             new_payment_term = form.cleaned_data["payment_term"]
             new_deposit_pct = form.cleaned_data["credit_deposit_pct"]
@@ -276,19 +291,25 @@ def credit_edit(request, client_id):
                         # FunderAllocation.save() links the account to the funder.
                         account.refresh_from_db()
 
-                    # Update customer profile fields.
+                    # Synchronise the legacy Client status mirror and the
+                    # authoritative CreditAccount status in the same transaction.
                     client_updates = []
                     if client.account_type != new_account_type:
                         client.account_type = new_account_type
                         client_updates.append("account_type")
-                    if client.credit_status != new_credit_status:
+                    if (client.credit_status or "").lower() != new_credit_status:
                         client.credit_status = new_credit_status
                         client_updates.append("credit_status")
                     if client_updates:
                         client.save(update_fields=client_updates)
 
+                    account_rule_updates = []
+                    if account.status != new_account_status:
+                        account.status = new_account_status
+                        account_rule_updates.append("status")
+
                     # Update account terms separately from limit audit.
-                    rule_updates = []
+                    rule_updates = account_rule_updates
                     if account.payment_term != new_payment_term:
                         account.payment_term = new_payment_term
                         rule_updates.append("payment_term")
@@ -307,17 +328,21 @@ def credit_edit(request, client_id):
                             note=note or "Customer facility limit updated.",
                         )
 
-                    # Notify only when an existing client's credit status genuinely changes.
+                    # Notify only when the authoritative facility status changes.
                     # on_commit prevents an email being sent if the database update rolls back.
-                    if original_credit_status != new_credit_status_norm:
-                        previous_status = original_credit_status or "UNSET"
-                        updated_status = new_credit_status_norm or "UNSET"
+                    if original_account_status != new_account_status:
+                        previous_status = original_account_status or "UNSET"
+                        updated_status = new_account_status or "UNSET"
                         transaction.on_commit(
                             lambda client_id=client.pk,
                                    old_status=previous_status,
-                                   new_status=updated_status:
-                                send_email_credit_status_changed(
-                                    client_id, old_status, new_status
+                                   new_status=updated_status,
+                                   actor_id=request.user.pk:
+                                _send_status_notifications_from_view(
+                                    client_id=client_id,
+                                    previous_status=old_status,
+                                    new_status=new_status,
+                                    sent_by_id=actor_id,
                                 ),
                             robust=True,
                         )
@@ -335,7 +360,8 @@ def credit_edit(request, client_id):
     else:
         form = CreditEditForm(initial={
             "account_type": client.account_type,
-            "credit_status": client.credit_status,
+            # Use the facility status, not the potentially stale legacy client field.
+            "credit_status": (account.status or CreditAccount.STATUS_PENDING).lower(),
             "credit_limit": account.credit_limit,
             "payment_term": account.payment_term,
             "credit_deposit_pct": account.credit_deposit_pct,
@@ -368,61 +394,234 @@ def credit_edit(request, client_id):
     })
 
 
-def send_email_credit_status_changed(client_id, previous_status, new_status):
+
+def _create_email_communication_log(
+    *,
+    recipient,
+    recipient_name="",
+    subject="",
+    message="",
+    related_object=None,
+    sent_by=None,
+):
     """
-    Send the matching branded email after an existing Client.credit_status
-    transition. The email uses the Client status field edited on this screen.
+    Create a CommunicationLog row before attempting delivery.
+
+    A log is created even if the email subsequently fails. The log model is
+    the single communication audit trail used by this view.
+    """
+    related_model = None
+    related_object_id = None
+
+    if related_object is not None:
+        related_model = related_object.__class__.__name__
+        related_object_id = related_object.pk
+
+    return CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_EMAIL,
+        status=CommunicationLog.STATUS_PENDING,
+        recipient_name=recipient_name or None,
+        recipient_contact=(recipient or "").strip() or "Unavailable recipient",
+        subject=(subject or "")[:255] or None,
+        message=message or "",
+        related_model=related_model,
+        related_object_id=related_object_id,
+        provider="Django email backend",
+        sent_by=sent_by if getattr(sent_by, "pk", None) else None,
+    )
+
+
+def _send_email_and_update_log(*, communication, email_message):
+    """
+    Send an EmailMultiAlternatives message and persist the delivery attempt.
+
+    Django's email backend confirms that the message was accepted for sending;
+    it does not, by itself, prove that the recipient's mailbox delivered it.
     """
     try:
-        client = Client.objects.select_related("credit_account").get(pk=client_id)
-        customer_profile = (
-            client.customer_profiles
-            .select_related("user")
-            .filter(user__email__gt="")
-            .first()
-        )
-        user = getattr(customer_profile, "user", None)
-        recipient_email = (
-            getattr(user, "email", None)
-            or getattr(client, "email", None)
-        )
-        if not recipient_email:
-            logger.warning(
-                "Credit-status email not sent for client %s: "
-                "no email found on CustomerProfile user or Client record.",
-                client_id,
-            )
-            return
+        sent_count = email_message.send(fail_silently=False)
 
-        recipient_name = (
-            user.get_short_name()
-            if user and hasattr(user, "get_short_name")
-            else ""
-        ) or getattr(client, "contact_person", None) or client.name or "there"
+        if sent_count:
+            communication.status = CommunicationLog.STATUS_SENT
+            communication.sent_at = now()
+            communication.error_message = ""
+            communication.provider_response = {
+                "backend": "Django email backend",
+                "accepted_count": sent_count,
+            }
+            communication.save(update_fields=[
+                "status",
+                "sent_at",
+                "error_message",
+                "provider_response",
+                "updated_at",
+            ])
+            return True
 
+        communication.status = CommunicationLog.STATUS_FAILED
+        communication.failed_at = now()
+        communication.error_message = (
+            "The configured email backend did not accept the message."
+        )
+        communication.provider_response = {
+            "backend": "Django email backend",
+            "accepted_count": 0,
+        }
+        communication.save(update_fields=[
+            "status",
+            "failed_at",
+            "error_message",
+            "provider_response",
+            "updated_at",
+        ])
+        logger.error(
+            "Email backend did not accept communication log %s.",
+            communication.pk,
+        )
+        return False
+
+    except Exception as exc:
+        communication.status = CommunicationLog.STATUS_FAILED
+        communication.failed_at = now()
+        communication.error_message = str(exc)
+        communication.provider_response = {
+            "backend": "Django email backend",
+            "exception_type": exc.__class__.__name__,
+        }
+        communication.save(update_fields=[
+            "status",
+            "failed_at",
+            "error_message",
+            "provider_response",
+            "updated_at",
+        ])
+        logger.exception(
+            "Email delivery failed for communication log %s.",
+            communication.pk,
+        )
+        return False
+
+
+def _send_status_notifications_from_view(
+    *, client_id, previous_status, new_status, sent_by_id=None
+):
+    """Resolve the staff actor and send both tracked status communications."""
+    sent_by = None
+    if sent_by_id:
+        from django.contrib.auth import get_user_model
+        sent_by = get_user_model().objects.filter(pk=sent_by_id).first()
+    return send_credit_status_notifications(
+        client_id=client_id,
+        previous_status=previous_status,
+        new_status=new_status,
+        sent_by=sent_by,
+    )
+
+
+def send_email_credit_status_changed(
+    client_id,
+    previous_status,
+    new_status,
+    sent_by=None,
+    sent_by_id=None,
+):
+    """
+    Send a branded customer status email and register the attempt in
+    CommunicationLog, whether delivery succeeds or fails.
+    """
+    if sent_by is None and sent_by_id:
+        from django.contrib.auth import get_user_model
+        sent_by = get_user_model().objects.filter(pk=sent_by_id).first()
+
+    client = Client.objects.select_related("credit_account").get(pk=client_id)
+
+    customer_profile = (
+        client.customer_profiles
+        .select_related("user")
+        .filter(user__email__gt="")
+        .first()
+    )
+    user = getattr(customer_profile, "user", None)
+    recipient_email = (
+        getattr(user, "email", None)
+        or getattr(client, "email", None)
+        or ""
+    ).strip()
+
+    recipient_name = (
+        user.get_short_name()
+        if user and hasattr(user, "get_short_name")
+        else ""
+    ) or getattr(client, "contact_person", None) or client.name or "there"
+
+    status_key = (new_status or "").strip().lower().replace(" ", "_")
+    template_by_status = {
+        "pending": "email/credit/status_pending.html",
+        "active": "email/credit/status_active.html",
+        "overdue": "email/credit/status_overdue.html",
+        "suspended": "email/credit/status_suspended.html",
+        "closed": "email/credit/status_closed.html",
+    }
+    subject_by_status = {
+        "pending": "Trade Assist account under review – The Daily Market",
+        "active": "Your Trade Assist buying power is active – The Daily Market",
+        "overdue": "Action required: Trade Assist settlement overdue",
+        "suspended": "Trade Assist account suspended – The Daily Market",
+        "closed": "Trade Assist account closure confirmation – The Daily Market",
+    }
+
+    subject = subject_by_status.get(
+        status_key,
+        "Trade Assist account status update – The Daily Market",
+    )
+
+    # Log the attempt before rendering or sending, so template errors and
+    # missing customer email addresses are also visible to staff.
+    communication = _create_email_communication_log(
+        recipient=recipient_email,
+        recipient_name=recipient_name,
+        subject=subject,
+        related_object=client,
+        sent_by=sent_by,
+    )
+
+    if not recipient_email:
+        communication.status = CommunicationLog.STATUS_FAILED
+        communication.failed_at = now()
+        communication.error_message = (
+            "No customer email address was found on the linked "
+            "CustomerProfile user or Client record."
+        )
+        communication.save(update_fields=[
+            "status", "failed_at", "error_message", "updated_at",
+        ])
+        logger.warning(
+            "Credit-status email not sent for client %s: no recipient email.",
+            client_id,
+        )
+        return False
+
+    template_name = template_by_status.get(status_key)
+    if not template_name:
+        communication.status = CommunicationLog.STATUS_FAILED
+        communication.failed_at = now()
+        communication.error_message = (
+            f"Unsupported client credit status: {new_status!r}."
+        )
+        communication.save(update_fields=[
+            "status", "failed_at", "error_message", "updated_at",
+        ])
+        return False
+
+    try:
         account = getattr(client, "credit_account", None)
         zero = Decimal("0.00")
         credit_limit = account.credit_limit if account else zero
         outstanding_balance = account.credit_used if account else zero
-        available_buying_power = max(zero, credit_limit - outstanding_balance)
-        status_key = (new_status or "").strip().lower().replace(" ", "_")
-        template_by_status = {
-            "pending": "email/credit/status_pending.html",
-            "active": "email/credit/status_active.html",
-            "overdue": "email/credit/status_overdue.html",
-            "suspended": "email/credit/status_suspended.html",
-            "closed": "email/credit/status_closed.html",
-        }
-        template_name = template_by_status.get(status_key)
-        if not template_name:
-            logger.warning(
-                "Credit-status email not sent for client %s: "
-                "unsupported new status %r.",
-                client_id, new_status,
-            )
-            return
+        available_buying_power = max(
+            zero, credit_limit - outstanding_balance
+        )
 
-        # Buying power is only usable while the Client credit status is ACTIVE.
         buying_power_available = status_key == "active"
         contribution_pct = (
             getattr(account, "credit_deposit_pct", None)
@@ -449,14 +648,21 @@ def send_email_credit_status_changed(client_id, previous_status, new_status):
             )
 
         support_email = getattr(
-            settings, "SUPPORT_EMAIL", "support@thedailymarket.co.za"
+            settings,
+            "SUPPORT_EMAIL",
+            "support@thedailymarket.co.za",
         )
+
         context = {
             "client": client,
             "account": account,
             "customer_name": recipient_name,
-            "previous_status": (previous_status or "UNSET").replace("_", " ").title(),
-            "new_status": (new_status or "UNSET").replace("_", " ").title(),
+            "previous_status": (
+                previous_status or "UNSET"
+            ).replace("_", " ").title(),
+            "new_status": (
+                new_status or "UNSET"
+            ).replace("_", " ").title(),
             "credit_limit": credit_limit or zero,
             "outstanding_balance": outstanding_balance or zero,
             "available_buying_power": available_buying_power,
@@ -467,14 +673,6 @@ def send_email_credit_status_changed(client_id, previous_status, new_status):
             "support_email": support_email,
         }
 
-        subject_by_status = {
-            "pending": "Trade Assist account under review – The Daily Market",
-            "active": "Your Trade Assist buying power is active – The Daily Market",
-            "overdue": "Action required: Trade Assist settlement overdue",
-            "suspended": "Trade Assist account suspended – The Daily Market",
-            "closed": "Trade Assist account closure confirmation – The Daily Market",
-        }
-        subject = subject_by_status[status_key]
         html_body = render_to_string(template_name, context)
         text_body = (
             f"Hello {recipient_name},\n\n"
@@ -490,24 +688,43 @@ def send_email_credit_status_changed(client_id, previous_status, new_status):
             "Regards,\nThe Daily Market Team"
         )
 
-        message = EmailMultiAlternatives(
+        communication.message = text_body
+        communication.save(update_fields=["message", "updated_at"])
+
+        email_message = EmailMultiAlternatives(
             subject=subject,
             body=text_body,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[recipient_email],
             headers={"Reply-To": support_email},
         )
-        message.attach_alternative(html_body, "text/html")
-        message.send(fail_silently=False)
-        logger.info(
-            "Credit-status email sent for client %s to %s: %s -> %s",
-            client_id, recipient_email, previous_status, new_status,
+        email_message.attach_alternative(html_body, "text/html")
+
+        return _send_email_and_update_log(
+            communication=communication,
+            email_message=email_message,
         )
-    except Exception:
+
+    except Exception as exc:
+        communication.status = CommunicationLog.STATUS_FAILED
+        communication.failed_at = now()
+        communication.error_message = str(exc)
+        communication.provider_response = {
+            "stage": "message_preparation",
+            "exception_type": exc.__class__.__name__,
+        }
+        communication.save(update_fields=[
+            "status",
+            "failed_at",
+            "error_message",
+            "provider_response",
+            "updated_at",
+        ])
         logger.exception(
-            "Credit-status email failed for client %s (%s -> %s)",
-            client_id, previous_status, new_status,
+            "Could not prepare credit-status email for client %s.",
+            client_id,
         )
+        return False
 
 
 @login_required
@@ -855,22 +1072,70 @@ def credit_send_request(request, client_id):
         ),
     }
     subject = f"The Daily Market – Trade Assist settlement for Invoice #{invoice.id}"
-    text_body = render_to_string("email/payfast_credit_request.txt", ctx)
-    html_body = render_to_string("email/payfast_credit_request.html", ctx)
 
-    msg = EmailMultiAlternatives(
+    communication = _create_email_communication_log(
+        recipient=client.email,
+        recipient_name=client.contact_person or client.name,
         subject=subject,
-        body=text_body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[client.email],
-        headers={"Reply-To": ctx["support_email"]},
+        related_object=invoice,
+        sent_by=request.user,
     )
-    msg.attach_alternative(html_body, "text/html")
-    msg.send(fail_silently=False)
+
+    try:
+        text_body = render_to_string("email/payfast_credit_request.txt", ctx)
+        html_body = render_to_string("email/payfast_credit_request.html", ctx)
+
+        communication.message = text_body
+        communication.save(update_fields=["message", "updated_at"])
+
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[client.email],
+            headers={"Reply-To": ctx["support_email"]},
+        )
+        msg.attach_alternative(html_body, "text/html")
+
+        sent = _send_email_and_update_log(
+            communication=communication,
+            email_message=msg,
+        )
+    except Exception as exc:
+        communication.status = CommunicationLog.STATUS_FAILED
+        communication.failed_at = now()
+        communication.error_message = str(exc)
+        communication.provider_response = {
+            "stage": "message_preparation",
+            "exception_type": exc.__class__.__name__,
+        }
+        communication.save(update_fields=[
+            "status",
+            "failed_at",
+            "error_message",
+            "provider_response",
+            "updated_at",
+        ])
+        logger.exception(
+            "Could not prepare PayFast settlement email for invoice %s.",
+            invoice.pk,
+        )
+        sent = False
+
+    if not sent:
+        return JsonResponse({
+            "success": False,
+            "message": (
+                "The settlement email could not be sent. "
+                "The failed attempt has been recorded in the Communication Log."
+            ),
+            "communication_log_id": communication.pk,
+        }, status=502)
 
     return JsonResponse({
         "success": True,
-        "message": f"Invoice-specific repayment request sent for invoice #{invoice.id}."
+        "message": f"Invoice-specific repayment request sent for invoice #{invoice.id}.",
+        "communication_log_id": communication.pk,
     })
 
 

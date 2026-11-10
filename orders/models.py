@@ -1116,6 +1116,25 @@ class Order(models.Model):
 
         super().save(*args, **kwargs)
 
+        # SMS only when an existing order ENTERS one of these two statuses.
+        # Run after the database transaction commits, avoiding messages for
+        # rolled-back changes or unrelated saves.
+        changed_status = self.status
+        if (
+            not creating
+            and old_status != changed_status
+            and changed_status in {"out_for_delivery", "complete"}
+            and (kwargs.get("update_fields") is None or "status" in kwargs["update_fields"])
+        ):
+            from .order_sms import send_order_status_sms
+            order_id = self.pk
+            db_alias = self._state.db or "default"
+            transaction.on_commit(
+                lambda oid=order_id, status=changed_status, db=db_alias:
+                    send_order_status_sms(oid, status, using=db),
+                using=db_alias,
+            )
+
         print(
             f"[DEBUG] Order {self.pk} saved "
             f"with status: {self.status}"
