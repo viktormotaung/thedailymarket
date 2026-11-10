@@ -12,6 +12,8 @@ urlpatterns = [
 
     path("account/", views.membership_account, name="membership_account"),
 
+    path("account/transactions/", views.membership_credit_transactions, name="membership_credit_transactions"),
+
     path("shop/specials/", views.membership_shop_specials, name="membership_shop_specials",),
 
     path("support/", views.membership_support, name="membership_support"),

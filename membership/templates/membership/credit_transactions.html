@@ -1,0 +1,138 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#075b3d">
+<title>{{ title }} | The Daily Market</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+:root{--green:#075b3d;--deep:#06452f;--pale:#eaf3ed;--gold:#d7a943;--ink:#1d2b24;--muted:#78847c;--line:#e7ece8;--width:760px}
+*{box-sizing:border-box}
+body{margin:0;background:#eef2ee;color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.shell{max-width:var(--width);min-height:100vh;margin:auto;background:#fff;box-shadow:0 12px 45px rgba(15,55,35,.07);padding-bottom:112px}
+header{height:82px;display:flex;align-items:center;justify-content:center;position:relative;border-top:4px solid var(--green);border-bottom:1px solid var(--line)}
+.logo{width:76px;height:76px;padding:12px;border:1px solid #e7eee9;border-radius:50%;object-fit:contain}
+.back{position:absolute;left:20px;display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--line);border-radius:50%;color:var(--green);text-decoration:none}
+main{padding:25px 22px 35px}
+.intro{text-align:center;margin:0 auto 22px}
+.kicker{color:#a18750;font-size:9px;font-weight:800;letter-spacing:.14em}
+h1{margin:7px 0;color:var(--ink);font-size:24px;font-weight:800;letter-spacing:-.04em}
+.subtitle{margin:0;color:var(--muted);font-size:11px}
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.summary-card{padding:15px;border:1px solid var(--line);border-radius:14px;background:#fbfcfb;text-align:center}
+.summary-label{display:block;color:var(--muted);font-size:10px}
+.summary-value{display:block;margin-top:4px;color:var(--green);font-size:18px;font-weight:800}
+.entry{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:15px 2px;border-bottom:1px solid var(--line)}
+.entry:last-child{border-bottom:0}
+.entry-title{margin:0;font-size:12px;font-weight:800}
+.entry-meta{display:block;margin-top:4px;color:var(--muted);font-size:10px;line-height:1.5}
+.entry-amount{white-space:nowrap;text-align:right;font-size:13px;font-weight:800}
+.entry-amount.usage{color:#a45a27}
+.entry-amount.repayment,.entry-amount.issue{color:var(--green)}
+.entry-amount.neutral{color:var(--ink)}
+.entry-ref{display:block;margin-top:3px;color:var(--muted);font-size:9px;font-weight:500}
+.list-card{padding:0 16px;border:1px solid var(--line);border-radius:16px;background:#fff}
+.empty{padding:28px 18px;border:1px dashed #cbd9cf;border-radius:15px;text-align:center;color:var(--muted);font-size:12px}
+.empty i{display:block;margin-bottom:8px;color:var(--green);font-size:24px}
+.pagination{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:18px;font-size:11px}
+.pagination a{padding:8px 12px;border-radius:30px;background:var(--pale);color:var(--green);font-weight:750;text-decoration:none}
+.pagination span{color:var(--muted)}
+.footer{text-align:center;padding:25px 10px;color:#9a8870;font-size:10px}
+
+.bottom-nav-wrap{position:fixed;z-index:1000;left:0;right:0;bottom:0;padding:9px 12px calc(9px + env(safe-area-inset-bottom));background:rgba(255,255,255,.96);border-top:1px solid var(--line);backdrop-filter:blur(14px)}
+.bottom-nav{max-width:var(--width);margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:48px;border-radius:12px;color:#87928b;text-decoration:none;font-size:9px;font-weight:750;transition:background .2s,color .2s}
+.nav-item i{font-size:18px;line-height:1}
+.nav-item.active{background:var(--pale);color:var(--green)}
+.nav-item:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+@media(max-width:420px){main{padding:22px 15px}.entry{gap:8px}.entry-title{font-size:11px}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header>
+    <a class="back" href="{% url 'membership_dashboard' %}" aria-label="Back to dashboard"><i class="bi bi-arrow-left"></i></a>
+    <a href="{% url 'home' %}" aria-label="The Daily Market home"><img class="logo" src="{% static 'images/logo.png' %}" alt="The Daily Market"></a>
+</header>
+<main>
+    <div class="intro">
+        <span class="kicker">TRADE ASSIST</span>
+        <h1>Transaction history</h1>
+        <p class="subtitle">A record of buying-power activity and repayments.</p>
+    </div>
+
+    {% if credit_account %}
+    <div class="summary">
+        <div class="summary-card">
+            <span class="summary-label">Available buying power</span>
+            <strong class="summary-value">R{{ credit_account.credit_available|floatformat:2|intcomma }}</strong>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Currently utilised</span>
+            <strong class="summary-value">R{{ credit_account.credit_used|floatformat:2|intcomma }}</strong>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if entries %}
+    <div class="list-card">
+        {% for entry in entries %}
+        <article class="entry">
+            <div>
+                <h2 class="entry-title">{{ entry.get_kind_display }}</h2>
+                <span class="entry-meta">
+                    {{ entry.posted_at|date:"d M Y, H:i" }}
+                    {% if entry.invoice_id %} · Invoice #{{ entry.invoice_id }}{% endif %}
+                    {% if entry.note %}<br>{{ entry.note|truncatechars:100 }}{% endif %}
+                </span>
+            </div>
+            <div class="entry-amount {% if entry.kind == 'usage' %}usage{% elif entry.kind == 'repayment' or entry.kind == 'issue' %}repayment{% else %}neutral{% endif %}">
+                R{{ entry.amount|floatformat:2|intcomma }}
+                {% if entry.reference %}<span class="entry-ref">{{ entry.reference }}</span>{% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+        <i class="bi bi-clock-history"></i>
+        {% if credit_account %}
+            No Trade Assist transactions have been recorded yet.
+        {% else %}
+            There is no Trade Assist account linked to your customer profile yet.
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    <nav class="pagination" aria-label="Transaction pages">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+        <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </nav>
+    {% endif %}
+</main>
+<footer class="footer">The Daily Market · Your everyday food &amp; kitchen partner</footer>
+</div>
+<nav class="bottom-nav-wrap" aria-label="Main navigation">
+    <div class="bottom-nav">
+        <a class="nav-item" href="{% url 'membership_dashboard' %}">
+            <i class="bi bi-house-door"></i><span>Home</span>
+        </a>
+        <a class="nav-item" href="{% url 'membership_shop' %}">
+            <i class="bi bi-basket2"></i><span>Shop</span>
+        </a>
+        <a class="nav-item" href="{% url 'membership_orders' %}">
+            <i class="bi bi-receipt"></i><span>Orders</span>
+        </a>
+        <a class="nav-item active" href="{% url 'membership_account' %}" aria-current="page">
+            <i class="bi bi-person"></i><span>Account</span>
+        </a>
+    </div>
+</nav>
+</body>
+</html>

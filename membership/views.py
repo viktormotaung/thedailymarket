@@ -1,8 +1,10 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
+from django.core.paginator import Paginator
+from django.utils import timezone
 from clients.models import Membership, Client
 from django.contrib import messages
-from credit.models import CreditAccount
+from credit.models import CreditAccount, CreditEntry, CreditSettlement
 from profiles.models import CustomerProfile
 from datetime import date
 from decimal import Decimal
@@ -47,6 +49,50 @@ def membership_dashboard(request):
         .filter(client=client)
         .first()
     )
+
+    # TradeAssist standing: an active account with no past-due,
+    # outstanding settlement obligations is considered in good standing.
+    today = timezone.localdate()
+    ta_account_good_standing = False
+    ta_account_status_label = "Not activated"
+    ta_account_status_message = "Trade Assist buying power is not currently activated."
+    ta_overdue_amount = Decimal("0.00")
+
+    if credit_account:
+        overdue_settlements = CreditSettlement.objects.filter(
+            credit_account=credit_account,
+            outstanding_amount__gt=0,
+            due_date__lt=today,
+            status__in=[
+                CreditSettlement.STATUS_OUTSTANDING,
+                CreditSettlement.STATUS_PARTIAL,
+                CreditSettlement.STATUS_OVERDUE,
+            ],
+        )
+        ta_overdue_amount = (
+            overdue_settlements.aggregate(total=Sum("outstanding_amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        if credit_account.status == CreditAccount.STATUS_ACTIVE and ta_overdue_amount <= 0:
+            ta_account_good_standing = True
+            ta_account_status_label = "Good standing"
+            ta_account_status_message = "Your Trade Assist account is active and your settlements are up to date."
+        elif ta_overdue_amount > 0 or credit_account.status == CreditAccount.STATUS_OVERDUE:
+            ta_account_status_label = "Payment overdue"
+            ta_account_status_message = "There is an overdue Trade Assist settlement. Please contact our team if you need assistance."
+        elif credit_account.status == CreditAccount.STATUS_SUSPENDED:
+            ta_account_status_label = "Temporarily suspended"
+            ta_account_status_message = "Your Trade Assist account is temporarily suspended. Please contact our team."
+        elif credit_account.status == CreditAccount.STATUS_PENDING:
+            ta_account_status_label = "Pending activation"
+            ta_account_status_message = "Your Trade Assist account is awaiting activation."
+        elif credit_account.status == CreditAccount.STATUS_CLOSED:
+            ta_account_status_label = "Account closed"
+            ta_account_status_message = "This Trade Assist account is closed."
+        else:
+            ta_account_status_label = "Not active"
+            ta_account_status_message = "Your Trade Assist account is not currently active."
 
     # ==========================================================
     # Snapshot
@@ -139,6 +185,10 @@ def membership_dashboard(request):
         "client": client,
         "membership": membership,
         "credit_account": credit_account,
+        "ta_account_good_standing": ta_account_good_standing,
+        "ta_account_status_label": ta_account_status_label,
+        "ta_account_status_message": ta_account_status_message,
+        "ta_overdue_amount": ta_overdue_amount,
 
         "current_orders": current_orders,
         "outstanding_amount": outstanding_amount,
@@ -439,6 +489,62 @@ def membership_shop_category(request, slug):
     return render(
         request,
         "membership/shop_category.html",
+        context,
+    )
+
+
+@login_required
+def membership_credit_transactions(request):
+    """
+    Customer-facing Trade Assist transaction history.
+    Only returns ledger entries belonging to the signed-in user's client.
+    """
+    profile = (
+        CustomerProfile.objects
+        .select_related("client", "user")
+        .filter(user=request.user)
+        .first()
+    )
+
+    if not profile:
+        messages.error(
+            request,
+            "No customer profile could be found for your account."
+        )
+        return redirect("home")
+
+    client = profile.client
+    credit_account = (
+        CreditAccount.objects
+        .filter(client=client)
+        .first()
+    )
+
+    if not credit_account:
+        entries = CreditEntry.objects.none()
+    else:
+        entries = (
+            CreditEntry.objects
+            .filter(credit_account=credit_account)
+            .select_related("invoice")
+            .order_by("-posted_at", "-id")
+        )
+
+    paginator = Paginator(entries, 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        "title": "Trade Assist Transaction History",
+        "profile": profile,
+        "client": client,
+        "credit_account": credit_account,
+        "entries": page_obj.object_list,
+        "page_obj": page_obj,
+    }
+
+    return render(
+        request,
+        "membership/credit_transactions.html",
         context,
     )
 

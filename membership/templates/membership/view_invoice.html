@@ -1,1112 +1,320 @@
 {% load static humanize %}
-
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-
-    <title>
-        Invoice INV-{{ invoice.id }} · The Daily Market
-    </title>
-
-    <!-- Bootstrap -->
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-          rel="stylesheet">
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
-          rel="stylesheet">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice INV-{{ invoice.id }} · The Daily Market</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-
-        body{
-            background:#f5f7fa;
-            font-size:14px;
+        :root {
+            --green:#075b3d; --green-dark:#06452f; --green-light:#eaf3ed;
+            --gold:#d7a943; --ink:#1d2b24; --muted:#78847c;
+            --line:#e5ebe6; --page:#f3f6f3; --white:#fff;
         }
-
-        .content{
-            padding:30px;
+        * { box-sizing:border-box; }
+        body { margin:0; background:var(--page); color:var(--ink); font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:14px; }
+        .app-shell { width:100%; max-width:760px; min-height:100vh; margin:0 auto; background:#fbfcfb; padding:22px 18px 108px; }
+        .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; }
+        .brand { display:flex; align-items:center; gap:10px; min-width:0; text-decoration:none; color:var(--ink); }
+        .brand-mark { width:44px; height:44px; border-radius:50%; background:#fff; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; overflow:hidden; flex:none; }
+        .brand-mark img { width:36px; height:36px; object-fit:contain; }
+        .brand-name { font-weight:800; font-size:15px; line-height:1.1; }
+        .brand-tagline { color:var(--muted); font-size:10px; margin-top:4px; }
+        .icon-button { width:40px; height:40px; border:1px solid var(--line); border-radius:13px; background:#fff; color:var(--green); display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
+        .eyebrow { color:var(--muted); text-transform:uppercase; letter-spacing:.09em; font-size:10px; font-weight:800; }
+        .hero { background:linear-gradient(135deg,var(--green),var(--green-dark)); color:#fff; border-radius:22px; padding:22px; position:relative; overflow:hidden; margin-bottom:16px; }
+        .hero:after { content:""; position:absolute; width:170px; height:170px; border:1px solid rgba(255,255,255,.12); border-radius:50%; right:-65px; top:-80px; box-shadow:0 0 0 22px rgba(255,255,255,.035),0 0 0 44px rgba(255,255,255,.025); }
+        .hero .eyebrow { color:rgba(255,255,255,.68); }
+        .invoice-number { font-size:27px; font-weight:850; letter-spacing:-.04em; margin:5px 0 10px; }
+        .hero-meta { color:rgba(255,255,255,.78); font-size:12px; }
+        .status-pill { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:7px 11px; font-size:10px; font-weight:800; letter-spacing:.04em; background:rgba(255,255,255,.15); color:#fff; }
+        .status-pill.paid { background:#dff3e6; color:#17643f; }
+        .status-pill.overdue { background:#fde8e6; color:#a52d25; }
+        .status-pill.pending { background:#fff2d5; color:#775514; }
+        .section { margin-top:20px; }
+        .section-heading { font-size:14px; font-weight:850; margin:0 0 11px; }
+        .card-soft { background:#fff; border:1px solid var(--line); border-radius:17px; padding:16px; box-shadow:0 3px 12px rgba(22,55,37,.035); }
+        .summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+        .metric-label { color:var(--muted); font-size:10px; font-weight:750; text-transform:uppercase; letter-spacing:.06em; }
+        .metric-value { font-size:18px; font-weight:850; margin-top:5px; letter-spacing:-.03em; overflow-wrap:anywhere; }
+        .metric-note { color:var(--muted); font-size:11px; margin-top:3px; }
+        .party-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .party-name { font-weight:800; font-size:13px; margin-top:5px; }
+        .party-detail { color:var(--muted); font-size:11px; line-height:1.55; margin-top:4px; overflow-wrap:anywhere; }
+        .items-card { padding:0; overflow:hidden; }
+        .item-row { padding:13px 15px; border-bottom:1px solid var(--line); display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; }
+        .item-row:last-child { border-bottom:0; }
+        .item-name { font-size:12px; font-weight:800; }
+        .item-meta { color:var(--muted); font-size:10px; margin-top:4px; }
+        .item-price { text-align:right; font-size:12px; font-weight:800; white-space:nowrap; }
+        .totals-card { background:#fff; border:1px solid var(--line); border-radius:17px; padding:16px; }
+        .total-line { display:flex; align-items:flex-start; justify-content:space-between; gap:15px; padding:7px 0; font-size:12px; }
+        .total-line strong { white-space:nowrap; }
+        .total-line.muted { color:var(--muted); }
+        .total-line.emphasis { border-top:1px solid var(--line); margin-top:6px; padding-top:13px; font-size:15px; font-weight:850; }
+        .total-line.emphasis strong { color:var(--green); font-size:19px; }
+        .ta-panel { background:var(--green-light); border:1px solid #d8e8dc; border-radius:17px; padding:16px; }
+        .ta-title { color:var(--green-dark); font-weight:850; font-size:14px; }
+        .ta-copy { color:#52665a; font-size:11px; line-height:1.55; margin-top:5px; }
+        .ta-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+        .ta-stat { background:rgba(255,255,255,.75); border:1px solid rgba(7,91,61,.08); border-radius:12px; padding:11px; }
+        .ta-stat .metric-value { font-size:15px; }
+        .info-row { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); font-size:11px; }
+        .info-row:last-child { border-bottom:0; padding-bottom:0; }
+        .info-row span:first-child { color:var(--muted); }
+        .info-row strong { text-align:right; }
+        .bank-ref { background:var(--green-light); border-radius:13px; padding:13px; margin-top:12px; }
+        .bank-ref strong { color:var(--green-dark); font-size:17px; letter-spacing:.02em; }
+        .action-row { display:flex; gap:9px; margin-top:17px; }
+        .action-btn { flex:1; border-radius:13px; padding:12px 10px; font-size:12px; font-weight:800; text-align:center; text-decoration:none; border:1px solid var(--line); color:var(--green); background:#fff; }
+        .action-btn.primary { background:var(--green); color:#fff; border-color:var(--green); }
+        .footer-note { text-align:center; color:var(--muted); font-size:10px; line-height:1.6; margin:22px 8px 0; }
+        .bottom-nav { position:fixed; z-index:20; bottom:0; left:50%; transform:translateX(-50%); width:min(100%,760px); display:grid; grid-template-columns:repeat(4,1fr); gap:5px; padding:9px 13px calc(9px + env(safe-area-inset-bottom)); background:rgba(255,255,255,.96); border-top:1px solid var(--line); backdrop-filter:blur(12px); }
+        .nav-item { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; text-decoration:none; color:var(--muted); border-radius:13px; padding:7px 3px; font-size:9px; font-weight:700; }
+        .nav-item i { font-size:17px; }
+        .nav-item.active { color:var(--green); background:var(--green-light); font-weight:800; }
+        .print-only { display:none; }
+        @media(min-width:600px) { .app-shell { padding:26px 28px 112px; } .summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } .hero { padding:25px; } }
+        @media(max-width:380px) { .app-shell { padding-left:13px; padding-right:13px; } .party-grid { grid-template-columns:1fr; } .invoice-number { font-size:24px; } }
+        @media print {
+            body { background:#fff; }
+            .app-shell { max-width:none; padding:0; background:#fff; }
+            .bottom-nav,.no-print { display:none!important; }
+            .hero { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+            .card-soft,.totals-card,.ta-panel { box-shadow:none; break-inside:avoid; }
+            .print-only { display:block; }
         }
-
-        .invoice-wrapper{
-            max-width:1200px;
-            margin:auto;
-        }
-
-        .invoice-card{
-            border:none;
-            border-radius:20px;
-            box-shadow:0 .5rem 1rem rgba(0,0,0,.08);
-        }
-
-        .invoice-header{
-            border-bottom:1px solid #ececec;
-            padding-bottom:25px;
-            margin-bottom:30px;
-        }
-
-        .company-name{
-            font-weight:700;
-            font-size:30px;
-            color:#198754;
-        }
-
-        .company-subtitle{
-            color:#6c757d;
-            font-size:14px;
-        }
-
-        .section-title{
-            text-transform:uppercase;
-            font-size:12px;
-            letter-spacing:.6px;
-            color:#6c757d;
-            font-weight:600;
-            margin-bottom:10px;
-        }
-
-        .invoice-number{
-            font-size:28px;
-            font-weight:700;
-        }
-
-        .status-badge{
-
-            font-size:15px;
-            padding:10px 18px;
-            border-radius:999px;
-            font-weight:700;
-
-        }
-
-        .summary-card{
-
-            border:none;
-            border-radius:16px;
-            box-shadow:0 .25rem .75rem rgba(0,0,0,.05);
-
-        }
-
-        .summary-card .value{
-
-            font-size:22px;
-            font-weight:700;
-
-        }
-
-        .invoice-table th{
-
-            text-transform:uppercase;
-            font-size:12px;
-            letter-spacing:.5px;
-            color:#6c757d;
-
-        }
-
-        .totals-box{
-
-            background:#f8f9fa;
-            border-radius:18px;
-            padding:24px;
-
-        }
-
-        .footer-note{
-
-            font-size:12px;
-            color:#6c757d;
-
-        }
-
-        @media print{
-
-            body{
-                background:#fff;
-            }
-
-            .no-print{
-                display:none !important;
-            }
-
-            .invoice-card{
-
-                box-shadow:none;
-
-            }
-
-        }
-
     </style>
-
 </head>
-
 <body>
+<main class="app-shell">
+    <header class="topbar no-print">
+        <a href="{% url 'home' %}" class="brand" aria-label="The Daily Market home">
+            <span class="brand-mark"><img src="{% static 'images/logo.png' %}" alt="The Daily Market"></span>
+            <span>
+                <span class="brand-name d-block">The Daily Market</span>
+                <span class="brand-tagline d-block">Your everyday food &amp; kitchen partner.</span>
+            </span>
+        </a>
+        <a href="{% url 'membership_view_order' order.id %}" class="icon-button" aria-label="Back to order">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+    </header>
 
-    <main class="content">
-
-        <div class="container-fluid invoice-wrapper">
-
-            <!-- ===================================================== -->
-            <!-- Navigation -->
-            <!-- ===================================================== -->
-
-            <div class="d-flex justify-content-between align-items-center flex-wrap mb-4 no-print">
-
-                <a href="{% url 'membership_view_order' order.id %}"
-                   class="btn btn-outline-secondary">
-
-                    <i class="bi bi-arrow-left me-2"></i>
-
-                    Back to Order
-
-                </a>
-
-                <div class="d-flex gap-2 flex-wrap">
-
-                    <button
-                        class="btn btn-outline-dark"
-                        onclick="window.print();">
-
-                        <i class="bi bi-printer me-2"></i>
-
-                        Print
-
-                    </button>
-
-                    <a href="#"
-                       class="btn btn-outline-success">
-
-                        <i class="bi bi-download me-2"></i>
-
-                        Download PDF
-
-                    </a>
-
-                    {% if invoice.status == "paid" %}
-
-                        <button
-                            class="btn btn-success"
-                            disabled>
-
-                            <i class="bi bi-check-circle me-2"></i>
-
-                            Paid
-
-                        </button>
-
-                    {% else %}
-
-                        <button
-                            class="btn btn-success"
-                            disabled>
-
-                            <i class="bi bi-credit-card me-2"></i>
-
-                            Pay Invoice
-                            <small>(Coming Soon)</small>
-
-                        </button>
-
-                    {% endif %}
-
-                </div>
-
+    <section class="hero">
+        <div class="d-flex justify-content-between align-items-start gap-3 position-relative" style="z-index:1">
+            <div>
+                <div class="eyebrow">Tax invoice</div>
+                <div class="invoice-number">INV-{{ invoice.id }}</div>
+                <div class="hero-meta">Order #{{ order.id }} &nbsp;·&nbsp; {{ invoice.invoice_date|date:"d M Y" }}</div>
             </div>
-
-            <!-- ===================================================== -->
-            <!-- Invoice -->
-            <!-- ===================================================== -->
-
-            <div class="card invoice-card">
-
-                <div class="card-body p-5">
-
-                    <!-- ============================================== -->
-                    <!-- Header -->
-                    <!-- ============================================== -->
-
-                    <div class="row invoice-header">
-
-                        <div class="col-md-7">
-
-                            <div class="company-name">
-
-                                The Daily Market
-
-                            </div>
-
-                            <div class="company-subtitle mt-2">
-
-                                The Daily Market (Pty) Ltd<br>
-
-                                Registration No:
-                                2024 / 232233 / 07
-
-                            </div>
-
-                        </div>
-
-                        <div class="col-md-5 text-md-end mt-4 mt-md-0">
-
-                            <div class="invoice-number">
-
-                                Invoice
-
-                            </div>
-
-                            <h4 class="fw-bold mb-3">
-
-                                INV-{{ invoice.id }}
-
-                            </h4>
-
-                            {% if invoice.status == "paid" %}
-
-                                <span class="badge bg-success status-badge">
-
-                                    PAID
-
-                                </span>
-
-                            {% elif invoice.status == "overdue" %}
-
-                                <span class="badge bg-danger status-badge">
-
-                                    OVERDUE
-
-                                </span>
-
-                            {% else %}
-
-                                <span class="badge bg-warning text-dark status-badge">
-
-                                    {{ invoice.get_status_display|upper }}
-
-                                </span>
-
-                            {% endif %}
-
-                        </div>
-
-                    </div>
-
-                    <!-- ============================================== -->
-                    <!-- Summary -->
-                    <!-- ============================================== -->
-
-                    <div class="row g-4 mb-5">
-
-                        <div class="col-md-3">
-
-                            <div class="card summary-card h-100">
-
-                                <div class="card-body">
-
-                                    <div class="section-title">
-
-                                        Invoice Date
-
-                                    </div>
-
-                                    <div class="value">
-
-                                        {{ invoice.created_at|date:"d M Y" }}
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <div class="col-md-3">
-
-                            <div class="card summary-card h-100">
-
-                                <div class="card-body">
-
-                                    <div class="section-title">
-
-                                        Due Date
-
-                                    </div>
-
-                                    <div class="value">
-
-                                        {% if invoice.due_date %}
-
-                                            {{ invoice.due_date|date:"d M Y" }}
-
-                                        {% else %}
-
-                                            -
-
-                                        {% endif %}
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <div class="col-md-3">
-
-                            <div class="card summary-card h-100">
-
-                                <div class="card-body">
-
-                                    <div class="section-title">
-
-                                        Invoice Total
-
-                                    </div>
-
-                                    <div class="value text-success">
-
-                                        R{{ invoice.order_total_inc|floatformat:2|intcomma }}
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <div class="col-md-3">
-
-                            <div class="card summary-card h-100">
-
-                                <div class="card-body">
-
-                                    <div class="section-title">
-
-                                        Outstanding
-
-                                    </div>
-
-                                    <div class="value text-danger">
-
-                                        {% if invoice.status == "paid" %}
-
-                                            <div class="value text-success">
-
-                                                R0.00
-
-                                            </div>
-
-                                        {% else %}
-
-                                            <div class="value text-danger">
-
-                                                R{{ invoice.amount_due|floatformat:2|intcomma }}
-
-                                            </div>
-
-                                        {% endif %}
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    <!-- ============================================== -->
-                    <!-- Company / Customer -->
-                    <!-- ============================================== -->
-
-                    <div class="row mb-5">
-
-                        <div class="col-md-6">
-
-                            <div class="section-title">
-
-                                From
-
-                            </div>
-
-                            <strong>
-
-                                The Daily Market (Pty) Ltd
-
-                            </strong>
-
-                            <br>
-
-                            Registration No:
-                            2024 / 232233 / 07
-
-                            <br>
-
-                            Gauteng, South Africa
-
-                        </div>
-
-                        <div class="col-md-6 text-md-end mt-4 mt-md-0">
-
-                            <div class="section-title">
-
-                                Invoice To
-
-                            </div>
-
-                            <strong>
-
-                                {{ client.name }}
-
-                            </strong>
-
-                            <br>
-
-                            {% if client.organization %}
-
-                                {{ client.organization }}
-
-                                <br>
-
-                            {% endif %}
-
-                            {{ client.email }}
-
-                        </div>
-
-                    </div>
-
-                                        <!-- ============================================== -->
-                    <!-- Invoice Items -->
-                    <!-- ============================================== -->
-
-                    <div class="mb-5">
-
-                        <h4 class="fw-bold mb-3">
-
-                            Products
-
-                        </h4>
-
-                        <div class="table-responsive">
-
-                            <table class="table table-hover align-middle invoice-table">
-
-                                <thead class="table-light">
-
-                                    <tr>
-
-                                        <th style="width:40%;">
-                                            Product
-                                        </th>
-
-                                        <th>
-                                            Category
-                                        </th>
-
-                                        <th class="text-center">
-                                            Qty
-                                        </th>
-
-                                        <th class="text-end">
-                                            Unit Price
-                                        </th>
-
-                                        <th class="text-end">
-                                            Total
-                                        </th>
-
-                                    </tr>
-
-                                </thead>
-
-                                <tbody>
-
-                                    {% for item in order_items %}
-
-                                    <tr>
-
-                                        <td>
-
-                                            <div class="fw-semibold">
-
-                                                {{ item.product.name }}
-
-                                            </div>
-
-                                            {% if item.product.description %}
-
-                                                <small class="text-muted">
-
-                                                    {{ item.product.description|truncatechars:70 }}
-
-                                                </small>
-
-                                            {% endif %}
-
-                                        </td>
-
-                                        <td>
-
-                                            {% if item.product.category %}
-
-                                                {{ item.product.category.name }}
-
-                                            {% else %}
-
-                                                -
-
-                                            {% endif %}
-
-                                        </td>
-
-                                        <td class="text-center">
-
-                                            {{ item.quantity|floatformat:0 }}
-
-                                        </td>
-
-                                        <td class="text-end">
-
-                                            R{{ item.unit_price_inc|floatformat:2|intcomma }}
-
-                                        </td>
-
-                                        <td class="text-end fw-bold">
-
-                                            R{{ item.line_total_inc|floatformat:2|intcomma }}
-
-                                        </td>
-
-                                    </tr>
-
-                                    {% empty %}
-
-                                    <tr>
-
-                                        <td colspan="5"
-                                            class="text-center py-5 text-muted">
-
-                                            No products found on this invoice.
-
-                                        </td>
-
-                                    </tr>
-
-                                    {% endfor %}
-
-                                </tbody>
-
-                            </table>
-
-                        </div>
-
-                    </div>
-
-                    <!-- ============================================== -->
-                    <!-- Order Summary -->
-                    <!-- ============================================== -->
-
-                    <div class="row g-4 mb-5">
-
-                        <div class="col-md-4">
-
-                            <div class="summary-card h-100">
-
-                                <div class="card-body">
-
-                                    <div class="section-title">
-
-                                        Order Number
-
-                                    </div>
-
-                                    <div class="value">
-
-                                        #{{ order.id }}
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <div class="col-md-4">
-
-                            <div class="summary-card h-100">
-
-                                <div class="card-body">
-
-                                    <div class="section-title">
-
-                                        Products
-
-                                    </div>
-
-                                    <div class="value">
-
-                                        {{ order_items.count }}
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <div class="col-md-4">
-
-                            <div class="summary-card h-100">
-
-                                <div class="card-body">
-
-                                    <div class="section-title">
-
-                                        Status
-
-                                    </div>
-
-                                    <div class="value">
-
-                                        {{ invoice.get_status_display }}
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                                        <!-- ============================================== -->
-                    <!-- Totals -->
-                    <!-- ============================================== -->
-
-                    <div class="row justify-content-end mb-5">
-
-                        <div class="col-lg-5">
-
-                            <div class="totals-box">
-
-                                <div class="d-flex justify-content-between mb-3">
-
-                                    <span>
-
-                                        Invoice Total
-
-                                    </span>
-
-                                    <strong>
-
-                                        R{{ invoice.order_total_inc|floatformat:2|intcomma }}
-
-                                    </strong>
-
-                                </div>
-
-                                {% if invoice.credit_used > 0 %}
-
-                                <div class="d-flex justify-content-between mb-3">
-
-                                    <span>
-
-                                        Trade Assist Used
-
-                                    </span>
-
-                                    <span class="text-success">
-
-                                        -R{{ invoice.credit_used|floatformat:2|intcomma }}
-
-                                    </span>
-
-                                </div>
-
-                                {% endif %}
-
-                                <div class="d-flex justify-content-between mb-3">
-
-                                    <span>
-
-                                        VAT
-
-                                    </span>
-
-                                    <span>
-
-                                        Included
-
-                                    </span>
-
-                                </div>
-
-                                <hr>
-
-                                <div class="d-flex justify-content-between align-items-center">
-
-                                    <h4 class="fw-bold mb-0">
-
-                                        Amount Due
-
-                                    </h4>
-
-                                    <h3 class="fw-bold text-success mb-0">
-
-                                        R{{ invoice.amount_due|floatformat:2|intcomma }}
-
-                                    </h3>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    <!-- ============================================== -->
-                    <!-- Banking Details -->
-                    <!-- ============================================== -->
-
-                    <div class="card border-0 shadow-sm mb-5">
-
-                        <div class="card-header bg-white">
-
-                            <h4 class="fw-bold mb-0">
-
-                                <i class="bi bi-bank me-2 text-success"></i>
-
-                                Banking Details
-
-                            </h4>
-
-                        </div>
-
-                        <div class="card-body">
-
-                            <div class="row">
-
-                                <div class="col-md-6">
-
-                                    <table class="table table-borderless mb-0">
-
-                                        <tr>
-
-                                            <th style="width:180px;">
-                                                Bank
-                                            </th>
-
-                                            <td>
-                                                Capitec Business
-                                            </td>
-
-                                        </tr>
-
-                                        <tr>
-
-                                            <th>
-                                                Account Name
-                                            </th>
-
-                                            <td>
-                                                The Daily Market (Pty) Ltd
-                                            </td>
-
-                                        </tr>
-
-                                        <tr>
-
-                                            <th>
-                                                Account Number
-                                            </th>
-
-                                            <td class="fw-bold">
-                                                105 548 3683
-                                            </td>
-
-                                        </tr>
-
-                                        <tr>
-
-                                            <th>
-                                                Branch Code
-                                            </th>
-
-                                            <td>
-                                                450105
-                                            </td>
-
-                                        </tr>
-
-                                        <tr>
-
-                                            <th>
-                                                Account Type
-                                            </th>
-
-                                            <td>
-                                                Current/Transactional
-                                            </td>
-
-                                        </tr>
-
-                                    </table>
-
-                                </div>
-
-                                <div class="col-md-6">
-
-                                    <div class="alert alert-success mb-3">
-
-                                        <strong>
-
-                                            Payment Reference
-
-                                        </strong>
-
-                                        <br>
-
-                                        <span class="fs-5 fw-bold">
-
-                                            INV-{{ invoice.id }}
-
-                                        </span>
-
-                                    </div>
-
-                                    <div class="alert alert-light border">
-
-                                        <strong>
-
-                                            Important
-
-                                        </strong>
-
-                                        <ul class="mb-0 mt-2">
-
-                                            <li>
-                                                Use the invoice number as your payment reference.
-                                            </li>
-
-                                            <li>
-                                                Payments may take up to one business day to reflect.
-                                            </li>
-
-                                            <li>
-                                                Once payment is received, your invoice will automatically be updated.
-                                            </li>
-
-                                        </ul>
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    <!-- ============================================== -->
-                    <!-- Payment -->
-                    <!-- ============================================== -->
-
-                    <div class="card border-0 bg-light mb-5">
-
-                        <div class="card-body">
-
-                            <div class="row align-items-center">
-
-                                <div class="col-lg-8">
-
-                                    <h4 class="fw-bold mb-3">
-
-                                        Payment
-
-                                    </h4>
-
-                                    {% if invoice.status == "paid" %}
-
-                                        <div class="alert alert-success mb-0">
-
-                                            <i class="bi bi-check-circle-fill me-2"></i>
-
-                                            This invoice has been paid in full.
-
-                                        </div>
-
-                                    {% else %}
-
-                                        <div class="alert alert-warning mb-0">
-
-                                            <i class="bi bi-clock-history me-2"></i>
-
-                                            Payment for this invoice is still outstanding.
-
-                                        </div>
-
-                                    {% endif %}
-
-                                </div>
-
-                                <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
-
-                                    {% if invoice.status == "paid" %}
-
-                                        <button
-                                            class="btn btn-success btn-lg"
-                                            disabled>
-
-                                            <i class="bi bi-check-circle me-2"></i>
-
-                                            Paid
-
-                                        </button>
-
-                                    {% else %}
-
-                                        <button
-                                            class="btn btn-success btn-lg"
-                                            disabled>
-
-                                            <i class="bi bi-credit-card me-2"></i>
-
-                                            Pay Invoice
-
-                                            <br>
-
-                                            <small>
-
-                                                Coming Soon
-
-                                            </small>
-
-                                        </button>
-
-                                    {% endif %}
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    <!-- ============================================== -->
-                    <!-- Actions -->
-                    <!-- ============================================== -->
-
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-5 no-print">
-
-                        <a href="{% url 'membership_view_order' order.id %}"
-                           class="btn btn-outline-secondary">
-
-                            <i class="bi bi-arrow-left me-2"></i>
-
-                            Back to Order
-
-                        </a>
-
-                        <div class="d-flex gap-2 flex-wrap">
-
-                            <button
-                                onclick="window.print();"
-                                class="btn btn-outline-dark">
-
-                                <i class="bi bi-printer me-2"></i>
-
-                                Print
-
-                            </button>
-
-                            <button
-                                class="btn btn-outline-success"
-                                disabled>
-
-                                <i class="bi bi-download me-2"></i>
-
-                                Download PDF
-
-                            </button>
-
-                            {% if invoice.status != "paid" %}
-
-                                <button
-                                    class="btn btn-success"
-                                    disabled>
-
-                                    <i class="bi bi-credit-card me-2"></i>
-
-                                    Pay Invoice
-
-                                </button>
-
-                            {% endif %}
-
-                        </div>
-
-                    </div>
-
-                    <!-- ============================================== -->
-                    <!-- Footer -->
-                    <!-- ============================================== -->
-
-                    <div class="text-center footer-note">
-
-                        <hr>
-
-                        <p class="mb-2">
-
-                            <strong>
-
-                                Thank you for shopping with The Daily Market.
-
-                            </strong>
-
-                        </p>
-
-                        <p class="mb-1">
-
-                            Questions about this invoice?
-
-                            Please contact our Accounts Department.
-
-                        </p>
-
-                        <p class="mb-0">
-
-                            Generated on
-                            {% now "d F Y H:i" %}
-
-                        </p>
-
-                    </div>
-
-                </div>
-
+            <div class="text-end">
+                {% if invoice.status == "paid" %}
+                    <span class="status-pill paid"><i class="bi bi-check-circle-fill"></i> CONTRIBUTION PAID</span>
+                {% elif invoice.status == "overdue" %}
+                    <span class="status-pill overdue"><i class="bi bi-exclamation-circle-fill"></i> CONTRIBUTION OVERDUE</span>
+                {% elif invoice.status == "partial" %}
+                    <span class="status-pill pending"><i class="bi bi-hourglass-split"></i> PART-PAID</span>
+                {% else %}
+                    <span class="status-pill pending"><i class="bi bi-clock"></i> UNPAID</span>
+                {% endif %}
             </div>
-
         </div>
+        <div class="d-flex justify-content-between align-items-end gap-3 mt-4 position-relative" style="z-index:1">
+            <div>
+                <div class="eyebrow">Customer contribution due</div>
+                <div class="fw-bold fs-2">R{{ invoice.amount_due|floatformat:2|intcomma }}</div>
+                <div class="hero-meta">Your required contribution for this order</div>
+            </div>
+            <div class="text-end hero-meta">
+                {% if invoice.due_date %}Due {{ invoice.due_date|date:"d M Y" }}{% else %}Issued {{ invoice.invoice_date|date:"d M Y" }}{% endif %}
+            </div>
+        </div>
+    </section>
 
-    </main>
+    <section class="summary-grid">
+        <div class="card-soft">
+            <div class="metric-label">Invoice total</div>
+            <div class="metric-value">R{{ invoice.order_total_inc|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="card-soft">
+            <div class="metric-label">Your contribution</div>
+            <div class="metric-value">R{{ invoice.deposit_required|floatformat:2|intcomma }}</div>
+            <div class="metric-note">{{ invoice.contribution_pct_snapshot|floatformat:0 }}% of invoice</div>
+        </div>
+        <div class="card-soft">
+            <div class="metric-label">Paid by you</div>
+            <div class="metric-value">R{{ invoice.deposit_paid|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="card-soft">
+            <div class="metric-label">TradeAssist used</div>
+            <div class="metric-value" style="color:var(--green)">R{{ invoice.credit_used|floatformat:2|intcomma }}</div>
+            <div class="metric-note">TA allocation for this invoice</div>
+        </div>
+    </section>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <section class="section">
+        <h2 class="section-heading">Invoice details</h2>
+        <div class="card-soft party-grid">
+            <div>
+                <div class="eyebrow">Issued by</div>
+                <div class="party-name">The Daily Market (Pty) Ltd</div>
+                <div class="party-detail">Registration No: 2024 / 232233 / 07<br>Gauteng, South Africa</div>
+            </div>
+            <div>
+                <div class="eyebrow">Billed to</div>
+                <div class="party-name">{{ client.name }}</div>
+                <div class="party-detail">
+                    {% if client.organization %}{{ client.organization }}<br>{% endif %}
+                    {% if client.email %}{{ client.email }}{% endif %}
+                    {% if invoice.end_user %}<br>For: {{ invoice.end_user.full_name }}{% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
 
+    <section class="section">
+        <h2 class="section-heading">Products</h2>
+        <div class="card-soft items-card">
+            {% for item in order_items %}
+                <div class="item-row">
+                    <div>
+                        <div class="item-name">{{ item.product.name }}</div>
+                        <div class="item-meta">
+                            {% if item.product.category %}{{ item.product.category.name }} · {% endif %}
+                            Qty {{ item.quantity|floatformat:0 }} × R{{ item.unit_price_inc|floatformat:2|intcomma }}
+                        </div>
+                        {% if item.product.description %}
+                            <div class="item-meta">{{ item.product.description|truncatechars:90 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="item-price">R{{ item.line_total_inc|floatformat:2|intcomma }}</div>
+                </div>
+            {% empty %}
+                <div class="text-center text-muted py-4 small">No products found on this invoice.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-heading">How this invoice is split</h2>
+        <div class="totals-card">
+            <div class="total-line">
+                <span>Order total (VAT inclusive)</span>
+                <strong>R{{ invoice.order_total_inc|floatformat:2|intcomma }}</strong>
+            </div>
+            <div class="total-line">
+                <span>Your required contribution ({{ invoice.contribution_pct_snapshot|floatformat:0 }}%)</span>
+                <strong>R{{ invoice.deposit_required|floatformat:2|intcomma }}</strong>
+            </div>
+            <div class="total-line muted">
+                <span>Contribution received</span>
+                <strong>R{{ invoice.deposit_paid|floatformat:2|intcomma }}</strong>
+            </div>
+            <div class="total-line">
+                <span>TradeAssist allocation ({{ invoice.settlement_term_snapshot }} term)</span>
+                <strong style="color:var(--green)">R{{ invoice.credit_used|floatformat:2|intcomma }}</strong>
+            </div>
+            <div class="total-line emphasis">
+                <span>Customer contribution required</span>
+                <strong>R{{ invoice.amount_due|floatformat:2|intcomma }}</strong>
+            </div>
+            <div class="metric-note mt-2">VAT is included in the displayed product prices and invoice total.</div>
+        </div>
+    </section>
+
+    {% if invoice.credit_used > 0 %}
+    <section class="section">
+        <div class="ta-panel">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                    <div class="ta-title"><i class="bi bi-shield-check me-1"></i> TradeAssist used on this order</div>
+                    <div class="ta-copy">TradeAssist covered part of this invoice under your approved buying-power arrangement. This is separate from the contribution you pay to The Daily Market.</div>
+                </div>
+                {% if invoice.allocation_status == "active" or invoice.allocation_status == "settled" %}
+                    <span class="badge rounded-pill text-bg-success">{{ invoice.get_allocation_status_display }}</span>
+                {% elif invoice.allocation_status == "pending" %}
+                    <span class="badge rounded-pill text-bg-warning">Pending</span>
+                {% else %}
+                    <span class="badge rounded-pill text-bg-secondary">{{ invoice.get_allocation_status_display }}</span>
+                {% endif %}
+            </div>
+            <div class="ta-grid">
+                <div class="ta-stat">
+                    <div class="metric-label">TA amount used</div>
+                    <div class="metric-value">R{{ invoice.credit_used|floatformat:2|intcomma }}</div>
+                </div>
+                <div class="ta-stat">
+                    <div class="metric-label">Settlement term</div>
+                    <div class="metric-value">{{ invoice.settlement_term_snapshot }}</div>
+                </div>
+                <div class="ta-stat">
+                    <div class="metric-label">Settled to date</div>
+                    <div class="metric-value">R{{ invoice.settlement_paid|floatformat:2|intcomma }}</div>
+                </div>
+                <div class="ta-stat">
+                    <div class="metric-label">TA settlement outstanding</div>
+                    <div class="metric-value">R{{ invoice.settlement_outstanding|floatformat:2|intcomma }}</div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <div class="info-row">
+                    <span>Settlement due date</span>
+                    <strong>{% if invoice.settlement_due_date %}{{ invoice.settlement_due_date|date:"d M Y" }}{% else %}To be confirmed{% endif %}</strong>
+                </div>
+                <div class="info-row">
+                    <span>Settlement status</span>
+                    <strong>{{ invoice.get_settlement_status_display }}</strong>
+                </div>
+                {% if invoice.settlement_grace_end_date %}
+                <div class="info-row">
+                    <span>Grace period ends</span>
+                    <strong>{{ invoice.settlement_grace_end_date|date:"d M Y" }}</strong>
+                </div>
+                {% endif %}
+            </div>
+            <div class="ta-copy mt-3">The TradeAssist settlement balance is not an additional amount payable to The Daily Market with this invoice. It is tracked separately under your TradeAssist arrangement.</div>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="section">
+        <h2 class="section-heading">Payment to The Daily Market</h2>
+        <div class="card-soft">
+            <div class="info-row"><span>Bank</span><strong>Capitec Business</strong></div>
+            <div class="info-row"><span>Account name</span><strong>The Daily Market (Pty) Ltd</strong></div>
+            <div class="info-row"><span>Account number</span><strong>105 548 3683</strong></div>
+            <div class="info-row"><span>Branch code</span><strong>450105</strong></div>
+            <div class="info-row"><span>Account type</span><strong>Current / Transactional</strong></div>
+            <div class="bank-ref">
+                <div class="metric-label">Use this payment reference</div>
+                <strong>INV-{{ invoice.id }}</strong>
+            </div>
+            <div class="metric-note mt-3">Use the invoice number as your payment reference. Payments may take up to one business day to reflect.</div>
+        </div>
+    </section>
+
+    <section class="section no-print">
+        <div class="action-row">
+            <button type="button" onclick="window.print()" class="action-btn"><i class="bi bi-printer me-1"></i> Print invoice</button>
+            <a href="{% url 'membership_view_order' order.id %}" class="action-btn primary"><i class="bi bi-arrow-left me-1"></i> Back to order</a>
+        </div>
+    </section>
+
+    <footer class="footer-note">
+        <strong>Thank you for shopping with The Daily Market.</strong><br>
+        Questions about this invoice? Please contact our Accounts Department.<br>
+        Generated {{ invoice.created_at|date:"d M Y, H:i" }}
+    </footer>
+</main>
+
+<nav class="bottom-nav no-print" aria-label="Main navigation">
+    <a href="{% url 'membership_dashboard' %}" class="nav-item"><i class="bi bi-house"></i><span>Home</span></a>
+    <a href="{% url 'membership_shop' %}" class="nav-item"><i class="bi bi-basket"></i><span>Shop</span></a>
+    <a href="{% url 'membership_orders' %}" class="nav-item active"><i class="bi bi-receipt"></i><span>Orders</span></a>
+    <a href="{% url 'membership_account' %}" class="nav-item"><i class="bi bi-person"></i><span>Account</span></a>
+</nav>
 </body>
-
 </html>

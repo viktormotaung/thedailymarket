@@ -2,1327 +2,689 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#0b5c39">
-    <title>{{ title|default:"Dashboard" }} | The Daily Market</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-
-    <style>
-        :root {
-            --tdm-green: #0b5c39;
-            --tdm-green-dark: #08452c;
-            --tdm-green-soft: #eaf4ee;
-            --tdm-navy: #14243a;
-            --tdm-ink: #17212b;
-            --tdm-muted: #77818b;
-            --tdm-page: #edf0ee;
-            --tdm-line: #e8ece9;
-            --app-width: 775px;
-            --nav-height: 76px;
-        }
-
-        * { box-sizing: border-box; }
-
-        html {
-            min-height: 100%;
-            background: var(--tdm-page);
-            scroll-behavior: smooth;
-        }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            background: var(--tdm-page);
-            color: var(--tdm-ink);
-            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        a { color: inherit; }
-
-        .app-shell {
-            width: 100%;
-            max-width: var(--app-width);
-            min-height: 100vh;
-            margin: 0 auto;
-            position: relative;
-            background: #fff;
-            box-shadow: 0 0 45px rgba(20, 36, 58, .07);
-            overflow: clip;
-        }
-
-        .app-content {
-            min-height: 100vh;
-            padding-bottom: calc(var(--nav-height) + 42px + env(safe-area-inset-bottom));
-        }
-
-        /* Header */
-        .app-header {
-            position: relative;
-            overflow: hidden;
-            padding: 25px 24px 28px;
-            color: #fff;
-            background:
-                radial-gradient(circle at 92% 10%, rgba(255,255,255,.13), transparent 27%),
-                linear-gradient(135deg, var(--tdm-green) 0%, var(--tdm-green-dark) 100%);
-            border-radius: 0 0 27px 27px;
-        }
-
-        .header-topline {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            margin-bottom: 25px;
-        }
-
-        .brand-lockup {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            min-width: 0;
-            color: #fff;
-            text-decoration: none;
-        }
-
-        .brand-mark {
-            width: 42px;
-            height: 42px;
-            display: grid;
-            place-items: center;
-            flex: 0 0 42px;
-            border-radius: 13px;
-            color: var(--tdm-green);
-            background: #fff;
-            font-size: 21px;
-        }
-
-        .brand-name {
-            font-size: 15px;
-            line-height: 1.1;
-            font-weight: 800;
-            letter-spacing: .01em;
-        }
-
-        .brand-caption {
-            display: block;
-            margin-top: 4px;
-            color: rgba(255,255,255,.68);
-            font-size: 10px;
-            letter-spacing: .12em;
-            text-transform: uppercase;
-        }
-
-        .header-account-link {
-            width: 42px;
-            height: 42px;
-            display: grid;
-            place-items: center;
-            flex: 0 0 42px;
-            color: #fff;
-            text-decoration: none;
-            border: 1px solid rgba(255,255,255,.25);
-            border-radius: 50%;
-            background: rgba(255,255,255,.10);
-            font-size: 19px;
-        }
-
-        .welcome-label {
-            margin: 0 0 5px;
-            color: rgba(255,255,255,.72);
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: .04em;
-        }
-
-        .business-name {
-            max-width: 590px;
-            margin: 0;
-            color: #fff;
-            font-size: clamp(23px, 5vw, 30px);
-            line-height: 1.15;
-            font-weight: 800;
-            overflow-wrap: anywhere;
-        }
-
-        .header-bottom {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 17px;
-        }
-
-        .member-since {
-            color: rgba(255,255,255,.72);
-            font-size: 11px;
-        }
-
-        .header-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 7px 11px;
-            color: #fff;
-            border: 1px solid rgba(255,255,255,.22);
-            border-radius: 30px;
-            background: rgba(255,255,255,.12);
-            font-size: 11px;
-            font-weight: 700;
-        }
-
-        .status-dot {
-            width: 7px;
-            height: 7px;
-            display: inline-block;
-            border-radius: 50%;
-            background: #9de5b9;
-        }
-
-        /* Main content */
-        .section {
-            padding: 25px 22px 0;
-        }
-
-        .section-heading {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 14px;
-        }
-
-        .section-title {
-            margin: 0;
-            color: var(--tdm-ink);
-            font-size: 16px;
-            font-weight: 800;
-            letter-spacing: -.02em;
-        }
-
-        .section-link {
-            color: var(--tdm-green);
-            font-size: 12px;
-            font-weight: 700;
-            text-decoration: none;
-            white-space: nowrap;
-        }
-
-        .section-link:hover { text-decoration: underline; }
-
-        /* Promotional banner */
-        .promo-banner {
-            min-height: 145px;
-            position: relative;
-            display: flex;
-            align-items: center;
-            overflow: hidden;
-            padding: 23px;
-            color: #fff;
-            border-radius: 20px;
-            background:
-                radial-gradient(circle at 88% 15%, rgba(255,255,255,.17), transparent 25%),
-                linear-gradient(115deg, #173a2c, #0b5c39 70%, #16734a);
-        }
-
-        .promo-copy {
-            position: relative;
-            z-index: 1;
-            max-width: 78%;
-        }
-
-        .promo-eyebrow {
-            display: inline-block;
-            margin-bottom: 9px;
-            color: #c8ead5;
-            font-size: 10px;
-            font-weight: 800;
-            letter-spacing: .13em;
-            text-transform: uppercase;
-        }
-
-        .promo-title {
-            margin: 0 0 7px;
-            color: #fff;
-            font-size: 20px;
-            line-height: 1.15;
-            font-weight: 800;
-        }
-
-        .promo-description {
-            max-width: 360px;
-            margin: 0;
-            color: rgba(255,255,255,.78);
-            font-size: 12px;
-            line-height: 1.5;
-        }
-
-        .promo-icon {
-            position: absolute;
-            right: 20px;
-            bottom: 13px;
-            color: rgba(255,255,255,.13);
-            font-size: 88px;
-            line-height: 1;
-            transform: rotate(-12deg);
-        }
-
-        .promo-cta {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            margin-top: 13px;
-            padding: 8px 12px;
-            color: var(--tdm-green-dark);
-            border-radius: 9px;
-            background: #fff;
-            font-size: 11px;
-            font-weight: 800;
-            text-decoration: none;
-        }
-
-        /* Primary action cards */
-        .action-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-        }
-
-        .action-card {
-            min-height: 116px;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 16px;
-            color: #fff;
-            border: 1px solid rgba(255,255,255,.06);
-            border-radius: 17px;
-            background: var(--tdm-navy);
-            text-decoration: none;
-            transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
-        }
-
-        .action-card:hover {
-            color: #fff;
-            background: #1c3452;
-            transform: translateY(-2px);
-            box-shadow: 0 9px 20px rgba(20,36,58,.15);
-        }
-
-        .action-card:focus-visible,
-        .secondary-link:focus-visible,
-        .bottom-nav a:focus-visible {
-            outline: 3px solid #82c99e;
-            outline-offset: 3px;
-        }
-
-        .action-icon {
-            width: 34px;
-            height: 34px;
-            display: grid;
-            place-items: center;
-            color: #c4e7d0;
-            border-radius: 11px;
-            background: rgba(255,255,255,.11);
-            font-size: 17px;
-        }
-
-        .action-label {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            margin-top: 14px;
-            color: #fff;
-            font-size: 14px;
-            font-weight: 800;
-        }
-
-        .action-label i {
-            color: rgba(255,255,255,.55);
-            font-size: 13px;
-        }
-
-        /* Account snapshot */
-        .snapshot-card {
-            padding: 17px;
-            border: 1px solid var(--tdm-line);
-            border-radius: 17px;
-            background: #fff;
-        }
-
-        .snapshot-top {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-        .snapshot-label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--tdm-muted);
-            font-size: 10px;
-            font-weight: 800;
-            letter-spacing: .09em;
-            text-transform: uppercase;
-        }
-
-        .snapshot-value {
-            margin: 0;
-            color: var(--tdm-ink);
-            font-size: 23px;
-            font-weight: 800;
-            letter-spacing: -.03em;
-        }
-
-        .snapshot-subtext {
-            margin: 5px 0 0;
-            color: var(--tdm-muted);
-            font-size: 11px;
-            line-height: 1.45;
-        }
-
-        .snapshot-icon {
-            width: 39px;
-            height: 39px;
-            display: grid;
-            place-items: center;
-            flex: 0 0 39px;
-            color: var(--tdm-green);
-            border-radius: 12px;
-            background: var(--tdm-green-soft);
-            font-size: 19px;
-        }
-
-        .snapshot-divider {
-            height: 1px;
-            margin: 15px 0;
-            background: var(--tdm-line);
-        }
-
-        .snapshot-mini-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        .mini-value {
-            margin: 0;
-            color: var(--tdm-ink);
-            font-size: 16px;
-            font-weight: 800;
-        }
-
-        .mini-label {
-            display: block;
-            margin-bottom: 4px;
-            color: var(--tdm-muted);
-            font-size: 10px;
-        }
-
-        .account-notice {
-            display: flex;
-            align-items: flex-start;
-            gap: 11px;
-            padding: 14px;
-            border: 1px solid #e7ece8;
-            border-radius: 14px;
-            background: #f8faf8;
-        }
-
-        .account-notice-icon {
-            color: var(--tdm-green);
-            font-size: 18px;
-        }
-
-        .account-notice p {
-            margin: 0;
-            color: #59645e;
-            font-size: 11px;
-            line-height: 1.5;
-        }
-
-        .account-notice strong {
-            display: block;
-            margin-bottom: 3px;
-            color: var(--tdm-ink);
-            font-size: 12px;
-        }
-
-        /* Secondary links */
-        .secondary-list {
-            overflow: hidden;
-            border: 1px solid var(--tdm-line);
-            border-radius: 16px;
-            background: #fff;
-        }
-
-        .secondary-link {
-            min-height: 58px;
-            display: flex;
-            align-items: center;
-            gap: 13px;
-            padding: 11px 15px;
-            color: var(--tdm-ink);
-            text-decoration: none;
-            transition: background .15s ease;
-        }
-
-        .secondary-link + .secondary-link {
-            border-top: 1px solid var(--tdm-line);
-        }
-
-        .secondary-link:hover { background: #f7faf8; }
-
-        .secondary-icon {
-            width: 34px;
-            height: 34px;
-            display: grid;
-            place-items: center;
-            flex: 0 0 34px;
-            color: var(--tdm-green);
-            border-radius: 10px;
-            background: var(--tdm-green-soft);
-            font-size: 16px;
-        }
-
-        .secondary-copy {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .secondary-title {
-            display: block;
-            color: var(--tdm-ink);
-            font-size: 12px;
-            font-weight: 750;
-        }
-
-        .secondary-description {
-            display: block;
-            margin-top: 2px;
-            color: var(--tdm-muted);
-            font-size: 10px;
-        }
-
-        .secondary-arrow {
-            color: #9aa49e;
-            font-size: 14px;
-        }
-
-        /* Product cards */
-        .product-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-        }
-
-        .product-card {
-            min-width: 0;
-            overflow: hidden;
-            border: 1px solid var(--tdm-line);
-            border-radius: 15px;
-            background: #fff;
-        }
-
-        .product-image-wrap {
-            height: 132px;
-            position: relative;
-            display: grid;
-            place-items: center;
-            overflow: hidden;
-            background: #f3f5f3;
-        }
-
-        .product-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .product-image-placeholder {
-            color: #b7c1ba;
-            font-size: 34px;
-        }
-
-        .product-card-body {
-            display: flex;
-            flex-direction: column;
-            min-height: 120px;
-            padding: 12px;
-        }
-
-        .product-name {
-            display: -webkit-box;
-            overflow: hidden;
-            margin: 0 0 5px;
-            color: var(--tdm-ink);
-            font-size: 12px;
-            line-height: 1.35;
-            font-weight: 800;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-        }
-
-        .product-category {
-            margin-bottom: 9px;
-            color: var(--tdm-muted);
-            font-size: 10px;
-        }
-
-        .product-meta {
-            margin-top: auto;
-            color: var(--tdm-green);
-            font-size: 10px;
-            font-weight: 700;
-        }
-
-        .product-price {
-            margin: 0 0 9px;
-            color: var(--tdm-green);
-            font-size: 16px;
-            font-weight: 850;
-        }
-
-        .old-price {
-            margin: 0 0 2px;
-            color: #9aa19d;
-            font-size: 10px;
-            text-decoration: line-through;
-        }
-
-        .product-button {
-            display: block;
-            width: 100%;
-            padding: 8px 10px;
-            color: var(--tdm-green);
-            border: 1px solid #c8ded0;
-            border-radius: 9px;
-            background: #fff;
-            font-size: 10px;
-            font-weight: 800;
-            text-align: center;
-            text-decoration: none;
-        }
-
-        .product-button:hover {
-            color: #fff;
-            border-color: var(--tdm-green);
-            background: var(--tdm-green);
-        }
-
-        .special-tag {
-            position: absolute;
-            top: 9px;
-            left: 9px;
-            padding: 5px 8px;
-            color: #fff;
-            border-radius: 6px;
-            background: #c7463b;
-            font-size: 9px;
-            font-weight: 800;
-            letter-spacing: .04em;
-        }
-
-        /* Latest order */
-        .latest-order {
-            padding: 16px;
-            border: 1px solid var(--tdm-line);
-            border-radius: 16px;
-            background: #fff;
-        }
-
-        .order-topline {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 14px;
-        }
-
-        .order-number {
-            margin: 0;
-            color: var(--tdm-ink);
-            font-size: 16px;
-            font-weight: 850;
-        }
-
-        .order-date {
-            color: var(--tdm-muted);
-            font-size: 10px;
-        }
-
-        .order-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            padding-top: 13px;
-            border-top: 1px solid var(--tdm-line);
-        }
-
-        .order-detail-label {
-            display: block;
-            margin-bottom: 4px;
-            color: var(--tdm-muted);
-            font-size: 10px;
-        }
-
-        .order-detail-value {
-            color: var(--tdm-ink);
-            font-size: 12px;
-            font-weight: 750;
-        }
-
-        .order-view-link {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 7px;
-            margin-top: 14px;
-            padding: 10px;
-            color: #fff;
-            border-radius: 10px;
-            background: var(--tdm-green);
-            font-size: 11px;
-            font-weight: 800;
-            text-decoration: none;
-        }
-
-        .order-view-link:hover { color: #fff; background: var(--tdm-green-dark); }
-
-        .empty-state {
-            padding: 23px 16px;
-            color: var(--tdm-muted);
-            border: 1px dashed #d9e1db;
-            border-radius: 15px;
-            background: #fafcfb;
-            text-align: center;
-        }
-
-        .empty-state i {
-            display: block;
-            margin-bottom: 8px;
-            color: #9caf9f;
-            font-size: 25px;
-        }
-
-        .empty-state p {
-            margin: 0;
-            font-size: 11px;
-            line-height: 1.5;
-        }
-
-        /* Trade points callout */
-        .points-callout {
-            position: relative;
-            overflow: hidden;
-            padding: 19px;
-            color: #fff;
-            border-radius: 17px;
-            background: linear-gradient(120deg, #14243a, #243d5d);
-        }
-
-        .points-callout h3 {
-            margin: 0 0 7px;
-            color: #fff;
-            font-size: 16px;
-            font-weight: 850;
-        }
-
-        .points-callout p {
-            max-width: 500px;
-            margin: 0;
-            color: rgba(255,255,255,.72);
-            font-size: 11px;
-            line-height: 1.55;
-        }
-
-        .points-callout-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            margin-top: 13px;
-            color: #c7ead3;
-            font-size: 11px;
-            font-weight: 800;
-            text-decoration: none;
-        }
-
-        /* Bottom navigation */
-        .bottom-nav-wrap {
-            position: fixed;
-            z-index: 1000;
-            right: 0;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            max-width: var(--app-width);
-            margin: 0 auto;
-            padding-bottom: env(safe-area-inset-bottom);
-            pointer-events: none;
-        }
-
-        .bottom-nav {
-            height: var(--nav-height);
-            display: grid;
-            grid-template-columns: 1fr 1fr 1.12fr 1fr 1fr;
-            align-items: center;
-            padding: 8px 9px 5px;
-            background: var(--tdm-navy);
-            box-shadow: 0 -7px 24px rgba(20,36,58,.13);
-            pointer-events: auto;
-        }
-
-        .bottom-nav-item {
-            min-width: 0;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            color: rgba(255,255,255,.56);
-            font-size: 9px;
-            font-weight: 650;
-            text-decoration: none;
-            transition: color .15s ease;
-        }
-
-        .bottom-nav-item i {
-            font-size: 18px;
-            line-height: 1;
-        }
-
-        .bottom-nav-item.active,
-        .bottom-nav-item:hover { color: #fff; }
-
-        .bottom-nav-item.active i { color: #9fdbb4; }
-
-        .bottom-nav-center {
-            height: 100%;
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-            pointer-events: none;
-        }
-
-        .bottom-nav-center a {
-            width: 61px;
-            height: 61px;
-            display: grid;
-            place-items: center;
-            margin-top: -28px;
-            color: #fff;
-            border: 5px solid #fff;
-            border-radius: 50%;
-            background: var(--tdm-green);
-            box-shadow: 0 5px 15px rgba(0,0,0,.2);
-            font-size: 22px;
-            text-decoration: none;
-            pointer-events: auto;
-            transition: transform .15s ease, background .15s ease;
-        }
-
-        .bottom-nav-center a:hover {
-            color: #fff;
-            background: #14764b;
-            transform: translateY(-2px);
-        }
-
-        /* Footer */
-        .app-footer {
-            padding: 24px 20px 10px;
-            color: #a0aaa4;
-            font-size: 9px;
-            text-align: center;
-        }
-
-        @media (min-width: 776px) {
-            .bottom-nav-wrap {
-                right: auto;
-                left: 50%;
-                transform: translateX(-50%);
-            }
-        }
-
-        @media (max-width: 575.98px) {
-            .app-header { padding: 21px 19px 24px; }
-            .section { padding-right: 17px; padding-left: 17px; }
-            .promo-banner { min-height: 150px; padding: 19px; }
-            .promo-copy { max-width: 84%; }
-            .promo-title { font-size: 18px; }
-            .action-card { min-height: 108px; padding: 14px; }
-            .action-label { font-size: 13px; }
-            .product-image-wrap { height: 116px; }
-            .bottom-nav { padding-right: 5px; padding-left: 5px; }
-        }
-
-        @media (max-width: 360px) {
-            .section { padding-right: 13px; padding-left: 13px; }
-            .action-card { padding: 12px; }
-            .bottom-nav-item { font-size: 8px; }
-            .product-image-wrap { height: 100px; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                scroll-behavior: auto !important;
-                transition-duration: .01ms !important;
-                animation-duration: .01ms !important;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>{{ title|default:"Dashboard" }} | The Daily Market</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+:root {
+    --green:#176b45;
+    --green-light:#edf5f0;
+    --ink:#202923;
+    --muted:#7b847e;
+    --line:#e9edea;
+    --surface:#f7f8f7;
+    --app-width:760px;
+    --nav-height:68px;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%;margin:0;background:#f2f4f2;color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.app-shell{width:100%;max-width:var(--app-width);min-height:100vh;margin:0 auto;background:#fff;box-shadow:0 0 30px rgba(25,40,30,.04)}
+.page-content{padding-bottom:calc(var(--nav-height) + 28px + env(safe-area-inset-bottom))}
+.topbar{min-height:66px;display:flex;align-items:center;justify-content:space-between;padding:0 25px;border-bottom:1px solid var(--line);background:#fff}
+.brand{display:flex;align-items:center;flex-shrink:0;text-decoration:none}
+.brand-logo{display:block;width:auto;max-width:190px;height:auto;max-height:44px;object-fit:contain;object-position:left center}
+.account-link{width:36px;height:36px;display:grid;place-items:center;color:var(--ink);border:1px solid var(--line);border-radius:50%;text-decoration:none;font-size:16px}
+.account-link:hover{color:var(--green);background:var(--surface)}
+.welcome{padding:27px 25px 23px}
+.welcome-eyebrow{margin:0 0 5px;color:var(--muted);font-size:12px}
+.welcome h1{margin:0;color:var(--ink);font-size:clamp(21px,4vw,27px);font-weight:750;letter-spacing:-.035em;overflow-wrap:anywhere}
+.welcome-meta{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-top:9px;color:var(--muted);font-size:11px}
+.meta-separator{color:#c5ccc7}
+.member-status{color:var(--green);font-weight:650}
+.section{padding:0 25px;margin-top:25px}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.section-title{margin:0;color:var(--ink);font-size:14px;font-weight:750;letter-spacing:-.01em}
+.section-link{color:var(--green);font-size:11px;font-weight:700;text-decoration:none}
+.section-link:hover,.text-link:hover,.membership-action:hover{text-decoration:underline}
+.account-card{padding:19px;border:1px solid var(--line);border-radius:13px;background:#fff}
+.account-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.eyebrow{display:block;margin-bottom:7px;color:var(--muted);font-size:10px;font-weight:700;letter-spacing:.075em;text-transform:uppercase}
+.buying-power{margin:0;color:var(--ink);font-size:clamp(25px,5vw,31px);font-weight:800;letter-spacing:-.04em}
+.account-caption{margin:5px 0 0;color:var(--muted);font-size:11px}
+.account-icon{width:38px;height:38px;display:grid;place-items:center;color:var(--green);border-radius:10px;background:var(--green-light);font-size:17px}
+.account-stats{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:19px;padding-top:15px;border-top:1px solid var(--line)}
+.stat-label{display:block;margin-bottom:4px;color:var(--muted);font-size:10px}
+.stat-value{margin:0;color:var(--ink);font-size:13px;font-weight:750}
+.account-message{margin:0;color:#59635c;font-size:12px;line-height:1.6}
+.account-message strong{display:block;margin-bottom:4px;color:var(--ink);font-size:13px}
+.shortcut-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.shortcut{min-height:91px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;padding:14px;color:var(--ink);border:1px solid var(--line);border-radius:12px;background:#fff;text-decoration:none;transition:border-color .15s ease,background .15s ease}
+.shortcut:hover{color:var(--green);border-color:#b9d2c2;background:#fbfdfb}
+.shortcut i{color:var(--green);font-size:19px}
+.shortcut span{font-size:11px;font-weight:700}
+.order-card{padding:17px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.order-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.order-number{margin:0;color:var(--ink);font-size:14px;font-weight:750}
+.order-date{display:block;margin-top:4px;color:var(--muted);font-size:10px}
+.order-status{color:var(--green);font-size:10px;font-weight:700}
+.order-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:15px;padding-top:13px;border-top:1px solid var(--line)}
+.order-total-label{color:var(--muted);font-size:10px}
+.order-total{margin:3px 0 0;color:var(--ink);font-size:16px;font-weight:800}
+.text-link{color:var(--green);font-size:11px;font-weight:700;text-decoration:none}
+.membership-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:16px 0;border-top:1px solid var(--line)}
+.membership-row:first-of-type{border-top:0}
+.membership-label{display:block;margin-bottom:4px;color:var(--muted);font-size:10px}
+.membership-value{margin:0;color:var(--ink);font-size:13px;font-weight:750}
+.membership-action{color:var(--green);font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap}
+.empty-state{padding:19px;color:var(--muted);border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:11px;line-height:1.55}
+.empty-state p{margin:0}
+.empty-state a{display:inline-block;margin-top:8px;color:var(--green);font-weight:700;text-decoration:none}
+.bottom-nav-wrap{position:fixed;z-index:1000;right:0;bottom:0;left:0;width:100%;max-width:var(--app-width);margin:0 auto;padding-bottom:env(safe-area-inset-bottom);background:#fff;border-top:1px solid var(--line)}
+.bottom-nav{height:var(--nav-height);display:grid;grid-template-columns:repeat(4,1fr);align-items:center;padding:5px 10px}
+.nav-item{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--muted);font-size:9px;font-weight:650;text-decoration:none}
+.nav-item i{font-size:18px}
+.nav-item.active,.nav-item:hover{color:var(--green)}
+.footer{padding:24px 20px 8px;color:#a0a8a2;font-size:9px;text-align:center}
+@media(max-width:575.98px){.topbar{padding:0 18px}.welcome{padding:24px 18px 20px}.section{padding:0 18px;margin-top:23px}.shortcut{min-height:85px;padding:12px}}
+@media(max-width:360px){.section{padding:0 14px}.welcome{padding-right:14px;padding-left:14px}.shortcut{padding:10px}.shortcut span{font-size:10px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+
+/* Align the lower dashboard cards consistently */
+.order-card{
+    text-align:center;
+}
+.order-heading,
+.order-summary{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+}
+.order-summary{
+    margin-top:15px;
+    padding-top:13px;
+}
+.order-heading > div,
+.order-summary > div{
+    width:100%;
+    text-align:center;
+}
+.order-status{
+    display:block;
+}
+.membership-row{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    text-align:center;
+    padding:18px 0;
+}
+.membership-row > div{
+    width:100%;
+    text-align:center;
+}
+.membership-action{
+    display:inline-block;
+    white-space:normal;
+}
+
+/* Centered layout and circular TDM logo */
+.topbar{
+    position:relative;
+    justify-content:center;
+    min-height:82px;
+}
+.brand{justify-content:center}
+/* Keep the complete rectangular brand artwork visible inside a circular badge */
+.brand-logo{
+    display:block;
+    width:76px;
+    height:60px;
+    max-width:none;
+    max-height:none;
+    padding:5px;
+    box-sizing:border-box;
+    border-radius:50%;
+    background:#fff;
+    object-fit:contain;
+    object-position:center;
+}
+.account-link{
+    position:absolute;
+    right:25px;
+    top:50%;
+    transform:translateY(-50%);
+}
+.welcome{text-align:center}
+.welcome-meta{justify-content:center}
+.section-heading{justify-content:center;flex-wrap:wrap;text-align:center}
+.account-card{text-align:center}
+.account-card-top{justify-content:center}
+.account-icon{display:none}
+.account-stats{text-align:center}
+.account-message{text-align:center}
+.shortcut{
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    text-align:center;
+}
+.order-heading,.order-summary{justify-content:center;text-align:center;flex-wrap:wrap}
+.membership-row{justify-content:center;text-align:center;flex-wrap:wrap}
+.footer{text-align:center}
+@media(max-width:575.98px){
+    .account-link{right:18px}
+}
+
+
+/* THE DAILY MARKET — branded customer portal experience */
+:root{
+    --green:#075b3d;
+    --green-deep:#06452f;
+    --green-light:#eaf3ed;
+    --gold:#d7a943;
+    --ink:#1d2b24;
+    --muted:#78847c;
+    --line:#e7ece8;
+    --surface:#f6f8f5;
+    --app-width:760px;
+    --nav-height:72px;
+}
+html,body{background:#eef2ee;color:var(--ink)}
+.app-shell{
+    background:#fff;
+    box-shadow:0 12px 45px rgba(15,55,35,.07);
+}
+.topbar{
+    min-height:82px;
+    padding:0 24px;
+    border-bottom:1px solid #edf1ed;
+    border-top:4px solid var(--green);
+    background:#fff;
+}
+.brand-logo{
+    width:76px;
+    height:76px;
+    max-width:none;
+    max-height:none;
+    padding:12px;
+    border:1px solid #e7eee9;
+    border-radius:50%;
+    background:#fff;
+    object-fit:contain;
+    object-position:center;
+}
+.account-link{
+    width:42px;height:42px;
+    color:var(--green);
+    border:1px solid #e4ebe6;
+    background:#fff;
+    font-size:18px;
+    transition:background .18s ease,border-color .18s ease,transform .18s ease;
+}
+.account-link:hover{background:var(--green-light);border-color:#c8ddcf;transform:translateY(-50%)}
+.welcome{
+    margin:18px 18px 0;
+    padding:28px 22px 26px;
+    border-radius:20px;
+    background:var(--green);
+    color:#fff;
+    text-align:center;
+}
+.welcome-eyebrow{color:rgba(255,255,255,.76);font-size:12px;letter-spacing:.025em}
+.welcome h1{
+    color:#fff;
+    font-size:clamp(23px,4.5vw,30px);
+    letter-spacing:-.045em;
+}
+.welcome-meta{color:rgba(255,255,255,.78);justify-content:center}
+.meta-separator{color:rgba(255,255,255,.45)}
+.member-status{color:#f2d58d}
+.section{margin-top:27px}
+.section-heading{margin-bottom:13px}
+.section-title{font-size:15px;font-weight:800;letter-spacing:-.025em}
+.section-link,.text-link,.membership-action{color:var(--green);font-size:11px}
+.account-card,.order-card{
+    border:1px solid #e6ece7;
+    border-radius:17px;
+    box-shadow:0 4px 14px rgba(18,55,35,.035);
+}
+.account-card{
+    padding:22px 20px;
+}
+.account-card:has(.buying-power){
+    color:#fff;
+    border:0;
+    background:var(--green-deep);
+    box-shadow:0 9px 22px rgba(6,69,47,.14);
+}
+.account-card:has(.buying-power) .eyebrow,
+.account-card:has(.buying-power) .account-caption,
+.account-card:has(.buying-power) .stat-label{color:rgba(255,255,255,.7)}
+.account-card:has(.buying-power) .buying-power,
+.account-card:has(.buying-power) .stat-value{color:#fff}
+.account-card:has(.buying-power) .account-stats{border-top-color:rgba(255,255,255,.18)}
+.account-card:has(.buying-power) .account-icon{
+    display:grid;
+    color:var(--green-deep);
+    background:#f4dfad;
+}
+.account-message{max-width:440px;margin:0 auto;line-height:1.7}
+.account-message strong{font-size:14px}
+.shortcut-grid{gap:12px}
+.shortcut{
+    min-height:112px;
+    padding:16px 12px;
+    border:1px solid #e6ece7;
+    border-radius:16px;
+    background:#fff;
+    box-shadow:0 3px 12px rgba(18,55,35,.025);
+    transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.shortcut:hover{
+    color:var(--green);
+    border-color:#b8d2c1;
+    background:#fbfdfb;
+    box-shadow:0 8px 18px rgba(18,55,35,.08);
+    transform:translateY(-2px);
+}
+.shortcut i{
+    width:40px;height:40px;
+    display:grid;place-items:center;
+    border-radius:13px;
+    color:var(--green);
+    background:var(--green-light);
+    font-size:19px;
+}
+.shortcut span{font-size:12px;font-weight:750}
+.order-card{padding:20px;background:#fff}
+.order-number{font-size:15px}
+.order-status{
+    padding:6px 10px;
+    border-radius:30px;
+    color:var(--green);
+    background:var(--green-light);
+    font-size:10px;
+}
+.order-total{font-size:19px}
+.text-link{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    padding:9px 13px;
+    border-radius:30px;
+    background:var(--green-light);
+    text-decoration:none;
+}
+.text-link:hover{background:#dcebe1;text-decoration:none}
+.membership-row{padding:19px 0}
+.membership-value{font-size:14px}
+.membership-action{
+    padding:8px 13px;
+    border-radius:30px;
+    background:var(--green-light);
+    text-decoration:none;
+}
+.membership-action:hover{background:#dcebe1;text-decoration:none}
+.empty-state{
+    padding:22px;
+    border:1px dashed #cbd9cf;
+    border-radius:16px;
+    background:#f8faf8;
+    text-align:center;
+}
+.footer{padding:26px 20px 12px;color:#98a49c}
+.bottom-nav-wrap{
+    border-top:1px solid #e6ece7;
+    box-shadow:0 -5px 18px rgba(20,55,35,.045);
+    background:rgba(255,255,255,.97);
+    backdrop-filter:blur(12px);
+}
+.bottom-nav{height:var(--nav-height)}
+.nav-item{
+    position:relative;
+    gap:5px;
+    font-size:10px;
+    transition:color .15s ease;
+}
+.nav-item i{font-size:19px}
+.nav-item.active{
+    color:var(--green);
+    font-weight:800;
+    background:var(--green-light);
+    border-radius:12px;
+}
+.nav-item.active:before{content:none}
+a:focus-visible{
+    outline:3px solid rgba(215,169,67,.65);
+    outline-offset:3px;
+    border-radius:8px;
+}
+@media(max-width:575.98px){
+    .topbar{padding:0 18px}
+    .welcome{margin:14px 14px 0;padding:25px 16px 23px}
+    .section{margin-top:24px}
+    .account-card{padding:20px 15px}
+    .shortcut-grid{gap:9px}
+    .shortcut{min-height:102px;padding:13px 8px}
+    .shortcut span{font-size:11px}
+}
+@media(max-width:360px){
+    .brand-logo{width:68px;height:68px;padding:10px}
+    .welcome{margin-right:10px;margin-left:10px}
+}
+
+
+/* Subtle food-market personality */
+.market-kicker{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    margin:0 auto 14px;
+    padding:7px 12px;
+    border:1px solid rgba(244,222,170,.34);
+    border-radius:30px;
+    color:#f2d58d;
+    background:rgba(255,255,255,.08);
+    font-size:9px;
+    font-weight:800;
+    letter-spacing:.13em;
+}
+.market-kicker i{font-size:13px}
+.welcome-eyebrow{margin-bottom:7px}
+.welcome-meta{margin-top:10px}
+.shortcut i{
+    color:var(--green);
+    background:#f7f1e4;
+}
+.shortcut:nth-child(2) i{background:#eaf3ed}
+.shortcut:nth-child(3) i{background:#f5eee2}
+.footer{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:5px;
+    padding-top:27px;
+    padding-bottom:18px;
+}
+.footer-brand{
+    color:var(--green);
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:.015em;
+}
+.footer-tagline{
+    color:#9a8870;
+    font-size:10px;
+}
+
+
+/* Trade Assist account health and transaction access */
+.ta-standing{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:17px;
+    padding:12px 13px;
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:13px;
+    text-align:left;
+}
+.ta-standing.is-good{background:rgba(255,255,255,.08)}
+.ta-standing.is-attention{background:rgba(255,235,220,.12)}
+.ta-standing-copy{display:flex;align-items:flex-start;gap:9px;min-width:0}
+.ta-standing-copy strong{display:block;font-size:12px;color:#fff}
+.ta-standing-copy small{display:block;margin-top:3px;color:rgba(255,255,255,.72);font-size:10px;line-height:1.45}
+.ta-standing-dot{width:9px;height:9px;flex:0 0 9px;margin-top:3px;border-radius:50%;background:#83d6a7;box-shadow:0 0 0 3px rgba(131,214,167,.15)}
+.ta-standing.is-attention .ta-standing-dot{background:#f2c16d;box-shadow:0 0 0 3px rgba(242,193,109,.15)}
+.ta-overdue-amount{color:#ffe1ae;font-size:11px;font-weight:800}
+.ta-history-button{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:9px;
+    width:100%;
+    margin-top:12px;
+    padding:12px 15px;
+    border:1px solid rgba(255,255,255,.35);
+    border-radius:12px;
+    color:#fff;
+    background:rgba(255,255,255,.11);
+    font-size:11px;
+    font-weight:750;
+    text-decoration:none;
+    transition:background .18s ease,transform .18s ease;
+}
+.ta-history-button:hover{color:#fff;background:rgba(255,255,255,.19);transform:translateY(-1px)}
+.ta-history-button i:last-child{margin-left:auto}
+.ta-history-button-secondary{
+    max-width:300px;
+    margin:16px auto 0;
+    color:var(--green);
+    border-color:#dce8df;
+    background:#f3f8f4;
+}
+.ta-history-button-secondary:hover{color:var(--green);background:#e8f2eb}
+
+</style>
 </head>
-
 <body>
 <div class="app-shell">
-    <div class="app-content">
+<main class="page-content">
 
-        <!-- CUSTOMER HEADER -->
-        <header class="app-header">
-            <div class="header-topline">
-                <a class="brand-lockup" href="{% url 'membership_dashboard' %}" aria-label="The Daily Market home">
-                    <span class="brand-mark"><i class="bi bi-shop"></i></span>
-                    <span>
-                        <span class="brand-name">THE DAILY MARKET</span>
-                        <span class="brand-caption">Your business. Better supplied.</span>
-                    </span>
-                </a>
+<header class="topbar">
+    <a href="{% url 'home' %}" class="brand flex-shrink-0" aria-label="The Daily Market home">
+        <img class="brand-logo" src="{% static 'images/logo.png' %}" alt="The Daily Market">
+    </a>
+    <a class="account-link" href="{% url 'membership_account' %}" aria-label="My account">
+        <i class="bi bi-person"></i>
+    </a>
+</header>
 
-                <a class="header-account-link"
-                   href="{% url 'membership_account' %}"
-                   aria-label="My account">
-                    <i class="bi bi-person"></i>
-                </a>
-            </div>
-
-            <p class="welcome-label">
-                Welcome{% if request.user.first_name %}, {{ request.user.first_name }}{% endif %}
-            </p>
-
-            <h1 class="business-name">
-                {% if client.organization %}
-                    {{ client.organization }}
-                {% else %}
-                    {{ client.name }}
-                {% endif %}
-            </h1>
-
-            <div class="header-bottom">
-                <span class="member-since">
-                    {% if membership and membership.member_since %}
-                        Member since {{ membership.member_since|date:"F Y" }}
-                    {% elif membership %}
-                        TDM membership
-                    {% else %}
-                        Welcome to The Daily Market
-                    {% endif %}
-                </span>
-
-                {% if membership %}
-                    {% if membership.is_active %}
-                        <span class="header-status"><span class="status-dot"></span> Member active</span>
-                    {% elif membership.is_pending %}
-                        <span class="header-status"><i class="bi bi-clock"></i> Membership pending</span>
-                    {% elif membership.is_suspended %}
-                        <span class="header-status"><i class="bi bi-exclamation-circle"></i> Membership suspended</span>
-                    {% else %}
-                        <span class="header-status"><i class="bi bi-info-circle"></i> Membership inactive</span>
-                    {% endif %}
-                {% else %}
-                    <span class="header-status"><i class="bi bi-person-plus"></i> Customer account</span>
-                {% endif %}
-            </div>
-        </header>
-
-        <!-- PROMOTIONAL BANNER -->
-        <section class="section" aria-label="The Daily Market promotion">
-            <div class="promo-banner">
-                <div class="promo-copy">
-                    <span class="promo-eyebrow">The Daily Market</span>
-                    <h2 class="promo-title">Building better food businesses together.</h2>
-                    <p class="promo-description">
-                        Shop quality stock, discover weekly specials and keep your business moving.
-                    </p>
-                    <a class="promo-cta" href="{% url 'membership_shop' %}">
-                        Explore the shop <i class="bi bi-arrow-right"></i>
-                    </a>
-                </div>
-                <i class="bi bi-basket2-fill promo-icon" aria-hidden="true"></i>
-            </div>
-        </section>
-
-        <!-- PRIMARY ACTIONS -->
-        <section class="section">
-            <div class="section-heading">
-                <h2 class="section-title">What would you like to do?</h2>
-            </div>
-
-            <div class="action-grid">
-                <a class="action-card" href="{% url 'membership_shop' %}">
-                    <span class="action-icon"><i class="bi bi-basket2"></i></span>
-                    <span class="action-label">Shop now <i class="bi bi-arrow-up-right"></i></span>
-                </a>
-
-                <a class="action-card" href="{% url 'membership_orders' %}">
-                    <span class="action-icon"><i class="bi bi-box-seam"></i></span>
-                    <span class="action-label">My orders <i class="bi bi-arrow-up-right"></i></span>
-                </a>
-
-                <a class="action-card" href="{% url 'membership_shop_specials' %}">
-                    <span class="action-icon"><i class="bi bi-tag"></i></span>
-                    <span class="action-label">Shop specials <i class="bi bi-arrow-up-right"></i></span>
-                </a>
-
-                <a class="action-card" href="{% url 'membership_account' %}">
-                    <span class="action-icon"><i class="bi bi-person-gear"></i></span>
-                    <span class="action-label">My account <i class="bi bi-arrow-up-right"></i></span>
-                </a>
-            </div>
-        </section>
-
-        <!-- ACCOUNT SNAPSHOT -->
-        <section class="section">
-            <div class="section-heading">
-                <h2 class="section-title">Your account</h2>
-                <a class="section-link" href="{% url 'membership_membership' %}">View details</a>
-            </div>
-
-            <div class="snapshot-card">
-                {% if credit_account and credit_account.status == "ACTIVE" %}
-                    <div class="snapshot-top">
-                        <div>
-                            <span class="snapshot-label">Available buying power</span>
-                            <p class="snapshot-value">
-                                R{{ credit_account.credit_available|default:0|floatformat:2|intcomma }}
-                            </p>
-                            <p class="snapshot-subtext">
-                                Your currently available Trade Assist buying-power facility.
-                            </p>
-                        </div>
-                        <span class="snapshot-icon"><i class="bi bi-wallet2"></i></span>
-                    </div>
-                    <div class="snapshot-divider"></div>
-                    <div class="snapshot-mini-grid">
-                        <div>
-                            <span class="mini-label">Approved limit</span>
-                            <p class="mini-value">R{{ credit_account.credit_limit|default:0|floatformat:2|intcomma }}</p>
-                        </div>
-                        <div>
-                            <span class="mini-label">Currently utilised</span>
-                            <p class="mini-value">R{{ credit_account.credit_used|default:0|floatformat:2|intcomma }}</p>
-                        </div>
-                    </div>
-                {% elif credit_account %}
-                    <div class="account-notice">
-                        <i class="bi bi-info-circle account-notice-icon"></i>
-                        <div>
-                            {% if credit_account.status == "PENDING" %}
-                                <strong>Trade Assist activation pending</strong>
-                                <p>Your account is awaiting activation. Buying power will be displayed here once your facility is active.</p>
-                            {% elif credit_account.status == "OVERDUE" %}
-                                <strong>Trade Assist account requires attention</strong>
-                                <p>Your account currently has an overdue status. Please contact our team for assistance.</p>
-                            {% elif credit_account.status == "SUSPENDED" %}
-                                <strong>Trade Assist temporarily suspended</strong>
-                                <p>Please contact our team for assistance with your account.</p>
-                            {% elif credit_account.status == "CLOSED" %}
-                                <strong>Trade Assist account closed</strong>
-                                <p>Your Trade Assist facility is currently closed. Contact our team if you need assistance.</p>
-                            {% else %}
-                                <strong>Trade Assist not currently available</strong>
-                                <p>Your buying-power facility is not active at the moment.</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                {% else %}
-                    <div class="account-notice">
-                        <i class="bi bi-info-circle account-notice-icon"></i>
-                        <div>
-                            <strong>Trade Assist</strong>
-                            <p>You do not currently have an activated Trade Assist buying-power facility. Continue trading with The Daily Market and contact our team to learn more about membership.</p>
-                        </div>
-                    </div>
-                {% endif %}
-
-                <div class="snapshot-divider"></div>
-
-                <div class="snapshot-mini-grid">
-                    <div>
-                        <span class="mini-label">Membership tier</span>
-                        <p class="mini-value">
-                            {% if membership and membership.tier %}
-                                {{ membership.get_tier_display|default:membership.tier|title }}
-                            {% else %}
-                                Not assigned
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div>
-                        <span class="mini-label">Current orders</span>
-                        <p class="mini-value">{{ current_orders|default:0|intcomma }}</p>
-                    </div>
-                </div>
-
-                {% if membership %}
-                    <div class="snapshot-divider"></div>
-                    <div>
-                        <span class="mini-label">Lifetime Trade Points</span>
-                        <p class="mini-value">{{ membership.lifetime_trade_points|default:0|intcomma }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </section>
-
-        <!-- SECONDARY DESTINATIONS -->
-        <section class="section">
-            <div class="section-heading">
-                <h2 class="section-title">Quick links</h2>
-            </div>
-
-            <div class="secondary-list">
-                <a class="secondary-link" href="{% url 'membership_membership' %}">
-                    <span class="secondary-icon"><i class="bi bi-stars"></i></span>
-                    <span class="secondary-copy">
-                        <span class="secondary-title">Trade Assist & membership</span>
-                        <span class="secondary-description">Learn about your membership and buying-power facility</span>
-                    </span>
-                    <i class="bi bi-chevron-right secondary-arrow"></i>
-                </a>
-
-                <a class="secondary-link" href="{% url 'membership_download_price_list' %}">
-                    <span class="secondary-icon"><i class="bi bi-file-earmark-pdf"></i></span>
-                    <span class="secondary-copy">
-                        <span class="secondary-title">Download price list</span>
-                        <span class="secondary-description">View the latest TDM product pricing</span>
-                    </span>
-                    <i class="bi bi-chevron-right secondary-arrow"></i>
-                </a>
-
-                <a class="secondary-link" href="{% url 'membership_support' %}">
-                    <span class="secondary-icon"><i class="bi bi-headset"></i></span>
-                    <span class="secondary-copy">
-                        <span class="secondary-title">Support centre</span>
-                        <span class="secondary-description">Get help with orders, products or your account</span>
-                    </span>
-                    <i class="bi bi-chevron-right secondary-arrow"></i>
-                </a>
-
-                <form class="secondary-link m-0" action="{% url 'logout' %}" method="post">
-                    {% csrf_token %}
-                    <span class="secondary-icon"><i class="bi bi-box-arrow-right"></i></span>
-                    <span class="secondary-copy">
-                        <button type="submit" class="btn p-0 border-0 text-start secondary-title">
-                            Sign out
-                        </button>
-                        <span class="secondary-description">Securely sign out of your account</span>
-                    </span>
-                    <i class="bi bi-chevron-right secondary-arrow"></i>
-                </form>
-            </div>
-        </section>
-
-        <!-- RECOMMENDED PRODUCTS -->
-        <section class="section">
-            <div class="section-heading">
-                <h2 class="section-title">Recommended for you</h2>
-                <a class="section-link" href="{% url 'membership_shop' %}">View all</a>
-            </div>
-
-            {% if recommended_products %}
-                <div class="product-grid">
-                    {% for item in recommended_products %}
-                        <article class="product-card">
-                            <div class="product-image-wrap">
-                                {% if item.product.image %}
-                                    <img class="product-image"
-                                         src="{{ item.product.image.url }}"
-                                         alt="{{ item.product.name }}"
-                                         loading="lazy">
-                                {% else %}
-                                    <i class="bi bi-image product-image-placeholder" aria-hidden="true"></i>
-                                {% endif %}
-                            </div>
-                            <div class="product-card-body">
-                                <h3 class="product-name">{{ item.product.name }}</h3>
-                                <span class="product-category">{{ item.product.category.name }}</span>
-                                <span class="product-meta">
-                                    Purchased {{ item.total_quantity|floatformat:0 }} time{{ item.total_quantity|pluralize }}
-                                </span>
-                                <a class="product-button mt-2"
-                                   href="{% url 'membership_shop_category' item.product.category.slug %}">
-                                    View category <i class="bi bi-arrow-right"></i>
-                                </a>
-                            </div>
-                        </article>
-                    {% endfor %}
-                </div>
+<section class="welcome">
+    <div class="market-kicker"><i class="bi bi-basket2"></i><span>YOUR FOOD MARKET</span></div>
+    <p class="welcome-eyebrow">Good day{% if request.user.first_name %}, {{ request.user.first_name }}{% endif %}</p>
+    <h1>{% if client.organization %}{{ client.organization }}{% else %}{{ client.name }}{% endif %}</h1>
+    <div class="welcome-meta">
+        {% if membership and membership.member_since %}
+            <span>Member since {{ membership.member_since|date:"F Y" }}</span>
+        {% else %}
+            <span>The Daily Market customer</span>
+        {% endif %}
+        {% if membership %}
+            <span class="meta-separator">·</span>
+            {% if membership.is_active %}
+                <span class="member-status">Active member</span>
+            {% elif membership.is_pending %}
+                <span>Membership pending</span>
+            {% elif membership.is_suspended %}
+                <span>Membership suspended</span>
             {% else %}
-                <div class="empty-state">
-                    <i class="bi bi-basket"></i>
-                    <p>Your frequently purchased products will appear here as you continue shopping with The Daily Market.</p>
-                    <a class="section-link d-inline-block mt-2" href="{% url 'membership_shop' %}">Browse products</a>
-                </div>
+                <span>Membership inactive</span>
             {% endif %}
-        </section>
-
-        <!-- TODAY'S SPECIALS -->
-        <section class="section">
-            <div class="section-heading">
-                <h2 class="section-title">Today's specials</h2>
-                <a class="section-link" href="{% url 'membership_shop_specials' %}">View all</a>
-            </div>
-
-            {% if special_products %}
-                <div class="product-grid">
-                    {% for product in special_products %}
-                        <article class="product-card">
-                            <div class="product-image-wrap">
-                                {% if product.image %}
-                                    <img class="product-image"
-                                         src="{{ product.image.url }}"
-                                         alt="{{ product.name }}"
-                                         loading="lazy">
-                                {% else %}
-                                    <i class="bi bi-image product-image-placeholder" aria-hidden="true"></i>
-                                {% endif %}
-                                <span class="special-tag">SPECIAL</span>
-                            </div>
-                            <div class="product-card-body">
-                                <h3 class="product-name">{{ product.name }}</h3>
-                                <span class="product-category">{{ product.category.name }}</span>
-
-                                {% if product.old_wholesale_price_inc %}
-                                    <p class="old-price">R{{ product.old_wholesale_price_inc|floatformat:2|intcomma }}</p>
-                                {% endif %}
-
-                                <p class="product-price">R{{ product.wholesale_price|floatformat:2|intcomma }}</p>
-
-                                <a class="product-button"
-                                   href="{% url 'membership_shop_category' product.category.parent.slug|default:product.category.slug %}">
-                                    View product range <i class="bi bi-arrow-right"></i>
-                                </a>
-                            </div>
-                        </article>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="empty-state">
-                    <i class="bi bi-tag"></i>
-                    <p>There are no products on special today. Check back soon for the latest offers.</p>
-                </div>
-            {% endif %}
-        </section>
-
-        <!-- LATEST ORDER -->
-        <section class="section">
-            <div class="section-heading">
-                <h2 class="section-title">Latest order</h2>
-                <a class="section-link" href="{% url 'membership_orders' %}">Order history</a>
-            </div>
-
-            {% if latest_order %}
-                <div class="latest-order">
-                    <div class="order-topline">
-                        <div>
-                            <span class="order-date">ORDER NUMBER</span>
-                            <h3 class="order-number">#{{ latest_order.id }}</h3>
-                        </div>
-                        <span class="header-status"
-                              style="color:var(--tdm-green);border-color:#d6e9dc;background:var(--tdm-green-soft);">
-                            {{ latest_order.get_status_display }}
-                        </span>
-                    </div>
-
-                    <div class="order-details">
-                        <div>
-                            <span class="order-detail-label">Order date</span>
-                            <span class="order-detail-value">{{ latest_order.order_date|date:"d M Y" }}</span>
-                        </div>
-                        <div>
-                            <span class="order-detail-label">Order total</span>
-                            <span class="order-detail-value">
-                                {% if latest_order.grand_total_inc %}
-                                    R{{ latest_order.grand_total_inc|floatformat:2|intcomma }}
-                                {% elif latest_order.total_inc %}
-                                    R{{ latest_order.total_inc|floatformat:2|intcomma }}
-                                {% else %}
-                                    View order
-                                {% endif %}
-                            </span>
-                        </div>
-                    </div>
-
-                    <a class="order-view-link" href="{% url 'membership_view_order' latest_order.id %}">
-                        View order details <i class="bi bi-arrow-right"></i>
-                    </a>
-                </div>
-            {% else %}
-                <div class="empty-state">
-                    <i class="bi bi-box-seam"></i>
-                    <p>You have not placed an order yet. Your latest order will appear here.</p>
-                    <a class="section-link d-inline-block mt-2" href="{% url 'membership_shop' %}">Start shopping</a>
-                </div>
-            {% endif %}
-        </section>
-
-        <!-- TRADE POINTS / MEMBERSHIP CALLOUT -->
-        <section class="section">
-            <div class="points-callout">
-                <h3>Grow your business with TDM</h3>
-                <p>
-                    Keep your business supplied, trade consistently and make the most of your TDM membership benefits.
-                    Contact our team to find out more about Trade Assist eligibility.
-                </p>
-                <a class="points-callout-link" href="{% url 'membership_membership' %}">
-                    Explore membership <i class="bi bi-arrow-right"></i>
-                </a>
-            </div>
-        </section>
-
-        <footer class="app-footer">
-            The Daily Market · Quality stock for growing food businesses
-        </footer>
+        {% endif %}
     </div>
+</section>
 
-    <!-- FIXED FIVE-ITEM BOTTOM NAVIGATION -->
-    <nav class="bottom-nav-wrap" aria-label="Main navigation">
-        <div class="bottom-nav">
-            <a class="bottom-nav-item active"
-               href="{% url 'membership_dashboard' %}"
-               aria-current="page">
-                <i class="bi bi-house-door-fill"></i>
-                <span>Home</span>
-            </a>
-
-            <a class="bottom-nav-item" href="{% url 'membership_shop' %}">
-                <i class="bi bi-grid"></i>
-                <span>Shop</span>
-            </a>
-
-            <div class="bottom-nav-center">
-                <a href="{% url 'membership_shop_specials' %}" aria-label="Shop specials">
-                    <i class="bi bi-tag-fill"></i>
-                </a>
+<section class="section">
+    <div class="section-heading">
+        <h2 class="section-title">Account overview</h2>
+        <a class="section-link" href="{% url 'membership_membership' %}">View account</a>
+    </div>
+    <div class="account-card">
+        {% if credit_account and credit_account.status == "ACTIVE" %}
+            <div class="account-card-top">
+                <div>
+                    <span class="eyebrow">Available buying power</span>
+                    <p class="buying-power">R{{ credit_account.credit_available|default:0|floatformat:2|intcomma }}</p>
+                    <p class="account-caption">Trade Assist available balance</p>
+                </div>
+                <span class="account-icon"><i class="bi bi-wallet2"></i></span>
             </div>
-
-            <a class="bottom-nav-item" href="{% url 'membership_orders' %}">
-                <i class="bi bi-receipt"></i>
-                <span>Orders</span>
+            <div class="account-stats">
+                <div>
+                    <span class="stat-label">Approved limit</span>
+                    <p class="stat-value">R{{ credit_account.credit_limit|default:0|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <span class="stat-label">Currently utilised</span>
+                    <p class="stat-value">R{{ credit_account.credit_used|default:0|floatformat:2|intcomma }}</p>
+                </div>
+            </div>
+            <div class="ta-standing {% if ta_account_good_standing %}is-good{% else %}is-attention{% endif %}">
+                <div class="ta-standing-copy">
+                    <span class="ta-standing-dot"></span>
+                    <div>
+                        <strong>{{ ta_account_status_label }}</strong>
+                        <small>{{ ta_account_status_message }}</small>
+                    </div>
+                </div>
+                {% if ta_overdue_amount > 0 %}
+                    <span class="ta-overdue-amount">Overdue: R{{ ta_overdue_amount|floatformat:2|intcomma }}</span>
+                {% endif %}
+            </div>
+            <a class="ta-history-button" href="{% url 'membership_credit_transactions' %}">
+                <i class="bi bi-clock-history"></i>
+                <span>View transaction history</span>
+                <i class="bi bi-arrow-right"></i>
             </a>
-
-            <a class="bottom-nav-item" href="{% url 'membership_account' %}">
-                <i class="bi bi-person"></i>
-                <span>Account</span>
+        {% elif credit_account %}
+            <p class="account-message">
+                {% if credit_account.status == "PENDING" %}
+                    <strong>Trade Assist activation pending</strong>
+                    Your account is awaiting activation. Your buying-power details will appear here once active.
+                {% elif credit_account.status == "OVERDUE" %}
+                    <strong>Trade Assist account requires attention</strong>
+                    Please contact our team for assistance with your account.
+                {% elif credit_account.status == "SUSPENDED" %}
+                    <strong>Trade Assist temporarily suspended</strong>
+                    Please contact our team for assistance.
+                {% elif credit_account.status == "CLOSED" %}
+                    <strong>Trade Assist account closed</strong>
+                    Contact our team if you need further assistance.
+                {% else %}
+                    <strong>Trade Assist is not active</strong>
+                    Your buying-power facility is not currently active.
+                {% endif %}
+            </p>
+            <a class="ta-history-button ta-history-button-secondary" href="{% url 'membership_credit_transactions' %}">
+                <i class="bi bi-clock-history"></i>
+                <span>View transaction history</span>
+                <i class="bi bi-arrow-right"></i>
             </a>
+        {% else %}
+            <p class="account-message">
+                <strong>Trade Assist</strong>
+                You do not currently have an activated buying-power facility. Continue trading with The Daily Market and speak to our team to learn about eligibility.
+            </p>
+        {% endif %}
+    </div>
+</section>
+
+<section class="section">
+    <div class="section-heading"><h2 class="section-title">Quick access</h2></div>
+    <div class="shortcut-grid">
+        <a class="shortcut" href="{% url 'membership_shop' %}">
+            <i class="bi bi-basket2"></i><span>Shop products</span>
+        </a>
+        <a class="shortcut" href="{% url 'membership_orders' %}">
+            <i class="bi bi-receipt"></i><span>My orders</span>
+        </a>
+        <a class="shortcut" href="{% url 'membership_shop_specials' %}">
+            <i class="bi bi-tag"></i><span>Specials</span>
+        </a>
+    </div>
+</section>
+
+<section class="section">
+    <div class="section-heading">
+        <h2 class="section-title">Latest order</h2>
+        <a class="section-link" href="{% url 'membership_orders' %}">All orders</a>
+    </div>
+    {% if latest_order %}
+        <div class="order-card">
+            <div class="order-heading">
+                <div>
+                    <h3 class="order-number">Order #{{ latest_order.id }}</h3>
+                    <span class="order-date">{{ latest_order.order_date|date:"d M Y" }}</span>
+                </div>
+                <span class="order-status">{{ latest_order.get_status_display }}</span>
+            </div>
+            <div class="order-summary">
+                <div>
+                    <span class="order-total-label">Order total</span>
+                    <p class="order-total">
+                        {% if latest_order.grand_total_inc %}
+                            R{{ latest_order.grand_total_inc|floatformat:2|intcomma }}
+                        {% elif latest_order.total_inc %}
+                            R{{ latest_order.total_inc|floatformat:2|intcomma }}
+                        {% else %}—{% endif %}
+                    </p>
+                </div>
+                <a class="text-link" href="{% url 'membership_view_order' latest_order.id %}">View order <i class="bi bi-arrow-right"></i></a>
+            </div>
         </div>
-    </nav>
+    {% else %}
+        <div class="empty-state">
+            <p>You haven't placed an order yet.</p>
+            <a href="{% url 'membership_shop' %}">Browse products <i class="bi bi-arrow-right"></i></a>
+        </div>
+    {% endif %}
+</section>
+
+<section class="section">
+    <div class="section-heading">
+        <h2 class="section-title">Membership</h2>
+        <a class="section-link" href="{% url 'membership_membership' %}">View details</a>
+    </div>
+    <div class="account-card">
+        <div class="membership-row">
+            <div>
+                <span class="membership-label">Membership tier</span>
+                <p class="membership-value">
+                    {% if membership and membership.tier %}
+                        {{ membership.get_tier_display|default:membership.tier|title }}
+                    {% else %}Not assigned{% endif %}
+                </p>
+            </div>
+        </div>
+        {% if membership %}
+            <div class="membership-row">
+                <div>
+                    <span class="membership-label">Lifetime Trade Points</span>
+                    <p class="membership-value">{{ membership.lifetime_trade_points|default:0|intcomma }}</p>
+                </div>
+            </div>
+        {% endif %}
+        <div class="membership-row">
+            <div>
+                <span class="membership-label">Need assistance?</span>
+                <p class="membership-value">Speak to our team</p>
+            </div>
+            <a class="membership-action" href="{% url 'membership_support' %}">Get support <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </div>
+</section>
+
+<footer class="footer"><span class="footer-brand">The Daily Market</span><span class="footer-tagline">Your everyday food &amp; kitchen partner</span></footer>
+</main>
+
+<nav class="bottom-nav-wrap" aria-label="Main navigation">
+    <div class="bottom-nav">
+        <a class="nav-item active" href="{% url 'membership_dashboard' %}" aria-current="page">
+            <i class="bi bi-house-door"></i><span>Home</span>
+        </a>
+        <a class="nav-item" href="{% url 'membership_shop' %}">
+            <i class="bi bi-basket2"></i><span>Shop</span>
+        </a>
+        <a class="nav-item" href="{% url 'membership_orders' %}">
+            <i class="bi bi-receipt"></i><span>Orders</span>
+        </a>
+        <a class="nav-item" href="{% url 'membership_account' %}">
+            <i class="bi bi-person"></i><span>Account</span>
+        </a>
+    </div>
+</nav>
 </div>
 </body>
 </html>

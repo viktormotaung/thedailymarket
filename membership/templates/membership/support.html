@@ -2,458 +2,502 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - The Daily Market</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <style>
-    /* --- Desktop: fixed (non-movable) sidebar --- */
-    @media (min-width: 992px) {
-      html, body { height: 100%; }
-      body { min-height: 100vh; overflow-x: hidden; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support Centre - The Daily Market</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
-      .sidebar-desktop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 220px;
-        height: 100vh;
-        overflow-y: auto;
-        overflow-x: visible !important; /* allow dropdown to show */
-      }
+    <style>
+        :root {
+            --tdm-green: #075b3d;
+            --tdm-green-dark: #06452f;
+            --tdm-green-soft: #eaf3ed;
+            --tdm-gold: #d7a943;
+            --tdm-ink: #1d2b24;
+            --tdm-muted: #78847c;
+            --tdm-border: #e5ebe6;
+            --tdm-page: #f4f7f4;
+            --tdm-white: #ffffff;
+        }
 
-      /* ✅ Let Bootstrap control dropdown positioning */
-      .sidebar-desktop .dropdown {
-        position: relative;
-      }
+        * { box-sizing: border-box; }
 
-      
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding-bottom: 92px;
+            background: var(--tdm-page);
+            color: var(--tdm-ink);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 14px;
+        }
 
-      .sidebar-desktop .dropdown-menu {
-        margin-top: 8px;
-      }
+        a { color: inherit; text-decoration: none; }
 
-      main.content {
-        margin-left: 220px;
-        min-height: 100vh;
-      }
-    }
+        .app-shell {
+            width: 100%;
+            max-width: 760px;
+            min-height: 100vh;
+            margin: 0 auto;
+            padding: 0 18px 30px;
+        }
 
-    /* Shared styles */
-    .sidebar-skin {
-      background-color: #0b5c39;
-      color: #fff;
-      padding: 1rem;
-    }
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 17px 0 15px;
+        }
 
-    .sidebar-skin .nav-link {
-      color: #fff;
-      margin: .25rem 0;
-      display: block;
-    }
+        .brand-logo {
+            display: block;
+            width: auto;
+            max-width: 155px;
+            max-height: 45px;
+            object-fit: contain;
+        }
 
-    .sidebar-skin .nav-link.active,
-    .sidebar-skin .nav-link:hover {
-      background: rgba(255,255,255,0.15);
-      border-radius: 4px;
-      padding-left: 8px;
-    }
+        .topbar-label {
+            color: var(--tdm-muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
 
-    .logo-img {
-      max-height: 80px;
-      width: auto;
-    }
+        .page-heading { margin: 12px 0 18px; }
 
-    .content {
-      background: #f8f9fa;
-      padding: 20px;
-    }
+        .eyebrow {
+            margin-bottom: 5px;
+            color: var(--tdm-green);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .09em;
+            text-transform: uppercase;
+        }
 
-    .sidebar-skin .nav-link.ps-4 {
-      font-size: .95rem;
-      opacity: .95;
-    }
+        .page-heading h1 {
+            margin: 0;
+            font-size: 25px;
+            line-height: 1.2;
+            font-weight: 800;
+            letter-spacing: -.04em;
+        }
 
-    /* --- Compact chart height --- */
-    .chart-wrap {
-      position: relative;
-      width: 100%;
-      height: 220px;
-    }
+        .page-heading p {
+            margin: 7px 0 0;
+            color: var(--tdm-muted);
+            font-size: 13px;
+            line-height: 1.55;
+        }
 
-    .member-hero{
-        border-radius:20px;
-    }
+        .support-hero {
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 16px;
+            padding: 23px 21px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--tdm-green), var(--tdm-green-dark));
+            color: #fff;
+        }
 
-    .hero-banner{
-        background:#0b5c39;
-        border-radius:18px;
-        padding:28px 35px;
+        .support-hero:after {
+            content: "";
+            position: absolute;
+            top: -83px;
+            right: -55px;
+            width: 190px;
+            height: 190px;
+            border: 1px solid rgba(255,255,255,.11);
+            border-radius: 50%;
+            box-shadow: 0 0 0 25px rgba(255,255,255,.035),
+                        0 0 0 50px rgba(255,255,255,.025);
+        }
 
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
+        .hero-content { position: relative; z-index: 1; }
 
-        height:150px;
-    }
+        .hero-kicker {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            color: rgba(255,255,255,.76);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .09em;
+            text-transform: uppercase;
+        }
 
-    .status-card{
-        background:#fff;
-        border-radius:18px;
-        padding:20px;
+        .hero-title {
+            max-width: 440px;
+            margin: 12px 0 8px;
+            font-size: 25px;
+            line-height: 1.18;
+            font-weight: 800;
+            letter-spacing: -.04em;
+        }
 
-        display:flex;
-        flex-direction:column;
-        justify-content:center;
-        align-items:center;
+        .hero-description {
+            max-width: 490px;
+            margin: 0;
+            color: rgba(255,255,255,.82);
+            font-size: 12px;
+            line-height: 1.65;
+        }
 
-        box-shadow:0 8px 20px rgba(0,0,0,.08);
+        .coming-soon {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            margin-top: 17px;
+            padding: 7px 11px;
+            border: 1px solid rgba(255,255,255,.23);
+            border-radius: 999px;
+            background: rgba(255,255,255,.10);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .04em;
+        }
 
-        height:150px;
-    }
+        .section-card {
+            overflow: hidden;
+            margin-bottom: 15px;
+            border: 1px solid var(--tdm-border);
+            border-radius: 17px;
+            background: var(--tdm-white);
+            box-shadow: 0 3px 12px rgba(29,43,36,.035);
+        }
 
-    .hero-icon{
-        font-size:60px;
-        color:rgba(255,255,255,.10);
-    }
+        .section-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 16px 17px 13px;
+            border-bottom: 1px solid var(--tdm-border);
+        }
 
-    @media (max-width: 991.98px) {
-      .chart-wrap { height: 180px; }
-    }
+        .section-heading h2 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 800;
+        }
 
-    @media (max-width: 575.98px) {
-      .chart-wrap { height: 150px; }
-    }
+        .section-heading p {
+            margin: 3px 0 0;
+            color: var(--tdm-muted);
+            font-size: 11px;
+        }
 
-    .chart-wrap canvas {
-      width: 100% !important;
-      height: 100% !important;
-      display: block;
-    }
-  </style>
+        .section-icon {
+            display: grid;
+            flex: 0 0 35px;
+            width: 35px;
+            height: 35px;
+            place-items: center;
+            border-radius: 11px;
+            background: var(--tdm-green-soft);
+            color: var(--tdm-green);
+            font-size: 16px;
+        }
+
+        .section-body { padding: 16px 17px; }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 11px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            min-height: 68px;
+            padding: 12px;
+            border: 1px solid var(--tdm-border);
+            border-radius: 12px;
+            background: #fbfcfb;
+        }
+
+        .feature-icon {
+            display: grid;
+            flex: 0 0 27px;
+            width: 27px;
+            height: 27px;
+            place-items: center;
+            border-radius: 9px;
+            background: var(--tdm-green-soft);
+            color: var(--tdm-green);
+            font-size: 13px;
+        }
+
+        .feature-item span:last-child {
+            padding-top: 2px;
+            color: var(--tdm-ink);
+            font-size: 11px;
+            line-height: 1.45;
+            font-weight: 700;
+        }
+
+        .contact-panel {
+            padding: 21px 17px;
+            border-radius: 14px;
+            background: #fbfcfb;
+            text-align: center;
+        }
+
+        .contact-icon {
+            display: grid;
+            width: 52px;
+            height: 52px;
+            margin: 0 auto 12px;
+            place-items: center;
+            border-radius: 16px;
+            background: var(--tdm-green-soft);
+            color: var(--tdm-green);
+            font-size: 23px;
+        }
+
+        .contact-panel h2 {
+            margin: 0 0 7px;
+            font-size: 17px;
+            font-weight: 800;
+        }
+
+        .contact-panel p {
+            max-width: 430px;
+            margin: 0 auto 17px;
+            color: var(--tdm-muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .contact-actions {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 9px;
+        }
+
+        .contact-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 42px;
+            padding: 10px 15px;
+            border: 1px solid var(--tdm-green);
+            border-radius: 11px;
+            background: var(--tdm-green);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 800;
+            transition: background .15s ease, transform .15s ease;
+        }
+
+        .contact-button:hover {
+            background: var(--tdm-green-dark);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        .contact-button.secondary {
+            background: #fff;
+            color: var(--tdm-green);
+        }
+
+        .contact-button.secondary:hover {
+            background: var(--tdm-green-soft);
+            color: var(--tdm-green-dark);
+        }
+
+        .footer-note {
+            padding: 4px 8px 0;
+            color: var(--tdm-muted);
+            text-align: center;
+            font-size: 10px;
+            line-height: 1.5;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            z-index: 1000;
+            bottom: 0;
+            left: 50%;
+            display: grid;
+            width: 100%;
+            max-width: 760px;
+            grid-template-columns: repeat(4, 1fr);
+            padding: 9px 12px calc(9px + env(safe-area-inset-bottom));
+            transform: translateX(-50%);
+            border-top: 1px solid var(--tdm-border);
+            background: rgba(255,255,255,.97);
+            backdrop-filter: blur(12px);
+        }
+
+        .bottom-nav a {
+            display: flex;
+            min-height: 48px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            border-radius: 11px;
+            color: #89948d;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .bottom-nav a i { font-size: 18px; line-height: 1; }
+
+        .bottom-nav a.active {
+            background: var(--tdm-green-soft);
+            color: var(--tdm-green);
+        }
+
+        @media (max-width: 480px) {
+            .app-shell { padding-right: 14px; padding-left: 14px; }
+            .support-hero { padding: 20px 18px; }
+            .hero-title { font-size: 22px; }
+            .section-body { padding: 14px; }
+            .feature-list { grid-template-columns: 1fr; gap: 9px; }
+            .feature-item { min-height: 56px; }
+            .contact-actions { flex-direction: column; }
+            .contact-button { width: 100%; }
+        }
+    </style>
 </head>
 <body>
+<div class="app-shell">
 
-  
+    <header class="topbar">
+        <a href="{% url 'home' %}" aria-label="The Daily Market home">
+            <img src="{% static 'images/logo.png' %}" alt="The Daily Market" class="brand-logo">
+        </a>
+        <span class="topbar-label">
+            <i class="bi bi-life-preserver me-1"></i> Help &amp; support
+        </span>
+    </header>
 
-    <!-- ========================= -->
-    <!-- MOBILE NAVIGATION -->
-    <!-- ========================= -->
-
-    <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
-        <div class="container-fluid">
-
-            <button class="navbar-toggler"
-                    type="button"
-                    data-bs-toggle="offcanvas"
-                    data-bs-target="#mobileMenu"
-                    aria-controls="mobileMenu">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-
-            <a class="navbar-brand ms-2" href="{% url 'membership_dashboard' %}">
-                <img src="{% static 'images/logo.png' %}"
-                    alt="The Daily Market"
-                    style="height:40px;">
-            </a>
-
-        </div>
-    </nav>
-
-    <div class="offcanvas offcanvas-start d-lg-none sidebar-skin"
-        tabindex="-1"
-        id="mobileMenu">
-
-        <div class="offcanvas-header">
-            <button type="button"
-                    class="btn-close btn-close-white"
-                    data-bs-dismiss="offcanvas"
-                    aria-label="Close">
-            </button>
-        </div>
-
-        <div class="offcanvas-body">
-
-            <div class="text-center mb-4">
-                <img src="{% static 'images/logo.png' %}"
-                    alt="The Daily Market"
-                    class="logo-img">
-            </div>
-
-            {% with current=request.resolver_match.url_name %}
-
-            <div class="nav flex-column">
-
-                <a href="{% url 'membership_dashboard' %}"
-                class="nav-link {% if current == 'membership_dashboard' %}active{% endif %}">
-                    <i class="bi bi-house-door me-2"></i>
-                    Dashboard
-                </a>
-
-                <a href="{% url 'membership_shop' %}"
-                class="nav-link {% if current == 'membership_shop' %}active{% endif %}">
-                    <i class="bi bi-cart3 me-2"></i>
-                    Shop
-                </a>
-
-                <a href="{% url 'membership_orders' %}"
-                class="nav-link {% if current == 'membership_orders' %}active{% endif %}">
-                    <i class="bi bi-box-seam me-2"></i>
-                    Orders
-                </a>
-
-                <hr class="border-light my-3">
-
-                <a href="{% url 'membership_membership' %}"
-                class="nav-link {% if current == 'membership_membership' %}active{% endif %}">
-                    <i class="bi bi-stars me-2"></i>
-                    Membership
-                </a>
-
-                <a href="{% url 'membership_account' %}"
-                class="nav-link {% if current == 'membership_account' %}active{% endif %}">
-                    <i class="bi bi-person-circle me-2"></i>
-                    My Account
-                </a>
-
-                <a href="{% url 'membership_support' %}"
-                class="nav-link {% if current == 'membership_support' %}active{% endif %}">
-                    <i class="bi bi-life-preserver me-2"></i>
-                    Support
-                </a>
-
-            </div>
-
-            <hr class="border-light mt-4">
-
-            <form action="{% url 'logout' %}" method="post">
-                {% csrf_token %}
-                <button type="submit"
-                        class="btn btn-outline-light w-100">
-                    <i class="bi bi-box-arrow-right me-2"></i>
-                    Sign Out
-                </button>
-            </form>
-
-            {% endwith %}
-
-        </div>
-
+    <div class="page-heading">
+        <div class="eyebrow">We're here to help</div>
+        <h1>Support Centre</h1>
+        <p>Get assistance with your orders, deliveries, invoices and Daily Market account.</p>
     </div>
 
-
-    <!-- ========================= -->
-    <!-- DESKTOP SIDEBAR -->
-    <!-- ========================= -->
-
-    <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
-
-        <div class="text-center mb-4">
-            <a href="{% url 'membership_dashboard' %}">
-                <img src="{% static 'images/logo.png' %}"
-                    alt="The Daily Market"
-                    class="logo-img">
-            </a>
+    <section class="support-hero">
+        <div class="hero-content">
+            <div class="hero-kicker">
+                <i class="bi bi-headset"></i>
+                The Daily Market support
+            </div>
+            <h2 class="hero-title">How can we help your business?</h2>
+            <p class="hero-description">
+                We're building a dedicated support centre to make it easier for you
+                to get assistance, track support requests and find answers to common questions.
+            </p>
+            <span class="coming-soon">
+                <i class="bi bi-hourglass-split"></i>
+                Support centre coming soon
+            </span>
         </div>
+    </section>
 
-        {% with current=request.resolver_match.url_name %}
-
-        <div class="nav flex-column">
-
-            <a href="{% url 'membership_dashboard' %}"
-            class="nav-link {% if current == 'membership_dashboard' %}active{% endif %}">
-                <i class="bi bi-house-door me-2"></i>
-                Dashboard
-            </a>
-
-            <a href="{% url 'membership_shop' %}"
-            class="nav-link {% if current == 'membership_shop' %}active{% endif %}">
-                <i class="bi bi-cart3 me-2"></i>
-                Shop
-            </a>
-
-            <a href="{% url 'membership_orders' %}"
-            class="nav-link {% if current == 'membership_orders' %}active{% endif %}">
-                <i class="bi bi-box-seam me-2"></i>
-                Orders
-            </a>
-
-            <hr class="border-light my-3">
-
-            <a href="{% url 'membership_membership' %}"
-            class="nav-link {% if current == 'membership_membership' %}active{% endif %}">
-                <i class="bi bi-stars me-2"></i>
-                Membership
-            </a>
-
-            <a href="{% url 'membership_account' %}"
-            class="nav-link {% if current == 'membership_account' %}active{% endif %}">
-                <i class="bi bi-person-circle me-2"></i>
-                My Account
-            </a>
-
-            <a href="{% url 'membership_support' %}"
-            class="nav-link {% if current == 'membership_support' %}active{% endif %}">
-                <i class="bi bi-life-preserver me-2"></i>
-                Support
-            </a>
-
+    <section class="section-card">
+        <div class="section-heading">
+            <div>
+                <h2>Support services in development</h2>
+                <p>Tools we're preparing for members</p>
+            </div>
+            <span class="section-icon"><i class="bi bi-life-preserver"></i></span>
         </div>
+        <div class="section-body">
+            <ul class="feature-list">
+                <li class="feature-item">
+                    <span class="feature-icon"><i class="bi bi-ticket-perforated"></i></span>
+                    <span>Log a support request</span>
+                </li>
+                <li class="feature-item">
+                    <span class="feature-icon"><i class="bi bi-list-check"></i></span>
+                    <span>Track your existing tickets</span>
+                </li>
+                <li class="feature-item">
+                    <span class="feature-icon"><i class="bi bi-chat-dots"></i></span>
+                    <span>Chat with our support team</span>
+                </li>
+                <li class="feature-item">
+                    <span class="feature-icon"><i class="bi bi-question-circle"></i></span>
+                    <span>Frequently Asked Questions</span>
+                </li>
+                <li class="feature-item">
+                    <span class="feature-icon"><i class="bi bi-truck"></i></span>
+                    <span>Delivery assistance</span>
+                </li>
+                <li class="feature-item">
+                    <span class="feature-icon"><i class="bi bi-receipt"></i></span>
+                    <span>Billing and invoice support</span>
+                </li>
+            </ul>
+        </div>
+    </section>
 
-        <hr class="border-light mt-4">
-
-        <form action="{% url 'logout' %}" method="post">
-            {% csrf_token %}
-            <button type="submit"
-                    class="btn btn-outline-light w-100">
-                <i class="bi bi-box-arrow-right me-2"></i>
-                Sign Out
-            </button>
-        </form>
-
-        {% endwith %}
-
-    </aside>
-
-    <main class="content">
-
-        <div class="container py-5">
-
-            <div class="text-center">
-
-                <div class="display-1 mb-4">
-                    🛟
-                </div>
-
-                <h1 class="fw-bold mb-3">
-                    Support Centre
-                </h1>
-
-                <p class="lead text-muted mb-5">
-
-                    We're building a dedicated support centre to make it easier for you to get assistance,
-                    track support requests and find answers to common questions.
-
+    <section class="section-card">
+        <div class="section-heading">
+            <div>
+                <h2>Need help right now?</h2>
+                <p>Contact The Daily Market directly</p>
+            </div>
+            <span class="section-icon"><i class="bi bi-telephone"></i></span>
+        </div>
+        <div class="section-body">
+            <div class="contact-panel">
+                <div class="contact-icon"><i class="bi bi-headset"></i></div>
+                <h2>Our team is ready to assist</h2>
+                <p>
+                    While the online support centre is being developed, contact
+                    The Daily Market directly and our team will gladly assist you.
                 </p>
-
-            </div>
-
-            <div class="row justify-content-center">
-
-                <div class="col-lg-8">
-
-                    <div class="card border-0 shadow-sm">
-
-                        <div class="card-body text-center py-5">
-
-                            <h3 class="fw-bold mb-3">
-                                🚧 Coming Soon
-                            </h3>
-
-                            <p class="text-muted mb-4">
-
-                                Soon you'll be able to:
-
-                            </p>
-
-                            <div class="row text-start">
-
-                                <div class="col-md-6">
-
-                                    <ul class="list-unstyled">
-
-                                        <li class="mb-3">
-                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
-                                            Log a support request
-                                        </li>
-
-                                        <li class="mb-3">
-                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
-                                            Track your existing tickets
-                                        </li>
-
-                                        <li class="mb-3">
-                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
-                                            Chat with our support team
-                                        </li>
-
-                                    </ul>
-
-                                </div>
-
-                                <div class="col-md-6">
-
-                                    <ul class="list-unstyled">
-
-                                        <li class="mb-3">
-                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
-                                            Frequently Asked Questions
-                                        </li>
-
-                                        <li class="mb-3">
-                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
-                                            Delivery assistance
-                                        </li>
-
-                                        <li class="mb-3">
-                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
-                                            Billing & invoice support
-                                        </li>
-
-                                    </ul>
-
-                                </div>
-
-                            </div>
-
-                            <hr class="my-4">
-
-                            <p class="mb-1">
-
-                                <strong>Need help immediately?</strong>
-
-                            </p>
-
-                            <p class="text-muted mb-4">
-
-                                Contact The Daily Market directly and our team will gladly assist you.
-
-                            </p>
-
-                            <div class="d-flex justify-content-center flex-wrap gap-3">
-
-                                <a href="tel:0872655488"
-                                class="btn btn-success">
-
-                                    <i class="bi bi-telephone-fill me-2"></i>
-
-                                    Call Us
-
-                                </a>
-
-                                <a href="mailto:info@thedailymarket.co.za"
-                                class="btn btn-outline-success">
-
-                                    <i class="bi bi-envelope-fill me-2"></i>
-
-                                    Email Us
-
-                                </a>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
+                <div class="contact-actions">
+                    <a href="tel:0872655488" class="contact-button">
+                        <i class="bi bi-telephone-fill"></i>
+                        Call 087 265 5488
+                    </a>
+                    <a href="mailto:info@thedailymarket.co.za" class="contact-button secondary">
+                        <i class="bi bi-envelope-fill"></i>
+                        Email us
+                    </a>
                 </div>
-
             </div>
-
         </div>
+    </section>
 
-    </main>
+    <p class="footer-note">
+        The Daily Market · Your everyday food &amp; kitchen partner.
+    </p>
+</div>
 
+<nav class="bottom-nav" aria-label="Main navigation">
+    <a href="{% url 'membership_dashboard' %}">
+        <i class="bi bi-house-door"></i>
+        <span>Home</span>
+    </a>
+    <a href="{% url 'membership_shop' %}">
+        <i class="bi bi-bag"></i>
+        <span>Shop</span>
+    </a>
+    <a href="{% url 'membership_orders' %}">
+        <i class="bi bi-receipt"></i>
+        <span>Orders</span>
+    </a>
+    <a href="{% url 'membership_account' %}">
+        <i class="bi bi-person-circle"></i>
+        <span>Account</span>
+    </a>
+</nav>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

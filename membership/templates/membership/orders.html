@@ -2,654 +2,203 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - The Daily Market</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <style>
-    /* --- Desktop: fixed (non-movable) sidebar --- */
-    @media (min-width: 992px) {
-      html, body { height: 100%; }
-      body { min-height: 100vh; overflow-x: hidden; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#075b3d">
+<title>My Orders | The Daily Market</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
 
-      .sidebar-desktop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 220px;
-        height: 100vh;
-        overflow-y: auto;
-        overflow-x: visible !important; /* allow dropdown to show */
-      }
+:root{
+  --green:#075b3d;--green-deep:#06452f;--green-light:#eaf3ed;--gold:#d7a943;
+  --ink:#1d2b24;--muted:#78847c;--line:#e7ece8;--surface:#f6f8f5;
+  --app-width:760px;--nav-height:72px;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%;margin:0;background:#eef2ee;color:var(--ink);
+font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.app-shell{width:100%;max-width:var(--app-width);min-height:100vh;margin:0 auto;background:#fff;box-shadow:0 12px 45px rgba(15,55,35,.07)}
+.page-content{padding-bottom:calc(var(--nav-height) + 28px + env(safe-area-inset-bottom))}
+.topbar{min-height:82px;display:flex;align-items:center;justify-content:center;position:relative;padding:0 24px;border-top:4px solid var(--green);border-bottom:1px solid #edf1ed;background:#fff}
+.brand{display:flex;align-items:center;justify-content:center;text-decoration:none}
+.brand-logo{display:block;width:76px;height:76px;padding:12px;border:1px solid #e7eee9;border-radius:50%;background:#fff;object-fit:contain;object-position:center}
+.account-link{position:absolute;right:25px;top:50%;transform:translateY(-50%);width:42px;height:42px;display:grid;place-items:center;color:var(--green);border:1px solid #e4ebe6;border-radius:50%;background:#fff;text-decoration:none;font-size:18px}
+.page-intro{margin:18px 18px 0;padding:27px 22px 25px;border-radius:20px;background:var(--green);color:#fff;text-align:center}
+.page-kicker{display:inline-flex;align-items:center;gap:7px;margin:0 auto 11px;padding:7px 12px;border:1px solid rgba(244,222,170,.34);border-radius:30px;color:#f2d58d;background:rgba(255,255,255,.08);font-size:9px;font-weight:800;letter-spacing:.13em}
+.page-intro h1{margin:0;color:#fff;font-size:clamp(23px,4.5vw,29px);font-weight:800;letter-spacing:-.045em}
+.page-intro p{margin:8px 0 0;color:rgba(255,255,255,.78);font-size:11px;line-height:1.6}
+.section{padding:0 25px;margin-top:25px}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}
+.section-title{margin:0;color:var(--ink);font-size:15px;font-weight:800;letter-spacing:-.025em}
+.section-link{color:var(--green);font-size:11px;font-weight:750;text-decoration:none}
+.panel{overflow:hidden;border:1px solid #e6ece7;border-radius:17px;background:#fff;box-shadow:0 4px 14px rgba(18,55,35,.035)}
+.panel-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.panel-header h2,.panel-header h3{margin:0;color:var(--ink);font-size:14px;font-weight:800;letter-spacing:-.02em}
+.panel-body{padding:18px}
+.muted{color:var(--muted)}
+.eyebrow{display:block;margin-bottom:6px;color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.metric{padding:14px;border:1px solid var(--line);border-radius:13px;background:#fbfcfb}
+.metric-value{margin:4px 0 0;color:var(--green);font-size:17px;font-weight:800}
+.order-highlight{padding:18px;border:0;border-radius:17px;color:#fff;background:var(--green-deep);box-shadow:0 9px 22px rgba(6,69,47,.12)}
+.order-highlight .eyebrow{color:rgba(255,255,255,.68)}
+.order-highlight .big-value{margin:2px 0;color:#fff;font-size:25px;font-weight:800;letter-spacing:-.04em}
+.order-highlight .small-copy{color:rgba(255,255,255,.72);font-size:10px}
+.order-meta-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px;padding-top:15px;border-top:1px solid rgba(255,255,255,.18)}
+.order-meta-grid strong{display:block;color:#fff;font-size:12px}
+.order-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 15px;border:1px solid transparent;border-radius:30px;font-size:11px;font-weight:750;text-decoration:none;cursor:pointer}
+.btn-primary{color:#fff;background:var(--green);border-color:var(--green)}
+.btn-primary:hover{color:#fff;background:var(--green-deep);border-color:var(--green-deep)}
+.btn-soft{color:var(--green);background:var(--green-light);border-color:#dce9df}
+.btn-soft:hover{color:var(--green-deep);background:#dcebe1}
+.btn-light-outline{color:#fff;border-color:rgba(255,255,255,.35);background:rgba(255,255,255,.1)}
+.btn-light-outline:hover{color:#fff;background:rgba(255,255,255,.18)}
+.status-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:30px;background:var(--green-light);color:var(--green);font-size:9px;font-weight:800;white-space:nowrap}
+.status-pill.warning{background:#fbf2df;color:#93691c}
+.status-pill.info{background:#eaf1f7;color:#42647e}
+.status-pill.dark{background:#edf0ee;color:#4b5750}
+.status-pill.danger{background:#fbeceb;color:#a33d35}
+.order-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:15px 17px;border-bottom:1px solid var(--line)}
+.order-row:last-child{border-bottom:0}
+.order-row-title{margin:0;font-size:12px;font-weight:800}
+.order-row-meta{display:block;margin-top:5px;color:var(--muted);font-size:10px;line-height:1.5}
+.order-row-side{text-align:right}
+.order-row-total{display:block;margin-bottom:7px;color:var(--ink);font-size:12px;font-weight:800;white-space:nowrap}
+.empty-state{padding:28px 18px;border:1px dashed #cbd9cf;border-radius:15px;background:#fbfcfb;text-align:center;color:var(--muted);font-size:11px;line-height:1.6}
+.empty-state i{display:block;margin-bottom:9px;color:var(--green);font-size:25px}
+.table-wrap{overflow-x:auto}
+.data-table{width:100%;border-collapse:collapse;font-size:11px}
+.data-table th{padding:12px 14px;background:#f6f8f6;color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.07em;text-align:left;text-transform:uppercase;white-space:nowrap}
+.data-table td{padding:13px 14px;border-top:1px solid #edf1ed;vertical-align:middle}
+.data-table th.right,.data-table td.right{text-align:right}
+.data-table th.center,.data-table td.center{text-align:center}
+.data-table tfoot th{background:#f6f8f6;color:var(--ink)}
+.progress-list{display:grid;gap:0}
+.progress-step{display:grid;grid-template-columns:34px minmax(0,1fr);gap:11px;position:relative;padding:0 0 17px}
+.progress-step:last-child{padding-bottom:0}
+.progress-step:not(:last-child):before{content:"";position:absolute;left:15px;top:31px;bottom:0;width:2px;background:#e5ece7}
+.progress-icon{position:relative;z-index:1;width:32px;height:32px;display:grid;place-items:center;border-radius:50%;border:1px solid #dce5de;background:#f7f9f7;color:#8b968e;font-size:13px}
+.progress-step.done .progress-icon{border-color:var(--green);background:var(--green);color:#fff}
+.progress-step.current .progress-icon{border-color:#e4c779;background:#fbf2df;color:#946e22}
+.progress-title{margin:2px 0 3px;font-size:11px;font-weight:800}
+.progress-copy{margin:0;color:var(--muted);font-size:10px;line-height:1.5}
+.detail-pair{display:flex;justify-content:space-between;gap:15px;padding:11px 0;border-bottom:1px solid var(--line);font-size:11px}
+.detail-pair:last-child{border-bottom:0}
+.detail-pair span:first-child{color:var(--muted)}
+.detail-pair strong{text-align:right;font-weight:750}
+.footer{display:flex;flex-direction:column;align-items:center;gap:5px;padding:26px 20px 18px;text-align:center}
+.footer-brand{color:var(--green);font-size:11px;font-weight:800}
+.footer-tagline{color:#9a8870;font-size:10px}
+.bottom-nav-wrap{position:fixed;z-index:1000;right:0;bottom:0;left:0;width:100%;max-width:var(--app-width);margin:0 auto;padding-bottom:env(safe-area-inset-bottom);border-top:1px solid #e6ece7;background:rgba(255,255,255,.97);box-shadow:0 -5px 18px rgba(20,55,35,.045);backdrop-filter:blur(12px)}
+.bottom-nav{height:var(--nav-height);display:grid;grid-template-columns:repeat(4,1fr);align-items:center;padding:5px 10px}
+.nav-item{position:relative;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-radius:12px;color:#87928b;font-size:10px;font-weight:750;text-decoration:none;transition:background .15s ease,color .15s ease}
+.nav-item i{font-size:19px}
+.nav-item.active{color:var(--green);background:var(--green-light);font-weight:800}
+a:focus-visible,button:focus-visible{outline:3px solid rgba(215,169,67,.65);outline-offset:3px;border-radius:8px}
+@media(max-width:575.98px){
+ .topbar{min-height:78px}.brand-logo{width:70px;height:70px;padding:10px}
+ .account-link{right:16px;width:38px;height:38px}
+ .page-intro{margin:14px 14px 0;padding:24px 16px 22px}
+ .section{padding:0 18px;margin-top:23px}
+ .panel-body{padding:15px}
+ .order-row{padding:14px 13px;gap:8px}
+ .order-row-title{font-size:11px}
+ .order-row-total{font-size:11px}
+}
+@media(max-width:360px){.section{padding:0 14px}.page-intro{margin-right:10px;margin-left:10px}}
 
-      /* ✅ Let Bootstrap control dropdown positioning */
-      .sidebar-desktop .dropdown {
-        position: relative;
-      }
-
-      
-
-      .sidebar-desktop .dropdown-menu {
-        margin-top: 8px;
-      }
-
-      main.content {
-        margin-left: 220px;
-        min-height: 100vh;
-      }
-    }
-
-    /* Shared styles */
-    .sidebar-skin {
-      background-color: #0b5c39;
-      color: #fff;
-      padding: 1rem;
-    }
-
-    .sidebar-skin .nav-link {
-      color: #fff;
-      margin: .25rem 0;
-      display: block;
-    }
-
-    .sidebar-skin .nav-link.active,
-    .sidebar-skin .nav-link:hover {
-      background: rgba(255,255,255,0.15);
-      border-radius: 4px;
-      padding-left: 8px;
-    }
-
-    .logo-img {
-      max-height: 80px;
-      width: auto;
-    }
-
-    .content {
-      background: #f8f9fa;
-      padding: 20px;
-    }
-
-    .sidebar-skin .nav-link.ps-4 {
-      font-size: .95rem;
-      opacity: .95;
-    }
-
-    /* --- Compact chart height --- */
-    .chart-wrap {
-      position: relative;
-      width: 100%;
-      height: 220px;
-    }
-
-    .member-hero{
-        border-radius:20px;
-    }
-
-    .hero-banner{
-        background:#0b5c39;
-        border-radius:18px;
-        padding:28px 35px;
-
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-
-        height:150px;
-    }
-
-    .status-card{
-        background:#fff;
-        border-radius:18px;
-        padding:20px;
-
-        display:flex;
-        flex-direction:column;
-        justify-content:center;
-        align-items:center;
-
-        box-shadow:0 8px 20px rgba(0,0,0,.08);
-
-        height:150px;
-    }
-
-    .hero-icon{
-        font-size:60px;
-        color:rgba(255,255,255,.10);
-    }
-
-    @media (max-width: 991.98px) {
-      .chart-wrap { height: 180px; }
-    }
-
-    @media (max-width: 575.98px) {
-      .chart-wrap { height: 150px; }
-    }
-
-    .chart-wrap canvas {
-      width: 100% !important;
-      height: 100% !important;
-      display: block;
-    }
-  </style>
+</style>
 </head>
 <body>
+<div class="app-shell">
+<main class="page-content">
+<header class="topbar">
+  <a href="{% url 'home' %}" class="brand" aria-label="The Daily Market home">
+    <img class="brand-logo" src="{% static 'images/logo.png' %}" alt="The Daily Market">
+  </a>
+  <a class="account-link" href="{% url 'membership_account' %}" aria-label="My account"><i class="bi bi-person"></i></a>
+</header>
 
-  
+<section class="page-intro">
+  <div class="page-kicker"><i class="bi bi-receipt"></i><span>YOUR DAILY MARKET ACCOUNT</span></div>
+  <h1>My Orders</h1>
+  <p>Track your latest order and keep an eye on your order history.</p>
+</section>
 
-    <!-- ========================= -->
-    <!-- MOBILE NAVIGATION -->
-    <!-- ========================= -->
-
-    <nav class="navbar navbar-dark d-lg-none" style="background:#0b5c39;">
-        <div class="container-fluid">
-
-            <button class="navbar-toggler"
-                    type="button"
-                    data-bs-toggle="offcanvas"
-                    data-bs-target="#mobileMenu"
-                    aria-controls="mobileMenu">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-
-            <a class="navbar-brand ms-2" href="{% url 'membership_dashboard' %}">
-                <img src="{% static 'images/logo.png' %}"
-                    alt="The Daily Market"
-                    style="height:40px;">
-            </a>
-
-        </div>
-    </nav>
-
-    <div class="offcanvas offcanvas-start d-lg-none sidebar-skin"
-        tabindex="-1"
-        id="mobileMenu">
-
-        <div class="offcanvas-header">
-            <button type="button"
-                    class="btn-close btn-close-white"
-                    data-bs-dismiss="offcanvas"
-                    aria-label="Close">
-            </button>
-        </div>
-
-        <div class="offcanvas-body">
-
-            <div class="text-center mb-4">
-                <img src="{% static 'images/logo.png' %}"
-                    alt="The Daily Market"
-                    class="logo-img">
-            </div>
-
-            {% with current=request.resolver_match.url_name %}
-
-            <div class="nav flex-column">
-
-                <a href="{% url 'membership_dashboard' %}"
-                class="nav-link {% if current == 'membership_dashboard' %}active{% endif %}">
-                    <i class="bi bi-house-door me-2"></i>
-                    Dashboard
-                </a>
-
-                <a href="{% url 'membership_shop' %}"
-                class="nav-link {% if current == 'membership_shop' %}active{% endif %}">
-                    <i class="bi bi-cart3 me-2"></i>
-                    Shop
-                </a>
-
-                <a href="{% url 'membership_orders' %}"
-                class="nav-link {% if current == 'membership_orders' %}active{% endif %}">
-                    <i class="bi bi-box-seam me-2"></i>
-                    Orders
-                </a>
-
-                <hr class="border-light my-3">
-
-                <a href="{% url 'membership_membership' %}"
-                class="nav-link {% if current == 'membership_membership' %}active{% endif %}">
-                    <i class="bi bi-stars me-2"></i>
-                    Membership
-                </a>
-
-                <a href="{% url 'membership_account' %}"
-                class="nav-link {% if current == 'membership_account' %}active{% endif %}">
-                    <i class="bi bi-person-circle me-2"></i>
-                    My Account
-                </a>
-
-                <a href="{% url 'membership_support' %}"
-                class="nav-link {% if current == 'membership_support' %}active{% endif %}">
-                    <i class="bi bi-life-preserver me-2"></i>
-                    Support
-                </a>
-
-            </div>
-
-            <hr class="border-light mt-4">
-
-            <form action="{% url 'logout' %}" method="post">
-                {% csrf_token %}
-                <button type="submit"
-                        class="btn btn-outline-light w-100">
-                    <i class="bi bi-box-arrow-right me-2"></i>
-                    Sign Out
-                </button>
-            </form>
-
-            {% endwith %}
-
-        </div>
-
+<section class="section">
+  <div class="section-heading"><h2 class="section-title">Latest order</h2></div>
+  {% if latest_order %}
+  <div class="order-highlight">
+    <span class="eyebrow">Most recent order</span>
+    <p class="big-value">Order #{{ latest_order.id }}</p>
+    <span class="small-copy">Placed {{ latest_order.submitted_at|date:"d M Y" }}</span>
+    <div class="order-meta-grid">
+      <div><span class="eyebrow">Order total</span><strong>R{{ latest_order.grand_total_inc|floatformat:2|intcomma }}</strong></div>
+      <div><span class="eyebrow">Current status</span>
+        {% if latest_order.status == "pending" %}<span class="status-pill">Pending</span>
+        {% elif latest_order.status == "approved" %}<span class="status-pill info">Approved</span>
+        {% elif latest_order.status == "awaiting_payment" %}<span class="status-pill warning">Awaiting Payment</span>
+        {% elif latest_order.status == "at_warehouse" %}<span class="status-pill info">At Warehouse</span>
+        {% elif latest_order.status == "ready_for_delivery" %}<span class="status-pill info">Ready For Delivery</span>
+        {% elif latest_order.status == "out_for_delivery" %}<span class="status-pill dark">Out For Delivery</span>
+        {% elif latest_order.status == "complete" %}<span class="status-pill">Delivered</span>
+        {% else %}<span class="status-pill">{{ latest_order.get_status_display }}</span>{% endif %}
+      </div>
     </div>
-
-
-    <!-- ========================= -->
-    <!-- DESKTOP SIDEBAR -->
-    <!-- ========================= -->
-
-    <aside class="sidebar-desktop d-none d-lg-block sidebar-skin">
-
-        <div class="text-center mb-4">
-            <a href="{% url 'membership_dashboard' %}">
-                <img src="{% static 'images/logo.png' %}"
-                    alt="The Daily Market"
-                    class="logo-img">
-            </a>
-        </div>
-
-        {% with current=request.resolver_match.url_name %}
-
-        <div class="nav flex-column">
-
-            <a href="{% url 'membership_dashboard' %}"
-            class="nav-link {% if current == 'membership_dashboard' %}active{% endif %}">
-                <i class="bi bi-house-door me-2"></i>
-                Dashboard
-            </a>
-
-            <a href="{% url 'membership_shop' %}"
-            class="nav-link {% if current == 'membership_shop' %}active{% endif %}">
-                <i class="bi bi-cart3 me-2"></i>
-                Shop
-            </a>
-
-            <a href="{% url 'membership_orders' %}"
-            class="nav-link {% if current == 'membership_orders' %}active{% endif %}">
-                <i class="bi bi-box-seam me-2"></i>
-                Orders
-            </a>
-
-            <hr class="border-light my-3">
-
-            <a href="{% url 'membership_membership' %}"
-            class="nav-link {% if current == 'membership_membership' %}active{% endif %}">
-                <i class="bi bi-stars me-2"></i>
-                Membership
-            </a>
-
-            <a href="{% url 'membership_account' %}"
-            class="nav-link {% if current == 'membership_account' %}active{% endif %}">
-                <i class="bi bi-person-circle me-2"></i>
-                My Account
-            </a>
-
-            <a href="{% url 'membership_support' %}"
-            class="nav-link {% if current == 'membership_support' %}active{% endif %}">
-                <i class="bi bi-life-preserver me-2"></i>
-                Support
-            </a>
-
-        </div>
-
-        <hr class="border-light mt-4">
-
-        <form action="{% url 'logout' %}" method="post">
-            {% csrf_token %}
-            <button type="submit"
-                    class="btn btn-outline-light w-100">
-                <i class="bi bi-box-arrow-right me-2"></i>
-                Sign Out
-            </button>
-        </form>
-
-        {% endwith %}
-
-    </aside>
-
-    <main class="content">
-
-        <div class="container-fluid">
-
-            <!-- ===================================================== -->
-            <!-- Header -->
-            <!-- ===================================================== -->
-
-            <div class="d-flex justify-content-between align-items-center mb-4">
-
-                <div>
-
-                    <h2 class="fw-bold mb-1">
-                        My Orders
-                    </h2>
-
-                    <p class="text-muted mb-0">
-                        Track your latest order and view your order history.
-                    </p>
-
-                </div>
-
-            </div>
-
-            <!-- ===================================================== -->
-            <!-- Latest Order -->
-            <!-- ===================================================== -->
-
-            <div class="card border-0 shadow-sm mb-5">
-
-                <div class="card-header bg-white">
-
-                    <h4 class="fw-bold mb-0">
-                        Latest Order
-                    </h4>
-
-                </div>
-
-                <div class="card-body">
-
-                    {% if latest_order %}
-
-                    <div class="row align-items-center g-4">
-
-                        <div class="col-md-8">
-
-                            <div class="row g-3">
-
-                                <div class="col-6 col-lg-3">
-
-                                    <small class="text-uppercase text-muted">
-                                        Order
-                                    </small>
-
-                                    <h3 class="fw-bold mb-0">
-                                        #{{ latest_order.id }}
-                                    </h3>
-
-                                </div>
-
-                                <div class="col-6 col-lg-3">
-
-                                    <small class="text-uppercase text-muted">
-                                        Date
-                                    </small>
-
-                                    <h6 class="fw-bold mb-0">
-                                        {{ latest_order.submitted_at|date:"d M Y" }}
-                                    </h6>
-
-                                </div>
-
-                                <div class="col-6 col-lg-3">
-
-                                    <small class="text-uppercase text-muted">
-                                        Total
-                                    </small>
-
-                                    <h5 class="fw-bold text-success mb-0">
-                                        R{{ latest_order.grand_total_inc|floatformat:2|intcomma }}
-                                    </h5>
-
-                                </div>
-
-                                <div class="col-6 col-lg-3">
-
-                                    <small class="text-uppercase text-muted">
-                                        Status
-                                    </small>
-
-                                    <div>
-
-                                        {% if latest_order.status == "pending" %}
-
-                                            <span class="badge bg-secondary fs-6">
-                                                Pending
-                                            </span>
-
-                                        {% elif latest_order.status == "approved" %}
-
-                                            <span class="badge bg-primary fs-6">
-                                                Approved
-                                            </span>
-
-                                        {% elif latest_order.status == "awaiting_payment" %}
-
-                                            <span class="badge bg-warning text-dark fs-6">
-                                                Awaiting Payment
-                                            </span>
-
-                                        {% elif latest_order.status == "at_warehouse" %}
-
-                                            <span class="badge bg-info text-dark fs-6">
-                                                At Warehouse
-                                            </span>
-
-                                        {% elif latest_order.status == "ready_for_delivery" %}
-
-                                            <span class="badge bg-primary fs-6">
-                                                Ready For Delivery
-                                            </span>
-
-                                        {% elif latest_order.status == "out_for_delivery" %}
-
-                                            <span class="badge bg-dark fs-6">
-                                                Out For Delivery
-                                            </span>
-
-                                        {% elif latest_order.status == "complete" %}
-
-                                            <span class="badge bg-success fs-6">
-                                                Delivered
-                                            </span>
-
-                                        {% else %}
-
-                                            <span class="badge bg-light text-dark fs-6">
-                                                {{ latest_order.get_status_display }}
-                                            </span>
-
-                                        {% endif %}
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <div class="col-md-4 text-md-end">
-
-                            <a href="{% url 'membership_view_order' latest_order.id %}"
-                                class="btn btn-success btn-lg">
-
-                                <i class="bi bi-eye me-2"></i>
-                                View Order
-
-                            </a>
-
-                        </div>
-
-                    </div>
-
-                    {% else %}
-
-                        <div class="alert alert-info mb-0">
-
-                            You have not placed any orders yet.
-
-                        </div>
-
-                    {% endif %}
-
-                </div>
-
-            </div>
-
-            <!-- ===================================================== -->
-            <!-- Order History -->
-            <!-- ===================================================== -->
-
-            <div class="card border-0 shadow-sm">
-
-                <div class="card-header bg-white">
-
-                    <div class="d-flex justify-content-between align-items-center">
-
-                        <h4 class="fw-bold mb-0">
-                            Order History
-                        </h4>
-
-                        <span class="text-muted">
-                            {{ orders.count }} Order{{ orders.count|pluralize }}
-                        </span>
-
-                    </div>
-
-                </div>
-
-                <div class="table-responsive">
-
-                    <table class="table table-hover align-middle mb-0">
-
-                        <thead class="table-light">
-
-                            <tr>
-
-                                <th>Order</th>
-                                <th>Date</th>
-                                <th>Status</th>
-                                <th class="text-end">Total</th>
-                                <th class="text-center">Action</th>
-
-                            </tr>
-
-                        </thead>
-
-                        <tbody>
-
-                            {% for order in orders %}
-
-                            <tr>
-
-                                <td>
-
-                                    <strong>
-                                        #{{ order.id }}
-                                    </strong>
-
-                                </td>
-
-                                <td>
-
-                                    {{ order.submitted_at|date:"d M Y" }}
-
-                                </td>
-
-                                <td>
-
-                                    {% if order.status == "pending" %}
-                                        <span class="badge bg-secondary">
-                                            {{ order.get_status_display }}
-                                        </span>
-
-                                    {% elif order.status == "approved" %}
-                                        <span class="badge bg-primary">
-                                            {{ order.get_status_display }}
-                                        </span>
-
-                                    {% elif order.status == "awaiting_payment" %}
-                                        <span class="badge bg-warning text-dark">
-                                            {{ order.get_status_display }}
-                                        </span>
-
-                                    {% elif order.status == "at_warehouse" %}
-                                        <span class="badge bg-info text-dark">
-                                            {{ order.get_status_display }}
-                                        </span>
-
-                                    {% elif order.status == "ready_for_delivery" %}
-                                        <span class="badge bg-primary">
-                                            {{ order.get_status_display }}
-                                        </span>
-
-                                    {% elif order.status == "out_for_delivery" %}
-                                        <span class="badge bg-dark">
-                                            {{ order.get_status_display }}
-                                        </span>
-
-                                    {% elif order.status == "complete" %}
-                                        <span class="badge bg-success">
-                                            {{ order.get_status_display }}
-                                        </span>
-
-                                    {% elif order.status == "cancelled" %}
-                                        <span class="badge bg-danger">
-                                            {{ order.get_status_display }}
-                                        </span>
-
-                                    {% else %}
-                                        <span class="badge bg-light text-dark">
-                                            {{ order.get_status_display }}
-                                        </span>
-
-                                    {% endif %}
-
-                                </td>
-
-                                <td class="text-end">
-
-                                    R{{ order.grand_total_inc|floatformat:2|intcomma }}
-
-                                </td>
-
-                                <td class="text-center">
-
-                                    <a href="{% url 'membership_view_order' order.id %}"
-                                        class="btn btn-sm btn-outline-success">
-
-                                        <i class="bi bi-eye me-1"></i>
-                                        View
-
-                                    </a>
-
-                                </td>
-
-                            </tr>
-
-                            {% empty %}
-
-                            <tr>
-
-                                <td colspan="5" class="text-center py-5 text-muted">
-
-                                    You haven't placed any orders yet.
-
-                                </td>
-
-                            </tr>
-
-                            {% endfor %}
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </main>
-
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <div class="order-actions">
+      <a href="{% url 'membership_view_order' latest_order.id %}" class="btn btn-light-outline"><i class="bi bi-eye"></i> View order</a>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-bag"></i><strong>No orders yet</strong><br>You haven't placed any orders. Browse the shop to get started.<br><a class="btn btn-primary" style="margin-top:13px" href="{% url 'membership_shop' %}"><i class="bi bi-basket2"></i> Browse products</a></div>
+  {% endif %}
+</section>
+
+<section class="section">
+  <div class="section-heading">
+    <h2 class="section-title">Order history</h2>
+    <span class="muted" style="font-size:10px">{{ orders.count }} order{{ orders.count|pluralize }}</span>
+  </div>
+  <div class="panel">
+    {% for order in orders %}
+    <article class="order-row">
+      <div>
+        <h3 class="order-row-title">Order #{{ order.id }}</h3>
+        <span class="order-row-meta">{{ order.submitted_at|date:"d M Y" }}<br>
+          {% if order.status == "pending" %}<span class="status-pill">Pending</span>
+          {% elif order.status == "approved" %}<span class="status-pill info">Approved</span>
+          {% elif order.status == "awaiting_payment" %}<span class="status-pill warning">Awaiting Payment</span>
+          {% elif order.status == "at_warehouse" %}<span class="status-pill info">At Warehouse</span>
+          {% elif order.status == "ready_for_delivery" %}<span class="status-pill info">Ready For Delivery</span>
+          {% elif order.status == "out_for_delivery" %}<span class="status-pill dark">Out For Delivery</span>
+          {% elif order.status == "complete" %}<span class="status-pill">Delivered</span>
+          {% elif order.status == "cancelled" %}<span class="status-pill danger">Cancelled</span>
+          {% else %}<span class="status-pill">{{ order.get_status_display }}</span>{% endif %}
+        </span>
+      </div>
+      <div class="order-row-side">
+        <span class="order-row-total">R{{ order.grand_total_inc|floatformat:2|intcomma }}</span>
+        <a href="{% url 'membership_view_order' order.id %}" class="btn btn-soft"><i class="bi bi-eye"></i> View</a>
+      </div>
+    </article>
+    {% empty %}
+    <div class="empty-state" style="border:0;border-radius:0"><i class="bi bi-clock-history"></i><strong>Your order history is empty</strong><br>Orders you place will appear here.</div>
+    {% endfor %}
+  </div>
+</section>
+
+<footer class="footer"><span class="footer-brand">The Daily Market</span><span class="footer-tagline">Your everyday food &amp; kitchen partner</span></footer>
+</main>
+<nav class="bottom-nav-wrap" aria-label="Main navigation">
+  <div class="bottom-nav">
+    <a class="nav-item" href="{% url 'membership_dashboard' %}"><i class="bi bi-house-door"></i><span>Home</span></a>
+    <a class="nav-item" href="{% url 'membership_shop' %}"><i class="bi bi-basket2"></i><span>Shop</span></a>
+    <a class="nav-item active" href="{% url 'membership_orders' %}" aria-current="page"><i class="bi bi-receipt"></i><span>Orders</span></a>
+    <a class="nav-item" href="{% url 'membership_account' %}"><i class="bi bi-person"></i><span>Account</span></a>
+  </div>
+</nav>
+</div>
+</body>
+</html>
