@@ -2,6 +2,7 @@
 import hashlib
 import logging
 import urllib.parse
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.conf import settings
@@ -17,11 +18,11 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 from django.forms import inlineformset_factory
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
-from django.utils.timezone import now
+from django.utils.timezone import now, localdate, get_current_timezone, make_aware
 from django.views.decorators.http import require_POST
 
 from clients.models import Client
@@ -40,6 +41,7 @@ from .communication_services import send_credit_status_notifications
 from .models import (
     CreditAccount,
     CreditEntry,
+    CreditSettlement,
     CreditLog,
     Funder,
     FunderAllocation,
@@ -903,6 +905,677 @@ def credit_client_view(request, client_id):
             "allocatable_balance": allocatable_balance,
         },
     )
+
+
+# ============================================================
+# TRADE ASSIST ACCOUNT STATEMENTS
+# ============================================================
+
+def _statement_period(period, start_raw="", end_raw=""):
+    """Resolve statement dates using the twice-weekly Thu/Sun cycle."""
+    today = localdate()
+    period = (period or "current").strip().lower()
+
+    if period == "current":
+        # Monday–Thursday is the Thursday cycle; Friday–Sunday is the Sunday cycle.
+        cycle_start = today - timedelta(days=today.weekday())
+        if today.weekday() >= 4:  # Friday, Saturday or Sunday
+            cycle_start = today - timedelta(days=today.weekday() - 4)
+        return cycle_start, today, "Current period"
+
+    if period == "7":
+        return today - timedelta(days=6), today, "Last 7 days"
+
+    if period == "30":
+        return today - timedelta(days=29), today, "Last 30 days"
+
+    if period == "custom":
+        try:
+            start = date.fromisoformat(start_raw)
+            end = date.fromisoformat(end_raw)
+        except (TypeError, ValueError):
+            raise ValueError("Select a valid start date and end date.")
+        if end < start:
+            raise ValueError("The end date cannot be earlier than the start date.")
+        if end > today:
+            raise ValueError("The statement end date cannot be in the future.")
+        return start, end, "Custom date range"
+
+    raise ValueError("Select a valid statement period.")
+
+
+def _statement_context(client, account, start_date, end_date, period_label):
+    """
+    Build the statement from the account's actual credit ledger.
+
+    Datetime boundaries are explicitly constructed in the active Django
+    timezone (Africa/Johannesburg in this project) so the complete selected
+    dates are included, regardless of the database timezone.
+    """
+    zero = Decimal("0.00")
+    current_tz = get_current_timezone()
+
+    period_start = make_aware(
+        datetime.combine(start_date, time.min),
+        current_tz,
+    )
+    period_end_exclusive = make_aware(
+        datetime.combine(end_date + timedelta(days=1), time.min),
+        current_tz,
+    )
+
+    # The CreditEntry ledger is the source of truth for all account activity.
+    entries = list(
+        CreditEntry.objects.filter(
+            credit_account=account,
+            posted_at__gte=period_start,
+            posted_at__lt=period_end_exclusive,
+        )
+        .select_related("invoice", "transaction", "created_by")
+        .order_by("posted_at", "id")
+    )
+
+    # One settlement is created for every usage entry. Filter through its
+    # usage entry so the statement includes the utilisations made in-period.
+    settlements = list(
+        CreditSettlement.objects.filter(
+            credit_account=account,
+            usage_entry__posted_at__gte=period_start,
+            usage_entry__posted_at__lt=period_end_exclusive,
+        )
+        .select_related("invoice", "usage_entry")
+        .order_by("due_date", "usage_entry__posted_at", "id")
+    )
+
+    usage_total = sum(
+        (entry.amount for entry in entries if entry.kind == CreditEntry.USAGE),
+        zero,
+    )
+    repayment_total = sum(
+        (
+            entry.amount
+            for entry in entries
+            if entry.kind == CreditEntry.REPAYMENT
+        ),
+        zero,
+    )
+    adjustment_total = sum(
+        (
+            entry.amount
+            for entry in entries
+            if entry.kind == CreditEntry.ADJUSTMENT
+        ),
+        zero,
+    )
+
+    # CreditEntry.balance is the available buying power AFTER that entry.
+    # Opening = last balance before the period; closing = last balance
+    # posted during the period (or opening balance if there was no activity).
+    previous_entry = (
+        CreditEntry.objects.filter(
+            credit_account=account,
+            posted_at__lt=period_start,
+        )
+        .order_by("-posted_at", "-id")
+        .first()
+    )
+    last_period_entry = (
+        CreditEntry.objects.filter(
+            credit_account=account,
+            posted_at__gte=period_start,
+            posted_at__lt=period_end_exclusive,
+        )
+        .order_by("-posted_at", "-id")
+        .first()
+    )
+
+    opening_available = (
+        previous_entry.balance if previous_entry else zero
+    )
+    closing_available = (
+        last_period_entry.balance if last_period_entry else opening_available
+    )
+
+    # Settlement balances are live balances, while the utilisation date is
+    # the historical date on which buying power was used.
+    today = localdate()
+    overdue_count = 0
+    upcoming_count = 0
+    partially_settled_count = 0
+    settled_count = 0
+    cancelled_count = 0
+
+    for settlement in settlements:
+        outstanding = r2(
+            getattr(settlement, "outstanding_amount", zero) or zero
+        )
+        repaid = r2(getattr(settlement, "repaid_amount", zero) or zero)
+        stored_status = (getattr(settlement, "status", "") or "").upper()
+
+        if stored_status == "CANCELLED":
+            display_status = "Cancelled"
+            cancelled_count += 1
+        elif outstanding <= zero:
+            display_status = "Settled"
+            settled_count += 1
+        elif settlement.grace_date and settlement.grace_date < today:
+            display_status = "Overdue"
+            overdue_count += 1
+        elif repaid > zero:
+            display_status = "Partially settled"
+            partially_settled_count += 1
+        else:
+            display_status = "Outstanding"
+
+        if (
+            outstanding > zero
+            and display_status not in ("Overdue", "Cancelled")
+            and settlement.due_date
+            and settlement.due_date >= today
+        ):
+            upcoming_count += 1
+
+        settlement.display_status = display_status
+
+    outstanding_total = sum(
+        (
+            r2(getattr(settlement, "outstanding_amount", zero) or zero)
+            for settlement in settlements
+            if (getattr(settlement, "status", "") or "").upper() != "CANCELLED"
+        ),
+        zero,
+    )
+
+    credit_limit = r2(account.credit_limit or zero)
+    current_used = r2(account.credit_used or zero)
+    current_available = r2(account.credit_available or zero)
+    utilisation_pct = (
+        (current_used / credit_limit) * Decimal("100")
+        if credit_limit > zero else zero
+    )
+    utilisation_pct = min(Decimal("100.00"), max(zero, utilisation_pct)).quantize(
+        Decimal("0.01")
+    )
+
+    # Account-wide outstanding schedule: unlike the statement activity table,
+    # this includes every still-open utilisation, even if it was created
+    # before the selected statement period.
+    account_settlements = list(
+        CreditSettlement.objects.filter(credit_account=account)
+        .select_related("invoice", "usage_entry")
+        .order_by("due_date", "usage_entry__posted_at", "id")
+    )
+
+    account_open_settlements = []
+    due_schedule_map = {}
+    account_total_outstanding = zero
+    account_overdue_total = zero
+    account_upcoming_total = zero
+    account_no_due_date_total = zero
+
+    for settlement in account_settlements:
+        settlement_outstanding = r2(
+            getattr(settlement, "outstanding_amount", zero) or zero
+        )
+        settlement_repaid = r2(
+            getattr(settlement, "repaid_amount", zero) or zero
+        )
+        settlement_status = (
+            getattr(settlement, "status", "") or ""
+        ).upper()
+
+        if settlement_status == "CANCELLED" or settlement_outstanding <= zero:
+            continue
+
+        if settlement.grace_date and settlement.grace_date < today:
+            settlement_account_status = "Overdue"
+            account_overdue_total += settlement_outstanding
+        elif settlement.due_date and settlement.due_date >= today:
+            settlement_account_status = (
+                "Partially settled" if settlement_repaid > zero else "Upcoming"
+            )
+            account_upcoming_total += settlement_outstanding
+        elif settlement.due_date is None:
+            settlement_account_status = "Due date not set"
+            account_no_due_date_total += settlement_outstanding
+        else:
+            # Due date has passed, but grace date has not.
+            settlement_account_status = (
+                "Partially settled" if settlement_repaid > zero else "Due"
+            )
+            account_upcoming_total += settlement_outstanding
+
+        settlement.account_display_status = settlement_account_status
+        account_open_settlements.append(settlement)
+        account_total_outstanding += settlement_outstanding
+
+        due_key = settlement.due_date
+        if due_key not in due_schedule_map:
+            due_schedule_map[due_key] = {
+                "due_date": due_key,
+                "grace_dates": set(),
+                "invoice_refs": [],
+                "outstanding": zero,
+                "status_labels": set(),
+            }
+
+        schedule_row = due_schedule_map[due_key]
+        schedule_row["outstanding"] += settlement_outstanding
+        schedule_row["status_labels"].add(settlement_account_status)
+        if settlement.grace_date:
+            schedule_row["grace_dates"].add(settlement.grace_date)
+        invoice_ref = (
+            f"Invoice #{settlement.invoice_id}"
+            if settlement.invoice_id else f"Utilisation #{settlement.pk}"
+        )
+        schedule_row["invoice_refs"].append(invoice_ref)
+
+    due_schedule = []
+    for due_key, row in due_schedule_map.items():
+        row["outstanding"] = r2(row["outstanding"])
+        row["grace_dates"] = sorted(row["grace_dates"])
+        row["invoice_refs"] = ", ".join(row["invoice_refs"])
+        row["status_labels"] = ", ".join(sorted(row["status_labels"]))
+        due_schedule.append(row)
+
+    due_schedule.sort(
+        key=lambda row: (
+            row["due_date"] is None,
+            row["due_date"] or date.max,
+        )
+    )
+
+    account_total_outstanding = r2(account_total_outstanding)
+    account_overdue_total = r2(account_overdue_total)
+    account_upcoming_total = r2(account_upcoming_total)
+    account_no_due_date_total = r2(account_no_due_date_total)
+
+    customer_email = (getattr(client, "email", "") or "").strip()
+    if not customer_email:
+        profile = (
+            client.customer_profiles
+            .select_related("user")
+            .filter(user__email__gt="")
+            .first()
+        )
+        if profile and profile.user:
+            customer_email = (profile.user.email or "").strip()
+
+    return {
+        "client": client,
+        "account": account,
+        "start_date": start_date,
+        "end_date": end_date,
+        "period_label": period_label,
+        "generated_at": now(),
+        "entries": entries,
+        "settlements": settlements,
+        "usage_total": usage_total,
+        "repayment_total": repayment_total,
+        "adjustment_total": adjustment_total,
+        "opening_available": opening_available,
+        "closing_available": closing_available,
+        "settlement_outstanding_total": outstanding_total,
+        "credit_limit": credit_limit,
+        "current_used": current_used,
+        "current_available": current_available,
+        "utilisation_pct": utilisation_pct,
+        "overdue_count": overdue_count,
+        "upcoming_count": upcoming_count,
+        "partially_settled_count": partially_settled_count,
+        "settled_count": settled_count,
+        "cancelled_count": cancelled_count,
+        "account_open_settlements": account_open_settlements,
+        "due_schedule": due_schedule,
+        "account_total_outstanding": account_total_outstanding,
+        "account_overdue_total": account_overdue_total,
+        "account_upcoming_total": account_upcoming_total,
+        "account_no_due_date_total": account_no_due_date_total,
+        "customer_email": customer_email,
+    }
+
+
+def _build_statement_pdf(context):
+    """Create a printable PDF statement using ReportLab."""
+    from io import BytesIO
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    )
+    from xml.sax.saxutils import escape
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4, rightMargin=14*mm, leftMargin=14*mm,
+        topMargin=14*mm, bottomMargin=14*mm,
+        title=f"Trade Assist Statement - {context['client']}",
+    )
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(
+        name="BrandTitle", parent=styles["Title"], textColor=colors.HexColor("#0b5c39"),
+        alignment=TA_CENTER, fontSize=19, leading=22, spaceAfter=3,
+    ))
+    styles.add(ParagraphStyle(
+        name="SmallRight", parent=styles["Normal"], alignment=TA_RIGHT, fontSize=8,
+    ))
+    story = [
+        Paragraph("THE DAILY MARKET", styles["BrandTitle"]),
+        Paragraph("TRADE ASSIST ACCOUNT STATEMENT", styles["Heading2"]),
+        Paragraph(
+            f"<b>Account holder:</b> {escape(str(context['client']))}<br/>"
+            f"<b>Statement period:</b> {context['start_date']:%d %b %Y} – "
+            f"{context['end_date']:%d %b %Y}<br/>"
+            f"<b>Generated:</b> {context['generated_at']:%d %b %Y %H:%M}",
+            styles["Normal"],
+        ),
+        Spacer(1, 8),
+    ]
+
+    money = lambda value: f"R{(value or Decimal('0.00')):,.2f}"
+    summary = [
+        ["Approved buying power", "Currently utilised", "Available buying power"],
+        [money(context["credit_limit"]), money(context["current_used"]),
+         money(context["current_available"])],
+        ["Utilisation of approved limit", "Buying power used in period", "Repayments in period"],
+        [f'{context["utilisation_pct"]}%', money(context["usage_total"]),
+         money(context["repayment_total"])],
+        ["Total account outstanding", "Overdue outstanding", "Upcoming / due outstanding"],
+        [money(context["account_total_outstanding"]),
+         money(context["account_overdue_total"]),
+         money(context["account_upcoming_total"])],
+    ]
+    t = Table(summary, colWidths=[58*mm, 58*mm, 58*mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0b5c39")),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("BACKGROUND", (0,2), (-1,2), colors.HexColor("#eaf2ed")),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTNAME", (0,2), (-1,2), "Helvetica-Bold"),
+        ("FONTNAME", (0,1), (-1,1), "Helvetica-Bold"),
+        ("FONTNAME", (0,3), (-1,3), "Helvetica-Bold"),
+        ("ALIGN", (0,0), (-1,-1), "CENTER"),
+        ("GRID", (0,0), (-1,-1), .35, colors.HexColor("#d7dfda")),
+        ("TOPPADDING", (0,0), (-1,-1), 7),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 7),
+    ]))
+    story += [t, Spacer(1, 12), Paragraph("Buying-power utilisation and due dates", styles["Heading2"])]
+
+    settlement_rows = [[
+        "Invoice", "Utilisation date", "Due date", "Grace date",
+        "Amount used", "Repaid", "Outstanding", "Status"
+    ]]
+    for item in context["settlements"]:
+        settlement_rows.append([
+            f"#{item.invoice_id}" if item.invoice_id else "—",
+            item.usage_entry.posted_at.strftime("%d/%m/%y") if item.usage_entry and item.usage_entry.posted_at else "—",
+            item.due_date.strftime("%d/%m/%y") if item.due_date else "—",
+            item.grace_date.strftime("%d/%m/%y") if item.grace_date else "—",
+            money(item.original_amount), money(item.repaid_amount),
+            money(item.outstanding_amount), item.display_status,
+        ])
+    if len(settlement_rows) == 1:
+        settlement_rows.append(["No buying-power utilisations in this period.", "", "", "", "", "", "", ""])
+    st = Table(settlement_rows, repeatRows=1,
+               colWidths=[15*mm, 20*mm, 18*mm, 18*mm, 22*mm, 20*mm, 22*mm, 25*mm])
+    st.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0b5c39")),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 7),
+        ("GRID", (0,0), (-1,-1), .3, colors.HexColor("#d7dfda")),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("ALIGN", (4,1), (6,-1), "RIGHT"),
+        ("TOPPADDING", (0,0), (-1,-1), 5),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+    ]))
+    story += [
+        st,
+        Spacer(1, 5),
+        Paragraph(
+            f'<b>Settlement position in this period:</b> '
+            f'{context["settled_count"]} settled · '
+            f'{context["partially_settled_count"]} partially settled · '
+            f'{context["overdue_count"]} overdue · '
+            f'{context["upcoming_count"]} upcoming · '
+            f'{context["cancelled_count"]} cancelled',
+            styles["Normal"],
+        ),
+        Spacer(1, 12),
+        Paragraph("Outstanding balance & settlement schedule", styles["Heading2"]),
+        Paragraph(
+            "This schedule covers all currently unsettled utilisations on the account, "
+            "including utilisations from outside the selected statement period. "
+            "Amounts are grouped by their contractual due date.",
+            styles["Normal"],
+        ),
+        Spacer(1, 5),
+    ]
+
+    due_rows = [[
+        "Due date", "Grace date(s)", "Invoice reference(s)",
+        "Outstanding amount", "Position"
+    ]]
+    for row in context["due_schedule"]:
+        due_rows.append([
+            row["due_date"].strftime("%d/%m/%Y") if row["due_date"] else "Date not set",
+            ", ".join(d.strftime("%d/%m/%Y") for d in row["grace_dates"]) or "—",
+            row["invoice_refs"] or "—",
+            money(row["outstanding"]),
+            row["status_labels"] or "Outstanding",
+        ])
+
+    if len(due_rows) == 1:
+        due_rows.append(["No outstanding settlements", "—", "—", money(Decimal("0.00")), "Up to date"])
+
+    due_rows.append([
+        "TOTAL OUTSTANDING", "", "",
+        money(context["account_total_outstanding"]),
+        "",
+    ])
+
+    due_table = Table(
+        due_rows,
+        repeatRows=1,
+        colWidths=[25*mm, 25*mm, 55*mm, 35*mm, 25*mm],
+    )
+    due_table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0b5c39")),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 7),
+        ("GRID", (0,0), (-1,-1), .3, colors.HexColor("#d7dfda")),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("ALIGN", (3,1), (3,-1), "RIGHT"),
+        ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#eaf2ed")),
+        ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
+        ("TOPPADDING", (0,0), (-1,-1), 5),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+    ]))
+    story += [
+        due_table,
+        Spacer(1, 5),
+        Paragraph(
+            f'<b>Outstanding without a due date:</b> '
+            f'{money(context["account_no_due_date_total"])}'
+            f'&nbsp;&nbsp;&nbsp; <b>Overdue:</b> '
+            f'{money(context["account_overdue_total"])}'
+            f'&nbsp;&nbsp;&nbsp; <b>Upcoming / due:</b> '
+            f'{money(context["account_upcoming_total"])}',
+            styles["Normal"],
+        ),
+        Spacer(1, 12),
+        Paragraph("Account activity", styles["Heading2"]),
+    ]
+
+    activity_rows = [["Date", "Entry", "Reference / invoice", "Debit", "Credit", "Available balance"]]
+    for entry in context["entries"]:
+        debit = money(entry.amount) if entry.kind in (CreditEntry.USAGE, CreditEntry.LIMIT_DECREASE) else "—"
+        credit = money(entry.amount) if entry.kind in (CreditEntry.REPAYMENT, CreditEntry.ISSUE, CreditEntry.WRITEOFF) else "—"
+        if entry.kind == CreditEntry.ADJUSTMENT:
+            debit = money(abs(entry.amount)) if entry.amount < 0 else "—"
+            credit = money(entry.amount) if entry.amount > 0 else "—"
+        reference = f"Invoice #{entry.invoice_id}" if entry.invoice_id else (entry.reference or "—")
+        activity_rows.append([
+            entry.posted_at.strftime("%d/%m/%y %H:%M"),
+            entry.get_kind_display(), reference, debit, credit, money(entry.balance)
+        ])
+    if len(activity_rows) == 1:
+        activity_rows.append(["No account activity in this period.", "", "", "", "", ""])
+    at = Table(activity_rows, repeatRows=1,
+               colWidths=[27*mm, 30*mm, 42*mm, 25*mm, 25*mm, 31*mm])
+    at.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0b5c39")),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 7.5),
+        ("GRID", (0,0), (-1,-1), .3, colors.HexColor("#d7dfda")),
+        ("ALIGN", (3,1), (-1,-1), "RIGHT"),
+        ("TOPPADDING", (0,0), (-1,-1), 5),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+    ]))
+    story += [
+        at, Spacer(1, 10),
+        Paragraph(
+            f"<b>Opening available buying power:</b> {money(context['opening_available'])}"
+            f"&nbsp;&nbsp;&nbsp; <b>Closing available buying power:</b> {money(context['closing_available'])}",
+            styles["Normal"],
+        ),
+        Spacer(1, 8),
+        Paragraph(
+            "This statement records Trade Assist buying-power utilisation and settlements. "
+            "It is not a tax invoice. No interest or finance charge is applied by this statement.",
+            styles["Italic"],
+        ),
+    ]
+    doc.build(story)
+    return buffer.getvalue()
+
+
+@login_required
+@staff_required
+def credit_statement_view(request, client_id):
+    client = get_object_or_404(Client, pk=client_id)
+    account, _ = CreditAccount.objects.get_or_create(client=client)
+    try:
+        start_date, end_date, label = _statement_period(
+            request.GET.get("period", "current"),
+            request.GET.get("start_date", ""),
+            request.GET.get("end_date", ""),
+        )
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("credit-view", client_id=client.id)
+
+    context = _statement_context(client, account, start_date, end_date, label)
+    return render(request, "credit/credit_statement.html", context)
+
+
+@login_required
+@staff_required
+def credit_statement_download(request, client_id):
+    client = get_object_or_404(Client, pk=client_id)
+    account, _ = CreditAccount.objects.get_or_create(client=client)
+    try:
+        start_date, end_date, label = _statement_period(
+            request.GET.get("period", "current"),
+            request.GET.get("start_date", ""),
+            request.GET.get("end_date", ""),
+        )
+    except ValueError as exc:
+        return HttpResponse(str(exc), status=400, content_type="text/plain")
+
+    context = _statement_context(client, account, start_date, end_date, label)
+    pdf = _build_statement_pdf(context)
+    filename = f"TradeAssist_Statement_{client.pk}_{start_date}_{end_date}.pdf"
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+@staff_required
+@require_POST
+def credit_statement_email(request, client_id):
+    client = get_object_or_404(Client, pk=client_id)
+    account, _ = CreditAccount.objects.get_or_create(client=client)
+    try:
+        start_date, end_date, label = _statement_period(
+            request.POST.get("period", "current"),
+            request.POST.get("start_date", ""),
+            request.POST.get("end_date", ""),
+        )
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("credit-view", client_id=client.id)
+
+    context = _statement_context(client, account, start_date, end_date, label)
+    recipient = (request.POST.get("recipient_email") or context["customer_email"]).strip()
+    if not recipient:
+        messages.error(request, "No customer email address is available. Enter a recipient email address.")
+        return redirect(
+            f"{reverse('credit-statement', args=[client.id])}"
+            f"?period={request.POST.get('period', 'current')}"
+            f"&start_date={start_date.isoformat()}&end_date={end_date.isoformat()}"
+        )
+
+    subject = (
+        f"Trade Assist account statement – {client.name} "
+        f"({start_date:%d %b %Y} to {end_date:%d %b %Y})"
+    )
+    text_body = (
+        f"Dear {client.name},\n\n"
+        f"Please find attached your Trade Assist account statement for "
+        f"{start_date:%d %b %Y} to {end_date:%d %b %Y}.\n\n"
+        "The statement includes buying-power utilisation, settlement due dates, "
+        "repayments and account activity.\n\n"
+        "Regards,\nThe Daily Market"
+    )
+    communication = _create_email_communication_log(
+        recipient=recipient,
+        recipient_name=client.name,
+        subject=subject,
+        message=text_body,
+        related_object=client,
+        sent_by=request.user,
+    )
+    try:
+        pdf = _build_statement_pdf(context)
+        email_message = EmailMultiAlternatives(
+            subject=subject,
+            body=text_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient],
+        )
+        email_message.attach(
+            f"TradeAssist_Statement_{client.pk}_{start_date}_{end_date}.pdf",
+            pdf,
+            "application/pdf",
+        )
+        sent = _send_email_and_update_log(
+            communication=communication,
+            email_message=email_message,
+        )
+        if sent:
+            messages.success(request, f"Statement email accepted by the email service for {recipient}.")
+        else:
+            messages.error(request, "The statement email could not be sent. Check the communication log.")
+    except Exception as exc:
+        communication.status = CommunicationLog.STATUS_FAILED
+        communication.failed_at = now()
+        communication.error_message = str(exc)
+        communication.save(update_fields=["status", "failed_at", "error_message", "updated_at"])
+        logger.exception("Could not email Trade Assist statement for client %s.", client.pk)
+        messages.error(request, "The statement could not be prepared or emailed. Check the server log.")
+
+    return redirect(
+        f"{reverse('credit-statement', args=[client.id])}?period={request.POST.get('period', 'current')}"
+        f"&start_date={start_date.isoformat()}&end_date={end_date.isoformat()}"
+    )
+
 
 @login_required
 @staff_required

@@ -1480,6 +1480,8 @@ class CreditEntry(models.Model):
                     "credit_account": self.credit_account,
                     "invoice": self.invoice,
                     "original_amount": self.amount,
+                    "repaid_amount": Decimal("0.00"),
+                    "outstanding_amount": r2(self.amount),
                     "due_date": self.due_date,
                     "grace_date": self.due_date + timedelta(days=1),
                     "status": CreditSettlement.STATUS_OUTSTANDING,
@@ -1584,26 +1586,126 @@ class CreditSettlement(models.Model):
             raise ValidationError("Repaid amount cannot exceed the original amount.")
 
     def refresh_amounts(self, *, save=True):
+        """
+        Recalculate the settlement from its original obligation and verified
+        repayments. The outstanding amount is always derived, never trusted
+        as an independently maintained figure.
+        """
         self.original_amount = r2(self.original_amount)
-        self.repaid_amount = min(r2(self.repaid_amount), self.original_amount)
-        self.outstanding_amount = r2(self.original_amount - self.repaid_amount)
+        self.repaid_amount = min(
+            max(r2(self.repaid_amount), Decimal("0.00")),
+            self.original_amount,
+        )
+        self.outstanding_amount = max(
+            r2(self.original_amount - self.repaid_amount),
+            Decimal("0.00"),
+        )
 
-        if self.outstanding_amount <= Decimal("0.00"):
+        # A cancelled obligation must remain cancelled. It is not silently
+        # converted into a settled obligation by a balance refresh.
+        if self.status == self.STATUS_CANCELLED:
+            self.settled_at = None
+        elif self.outstanding_amount <= Decimal("0.00"):
             self.outstanding_amount = Decimal("0.00")
             self.status = self.STATUS_SETTLED
             self.settled_at = self.settled_at or now()
         elif self.repaid_amount > Decimal("0.00"):
             self.status = self.STATUS_PARTIAL
             self.settled_at = None
-        elif self.status not in {self.STATUS_OVERDUE, self.STATUS_CANCELLED}:
+        elif self.status != self.STATUS_OVERDUE:
             self.status = self.STATUS_OUTSTANDING
+            self.settled_at = None
 
         if save:
             self.save(update_fields=[
-                "original_amount", "repaid_amount", "outstanding_amount",
-                "status", "settled_at", "updated_at",
+                "original_amount",
+                "repaid_amount",
+                "outstanding_amount",
+                "status",
+                "settled_at",
+                "updated_at",
             ])
         return self.outstanding_amount
+
+    def save(self, *args, **kwargs):
+        """
+        Enforce settlement arithmetic on every normal model save.
+
+        This also protects settlement rows created by admin/forms or other
+        code paths that do not use CreditEntry.save().
+        """
+        self.original_amount = r2(self.original_amount)
+        self.repaid_amount = min(
+            max(r2(self.repaid_amount), Decimal("0.00")),
+            self.original_amount,
+        )
+        self.outstanding_amount = max(
+            r2(self.original_amount - self.repaid_amount),
+            Decimal("0.00"),
+        )
+
+        if self.status == self.STATUS_CANCELLED:
+            self.settled_at = None
+        elif self.outstanding_amount == Decimal("0.00"):
+            self.status = self.STATUS_SETTLED
+            self.settled_at = self.settled_at or now()
+        elif self.repaid_amount > Decimal("0.00"):
+            self.status = self.STATUS_PARTIAL
+            self.settled_at = None
+        elif self.status != self.STATUS_OVERDUE:
+            self.status = self.STATUS_OUTSTANDING
+            self.settled_at = None
+
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            kwargs["update_fields"] = set(update_fields) | {
+                "original_amount",
+                "repaid_amount",
+                "outstanding_amount",
+                "status",
+                "settled_at",
+                "updated_at",
+            }
+
+        super().save(*args, **kwargs)
+
+    @classmethod
+    @db_transaction.atomic
+    def repair_legacy_amounts(cls, *, credit_account=None, using="default"):
+        """
+        Repair historical settlement rows whose outstanding_amount was left
+        at zero (or otherwise drifted) despite an unpaid balance.
+
+        This is deliberately explicit: it preserves every existing row and
+        recalculates from original_amount minus repaid_amount.
+        """
+        db = using or "default"
+        qs = cls.objects.using(db).all()
+        if credit_account is not None:
+            qs = qs.filter(credit_account=credit_account)
+
+        repaired = 0
+        for settlement in qs.select_for_update().iterator():
+            expected = max(
+                r2(settlement.original_amount - settlement.repaid_amount),
+                Decimal("0.00"),
+            )
+            if (
+                r2(settlement.outstanding_amount) != expected
+                or (
+                    expected == Decimal("0.00")
+                    and settlement.status != cls.STATUS_CANCELLED
+                    and settlement.status != cls.STATUS_SETTLED
+                )
+                or (
+                    expected > Decimal("0.00")
+                    and settlement.status == cls.STATUS_SETTLED
+                )
+            ):
+                settlement.refresh_amounts(save=True)
+                repaired += 1
+
+        return repaired
 
     @db_transaction.atomic
     def allocate_repayment(self, amount: Decimal, *, using=None):
@@ -1619,7 +1721,14 @@ class CreditSettlement(models.Model):
             raise ValidationError("Repayment must be greater than zero.")
         if settlement.status == self.STATUS_CANCELLED:
             raise ValidationError("A cancelled settlement cannot receive repayment.")
+        if settlement.status == self.STATUS_CANCELLED:
+            raise ValidationError("A cancelled settlement cannot receive repayment.")
+
+        settlement.refresh_amounts(save=False)
         applied = min(amount, settlement.outstanding_amount)
+        if applied <= Decimal("0.00"):
+            raise ValidationError("This settlement has no outstanding amount.")
+
         settlement.repaid_amount = r2(settlement.repaid_amount + applied)
         settlement.refresh_amounts(save=True)
         self.refresh_from_db(using=db)
@@ -1651,9 +1760,18 @@ class CreditSettlement(models.Model):
 
         applied_total = Decimal("0.00")
         for settlement in settlements:
-            if remaining <= 0:
+            if remaining <= Decimal("0.00"):
                 break
-            applied = min(remaining, settlement.outstanding_amount)
+
+            # Re-derive the balance before allocating. This also repairs an
+            # old row encountered during a repayment without deleting it.
+            settlement.refresh_amounts(save=False)
+            available = settlement.outstanding_amount
+            if available <= Decimal("0.00"):
+                settlement.refresh_amounts(save=True)
+                continue
+
+            applied = min(remaining, available)
             settlement.repaid_amount = r2(settlement.repaid_amount + applied)
             settlement.refresh_amounts(save=True)
             remaining = r2(remaining - applied)
