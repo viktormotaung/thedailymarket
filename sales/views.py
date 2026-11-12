@@ -6310,10 +6310,12 @@ def invoice_confirm_payment(request, pk):
             status="pending",
         )
 
-        payment.status = "success"
-        if hasattr(payment, "paid_at"):
-            payment.paid_at = timezone.now()
-        payment.save()
+        # Match the Invoices app: update the successful-payment fields
+        # directly, without calling Payment.save() or its save signals.
+        Payment.objects.filter(pk=payment.pk).update(
+            status="success",
+            paid_at=now(),
+        )
 
     except Exception as exc:
         logger.exception("Invoice payment failed for invoice %s", invoice.pk)
@@ -6325,8 +6327,6 @@ def invoice_confirm_payment(request, pk):
         f"Payment of R{amount:.2f} recorded successfully."
     )
     return redirect("sales:view-invoice", pk=invoice.pk)
-
-
 @login_required
 def invoice_download(request, pk):
     """Render the invoice PDF template for download/printing."""
