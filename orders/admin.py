@@ -13,6 +13,16 @@ def money(val: Decimal | None) -> str:
     return f"R {val:.2f}"
 
 
+def discounted_unit_price_excl(item) -> Decimal:
+    """
+    Return the unit price after the per-unit discount.
+    The stored unit_price_excl remains unchanged.
+    """
+    unit_price = item.unit_price_excl or Decimal("0.00")
+    discount = item.discount_excl or Decimal("0.00")
+    return max(Decimal("0.00"), unit_price - discount)
+
+
 # ---------- inlines ----------
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
@@ -25,7 +35,8 @@ class OrderItemInline(admin.TabularInline):
         "product",
         "sku", "product_name", "uom",
         "quantity",
-        "unit_price_excl", "discount_excl", "vat_percent",
+        "unit_price_excl", "discount_excl",
+        "discounted_unit_price_excl_display", "vat_percent",
         "line_total_excl_display",
         "line_vat_amount_display",
         "line_total_inc_display",
@@ -33,6 +44,7 @@ class OrderItemInline(admin.TabularInline):
 
     readonly_fields = (
         "sku", "product_name", "uom",
+        "discounted_unit_price_excl_display",
         "line_total_excl_display",
         "line_vat_amount_display",
         "line_total_inc_display",
@@ -88,6 +100,13 @@ class OrderItemInline(admin.TabularInline):
     # --------------------------------------------------
     # DISPLAY HELPERS
     # --------------------------------------------------
+    @admin.display(description="Unit Price After Discount (Excl)")
+    def discounted_unit_price_excl_display(self, obj: OrderItem):
+        try:
+            return money(discounted_unit_price_excl(obj))
+        except Exception:
+            return "—"
+
     @admin.display(description="Line Total (Excl)")
     def line_total_excl_display(self, obj: OrderItem):
         try:
@@ -386,6 +405,7 @@ class OrderItemAdmin(admin.ModelAdmin):
         "quantity",
         "unit_price_excl_display",
         "discount_excl",
+        "discounted_unit_price_excl_display",
         "vat_percent",
         "line_total_excl_display",
         "line_total_inc_display",
@@ -398,6 +418,10 @@ class OrderItemAdmin(admin.ModelAdmin):
     @admin.display(description="Unit Price (Excl)")
     def unit_price_excl_display(self, obj: OrderItem):
         return money(obj.unit_price_excl)
+
+    @admin.display(description="Unit Price After Discount (Excl)")
+    def discounted_unit_price_excl_display(self, obj: OrderItem):
+        return money(discounted_unit_price_excl(obj))
 
     @admin.display(description="Line Total (Excl)")
     def line_total_excl_display(self, obj: OrderItem):
@@ -462,7 +486,8 @@ class QuotationItemInline(admin.TabularInline):
         "product",
         "sku", "product_name", "uom",
         "quantity",
-        "unit_price_excl", "discount_excl", "vat_percent",
+        "unit_price_excl", "discount_excl",
+        "discounted_unit_price_excl_display", "vat_percent",
         "line_total_excl_display",
         "line_vat_amount_display",
         "line_total_inc_display",
@@ -470,6 +495,7 @@ class QuotationItemInline(admin.TabularInline):
 
     readonly_fields = (
         "sku", "product_name", "uom",
+        "discounted_unit_price_excl_display",
         "line_total_excl_display",
         "line_vat_amount_display",
         "line_total_inc_display",
@@ -508,6 +534,13 @@ class QuotationItemInline(admin.TabularInline):
             field.label_from_instance = label
 
         return field
+
+    @admin.display(description="Unit Price After Discount (Excl)")
+    def discounted_unit_price_excl_display(self, obj: QuotationItem):
+        try:
+            return money(discounted_unit_price_excl(obj))
+        except Exception:
+            return "—"
 
     @admin.display(description="Line Total (Excl)")
     def line_total_excl_display(self, obj):

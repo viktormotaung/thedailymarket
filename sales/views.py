@@ -3933,6 +3933,11 @@ def view_quotation(request, pk):
             or Decimal("0.00")
         )
 
+        net_unit_excl = max(
+            Decimal("0.00"),
+            unit_excl - discount_per_unit,
+        ).quantize(Decimal("0.01"))
+
         vat_pct = (
             item.vat_percent
             or Decimal("0.00")
@@ -3980,6 +3985,7 @@ def view_quotation(request, pk):
                 "item": item,
                 "qty": qty,
                 "unit_excl": unit_excl,
+                "net_unit_excl": net_unit_excl,
                 "discount_per_unit": discount_per_unit,
                 "discount_total": discount_total,
                 "discount_pct": discount_pct,
@@ -5519,11 +5525,19 @@ def view_order(request, pk):
     # ORDER ITEMS
     # -------------------------------------------------
 
-    items = (
+    items = list(
         order.items
         .all()
         .order_by("id")
     )
+
+    for item in items:
+        unit_excl = item.unit_price_excl or Decimal("0.00")
+        discount_per_unit = item.discount_excl or Decimal("0.00")
+        item.net_unit_excl = max(
+            Decimal("0.00"),
+            unit_excl - discount_per_unit,
+        ).quantize(Decimal("0.01"))
 
     # -------------------------------------------------
     # DETERMINE AVAILABLE ACTIONS
@@ -6124,11 +6138,19 @@ def view_invoice(request, pk):
     order = invoice.order
     client = invoice.client
 
-    items = (
+    items = list(
         order.items
         .all()
         .order_by("id")
     )
+
+    for item in items:
+        unit_excl = item.unit_price_excl or Decimal("0.00")
+        discount_per_unit = item.discount_excl or Decimal("0.00")
+        item.net_unit_excl = max(
+            Decimal("0.00"),
+            unit_excl - discount_per_unit,
+        ).quantize(Decimal("0.01"))
 
     # -------------------------------------------------
     # OVERDUE

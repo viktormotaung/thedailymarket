@@ -160,7 +160,7 @@
           <tr>
             <th>Item</th>
             <th class="text-end">Qty</th>
-            <th class="text-end">Unit Price</th>
+            <th class="text-end">Net Unit Price (Incl. VAT)</th>
             <th class="text-end">Amount</th>
           </tr>
         </thead>
@@ -196,7 +196,7 @@
       <div class="totals">
         <div>
           Invoice Total:
-          R{{ invoice.order.grand_total_inc|floatformat:2|intcomma }}
+          R{{ invoice.order_total_inc|floatformat:2|intcomma }}
         </div>
 
         {% if invoice.credit_used > 0 %}
@@ -208,7 +208,7 @@
 
         <div class="fw-bold" style="margin-top: 8px;">
           Total Payable:
-          R{{ invoice.amount_due|default:invoice.order.grand_total_inc|floatformat:2|intcomma }}
+          R{{ invoice.amount_due|floatformat:2|intcomma }}
         </div>
       </div>
 

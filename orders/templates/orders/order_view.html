@@ -1066,6 +1066,7 @@
                   <th style="width:10%; font-size:13px;" class="text-end">Unit excl</th>
                   <th style="width:8%; font-size:13px;" class="text-end">Disc %</th>
                   <th style="width:9%; font-size:13px;" class="text-end">Disc Amt</th>
+                  <th style="width:9%; font-size:13px;" class="text-end">Net Unit excl</th>
                   <th style="width:7%; font-size:13px;" class="text-end">VAT %</th>
                   <th style="width:9%; font-size:13px;" class="text-end">Line excl</th>
                   <th style="width:8%; font-size:13px;" class="text-end">VAT</th>
@@ -1102,6 +1103,10 @@
 
                     <td style="font-size:13px;" class="text-end">
                       R{{ row.discount_total|floatformat:2 }}
+                    </td>
+
+                    <td style="font-size:13px;" class="text-end">
+                      R{{ row.net_unit_excl|floatformat:2 }}
                     </td>
 
                     <td style="font-size:13px;" class="text-end">

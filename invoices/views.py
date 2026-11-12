@@ -204,6 +204,13 @@ def invoice_view(request, pk):
     items = list(order.items.all())
 
     for item in items:
+        unit_price_excl = item.unit_price_excl or Decimal("0.00")
+        discount_excl = item.discount_excl or Decimal("0.00")
+        item.net_unit_excl = max(
+            Decimal("0.00"),
+            unit_price_excl - discount_excl,
+        ).quantize(Decimal("0.01"))
+
         item.display_line_total_inc = (
             (item.line_total_excl or Decimal("0.00"))
             + (item.line_vat_amount or Decimal("0.00"))
@@ -649,10 +656,19 @@ def invoice_download(request, pk):
         line_total_excl = item.line_total_excl or Decimal("0.00")
         line_vat_amount = item.line_vat_amount or Decimal("0.00")
 
-        item.display_unit_price_inc = (
-            unit_price_excl
-            + (unit_price_excl * vat_percent / Decimal("100"))
+        discounted_unit_excl = max(
+            Decimal("0.00"),
+            unit_price_excl - (item.discount_excl or Decimal("0.00")),
         )
+
+        item.display_unit_price_inc = (
+            discounted_unit_excl
+            + (
+                discounted_unit_excl
+                * vat_percent
+                / Decimal("100")
+            )
+        ).quantize(Decimal("0.01"))
 
         item.display_line_total_inc = (
             line_total_excl
@@ -749,14 +765,19 @@ def send_invoice_email_internal(request, pk):
         line_total_excl = item.line_total_excl or Decimal("0.00")
         line_vat_amount = item.line_vat_amount or Decimal("0.00")
 
+        discounted_unit_excl = max(
+            Decimal("0.00"),
+            unit_price_excl - (item.discount_excl or Decimal("0.00")),
+        )
+
         item.display_unit_price_inc = (
-            unit_price_excl
+            discounted_unit_excl
             + (
-                unit_price_excl
+                discounted_unit_excl
                 * vat_percent
                 / Decimal("100")
             )
-        )
+        ).quantize(Decimal("0.01"))
 
         item.display_line_total_inc = (
             line_total_excl
@@ -993,14 +1014,19 @@ def public_invoice_view(request, token):
             or Decimal("0.00")
         )
 
+        discounted_unit_excl = max(
+            Decimal("0.00"),
+            unit_price_excl - (item.discount_excl or Decimal("0.00")),
+        )
+
         item.display_unit_price_inc = (
-            unit_price_excl
+            discounted_unit_excl
             + (
-                unit_price_excl
+                discounted_unit_excl
                 * vat_percent
                 / Decimal("100")
             )
-        )
+        ).quantize(Decimal("0.01"))
 
         item.display_line_total_inc = (
             line_total_excl
@@ -1370,14 +1396,19 @@ def send_invoice_payment_request_email(request, pk):
         line_total_excl = item.line_total_excl or Decimal("0.00")
         line_vat_amount = item.line_vat_amount or Decimal("0.00")
 
+        discounted_unit_excl = max(
+            Decimal("0.00"),
+            unit_price_excl - (item.discount_excl or Decimal("0.00")),
+        )
+
         item.display_unit_price_inc = (
-            unit_price_excl
+            discounted_unit_excl
             + (
-                unit_price_excl
+                discounted_unit_excl
                 * vat_percent
                 / Decimal("100")
             )
-        )
+        ).quantize(Decimal("0.01"))
 
         item.display_line_total_inc = (
             line_total_excl

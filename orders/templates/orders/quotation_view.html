@@ -1191,6 +1191,7 @@
                             <th style="font-size:13px;" class="text-end">Unit excl</th>
                             <th style="font-size:13px;" class="text-end">Disc %</th>
                             <th style="font-size:13px;" class="text-end">Disc Amt</th>
+                                <th style="font-size:13px;" class="text-end">Net Unit excl</th>
                             <th style="font-size:13px;" class="text-end">VAT %</th>
                             <th style="font-size:13px;" class="text-end">Line excl</th>
                             <th style="font-size:13px;" class="text-end">VAT</th>
@@ -1233,6 +1234,10 @@
                                 </td>
 
                                 <td style="font-size:13px;" class="text-end">
+                                    R{{ row.net_unit_excl|floatformat:2 }}
+                                </td>
+
+                                <td style="font-size:13px;" class="text-end">
                                     {{ row.vat_pct|floatformat:2 }}%
                                 </td>
 
@@ -1255,7 +1260,7 @@
                         {% empty %}
 
                             <tr>
-                                <td colspan="11"
+                                <td colspan="12"
                                     class="text-center text-muted p-4">
                                     No items found.
                                 </td>

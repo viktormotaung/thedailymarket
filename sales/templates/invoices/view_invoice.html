@@ -334,7 +334,7 @@
     }
 
     .invoice-items-table {
-        min-width: 1000px;
+        min-width: 1100px;
         margin-bottom: 0;
     }
 
@@ -525,7 +525,7 @@
         }
 
         .invoice-items-table {
-            min-width: 1000px;
+            min-width: 1100px;
         }
 
     }
@@ -1535,10 +1535,17 @@
                           </th>
 
                           <th
-                            style="width:12%;"
+                            style="width:10%;"
                             class="text-end"
                           >
                             Unit Excl
+                          </th>
+
+                          <th
+                            style="width:10%;"
+                            class="text-end"
+                          >
+                            Net Unit Excl
                           </th>
 
                           <th
@@ -1612,6 +1619,10 @@
                             </td>
 
                             <td class="text-end">
+                              R{{ it.net_unit_excl|floatformat:2 }}
+                            </td>
+
+                            <td class="text-end">
                               R{{ it.discount_excl|floatformat:2 }}
                             </td>
 
@@ -1647,7 +1658,7 @@
                         <tr>
 
                           <th
-                            colspan="7"
+                            colspan="8"
                             class="text-end"
                           >
                             Order Subtotal (Excl)

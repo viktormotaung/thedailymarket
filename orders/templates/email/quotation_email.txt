@@ -9,7 +9,7 @@ Items:
 {% for item in items %}
 - {{ item.product_name }}:
   {{ item.quantity }} x
-  R{{ item.display_unit_price_inc|floatformat:2 }}
+  R{{ item.display_unit_price_inc|floatformat:2 }} (net unit price, incl. VAT)
   =
   R{{ item.display_line_total_inc|floatformat:2 }}
 {% endfor %}

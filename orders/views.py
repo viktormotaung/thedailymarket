@@ -544,10 +544,13 @@ def order_view(request, pk):
         discount_per_unit = item.discount_excl or Decimal("0.00")
         vat_pct = item.vat_percent or Decimal("0.00")
 
-        gross_excl = unit_excl * qty
+        net_unit_excl = max(
+            Decimal("0.00"),
+            unit_excl - discount_per_unit,
+        )
         discount_total = discount_per_unit * qty
-        line_excl = gross_excl - discount_total
-        vat_amount = line_excl * (vat_pct / Decimal("100.00"))
+        line_excl = item.line_total_excl or Decimal("0.00")
+        vat_amount = item.line_vat_amount or Decimal("0.00")
         line_inc = line_excl + vat_amount
 
         discount_pct = Decimal("0.00")
@@ -560,6 +563,7 @@ def order_view(request, pk):
             "item": item,
             "qty": qty,
             "unit_excl": unit_excl,
+            "net_unit_excl": net_unit_excl,
             "discount_per_unit": discount_per_unit,
             "discount_total": discount_total,
             "discount_pct": discount_pct,
@@ -1286,14 +1290,13 @@ def quotation_view(request, pk):
         discount_per_unit = item.discount_excl or Decimal("0.00")
         vat_pct = item.vat_percent or Decimal("0.00")
 
-        gross_excl = unit_excl * qty
-        discount_total = discount_per_unit * qty
-        line_excl = gross_excl - discount_total
-
-        vat_amount = line_excl * (
-            vat_pct / Decimal("100.00")
+        net_unit_excl = max(
+            Decimal("0.00"),
+            unit_excl - discount_per_unit,
         )
-
+        discount_total = discount_per_unit * qty
+        line_excl = item.line_total_excl or Decimal("0.00")
+        vat_amount = item.line_vat_amount or Decimal("0.00")
         line_inc = line_excl + vat_amount
 
         discount_pct = Decimal("0.00")
@@ -1307,6 +1310,7 @@ def quotation_view(request, pk):
             "item": item,
             "qty": qty,
             "unit_excl": unit_excl,
+            "net_unit_excl": net_unit_excl,
             "discount_per_unit": discount_per_unit,
             "discount_total": discount_total,
             "discount_pct": discount_pct,
@@ -1604,18 +1608,24 @@ def public_quotation_view(request, token):
 
     for item in items:
         unit_price_excl = item.unit_price_excl or Decimal("0.00")
+        discount_excl = item.discount_excl or Decimal("0.00")
         vat_percent = item.vat_percent or Decimal("0.00")
         line_total_excl = item.line_total_excl or Decimal("0.00")
         line_vat_amount = item.line_vat_amount or Decimal("0.00")
 
+        discounted_unit_excl = max(
+            Decimal("0.00"),
+            unit_price_excl - discount_excl,
+        )
+
         item.display_unit_price_inc = (
-            unit_price_excl
+            discounted_unit_excl
             + (
-                unit_price_excl
+                discounted_unit_excl
                 * vat_percent
                 / Decimal("100.00")
             )
-        )
+        ).quantize(Decimal("0.01"))
 
         item.display_line_total_inc = line_total_excl + line_vat_amount
 
@@ -2116,18 +2126,24 @@ def send_quotation_email_internal(request, pk):
 
     for item in items:
         unit_price_excl = item.unit_price_excl or Decimal("0.00")
+        discount_excl = item.discount_excl or Decimal("0.00")
         vat_percent = item.vat_percent or Decimal("0.00")
         line_total_excl = item.line_total_excl or Decimal("0.00")
         line_vat_amount = item.line_vat_amount or Decimal("0.00")
 
+        discounted_unit_excl = max(
+            Decimal("0.00"),
+            unit_price_excl - discount_excl,
+        )
+
         item.display_unit_price_inc = (
-            unit_price_excl
+            discounted_unit_excl
             + (
-                unit_price_excl
+                discounted_unit_excl
                 * vat_percent
                 / Decimal("100")
             )
-        )
+        ).quantize(Decimal("0.01"))
 
         item.display_line_total_inc = (
             line_total_excl

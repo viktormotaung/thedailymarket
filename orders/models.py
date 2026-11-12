@@ -670,6 +670,22 @@ class QuotationItem(models.Model):
         return f"{self.product_name or self.product} x {self.quantity}"
 
     @property
+    def discounted_unit_price_excl(self):
+        """Unit selling price after the per-unit discount, before VAT."""
+        return r2(max(
+            Decimal("0.00"),
+            (self.unit_price_excl or Decimal("0.00"))
+            - (self.discount_excl or Decimal("0.00")),
+        ))
+
+    @property
+    def discounted_unit_price_inc(self):
+        """Unit selling price after discount, including VAT."""
+        net_excl = self.discounted_unit_price_excl
+        vat_rate = (self.vat_percent or Decimal("0.00")) / Decimal("100")
+        return r2(net_excl * (Decimal("1.00") + vat_rate))
+
+    @property
     def line_total_excl(self):
         unit_minus_discount = max(
             Decimal("0.00"),
@@ -1855,7 +1871,23 @@ class OrderItem(models.Model):
             models.Index(fields=["order", "product"]),
         ]
 
-    # ---- computed totals ----
+    # ---- computed prices and totals ----
+    @property
+    def discounted_unit_price_excl(self) -> Decimal:
+        """Unit selling price after the per-unit discount, before VAT."""
+        return r2(max(
+            Decimal("0.00"),
+            (self.unit_price_excl or Decimal("0.00"))
+            - (self.discount_excl or Decimal("0.00")),
+        ))
+
+    @property
+    def discounted_unit_price_inc(self) -> Decimal:
+        """Unit selling price after discount, including VAT."""
+        net_excl = self.discounted_unit_price_excl
+        vat_rate = (self.vat_percent or Decimal("0.00")) / Decimal("100")
+        return r2(net_excl * (Decimal("1.00") + vat_rate))
+
     @property
     def line_total_excl(self) -> Decimal:
         unit_minus_disc = max(
@@ -1870,7 +1902,8 @@ class OrderItem(models.Model):
 
     @property
     def line_total_inc(self) -> Decimal:
-        return r2(self.unit_price_inc * (self.quantity or Decimal("0.00")))
+        # VAT is calculated on the discounted line value, not the original price.
+        return r2(self.line_total_excl + self.line_vat_amount)
 
     # ---------- helper ----------
     def _client_price_mode(self) -> str:

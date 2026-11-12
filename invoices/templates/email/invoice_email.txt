@@ -7,8 +7,8 @@ Invoice Date: {{ invoice.created_at|date:"d M Y" }}
 Status: {{ invoice.get_status_display }}
 
 Items:
-{% for item in invoice.order.items.all %}
-- {{ item.product_name }}: {{ item.quantity }} x R{{ item.unit_price_inc }} = R{{ item.line_total_inc }}
+{% for item in items %}
+- {{ item.product_name }}: {{ item.quantity|floatformat:2 }} x R{{ item.display_unit_price_inc|floatformat:2 }} (net unit price, incl. VAT) = R{{ item.display_line_total_inc|floatformat:2 }}
 {% endfor %}
 
 Invoice Total: R{{ invoice.order_total_inc }}

@@ -260,7 +260,7 @@
     }
 
     .order-items-table {
-        min-width: 950px;
+        min-width: 1050px;
         margin-bottom: 0;
     }
 
@@ -1508,6 +1508,10 @@
                                           </th>
 
                                           <th class="text-end">
+                                              Net Unit Excl
+                                          </th>
+
+                                          <th class="text-end">
                                               Discount
                                           </th>
 
@@ -1563,12 +1567,16 @@
 
 
                                               <td class="text-end">
-                                                  R{{ it.unit_price_excl }}
+                                                  R{{ it.unit_price_excl|floatformat:2 }}
+                                              </td>
+
+                                              <td class="text-end">
+                                                  R{{ it.net_unit_excl|floatformat:2 }}
                                               </td>
 
 
                                               <td class="text-end">
-                                                  R{{ it.discount_excl }}
+                                                  R{{ it.discount_excl|floatformat:2 }}
                                               </td>
 
 
@@ -1606,7 +1614,7 @@
 
                                       <tr class="order-grand-total-row">
 
-                                          <td colspan="8" class="text-end">
+                                          <td colspan="9" class="text-end">
                                               Order Total
                                           </td>
 

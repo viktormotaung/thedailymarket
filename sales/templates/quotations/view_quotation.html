@@ -1417,6 +1417,10 @@
                                         </th>
 
                                         <th class="text-end">
+                                            Net Unit Excl
+                                        </th>
+
+                                        <th class="text-end">
                                             Discount %
                                         </th>
 
@@ -1483,6 +1487,10 @@
                                                 R{{ row.unit_excl|floatformat:2 }}
                                             </td>
 
+                                            <td class="text-end">
+                                                R{{ row.net_unit_excl|floatformat:2 }}
+                                            </td>
+
 
                                             <td class="text-end">
                                                 {{ row.discount_pct|floatformat:2 }}%
@@ -1525,7 +1533,7 @@
                                         <tr>
 
                                             <td
-                                                colspan="11"
+                                                colspan="12"
                                                 class="text-center text-muted py-5"
                                             >
                                                 <i class="bi bi-cart-x fs-3 d-block mb-2"></i>
@@ -1545,7 +1553,7 @@
 
                                         <tr class="quotation-grand-total-row">
 
-                                            <td colspan="10" class="text-end">
+                                            <td colspan="11" class="text-end">
                                                 Grand Total
                                             </td>
 

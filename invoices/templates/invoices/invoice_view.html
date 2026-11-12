@@ -983,8 +983,9 @@
                   <th>Product</th>
                   <th style="width: 10%" class="text-end">Qty</th>
                   <th style="width: 12%" class="text-end">Unit Excl</th>
-                  <th style="width: 10%" class="text-end">Disc Excl</th>
-                  <th style="width: 8%" class="text-end">VAT %</th>
+                  <th style="width: 9%" class="text-end">Disc Excl</th>
+                  <th style="width: 10%" class="text-end">Net Unit Excl</th>
+                  <th style="width: 7%" class="text-end">VAT %</th>
                   <th style="width: 12%" class="text-end">Line Excl</th>
                   <th style="width: 12%" class="text-end">Line VAT</th>
                   <th style="width: 12%" class="text-end">Line Inc</th>
@@ -999,6 +1000,7 @@
                     <td class="text-end">{{ it.quantity|floatformat:2 }}</td>
                     <td class="text-end">R{{ it.unit_price_excl|floatformat:2 }}</td>
                     <td class="text-end">R{{ it.discount_excl|floatformat:2 }}</td>
+                    <td class="text-end">R{{ it.net_unit_excl|floatformat:2 }}</td>
                     <td class="text-end">{{ it.vat_percent|floatformat:2 }}%</td>
                     <td class="text-end">R{{ it.line_total_excl|floatformat:2 }}</td>
                     <td class="text-end">R{{ it.line_vat_amount|floatformat:2 }}</td>
@@ -1008,7 +1010,7 @@
               </tbody>
               <tfoot>
                 <tr>
-                  <th colspan="7" class="text-end">Order Subtotal (Excl):</th>
+                  <th colspan="8" class="text-end">Order Subtotal (Excl):</th>
                   <th class="text-end">R{{ order.subtotal_excl|floatformat:2 }}</th>
                   <th class="text-end">VAT: R{{ order.vat_total|floatformat:2 }}</th>
                   <th class="text-end">Grand Total (Inc): R{{ order.grand_total_inc|floatformat:2 }}</th>
