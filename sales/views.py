@@ -4008,6 +4008,63 @@ def view_quotation(request, pk):
         except CreditAccount.DoesNotExist:
             trade_assist_account = None
 
+    # Indicative payment split only. No buying power is reserved here.
+    trade_assist_available = Decimal("0.00")
+    trade_assist_contribution_pct = Decimal("100.00")
+    trade_assist_account_active = False
+    trade_assist_can_allocate = False
+    trade_assist_insufficient = False
+
+    quotation_total = Decimal(
+        str(quotation.grand_total_inc or "0.00")
+    ).quantize(Decimal("0.01"))
+
+    trade_assist_upfront_amount = quotation_total
+    trade_assist_deferred_amount = Decimal("0.00")
+
+    if trade_assist_account:
+        trade_assist_available = max(
+            Decimal("0.00"),
+            Decimal(str(trade_assist_account.credit_available or "0.00"))
+        )
+        trade_assist_contribution_pct = Decimal(
+            str(
+                trade_assist_account.credit_deposit_pct
+                if trade_assist_account.credit_deposit_pct is not None
+                else "100.00"
+            )
+        )
+        trade_assist_account_active = (
+            trade_assist_account.status == "ACTIVE"
+        )
+        trade_assist_can_allocate = bool(
+            trade_assist_account_active
+            and getattr(trade_assist_account, "can_allocate", False)
+            and trade_assist_available > Decimal("0.00")
+        )
+
+        proposed_deferred = (
+            quotation_total
+            * (Decimal("100.00") - trade_assist_contribution_pct)
+            / Decimal("100.00")
+        ).quantize(Decimal("0.01"))
+
+        trade_assist_insufficient = (
+            trade_assist_account_active
+            and trade_assist_can_allocate
+            and proposed_deferred > trade_assist_available
+        )
+
+        if (
+            trade_assist_account_active
+            and trade_assist_can_allocate
+            and not trade_assist_insufficient
+        ):
+            trade_assist_deferred_amount = proposed_deferred
+            trade_assist_upfront_amount = (
+                quotation_total - trade_assist_deferred_amount
+            ).quantize(Decimal("0.01"))
+
     # -------------------------------------------------
     # RENDER
     # -------------------------------------------------
@@ -4020,6 +4077,13 @@ def view_quotation(request, pk):
             "item_rows": item_rows,
             "rep_only": rep_only,
             "trade_assist_account": trade_assist_account,
+            "trade_assist_available": trade_assist_available,
+            "trade_assist_contribution_pct": trade_assist_contribution_pct,
+            "trade_assist_account_active": trade_assist_account_active,
+            "trade_assist_can_allocate": trade_assist_can_allocate,
+            "trade_assist_insufficient": trade_assist_insufficient,
+            "trade_assist_upfront_amount": trade_assist_upfront_amount,
+            "trade_assist_deferred_amount": trade_assist_deferred_amount,
         },
     )
 
@@ -4274,7 +4338,14 @@ def _quotation_trade_assist_accounts():
             "used": str(account.credit_used or Decimal("0.00")),
             "available": str(account.credit_available or Decimal("0.00")),
             "contribution_pct": str(
-                account.credit_deposit_pct or Decimal("0.00")
+                account.credit_deposit_pct
+                if account.credit_deposit_pct is not None
+                else Decimal("100.00")
+            ),
+            "can_allocate": bool(
+                account.status == "ACTIVE"
+                and getattr(account, "can_allocate", False)
+                and Decimal(str(account.credit_available or "0.00")) > Decimal("0.00")
             ),
             "payment_term": account.get_payment_term_display(),
             "next_due_date": (

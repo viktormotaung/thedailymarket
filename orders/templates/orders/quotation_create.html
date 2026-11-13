@@ -1203,6 +1203,70 @@
         </div>
 
         <!-- ===================================================== -->
+        <!-- TRADEASSIST INDICATIVE BREAKDOWN (READ-ONLY) -->
+        <!-- ===================================================== -->
+
+        <div class="card mb-3" id="trade-assist-card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-wallet2 me-2 text-success"></i>TradeAssist Payment Arrangement</strong>
+                <span class="badge text-bg-secondary">Indicative only</span>
+            </div>
+            <div class="card-body">
+                <div id="trade-assist-message" class="text-muted">
+                    Select an existing client to check whether they have an active TradeAssist arrangement.
+                </div>
+
+                <div id="trade-assist-breakdown" class="d-none">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="small text-muted">Customer contribution</div>
+                            <div class="fw-bold fs-5" id="ta-contribution-pct">—</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="small text-muted">Settlement term</div>
+                            <div class="fw-bold fs-5" id="ta-payment-term">—</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="small text-muted">Available buying power</div>
+                            <div class="fw-bold fs-5" id="ta-available">R0.00</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="small text-muted">Account status</div>
+                            <div class="fw-bold fs-5" id="ta-status">—</div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-2">
+                            <tbody>
+                                <tr>
+                                    <th>Quotation total</th>
+                                    <td class="text-end" id="ta-quotation-total">R0.00</td>
+                                </tr>
+                                <tr>
+                                    <th>Customer pays upfront</th>
+                                    <td class="text-end fw-semibold" id="ta-upfront">R0.00</td>
+                                </tr>
+                                <tr>
+                                    <th>TradeAssist portion</th>
+                                    <td class="text-end fw-semibold text-success" id="ta-deferred">R0.00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="trade-assist-warning" class="alert alert-warning py-2 mb-0 d-none"></div>
+                <div class="small text-muted mt-2">
+                    This is an estimate based on the client's current account terms. It does not reserve or use buying power.
+                    Final availability is checked again during the order and payment process.
+                </div>
+            </div>
+        </div>
+
+        {{ trade_assist_accounts|json_script:"trade-assist-accounts-data" }}
+
+        <!-- ===================================================== -->
         <!-- ACTIONS -->
         <!-- ===================================================== -->
 
@@ -1308,9 +1372,71 @@
         const totalFormsInput = document.getElementById(`id_${prefix}-TOTAL_FORMS`);
         const emptyTemplate = document.getElementById("empty-form-row").innerHTML;
 
+        const clientSelect = document.getElementById("id_client");
+        const tradeAssistAccounts = JSON.parse(
+            document.getElementById("trade-assist-accounts-data")?.textContent || "{}"
+        );
+
+        const taMessage = document.getElementById("trade-assist-message");
+        const taBreakdown = document.getElementById("trade-assist-breakdown");
+        const taWarning = document.getElementById("trade-assist-warning");
+
         function money(value) {
             const num = parseFloat(value || "0");
             return isNaN(num) ? "0.00" : num.toFixed(2);
+        }
+
+        function updateTradeAssist(totalIncl) {
+            const clientId = clientSelect?.value || "";
+            const account = tradeAssistAccounts[clientId];
+
+            taBreakdown.classList.add("d-none");
+            taWarning.classList.add("d-none");
+            taWarning.className = "alert alert-warning py-2 mb-0 d-none";
+
+            if (!clientId) {
+                taMessage.textContent = "Select an existing client to check whether they have a TradeAssist arrangement.";
+                taMessage.classList.remove("d-none");
+                return;
+            }
+
+            if (!account) {
+                taMessage.textContent = "This client does not have a TradeAssist account. The quotation will use the normal payment arrangement.";
+                taMessage.classList.remove("d-none");
+                return;
+            }
+
+            taMessage.classList.add("d-none");
+            taBreakdown.classList.remove("d-none");
+
+            const contributionPct = Math.min(100, Math.max(0, parseFloat(account.contribution_pct || "100")));
+            const available = Math.max(0, parseFloat(account.available || "0"));
+            const upfront = totalIncl * contributionPct / 100;
+            const deferred = totalIncl - upfront;
+            const active = account.status === "ACTIVE";
+            const enoughBuyingPower = deferred <= available;
+
+            document.getElementById("ta-contribution-pct").textContent = money(contributionPct) + "%";
+            document.getElementById("ta-payment-term").textContent = account.payment_term || "Not specified";
+            document.getElementById("ta-available").textContent = "R" + money(available);
+            document.getElementById("ta-status").textContent = account.status || "Unknown";
+            document.getElementById("ta-quotation-total").textContent = "R" + money(totalIncl);
+            document.getElementById("ta-upfront").textContent = "R" + money(upfront);
+            document.getElementById("ta-deferred").textContent = "R" + money(deferred);
+
+            if (!active || !account.can_allocate) {
+                taWarning.textContent = "A TradeAssist account exists, but it is not currently active and available for allocation. The breakdown is indicative only; do not present the deferred portion as approved.";
+                taWarning.classList.remove("d-none");
+            } else if (!enoughBuyingPower) {
+                taWarning.textContent = "The indicative TradeAssist portion exceeds the client's available buying power by R" +
+                    money(deferred - available) +
+                    ". The quotation can still be created, but the full deferred portion is not currently covered.";
+                taWarning.classList.remove("d-none");
+            } else {
+                taWarning.className = "alert alert-success py-2 mb-0";
+                taWarning.textContent = "The client's current account terms and available buying power cover this indicative breakdown. Final allocation remains subject to the normal checks.";
+                taWarning.classList.remove("d-none");
+            }
         }
 
         function calculateTotals() {
@@ -1373,6 +1499,8 @@
 
           document.getElementById("total-inc").textContent =
               "R" + money(finalInc);
+
+          updateTradeAssist(finalInc);
       }
 
         function calculateRow(tr, source = "percent") {
@@ -1559,6 +1687,14 @@
             '[name="discount_total_excl"], [name="delivery_fee_excl"], [name="delivery_fee_vat_percent"]'
         ).forEach(input => {
             input.addEventListener("input", calculateTotals);
+        });
+
+        if (clientSelect) {
+            clientSelect.addEventListener("change", calculateTotals);
+        }
+
+        document.querySelectorAll('input[name="quotation_target"]').forEach(radio => {
+            radio.addEventListener("change", calculateTotals);
         });
 
         tbody.querySelectorAll("tr").forEach(wireRow);

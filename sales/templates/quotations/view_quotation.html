@@ -1349,8 +1349,51 @@
                                     </div>
                                 {% endif %}
 
+                                <hr class="my-3">
+                                <div class="fw-semibold mb-2">Indicative quotation payment breakdown</div>
+                                <div class="row g-3">
+                                    <div class="col-6 col-md-4">
+                                        <div class="small text-muted">Customer pays upfront</div>
+                                        <div class="fw-semibold">
+                                            R{{ trade_assist_upfront_amount|floatformat:2|intcomma }}
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-4">
+                                        <div class="small text-muted">Indicative TradeAssist portion</div>
+                                        <div class="fw-semibold">
+                                            R{{ trade_assist_deferred_amount|floatformat:2|intcomma }}
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-4">
+                                        <div class="small text-muted">Settlement term</div>
+                                        <div class="fw-semibold">
+                                            {% if trade_assist_account %}
+                                                {{ trade_assist_account.get_payment_term_display }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if trade_assist_account %}
+                                    {% if not trade_assist_account_active or not trade_assist_can_allocate %}
+                                        <div class="alert alert-warning small mt-3 mb-0">
+                                            This account is not currently available for allocations. The customer must pay the full quotation amount upfront.
+                                        </div>
+                                    {% elif trade_assist_insufficient %}
+                                        <div class="alert alert-warning small mt-3 mb-0">
+                                            Available buying power is insufficient for this quotation. The customer must pay the full quotation amount upfront.
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    <div class="alert alert-light border small mt-3 mb-0">
+                                        No TradeAssist facility is recorded for this client. The full quotation amount is payable upfront.
+                                    </div>
+                                {% endif %}
+
                                 <div class="alert alert-light border small mt-3 mb-0">
-                                    This is an account snapshot only. A quotation does not reserve buying power or guarantee TradeAssist approval. Facility availability and account status are checked again when an order/invoice is processed.
+                                    This is an indicative account snapshot only. A quotation does not reserve buying power or guarantee TradeAssist approval. Facility availability and account status are checked again when an order/invoice is processed.
                                 </div>
                             </div>
                         </div>

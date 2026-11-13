@@ -1158,6 +1158,33 @@
             {% else %}
                 <p class="mb-0">A client or prospect has not been linked to this quotation.</p>
             {% endif %}
+            {% if quotation.client and credit_account %}
+                <hr>
+                <h6 class="mb-3">Indicative quotation payment breakdown</h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="text-muted small">Customer pays upfront</div>
+                        <div class="fw-semibold">R{{ credit_upfront_amount|floatformat:2 }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small">Indicative Trade Assist portion</div>
+                        <div class="fw-semibold">R{{ credit_deferred_amount|floatformat:2 }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small">Settlement term</div>
+                        <div class="fw-semibold">{{ credit_account.get_payment_term_display|default:credit_account.payment_term|default:"—" }}</div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    {% if not credit_account_active %}
+                        <div class="alert alert-warning py-2 mb-0">This account is not currently active for allocations. The customer must pay the full quotation amount upfront.</div>
+                    {% elif credit_insufficient %}
+                        <div class="alert alert-warning py-2 mb-0">Available buying power is insufficient for this quotation. The customer must pay the full amount or the arrangement must be reviewed.</div>
+                    {% elif credit_payment_available %}
+                        <div class="alert alert-success py-2 mb-0">Indicative split only. Final eligibility and available buying power must be rechecked when the order is processed.</div>
+                    {% endif %}
+                </div>
+            {% endif %}
             <hr>
             <p class="small text-muted mb-0">
                 Informational snapshot only. This quotation does not reserve buying power, create an allocation

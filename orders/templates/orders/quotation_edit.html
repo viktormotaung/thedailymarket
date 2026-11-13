@@ -738,6 +738,39 @@
                     This quotation is linked to a prospect. A TradeAssist facility snapshot will be available once the prospect has been converted to a client and an account is recorded.
                 </div>
             {% endif %}
+            {% if quotation.client and trade_assist_account %}
+                <hr>
+                <div id="trade-assist-estimate"
+                     data-status="{{ trade_assist_account.status }}"
+                     data-can-allocate="{% if trade_assist_account_active %}1{% else %}0{% endif %}"
+                     data-contribution="{{ trade_assist_contribution_pct }}"
+                     data-available="{{ trade_assist_available }}">
+                    <h6 class="mb-3">Indicative quotation payment breakdown</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="small text-muted">Customer pays upfront</div>
+                            <div class="fw-semibold" id="ta-upfront-amount">R{{ trade_assist_upfront_amount|floatformat:2|intcomma }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="small text-muted">Indicative Trade Assist portion</div>
+                            <div class="fw-semibold" id="ta-deferred-amount">R{{ trade_assist_deferred_amount|floatformat:2|intcomma }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="small text-muted">Settlement term</div>
+                            <div class="fw-semibold" id="ta-settlement-term">{{ trade_assist_account.get_payment_term_display|default:trade_assist_account.payment_term|default:"—" }}</div>
+                        </div>
+                    </div>
+                    <div class="mt-3" id="ta-estimate-message">
+                        {% if not trade_assist_account_active %}
+                            <div class="alert alert-warning py-2 mb-0">This Trade Assist account is not currently active for allocations. The customer must pay the full quotation amount upfront.</div>
+                        {% elif trade_assist_insufficient %}
+                            <div class="alert alert-warning py-2 mb-0">Available buying power is insufficient for this quotation. The customer must pay the full amount or the arrangement must be reviewed.</div>
+                        {% else %}
+                            <div class="alert alert-success py-2 mb-0">Indicative split only. Final eligibility and buying power must be rechecked when the order is processed.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
             <hr>
             <div class="small text-muted">
                 Informational snapshot only. Editing this quotation does not reserve or consume buying power,
@@ -1194,6 +1227,41 @@
         return isNaN(num) ? "0.00" : num.toFixed(2);
     }
 
+    function updateTradeAssistEstimate(totalIncl) {
+        const panel = document.getElementById("trade-assist-estimate");
+        if (!panel) return;
+
+        const active = panel.dataset.canAllocate === "1";
+        const contributionPct = Math.min(100, Math.max(0, parseFloat(panel.dataset.contribution || "100")));
+        const available = Math.max(0, parseFloat(panel.dataset.available || "0"));
+        const upfrontEl = document.getElementById("ta-upfront-amount");
+        const deferredEl = document.getElementById("ta-deferred-amount");
+        const messageEl = document.getElementById("ta-estimate-message");
+
+        let upfront = totalIncl;
+        let deferred = 0;
+        let message = "";
+
+        if (!active) {
+            message = '<div class="alert alert-warning py-2 mb-0">This Trade Assist account is not currently active for allocations. The customer must pay the full quotation amount upfront.</div>';
+        } else {
+            const proposedUpfront = Math.round((totalIncl * contributionPct / 100) * 100) / 100;
+            const proposedDeferred = Math.round((totalIncl - proposedUpfront) * 100) / 100;
+
+            if (proposedDeferred <= available) {
+                upfront = proposedUpfront;
+                deferred = proposedDeferred;
+                message = '<div class="alert alert-success py-2 mb-0">Indicative split only. Final eligibility and buying power must be rechecked when the order is processed.</div>';
+            } else {
+                message = '<div class="alert alert-warning py-2 mb-0">Available buying power is insufficient for this quotation. The customer must pay the full amount or the arrangement must be reviewed.</div>';
+            }
+        }
+
+        if (upfrontEl) upfrontEl.textContent = "R" + money(upfront);
+        if (deferredEl) deferredEl.textContent = "R" + money(deferred);
+        if (messageEl) messageEl.innerHTML = message;
+    }
+
     function calculateQuotationTotals() {
         let totalExcl = 0;
         let totalVat = 0;
@@ -1227,6 +1295,7 @@
         if (vatAmountEl) vatAmountEl.value = money(totalVat);
         if (discountTotalEl) discountTotalEl.value = money(totalDiscount);
         if (totalInclEl) totalInclEl.value = money(totalIncl);
+        updateTradeAssistEstimate(totalIncl);
     }
 
     function calculateRowTotals(tr, source = "hydrate") {
