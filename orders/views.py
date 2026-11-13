@@ -495,48 +495,75 @@ def order_view(request, pk):
     credit_account = None
     credit_account_available = Decimal("0.00")
     credit_contribution_pct = Decimal("100.00")
+    credit_account_active = False
+    credit_payment_available = False
+    credit_insufficient = False
     credit_can_allocate = False
 
+    order_total = Decimal(str(
+        order.grand_total_inc or "0.00"
+    )).quantize(Decimal("0.01"))
+
+    # Default to the full order amount payable upfront. This remains the
+    # position when there is no account, the account is inactive, or the
+    # available buying power cannot cover the deferred portion.
+    credit_upfront_amount = order_total
+    credit_deferred_amount = Decimal("0.00")
+
     try:
-        credit_account = (
-            order.client.credit_account
-        )
-    except Exception:
+        credit_account = order.client.credit_account if order.client else None
+    except CreditAccount.DoesNotExist:
         credit_account = None
 
-    order_total = Decimal(str(order.grand_total_inc or "0.00"))
-
     if credit_account:
-        credit_account_available = (
-            credit_account.credit_available
-            if hasattr(credit_account, "credit_available")
-            else (
-                Decimal(str(credit_account.credit_limit or "0.00"))
-                - Decimal(str(credit_account.credit_used or "0.00"))
-            )
-        )
         credit_account_available = max(
             Decimal("0.00"),
-            Decimal(str(credit_account_available))
-        )
+            Decimal(str(credit_account.credit_available or "0.00"))
+        ).quantize(Decimal("0.01"))
 
         try:
-            credit_contribution_pct = Decimal(
-                str(credit_account.credit_deposit_pct or "100.00")
+            credit_contribution_pct = min(
+                Decimal("100.00"),
+                max(
+                    Decimal("0.00"),
+                    Decimal(str(
+                        credit_account.credit_deposit_pct
+                        if credit_account.credit_deposit_pct is not None
+                        else "100.00"
+                    ))
+                )
             )
-        except Exception:
+        except (TypeError, ValueError, ArithmeticError):
             credit_contribution_pct = Decimal("100.00")
 
-        # Eligibility shown here is informative only. The actual allocation
-        # process must repeat these checks under transaction.atomic/select_for_update.
+        # This is a display-only eligibility check. The actual allocation
+        # workflow must revalidate under transaction.atomic/select_for_update.
+        credit_account_active = (
+            credit_account.status == CreditAccount.STATUS_ACTIVE
+            and credit_account.can_allocate
+        )
         credit_can_allocate = bool(
-            credit_account.status == "ACTIVE"
-            and getattr(credit_account, "can_allocate", False)
+            credit_account_active
             and credit_account_available > Decimal("0.00")
         )
 
+        if credit_account_active:
+            indicative_upfront = (
+                order_total * credit_contribution_pct / Decimal("100.00")
+            ).quantize(Decimal("0.01"))
+            indicative_deferred = (
+                order_total - indicative_upfront
+            ).quantize(Decimal("0.01"))
+
+            if indicative_deferred <= credit_account_available:
+                credit_upfront_amount = indicative_upfront
+                credit_deferred_amount = indicative_deferred
+                credit_payment_available = True
+            else:
+                credit_insufficient = True
+
     # If an invoice already exists, display its saved financial snapshots.
-    # Otherwise show an indicative split using the current account terms.
+    # Otherwise display the current indicative split only when eligible.
     if invoice:
         order_upfront_amount = Decimal(
             str(getattr(invoice, "deposit_required", "0.00") or "0.00")
@@ -544,16 +571,9 @@ def order_view(request, pk):
         order_deferred_amount = Decimal(
             str(getattr(invoice, "credit_used", "0.00") or "0.00")
         )
-    elif credit_account and credit_account.status == "ACTIVE":
-        order_upfront_amount = (
-            order_total * credit_contribution_pct / Decimal("100.00")
-        ).quantize(Decimal("0.01"))
-        order_deferred_amount = (
-            order_total - order_upfront_amount
-        ).quantize(Decimal("0.01"))
     else:
-        order_upfront_amount = order_total.quantize(Decimal("0.01"))
-        order_deferred_amount = Decimal("0.00")
+        order_upfront_amount = credit_upfront_amount
+        order_deferred_amount = credit_deferred_amount
 
     items = order.items.all().order_by("id")
     item_rows = []
