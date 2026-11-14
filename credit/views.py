@@ -13,6 +13,7 @@ from django.core.paginator import Paginator
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from communications.models import CommunicationLog
+from communications.services.smsportal import send_sms
 from django.db.models import (
     DecimalField, F, OuterRef, Q, Subquery, Sum, Value
 )
@@ -824,21 +825,41 @@ def credit_client_view(request, client_id):
     )
 
     open_invoices = []
+    settlement_today = localdate()
+
     for row in exposure_raw:
-        outstanding = row["credit_used"] - row["credit_repaid"]
-        if outstanding > 0:
-            open_invoices.append({
-                "invoice_id": row["invoice_id"],
-                "invoice_date": row["invoice__invoice_date"],
-                "due_date": row["invoice__due_date"],
-                "status": row["invoice__status"],
-                "settlement_due_date": row["invoice__settlement_due_date"],
-                "settlement_status": row["invoice__settlement_status"],
-                "credit_used": row["credit_used"],
-                "credit_repaid": row["credit_repaid"],
-                "outstanding": outstanding,
-                "order_id": row["invoice__order_id"],
-            })
+        credit_used_for_invoice = row["credit_used"] or Decimal("0.00")
+        credit_repaid_for_invoice = row["credit_repaid"] or Decimal("0.00")
+        outstanding = credit_used_for_invoice - credit_repaid_for_invoice
+
+        if outstanding <= Decimal("0.00"):
+            continue
+
+        settlement_due_date = row["invoice__settlement_due_date"]
+        if isinstance(settlement_due_date, datetime):
+            settlement_due_date = settlement_due_date.date()
+
+        # Calculate this at request time so the status changes automatically
+        # as the settlement due date passes, without a scheduled DB update.
+        if settlement_due_date and settlement_due_date < settlement_today:
+            dynamic_settlement_status = "overdue"
+        elif credit_repaid_for_invoice > Decimal("0.00"):
+            dynamic_settlement_status = "partial"
+        else:
+            dynamic_settlement_status = "outstanding"
+
+        open_invoices.append({
+            "invoice_id": row["invoice_id"],
+            "invoice_date": row["invoice__invoice_date"],
+            "due_date": row["invoice__due_date"],
+            "status": row["invoice__status"],
+            "settlement_due_date": settlement_due_date,
+            "settlement_status": dynamic_settlement_status,
+            "credit_used": credit_used_for_invoice,
+            "credit_repaid": credit_repaid_for_invoice,
+            "outstanding": outstanding,
+            "order_id": row["invoice__order_id"],
+        })
 
     open_credit_total = credit_used
 
@@ -905,6 +926,172 @@ def credit_client_view(request, client_id):
             "allocatable_balance": allocatable_balance,
         },
     )
+
+
+@login_required
+@staff_required
+@require_POST
+def credit_send_sms(request, client_id):
+    """
+    Send a TradeAssist payment reminder and record it in CommunicationLog.
+
+    The SMS totals use the same CreditEntry-per-invoice exposure calculation
+    and Invoice.settlement_due_date shown in the Outstanding invoice
+    settlements table. A settlement is due today when its due date is today,
+    and overdue once that date has passed.
+    """
+    client = get_object_or_404(Client, pk=client_id)
+
+    sms_type = (request.POST.get("sms_type") or "").strip().lower()
+    allowed_types = {"due_today", "overdue"}
+    if sms_type not in allowed_types:
+        return JsonResponse(
+            {"success": False, "error": "Select a valid SMS type."},
+            status=400,
+        )
+
+    # This number is an SMS-only override; Client.phone is not modified.
+    phone = (request.POST.get("phone") or getattr(client, "phone", "") or "").strip()
+    digits = "".join(character for character in phone if character.isdigit())
+    if not phone:
+        return JsonResponse(
+            {"success": False, "error": "Enter a mobile number to send the SMS to."},
+            status=400,
+        )
+    if len(digits) < 9 or len(digits) > 15 or any(
+        character not in "+0123456789 ()-" for character in phone
+    ):
+        return JsonResponse(
+            {"success": False, "error": "Enter a valid mobile number, including country code if required."},
+            status=400,
+        )
+
+    today = localdate()
+    due_today_amount = Decimal("0.00")
+    overdue_amount = Decimal("0.00")
+
+    # Match the Outstanding invoice settlements table exactly:
+    # CreditEntry usage less repayments, grouped by invoice.
+    exposure_rows = (
+        CreditEntry.objects
+        .filter(
+            credit_account__client=client,
+            invoice__isnull=False,
+        )
+        .values("invoice_id", "invoice__settlement_due_date")
+        .annotate(
+            credit_used=Coalesce(
+                Sum("amount", filter=Q(kind=CreditEntry.USAGE)),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+            credit_repaid=Coalesce(
+                Sum("amount", filter=Q(kind=CreditEntry.REPAYMENT)),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+        )
+    )
+
+    for row in exposure_rows:
+        outstanding = r2(
+            (row["credit_used"] or Decimal("0.00"))
+            - (row["credit_repaid"] or Decimal("0.00"))
+        )
+        if outstanding <= Decimal("0.00"):
+            continue
+
+        due_date = row["invoice__settlement_due_date"]
+        if isinstance(due_date, datetime):
+            due_date = due_date.date()
+
+        # "Payment due today" is an action option for any unpaid amount
+        # whose due date is today OR has already passed. This allows staff
+        # to send the due-today reminder even when the settlement is overdue.
+        if due_date and due_date <= today:
+            due_today_amount += outstanding
+
+        # The overdue reminder remains restricted to past-due balances.
+        if due_date and due_date < today:
+            overdue_amount += outstanding
+
+    due_today_amount = r2(due_today_amount)
+    overdue_amount = r2(overdue_amount)
+
+    if sms_type == "due_today":
+        amount = due_today_amount
+        if amount <= 0:
+            return JsonResponse(
+                {"success": False, "error": "There is no outstanding TradeAssist amount due today or overdue."},
+                status=400,
+            )
+        message = (
+            f"Hi {client.name}, your TradeAssist amount of R{amount:,.2f} "
+            f"is due today ({today:%d %b %Y}). Please make payment today "
+            "to keep your TradeAssist account in good standing. The Daily Market."
+        )
+        subject = f"TradeAssist payment due today - {client.name}"
+    else:
+        amount = overdue_amount
+        if amount <= 0:
+            return JsonResponse(
+                {"success": False, "error": "There is no overdue TradeAssist amount on this account."},
+                status=400,
+            )
+        message = (
+            f"Hi {client.name}, your TradeAssist account has an overdue "
+            f"amount of R{amount:,.2f}. To avoid suspension of your account, "
+            "please make payment as soon as possible. If you have already "
+            "paid, kindly send us your proof of payment. The Daily Market."
+        )
+        subject = f"TradeAssist overdue payment reminder - {client.name}"
+
+    try:
+        result = send_sms(to=phone, message=message)
+    except Exception as exc:
+        logger.exception("TradeAssist SMS failed for client %s", client.pk)
+        result = {"success": False, "response": str(exc)}
+
+    if not result or not result.get("success"):
+        CommunicationLog.objects.create(
+            channel=CommunicationLog.CHANNEL_SMS,
+            status=CommunicationLog.STATUS_FAILED,
+            recipient_name=client.name,
+            recipient_contact=phone,
+            subject=subject,
+            message=message,
+            related_model="Client",
+            related_object_id=client.pk,
+            provider="SMSPortal",
+            provider_response=result or {},
+            error_message=str((result or {}).get("response") or "SMS provider returned an unsuccessful response."),
+            sent_by=request.user,
+        )
+        return JsonResponse(
+            {"success": False, "error": "SMS failed to send.", "result": result},
+            status=400,
+        )
+
+    CommunicationLog.objects.create(
+        channel=CommunicationLog.CHANNEL_SMS,
+        status=CommunicationLog.STATUS_SENT,
+        recipient_name=client.name,
+        recipient_contact=phone,
+        subject=subject,
+        message=message,
+        related_model="Client",
+        related_object_id=client.pk,
+        provider="SMSPortal",
+        provider_response=result,
+        sent_by=request.user,
+        sent_at=now(),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "SMS sent successfully.",
+        "sms": message,
+    })
 
 
 # ============================================================

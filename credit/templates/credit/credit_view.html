@@ -859,6 +859,10 @@
         <div class="d-flex flex-wrap gap-2">
           <a href="{% url 'staff-credit' %}" class="btn btn-outline-secondary">Back to Accounts</a>
           <a href="{% url 'credit-edit' client.id %}" class="btn btn-primary">Edit Account</a>
+          <button type="button" class="btn btn-outline-primary"
+                  data-bs-toggle="modal" data-bs-target="#creditSmsModal">
+            <i class="bi bi-chat-dots me-1"></i> Send SMS
+          </button>
           <button type="button" class="btn btn-outline-success"
                   data-bs-toggle="modal" data-bs-target="#statementPeriodModal">
             <i class="bi bi-file-earmark-pdf me-1"></i> View Statement
@@ -1071,6 +1075,61 @@
 
 
 
+
+  <!-- Trade Assist SMS reminder modal -->
+  <div class="modal fade" id="creditSmsModal" tabindex="-1"
+       aria-labelledby="creditSmsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form id="creditSmsForm" method="post" action="{% url 'credit-send-sms' client.id %}">
+          {% csrf_token %}
+          <div class="modal-header">
+            <h5 class="modal-title" id="creditSmsModalLabel">Send Trade Assist SMS</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted">
+              Choose a reminder for <strong>{{ client }}</strong>. The amount is calculated
+              from the account's outstanding invoice settlements.
+            </p>
+            <label class="form-label" for="creditSmsType">SMS type</label>
+            <select class="form-select" id="creditSmsType" name="sms_type" required>
+              <option value="">Select a message</option>
+              <option value="due_today">Payment due today</option>
+              <option value="overdue">Overdue payment – suspension warning</option>
+            </select>
+            <div class="alert alert-light border small mt-3 mb-2" id="creditSmsPreview">
+              Select a message type to preview it.
+            </div>
+            <div class="mt-3">
+              <label class="form-label" for="creditSmsPhone">Send to mobile number</label>
+              <input
+                type="tel"
+                class="form-control"
+                id="creditSmsPhone"
+                name="phone"
+                value="{{ client.phone|default:'' }}"
+                placeholder="e.g. 082 123 4567 or +2782 123 4567"
+                autocomplete="tel"
+                required
+              >
+              <div class="form-text">
+                You can change this number for this message. The client's saved number will not be changed.
+              </div>
+            </div>
+            <div class="small mt-2 d-none" id="creditSmsFeedback" role="status"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="creditSmsSubmit">
+              <i class="bi bi-send me-1"></i> Send SMS
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Statement period selection -->
   <div class="modal fade" id="statementPeriodModal" tabindex="-1"
        aria-labelledby="statementPeriodModalLabel" aria-hidden="true">
@@ -1114,7 +1173,8 @@
       </div>
     </div>
   </div>
-\n  <!-- Invoice-specific repayment modal -->
+
+  <!-- Invoice-specific repayment modal -->
   <div class="modal fade" id="repaymentModal" tabindex="-1" aria-labelledby="repaymentModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -1160,6 +1220,65 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", function () {
+
+      // Trade Assist SMS reminder
+      const creditSmsForm = document.getElementById("creditSmsForm");
+      const creditSmsType = document.getElementById("creditSmsType");
+      const creditSmsPreview = document.getElementById("creditSmsPreview");
+      const creditSmsFeedback = document.getElementById("creditSmsFeedback");
+      const creditSmsSubmit = document.getElementById("creditSmsSubmit");
+
+      if (creditSmsType && creditSmsPreview) {
+        creditSmsType.addEventListener("change", function () {
+          const previews = {
+            due_today: "Hi {{ client|escapejs }}, your TradeAssist amount of [amount due today] is due today. Please make payment today to keep your account in good standing. The Daily Market.",
+            overdue: "Hi {{ client|escapejs }}, your TradeAssist account has an overdue amount of [overdue amount]. To avoid suspension of your account, please make payment as soon as possible. The Daily Market."
+          };
+          creditSmsPreview.textContent = previews[this.value] || "Select a message type to preview it.";
+        });
+      }
+
+      if (creditSmsForm) {
+        creditSmsForm.addEventListener("submit", async function (event) {
+          event.preventDefault();
+          if (!creditSmsType || !creditSmsType.value) return;
+
+          const originalButton = creditSmsSubmit.innerHTML;
+          creditSmsSubmit.disabled = true;
+          creditSmsSubmit.textContent = "Sending…";
+          creditSmsFeedback.classList.remove("d-none", "text-success", "text-danger");
+          creditSmsFeedback.textContent = "";
+
+          try {
+            const csrf = creditSmsForm.querySelector('input[name="csrfmiddlewaretoken"]');
+            const response = await fetch(creditSmsForm.action, {
+              method: "POST",
+              headers: {
+                "X-CSRFToken": csrf ? csrf.value : "",
+                "Content-Type": "application/x-www-form-urlencoded"
+              },
+              body: new URLSearchParams(new FormData(creditSmsForm)).toString()
+            });
+            const data = await response.json();
+
+            creditSmsFeedback.classList.add(data.success ? "text-success" : "text-danger");
+            creditSmsFeedback.textContent = data.message || data.error || "Unable to send SMS.";
+
+            if (data.success) {
+              creditSmsFeedback.textContent += " Message: " + (data.sms || "");
+              creditSmsSubmit.textContent = "Sent";
+              return;
+            }
+          } catch (error) {
+            creditSmsFeedback.classList.add("text-danger");
+            creditSmsFeedback.textContent = "SMS could not be sent. Please try again.";
+          }
+
+          creditSmsSubmit.disabled = false;
+          creditSmsSubmit.innerHTML = originalButton;
+        });
+      }
+
       const statementPeriod = document.getElementById("statementPeriod");
       const customDates = document.getElementById("statementCustomDates");
       const statementStart = document.getElementById("statementStartDate");

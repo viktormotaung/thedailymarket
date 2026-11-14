@@ -3,6 +3,7 @@ from .views import (
     credit_list,
     credit_edit,
     credit_client_view,
+    credit_send_sms,
     credit_statement_view,
     credit_statement_download,
     credit_statement_email,
@@ -20,6 +21,7 @@ urlpatterns = [
     path("", credit_list, name="staff-credit"),
     path("client/<int:client_id>/edit/", credit_edit, name="credit-edit"),
     path("client/<int:client_id>/", credit_client_view, name="credit-view"),
+    path("client/<int:client_id>/send-sms/", credit_send_sms, name="credit-send-sms"),
 
     path(
         "client/<int:client_id>/statement/",
