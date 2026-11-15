@@ -935,15 +935,13 @@ def credit_send_sms(request, client_id):
     """
     Send a TradeAssist payment reminder and record it in CommunicationLog.
 
-    The SMS totals use the same CreditEntry-per-invoice exposure calculation
-    and Invoice.settlement_due_date shown in the Outstanding invoice
-    settlements table. A settlement is due today when its due date is today,
-    and overdue once that date has passed.
+    Amounts are calculated from the same CreditEntry-per-invoice exposure
+    shown in the Outstanding invoice settlements table.
     """
     client = get_object_or_404(Client, pk=client_id)
 
     sms_type = (request.POST.get("sms_type") or "").strip().lower()
-    allowed_types = {"due_today", "overdue"}
+    allowed_types = {"due_tomorrow", "due_today", "overdue"}
     if sms_type not in allowed_types:
         return JsonResponse(
             {"success": False, "error": "Select a valid SMS type."},
@@ -967,6 +965,8 @@ def credit_send_sms(request, client_id):
         )
 
     today = localdate()
+    tomorrow = today + timedelta(days=1)
+    due_tomorrow_amount = Decimal("0.00")
     due_today_amount = Decimal("0.00")
     overdue_amount = Decimal("0.00")
 
@@ -1005,24 +1005,36 @@ def credit_send_sms(request, client_id):
         if isinstance(due_date, datetime):
             due_date = due_date.date()
 
-        # "Payment due today" is an action option for any unpaid amount
-        # whose due date is today OR has already passed. This allows staff
-        # to send the due-today reminder even when the settlement is overdue.
-        if due_date and due_date <= today:
+        if due_date == tomorrow:
+            due_tomorrow_amount += outstanding
+        elif due_date == today:
             due_today_amount += outstanding
-
-        # The overdue reminder remains restricted to past-due balances.
-        if due_date and due_date < today:
+        elif due_date and due_date < today:
             overdue_amount += outstanding
 
+    due_tomorrow_amount = r2(due_tomorrow_amount)
     due_today_amount = r2(due_today_amount)
     overdue_amount = r2(overdue_amount)
 
-    if sms_type == "due_today":
+    if sms_type == "due_tomorrow":
+        amount = due_tomorrow_amount
+        if amount <= 0:
+            return JsonResponse(
+                {"success": False, "error": "There is no outstanding TradeAssist amount due tomorrow."},
+                status=400,
+            )
+        message = (
+            f"Hi {client.name}, your TradeAssist amount of R{amount:,.2f} "
+            f"is due tomorrow ({tomorrow:%d %b %Y}). Please make payment on time "
+            "to keep your TradeAssist account in good standing. The Daily Market."
+        )
+        subject = f"TradeAssist payment due tomorrow - {client.name}"
+
+    elif sms_type == "due_today":
         amount = due_today_amount
         if amount <= 0:
             return JsonResponse(
-                {"success": False, "error": "There is no outstanding TradeAssist amount due today or overdue."},
+                {"success": False, "error": "There is no outstanding TradeAssist amount due today."},
                 status=400,
             )
         message = (
@@ -1031,6 +1043,7 @@ def credit_send_sms(request, client_id):
             "to keep your TradeAssist account in good standing. The Daily Market."
         )
         subject = f"TradeAssist payment due today - {client.name}"
+
     else:
         amount = overdue_amount
         if amount <= 0:

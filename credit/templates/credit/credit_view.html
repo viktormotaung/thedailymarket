@@ -1095,6 +1095,7 @@
             <label class="form-label" for="creditSmsType">SMS type</label>
             <select class="form-select" id="creditSmsType" name="sms_type" required>
               <option value="">Select a message</option>
+              <option value="due_tomorrow">Payment due tomorrow</option>
               <option value="due_today">Payment due today</option>
               <option value="overdue">Overdue payment – suspension warning</option>
             </select>
@@ -1231,6 +1232,7 @@
       if (creditSmsType && creditSmsPreview) {
         creditSmsType.addEventListener("change", function () {
           const previews = {
+            due_tomorrow: "Hi {{ client|escapejs }}, your TradeAssist amount of [amount due tomorrow] is due tomorrow. Please make payment on time to keep your account in good standing. The Daily Market.",
             due_today: "Hi {{ client|escapejs }}, your TradeAssist amount of [amount due today] is due today. Please make payment today to keep your account in good standing. The Daily Market.",
             overdue: "Hi {{ client|escapejs }}, your TradeAssist account has an overdue amount of [overdue amount]. To avoid suspension of your account, please make payment as soon as possible. The Daily Market."
           };
