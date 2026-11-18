@@ -819,7 +819,9 @@
       <div>
         <h2 class="m-0">
           Transaction #{{ tx.id }} · {{ client }}
-          {% if tx.is_credit %}
+          {% if tx.transaction_type == 'credit_issue' %}
+            <span class="badge bg-secondary align-middle">{{ tx.get_transaction_type_display }}</span>
+          {% elif tx.is_credit %}
             <span class="badge bg-success align-middle">{{ tx.get_transaction_type_display }}</span>
           {% else %}
             <span class="badge bg-danger align-middle">{{ tx.get_transaction_type_display }}</span>
@@ -880,7 +882,13 @@
           <div class="card-header bg-white"><strong>Movement</strong></div>
           <div class="card-body">
             <div class="fs-4 fw-bold">
-              {% if tx.is_credit %}+{% else %}-{% endif %}R{{ tx.amount }}
+              {% if tx.transaction_type == 'credit_issue' %}
+                R{{ tx.amount }} <span class="small text-muted">(non-cash credit allocation)</span>
+              {% elif tx.is_credit %}
+                +R{{ tx.amount }}
+              {% else %}
+                -R{{ tx.amount }}
+              {% endif %}
             </div>
             <div class="small text-muted">Type: {{ tx.get_transaction_type_display }}</div>
             {% if tx.reference %}
@@ -900,7 +908,15 @@
               <dd class="col-6">R{{ pre_balance }}</dd>
 
               <dt class="col-6">Delta (this txn)</dt>
-              <dd class="col-6">{% if tx.is_credit %}+{% else %}-{% endif %}R{{ tx.amount }}</dd>
+              <dd class="col-6">
+                {% if tx.transaction_type == 'credit_issue' %}
+                  R{{ tx.amount }} <span class="small text-muted">(neutral)</span>
+                {% elif tx.is_credit %}
+                  +R{{ tx.amount }}
+                {% else %}
+                  -R{{ tx.amount }}
+                {% endif %}
+              </dd>
 
               <dt class="col-6">Balance (after)</dt>
               <dd class="col-6"><strong>R{{ tx.balance }}</strong></dd>

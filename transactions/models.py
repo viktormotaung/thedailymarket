@@ -34,8 +34,10 @@ class BusinessBalance(models.Model):
     total_out = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     updated_at = models.DateTimeField(auto_now=True)
 
-    # NOTE: keep legacy types for historical data; new flows shouldn't emit "credit_usage".
-    CREDIT_TYPES = {"payment", "credit_issue", "refund"}
+    # Only actual cash receipts increase the business/client running balances.
+    # credit_issue is a non-cash funding allocation and must have zero balance impact.
+    # Keep legacy credit_usage as a debit for historical compatibility.
+    CREDIT_TYPES = {"payment", "credit_repayment", "refund"}
     DEBIT_TYPES = {"invoice", "credit_usage", "adjustment"}
 
     class Meta:
@@ -113,11 +115,14 @@ class ClientBalance(models.Model):
 # ============
 class Transaction(models.Model):
     """
-    Every row moves money in/out. Saving or deleting a row updates:
-      - BusinessBalance (global)
-      - ClientBalance (for the row’s client)
-      - Linked Invoice deposit+status (if any)  [cash deposit dimension only]
-      - Credit ledger via CreditEntry (repayments only; usage is managed by Invoice]
+    Transactions are the audit trail for financial and non-cash events.
+    Saving or deleting a row updates:
+      - BusinessBalance (global) and ClientBalance for cash/debit movements
+      - Linked Invoice deposit+status (cash deposit dimension only)
+      - Credit ledger via CreditEntry (repayments only; usage is managed by Invoice)
+
+    credit_issue is informational/non-cash: it is retained in this table but
+    deliberately has zero impact on either running balance.
     """
     TRANSACTION_TYPES = [
         ("payment", "Payment In"),
@@ -167,11 +172,18 @@ class Transaction(models.Model):
     # ----- convenience flags -----
     @property
     def is_credit(self) -> bool:
-        return self.transaction_type in {"payment", "credit_issue", "credit_repayment", "refund"}
+        """True only for transaction rows representing money received."""
+        return self.transaction_type in {"payment", "credit_repayment", "refund"}
 
     @property
     def is_debit(self) -> bool:
+        """True only for transaction rows that reduce the running balance."""
         return self.transaction_type in {"invoice", "credit_usage", "adjustment"}
+
+    @property
+    def is_neutral(self) -> bool:
+        """Non-cash informational transaction; shown without +/- and no balance impact."""
+        return self.transaction_type == "credit_issue"
 
     # ------------------------------------------------------------------
     # CreditEntry mapping
@@ -279,13 +291,11 @@ class Transaction(models.Model):
     def save(self, *args, **kwargs):
         old_type, old_amount, old_client_id = self._current_db_values()
 
-        # 🔒 Credit repayments do NOT affect balances
-        if self.transaction_type == "credit_repayment":
-            super().save(*args, **kwargs)
-            self._sync_credit_entry_after_save(old_type=old_type)
-            return
+        # Credit repayments are real cash receipts. They increase the
+        # business/client cash ledgers, but their CreditEntry is created by
+        # Invoice.record_credit_repayment(), so do not create a second one here.
 
-        # ---------------- Normal flow unchanged ----------------
+        # ---------------- Normal flow ----------------
         new_signed = BusinessBalance.signed_amount(self.transaction_type, self.amount)
         old_signed = BusinessBalance.signed_amount(old_type, old_amount)
         business_delta = new_signed - old_signed
@@ -313,7 +323,8 @@ class Transaction(models.Model):
         if self.invoice_id:
             self._sync_invoice_totals_and_status()
 
-        self._sync_credit_entry_after_save(old_type=old_type)
+        if self.transaction_type != "credit_repayment":
+            self._sync_credit_entry_after_save(old_type=old_type)
 
     # ------------------------------------------------------------------
     # Delete

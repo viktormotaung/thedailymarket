@@ -104,7 +104,7 @@ def credit_list(request):
                 output_field=DecimalField(max_digits=14, decimal_places=2),
             ),
         )
-        .order_by("-updated_at", "client__name")
+        .order_by("-reserved_amount", "client__name")
     )
 
     client_id = (request.GET.get("client") or "").strip()
@@ -1809,18 +1809,44 @@ def credit_confirm_payment(request, client_id):
         return redirect("credit-view", client_id=client.id)
 
     try:
-        entry = invoice.record_credit_repayment(
-            amount,
-            reference=reference,
-            note=f"Invoice-specific repayment captured by {request.user}.",
-        )
+        # Keep the credit ledger entry, financial transaction and invoice
+        # settlement update in one database transaction.
+        with transaction.atomic():
+            entry = invoice.record_credit_repayment(
+                amount,
+                reference=reference,
+                note=f"Invoice-specific repayment captured by {request.user}.",
+            )
+
+            repayment_transaction = Transaction.objects.create(
+                client=client,
+                invoice=invoice,
+                transaction_type="credit_repayment",
+                amount=entry.amount,
+                reference=reference or f"TA settlement · Invoice #{invoice.id}",
+                note=(
+                    f"TradeAssist settlement repayment for invoice #{invoice.id}. "
+                    f"Credit entry #{entry.pk}. Recorded by {request.user}."
+                ),
+            )
+
+            # Link the already-created CreditEntry to its audit transaction.
+            # Transaction.save() deliberately does not create a second entry.
+            entry.transaction = repayment_transaction
+            entry.save(update_fields=["transaction"])
+
     except Exception as exc:
+        logger.exception(
+            "TradeAssist repayment recording failed for client %s invoice %s",
+            client.id, invoice.id,
+        )
         messages.error(request, f"Repayment was not recorded: {exc}")
         return redirect("credit-view", client_id=client.id)
 
     messages.success(
         request,
-        f"R{entry.amount:.2f} repayment allocated to invoice #{invoice.id}."
+        f"R{entry.amount:.2f} repayment allocated to invoice #{invoice.id} "
+        f"and added to the transaction history."
     )
     return redirect("credit-view", client_id=client.id)
 

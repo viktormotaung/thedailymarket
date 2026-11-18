@@ -86,19 +86,25 @@ def transaction_list(request):
     if tx_type:
         qs = qs.filter(transaction_type=tx_type)
 
-    # --- KPIs: In / Out / Net ---
-    CREDIT_TYPES = ("payment", "credit_repayment", "credit_issue", "refund")
+    # --- Cash KPIs: credit_issue is a non-cash allocation ---
+    # Keep the existing incoming classifications, but do not count
+    # TradeAssist credit issuance as cash received or cash paid out.
+    CASH_IN_TYPES = ("payment", "credit_repayment", "refund")
 
     total_in = qs.aggregate(
         v=Coalesce(
-            Sum("amount", filter=Q(transaction_type__in=CREDIT_TYPES)),
+            Sum("amount", filter=Q(transaction_type__in=CASH_IN_TYPES)),
             Decimal("0.00")
         )
     )["v"]
 
     total_out = qs.aggregate(
         v=Coalesce(
-            Sum("amount", filter=~Q(transaction_type__in=CREDIT_TYPES)),
+            Sum(
+                "amount",
+                filter=~Q(transaction_type__in=CASH_IN_TYPES)
+                       & ~Q(transaction_type="credit_issue")
+            ),
             Decimal("0.00")
         )
     )["v"]
@@ -204,8 +210,14 @@ def transaction_view(request, pk):
         pk=pk
     )
 
-    # Signed movement for this transaction (credit = +, debit = -)
-    signed_delta = BusinessBalance.signed_amount(tx.transaction_type, tx.amount)
+    # Credit issuance is a non-cash allocation: it has no movement
+    # in either the business cash ledger or the client transaction ledger.
+    if tx.transaction_type == "credit_issue":
+        signed_delta = Decimal("0.00")
+    else:
+        signed_delta = BusinessBalance.signed_amount(
+            tx.transaction_type, tx.amount
+        )
 
     # Business ledger snapshot BEFORE this txn:
     pre_business_balance = (tx.balance or Decimal("0.00")) - signed_delta
