@@ -1,6 +1,7 @@
 # transactions/admin.py
 from decimal import Decimal
 from django.contrib import admin, messages
+from django.apps import apps
 from django.db import transaction as db_transaction
 from django.db.models import Sum
 
@@ -41,10 +42,20 @@ class TransactionAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ("client", "invoice")
 
-    readonly_fields = ("balance", "created_at")
+    # Only the transaction date/time may be edited from admin. All financial
+    # and relationship fields remain read-only to protect the ledger.
+    readonly_fields = (
+        "client",
+        "invoice",
+        "transaction_type",
+        "amount",
+        "balance",
+        "reference",
+        "note",
+    )
 
     fieldsets = (
-        (None, {
+        ("Transaction", {
             "fields": (
                 "client",
                 "invoice",
@@ -52,16 +63,33 @@ class TransactionAdmin(admin.ModelAdmin):
                 "amount",
                 "reference",
                 "note",
+                "created_at",
             )
         }),
         ("System", {
-            "fields": ("balance", "created_at"),
+            "fields": ("balance",),
         }),
     )
 
     def save_model(self, request, obj, form, change):
         db = "dummy" if request.path.startswith("/dummy-admin") else "default"
-        obj.save(using=db)
+
+        if change:
+            # Update only the timestamp directly. Calling Transaction.save() here
+            # would re-run ledger and credit-entry side effects for a date-only edit.
+            Transaction.objects.using(db).filter(pk=obj.pk).update(
+                created_at=obj.created_at
+            )
+
+            # Keep any CreditEntry still linked to this transaction on the same date.
+            CreditEntry = apps.get_model("credit", "CreditEntry")
+            CreditEntry.objects.using(db).filter(transaction_id=obj.pk).update(
+                posted_at=obj.created_at
+            )
+            obj._state.db = db
+        else:
+            # New transactions retain the normal model save behaviour.
+            obj.save(using=db)
 
     def delete_model(self, request, obj):
         db = "dummy" if request.path.startswith("/dummy-admin") else "default"

@@ -1140,6 +1140,10 @@ class Prospect(models.Model):
             territory=self.territory,
             area=self.area,
 
+            # GPS coordinates
+            lat=self.lat,
+            lng=self.lng,
+
             vat_number=self.vat_number,
             registration_identifier=self.registration_identifier,
 
@@ -2007,6 +2011,10 @@ class Lead(models.Model):
             region=self.region,
             territory=self.territory,
             area=self.area,
+
+            # GPS coordinates
+            lat=self.latitude,
+            lng=self.longitude,
 
             estimated_weekly_spend=self.estimated_weekly_spend,
 
