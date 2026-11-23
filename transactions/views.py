@@ -7,12 +7,12 @@ from django.db.models import Sum, Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils.timezone import now
-
+from django.db.models import Case, When, Value, IntegerField
 from clients.models import Client
 from .models import Transaction, BusinessBalance
 from .forms import TransactionForm
 from .models import Transaction, BusinessBalance
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, TruncMinute
 
 from django.utils.crypto import constant_time_compare
 from django.db import transaction as db_transaction
@@ -120,7 +120,19 @@ def transaction_list(request):
         "total_in": total_in,
         "total_out": total_out,
         "net_total": net_total,
-        "transactions": qs.order_by("-created_at", "-id"),
+        "transactions": qs.annotate(
+            _display_minute=TruncMinute("created_at")
+        ).order_by(
+            "-_display_minute",
+            Case(
+                When(transaction_type="payment", then=Value(1)),
+                When(transaction_type="credit_issue", then=Value(2)),
+                When(transaction_type="invoice", then=Value(3)),
+                default=Value(4),
+                output_field=IntegerField(),
+            ),
+            "id",
+        ),
         "clients": Client.objects.order_by("name").only("id", "name"),
         "type_choices": Transaction.TRANSACTION_TYPES,
         "request": request,  # needed for filters / hidden inputs

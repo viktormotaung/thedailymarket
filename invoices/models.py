@@ -11,7 +11,7 @@ import calendar
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.timezone import localdate, now
@@ -266,8 +266,9 @@ class Invoice(models.Model):
                 inv.calculate_totals()
                 inv.save(using=db)
 
-            inv.ensure_invoice_out_txn()
-            # Deliberately do not activate or consume BP here.
+            # Invoice bookkeeping is posted only after the customer's
+            # required contribution has been received. Creating the invoice
+            # does not itself create an invoice transaction or consume BP.
             return inv
 
     def can_release_credit(self):
@@ -416,44 +417,75 @@ class Invoice(models.Model):
 
     # ---------- Customer contribution payments ----------
     def recalc_deposit_from_transactions(self, save=True):
-        total_in = (
-            self.transactions.filter(transaction_type__in=self.PAYMENT_TYPES)
-            .aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
+        db = self._state.db or "default"
+        totals = self.transactions.using(db).aggregate(
+            payments=Sum("amount", filter=Q(transaction_type="payment")),
+            refunds=Sum("amount", filter=Q(transaction_type="refund")),
         )
-        self.deposit_paid = r2(total_in)
+        net_receipts = (totals["payments"] or Decimal("0.00")) - (totals["refunds"] or Decimal("0.00"))
+        self.deposit_paid = max(r2(net_receipts), Decimal("0.00"))
         self.update_status(save=save)
         self.ensure_credit_after_deposit()
 
     def record_payment(self, amount, *, reference="", note="", when=None):
         from transactions.models import Transaction
+
+        db = self._state.db or "default"
         amt = r2(Decimal(amount))
+
         if amt <= 0:
             raise ValueError("Amount must be a positive decimal.")
+
         if self.deposit_paid + amt > self.deposit_required and self.deposit_required > 0:
             # Allow overpayment to be recorded; the excess remains visible in
             # cash transactions, but does not increase TA buying power.
             pass
-        self.ensure_invoice_out_txn()
-        Transaction.objects.using(self._state.db or "default").create(
-            client=self.client, invoice=self, transaction_type="payment",
-            amount=amt, reference=reference or f"INV-{self.id} payment",
-            note=note, created_at=when or now(),
-        )
-        self.recalc_deposit_from_transactions(save=True)
-        if self.is_fully_paid():
-            payment_day = (when or now()).date()
-            if self.paid_date != payment_day:
-                self.paid_date = payment_day
-                self.save(update_fields=["paid_date", "updated_at"])
-            # Customer contribution paid = fulfilment may proceed. The TA
-            # settlement remains a separate obligation.
-            order = self.order
-            if order:
-                order.refresh_from_db()
-                terminal = {"at_warehouse", "ready_for_delivery", "out_for_delivery", "complete", "cancelled"}
-                if order.status not in terminal:
-                    order.status = "at_warehouse"
-                    order.save(update_fields=["status", "updated_at"])
+
+        # Keep the payment and the resulting invoice/funding bookkeeping
+        # together. A payment transaction is recorded for every actual
+        # receipt, including partial contributions.
+        with transaction.atomic(using=db):
+            Transaction.objects.using(db).create(
+                client=self.client,
+                invoice=self,
+                transaction_type="payment",
+                amount=amt,
+                reference=reference or f"INV-{self.id} payment",
+                note=note,
+                created_at=when or now(),
+            )
+
+            # Recalculate the customer's contribution from the payment
+            # ledger. This also checks whether a pending TA allocation can
+            # now be activated.
+            self.recalc_deposit_from_transactions(save=True)
+
+            if self.is_fully_paid():
+                # Only now post the invoice transaction. Partial deposits
+                # remain recorded as payments without prematurely posting
+                # the invoice-out transaction.
+                self.ensure_invoice_out_txn()
+
+                payment_day = (when or now()).date()
+                if self.paid_date != payment_day:
+                    self.paid_date = payment_day
+                    self.save(update_fields=["paid_date", "updated_at"])
+
+                # Customer contribution paid = fulfilment may proceed. The TA
+                # settlement remains a separate obligation.
+                order = self.order
+                if order:
+                    order.refresh_from_db()
+                    terminal = {
+                        "at_warehouse",
+                        "ready_for_delivery",
+                        "out_for_delivery",
+                        "complete",
+                        "cancelled",
+                    }
+                    if order.status not in terminal:
+                        order.status = "at_warehouse"
+                        order.save(update_fields=["status", "updated_at"])
 
     # ---------- TA settlement / repayments ----------
     def _recalculate_settlement_from_ledger(self):
@@ -478,6 +510,9 @@ class Invoice(models.Model):
         ])
 
     def record_credit_repayment(self, amount, *, reference="", note="", when=None):
+        from transactions.models import Transaction
+
+        db = self._state.db or "default"
         amt = r2(Decimal(amount))
         if amt <= 0:
             raise ValueError("Amount must be a positive decimal.")
@@ -485,15 +520,27 @@ class Invoice(models.Model):
             raise ValidationError("This invoice has no active TA-funded balance.")
         if amt > self.settlement_outstanding:
             raise ValidationError("Repayment exceeds this invoice's outstanding TA balance.")
-        entry = CreditEntry.record_repayment(
-            client=self.client, amount=amt, invoice=self,
-            transaction=None, reference=reference or f"INV-{self.id} credit repayment",
-            note=note, using=self._state.db or "default",
-        )
-        self._recalculate_settlement_from_ledger()
-        self.sync_account_next_due()
-        self.refresh_settlement_status()
-        return entry
+
+        # The Transaction is the cash receipt and the linked CreditEntry is
+        # the TA exposure repayment. Transaction.save() creates that entry
+        # exactly once, so there is no detached/double-counted ledger row.
+        with transaction.atomic(using=db):
+            tx = Transaction.objects.using(db).create(
+                client=self.client,
+                invoice=self,
+                transaction_type="credit_repayment",
+                amount=amt,
+                reference=reference or f"INV-{self.id} credit repayment",
+                note=note,
+                created_at=when or now(),
+            )
+            entry = tx.credit_entries.using(db).filter(kind=CreditEntry.REPAYMENT).order_by("-id").first()
+            if not entry:
+                raise ValidationError("The linked TradeAssist repayment ledger entry could not be created.")
+            self._recalculate_settlement_from_ledger()
+            self.sync_account_next_due()
+            self.refresh_settlement_status()
+            return entry
 
     def refresh_settlement_status(self, today=None):
         """

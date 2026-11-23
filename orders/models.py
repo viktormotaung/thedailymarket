@@ -1624,8 +1624,9 @@ class Order(models.Model):
                     ],
                 )
 
-                invoice.ensure_invoice_out_txn()
-
+                # Do not post the invoice transaction merely because the
+                # order has entered awaiting_payment. The invoice transaction
+                # is posted when the required customer contribution is paid.
                 invoice.ensure_credit_after_deposit()
 
                 print(
