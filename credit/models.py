@@ -636,11 +636,11 @@ class CreditAccount(models.Model):
     status = models.CharField(
         max_length=12,
         choices=STATUS_CHOICES,
-        default=STATUS_ACTIVE,
+        default=STATUS_PENDING,
         db_index=True,
         help_text=(
-            "ACTIVE is retained as the model default for existing workflows. "
-            "Newly opened accounts should explicitly start as PENDING."
+            "New buying-power accounts default to PENDING and must be "
+            "approved before activation."
         ),
     )
     activated_at = models.DateTimeField(null=True, blank=True)

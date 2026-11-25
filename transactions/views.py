@@ -12,7 +12,7 @@ from clients.models import Client
 from .models import Transaction, BusinessBalance
 from .forms import TransactionForm
 from .models import Transaction, BusinessBalance
-from django.db.models.functions import Coalesce, TruncMinute
+from django.db.models.functions import Coalesce
 
 from django.utils.crypto import constant_time_compare
 from django.db import transaction as db_transaction
@@ -120,10 +120,8 @@ def transaction_list(request):
         "total_in": total_in,
         "total_out": total_out,
         "net_total": net_total,
-        "transactions": qs.annotate(
-            _display_minute=TruncMinute("created_at")
-        ).order_by(
-            "-_display_minute",
+        "transactions": qs.order_by(
+            "-created_at",
             Case(
                 When(transaction_type="payment", then=Value(1)),
                 When(transaction_type="credit_issue", then=Value(2)),

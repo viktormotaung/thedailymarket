@@ -169,6 +169,58 @@ class Invoice(models.Model):
         if self.end_user and self.order_id and self.order.end_user_id != self.end_user_id:
             raise ValidationError("The invoice end user must match the order end user.")
 
+    def sync_settlement_dates(self):
+        """
+        Keep the TA settlement deadline aligned with the date the customer's
+        required contribution was fully paid.
+
+        Existing commercial terms are preserved: this uses the invoice's
+        stored settlement_term_snapshot and does not read the customer's
+        current CreditAccount settings.
+        """
+        if not self.paid_date or self.credit_used <= 0:
+            return False
+
+        days = self._term_days(self.settlement_term_snapshot)
+        due_date = self.paid_date + timedelta(days=max(days - 1, 0))
+        grace_end_date = due_date + timedelta(days=1)
+
+        changed = False
+        if self.settlement_due_date != due_date:
+            self.settlement_due_date = due_date
+            changed = True
+
+        if self.settlement_grace_end_date != grace_end_date:
+            self.settlement_grace_end_date = grace_end_date
+            changed = True
+
+        return changed
+
+    def save(self, *args, **kwargs):
+        """
+        Recheck TA settlement dates on every normal invoice save.
+
+        If update_fields is supplied, include the settlement date fields when
+        this sync changes them, so partial saves cannot silently skip the fix.
+        """
+        dates_changed = self.sync_settlement_dates()
+
+        update_fields = kwargs.get("update_fields")
+        if dates_changed and update_fields is not None:
+            kwargs["update_fields"] = set(update_fields) | {
+                "settlement_due_date",
+                "settlement_grace_end_date",
+            }
+
+        result = super().save(*args, **kwargs)
+
+        # Keep the customer's aggregate next-due date aligned when an existing
+        # active TA allocation's invoice deadline has been corrected.
+        if dates_changed and self.pk and self.allocation_status == "active":
+            self.sync_account_next_due()
+
+        return result
+
     @staticmethod
     def _term_days(term_code):
         return {"0D": 0, "1D": 1, "3D": 3, "7D": 7}.get(
@@ -231,10 +283,10 @@ class Invoice(models.Model):
         if self.credit_used > 0:
             self.allocation_status = "pending"
             self.settlement_status = "pending"
-            days = self._term_days(term_code)
-            # Invoice date is Day 1: a 1D term is due on invoice date.
-            self.settlement_due_date = (self.invoice_date or localdate()) + timedelta(days=max(days - 1, 0))
-            self.settlement_grace_end_date = self.settlement_due_date + timedelta(days=1)
+            # Settlement dates are assigned only after the customer's
+            # required contribution has been fully received.
+            self.settlement_due_date = None
+            self.settlement_grace_end_date = None
         else:
             self.allocation_status = "not_required"
             self.settlement_status = "not_applicable"
@@ -466,10 +518,28 @@ class Invoice(models.Model):
                 # the invoice-out transaction.
                 self.ensure_invoice_out_txn()
 
-                payment_day = (when or now()).date()
-                if self.paid_date != payment_day:
+                # Set the deposit completion date only once, when the
+                # required customer contribution has been fully received.
+                if self.paid_date is None:
+                    payment_day = localdate(when) if when else localdate()
                     self.paid_date = payment_day
-                    self.save(update_fields=["paid_date", "updated_at"])
+
+                    days = self._term_days(self.settlement_term_snapshot)
+
+                    if self.credit_used > 0:
+                        self.settlement_due_date = (
+                            payment_day + timedelta(days=max(days - 1, 0))
+                        )
+                        self.settlement_grace_end_date = (
+                            self.settlement_due_date + timedelta(days=1)
+                        )
+
+                    self.save(update_fields=[
+                        "paid_date",
+                        "settlement_due_date",
+                        "settlement_grace_end_date",
+                        "updated_at",
+                    ])
 
                 # Customer contribution paid = fulfilment may proceed. The TA
                 # settlement remains a separate obligation.
@@ -652,6 +722,9 @@ class Invoice(models.Model):
         for tx in self.transactions.all().order_by("-created_at", "-id"):
             tx.delete()
         super().delete(*args, **kwargs)
+
+
+
 
 
 @receiver(post_save, sender=Invoice)

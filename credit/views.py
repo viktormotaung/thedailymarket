@@ -110,7 +110,7 @@ def credit_list(request):
     client_id = (request.GET.get("client") or "").strip()
     min_limit = (request.GET.get("min_limit") or "").strip()
     max_limit = (request.GET.get("max_limit") or "").strip()
-    status_filter = (request.GET.get("status") or "").strip().upper()
+    status_filter = request.GET.get("status", "ACTIVE").strip().upper()
 
     if client_id.isdigit():
         qs = qs.filter(client_id=int(client_id))
