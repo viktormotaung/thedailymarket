@@ -95,6 +95,26 @@
       height: 100% !important;
       display: block;
     }
+
+    /* Invoice-level settlement status colours */
+    .settlement-status-item {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: .35rem;
+    }
+    .settlement-status-item .badge {
+      font-size: .72rem;
+      font-weight: 600;
+      padding: .42rem .58rem;
+      border-radius: 999px;
+    }
+    .settlement-upcoming { background: #0d6efd; color: #fff; }
+    .settlement-due-today { background: #0dcaf0; color: #082f36; }
+    .settlement-partial { background: #6f42c1; color: #fff; }
+    .settlement-overdue { background: #dc3545; color: #fff; }
+    .settlement-settled { background: #198754; color: #fff; }
+    .settlement-cancelled { background: #6c757d; color: #fff; }
   </style>
 </head>
 <body>
@@ -998,7 +1018,8 @@
                 <th class="text-end">Available</th>
                 <th>Contribution</th>
                 <th>Term</th>
-                <th>Status</th>
+                <th>Payment status</th>
+                <th>Account status</th>
                 <th>Updated</th>
               </tr>
             </thead>
@@ -1015,6 +1036,15 @@
                   <td class="text-end">R{{ a.available_amount|default:0|floatformat:2|intcomma }}</td>
                   <td>{{ a.credit_deposit_pct|default:"—" }}%</td>
                   <td>{{ a.payment_term|default:"—" }}</td>
+                  <td>
+                    {% if a.latest_client_settlement %}
+                      <span class="badge {{ a.latest_client_settlement.display_status_class }}">
+                        {{ a.latest_client_settlement.display_status }}
+                      </span>
+                    {% else %}
+                      <span class="small text-muted">No settlements</span>
+                    {% endif %}
+                  </td>
                   <td>
                     {% if a.status == "ACTIVE" %}
                       <span class="badge bg-success">Active</span>
@@ -1037,7 +1067,7 @@
                   <td class="small text-muted">{{ a.updated_at|date:"d M Y, H:i" }}</td>
                 </tr>
               {% empty %}
-                <tr><td colspan="9" class="text-center text-muted py-4">No customer facilities match these filters.</td></tr>
+                <tr><td colspan="10" class="text-center text-muted py-4">No customer facilities match these filters.</td></tr>
               {% endfor %}
             </tbody>
           </table>

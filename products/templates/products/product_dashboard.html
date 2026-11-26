@@ -95,6 +95,17 @@
       height: 100% !important;
       display: block;
     }
+
+    .dashboard-kpi { border: 0; border-left: 4px solid #0b5c39; box-shadow: 0 .125rem .5rem rgba(0,0,0,.06); }
+    .dashboard-kpi .card-body { padding: 1.1rem; }
+    .kpi-label { color: #6c757d; font-size: .82rem; font-weight: 600; }
+    .kpi-value { font-size: 1.8rem; font-weight: 750; line-height: 1.25; margin-top: .35rem; }
+    .kpi-note { color: #8a9299; font-size: .75rem; margin-top: .3rem; }
+    main.content { min-width: 0; }
+    .table th { white-space: nowrap; font-size: .78rem; text-transform: uppercase; letter-spacing: .025em; color: #687078; }
+    .table td { font-size: .88rem; }
+    @media (max-width: 575.98px) { .content { padding: 14px; } .kpi-value { font-size: 1.45rem; } }
+
   </style>
 </head>
 <body>
@@ -852,114 +863,176 @@
 
 
     <main class="content">
-
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
-            <div>
-            <h2 class="mb-0 fw-bold">Products Dashboard</h2>
-            <small class="text-muted">
-                Product intelligence, pricing health, supplier coverage and catalogue control.
-            </small>
-            </div>
-
-            <div class="d-flex gap-2">
-            <a href="{% url 'staff-products' %}" class="btn btn-outline-secondary btn-sm">
-                View Product List
-            </a>
-
-            
-            </div>
+      <div class="container-fluid px-0">
+        <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+          <div>
+            <h2 class="fw-bold mb-1">Product Dashboard</h2>
+            <p class="text-muted mb-0">Catalogue health, pricing coverage, supplier intelligence and product knowledge.</p>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'staff-products' %}" class="btn btn-outline-secondary"><i class="bi bi-box-seam me-1"></i> Products</a>
+            <a href="{% url 'staff-suppliers' %}" class="btn btn-outline-secondary"><i class="bi bi-truck me-1"></i> Suppliers</a>
+          </div>
         </div>
 
-        <!-- KPI CARDS -->
+        <!-- Catalogue health -->
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div><h5 class="fw-bold mb-0">Catalogue overview</h5><small class="text-muted">A snapshot of the complete product catalogue</small></div>
+        </div>
         <div class="row g-3 mb-4">
-
-            <div class="col-md-3">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body">
-                <div class="text-muted small">Total Products</div>
-                <h3 class="mb-0">{{ total_products|default:0 }}</h3>
-                </div>
-            </div>
-            </div>
-
-            <div class="col-md-3">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body">
-                <div class="text-muted small">Products With Pricing</div>
-                <h3 class="mb-0 text-success">{{ products_with_pricing|default:0 }}</h3>
-                </div>
-            </div>
-            </div>
-
-            <div class="col-md-3">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body">
-                <div class="text-muted small">Missing Pricing</div>
-                <h3 class="mb-0 text-danger">{{ products_without_pricing|default:0 }}</h3>
-                </div>
-            </div>
-            </div>
-
-            <div class="col-md-3">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body">
-                <div class="text-muted small">Missing Images</div>
-                <h3 class="mb-0 text-warning">{{ products_without_images|default:0 }}</h3>
-                </div>
-            </div>
-            </div>
-
-            <div class="col-md-3">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body">
-                <div class="text-muted small">Categories</div>
-                <h3 class="mb-0">{{ total_categories|default:0 }}</h3>
-                <small class="text-muted">
-                    {{ top_level_categories|default:0 }} main / {{ subcategories|default:0 }} sub
-                </small>
-                </div>
-            </div>
-            </div>
-
-            <div class="col-md-3">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body">
-                <div class="text-muted small">Products With Variants</div>
-                <h3 class="mb-0">{{ products_with_variants|default:0 }}</h3>
-                </div>
-            </div>
-            </div>
-
-            <div class="col-md-3">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body">
-                <div class="text-muted small">Multiple Suppliers</div>
-                <h3 class="mb-0">{{ products_with_multiple_suppliers|default:0 }}</h3>
-                </div>
-            </div>
-            </div>
-
-            <div class="col-md-3">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body">
-                <div class="text-muted small">Avg Wholesale Margin</div>
-                <h3 class="mb-0">
-                    {{ avg_wholesale_margin|floatformat:2|default:"0.00" }}%
-                </h3>
-                </div>
-            </div>
-            </div>
-
+          <div class="col-6 col-xl-3"><div class="card dashboard-kpi h-100"><div class="card-body"><div class="kpi-label">Total products</div><div class="kpi-value">{{ total_products|intcomma }}</div><div class="kpi-note">Across all categories</div></div></div></div>
+          <div class="col-6 col-xl-3"><div class="card dashboard-kpi h-100"><div class="card-body"><div class="kpi-label">Active pricing coverage</div><div class="kpi-value text-success">{{ products_with_pricing|intcomma }}</div><div class="kpi-note">Products with active supplier pricing</div></div></div></div>
+          <div class="col-6 col-xl-3"><div class="card dashboard-kpi h-100"><div class="card-body"><div class="kpi-label">Categories</div><div class="kpi-value">{{ total_categories|intcomma }}</div><div class="kpi-note">{{ top_level_categories }} main · {{ subcategories }} subcategories</div></div></div></div>
+          <div class="col-6 col-xl-3"><div class="card dashboard-kpi h-100"><div class="card-body"><div class="kpi-label">Products with variants</div><div class="kpi-value">{{ products_with_variants|intcomma }}</div><div class="kpi-note">Products with variant records</div></div></div></div>
+          <div class="col-6 col-xl-3"><div class="card dashboard-kpi h-100"><div class="card-body"><div class="kpi-label">Multiple suppliers</div><div class="kpi-value">{{ products_with_multiple_suppliers|intcomma }}</div><div class="kpi-note">Products with 2+ active suppliers</div></div></div></div>
+          <div class="col-6 col-xl-3"><div class="card dashboard-kpi h-100"><div class="card-body"><div class="kpi-label">Average wholesale markup</div><div class="kpi-value">{{ avg_wholesale_markup|floatformat:2|default:"0.00" }}%</div><div class="kpi-note">Average configured markup on active pricing</div></div></div></div>
         </div>
 
-        
-        
+        <!-- Pricing and knowledge -->
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3"><div><h5 class="fw-bold mb-1">Product knowledge</h5><small class="text-muted">Sales-readiness of product information</small></div><span class="badge text-bg-light">{{ knowledge_completion_rate }}% complete</span></div>
+                <div class="progress mb-3" style="height:10px"><div class="progress-bar bg-success" role="progressbar" style="width:{{ knowledge_completion_rate }}%" aria-valuenow="{{ knowledge_completion_rate }}" aria-valuemin="0" aria-valuemax="100"></div></div>
+                <div class="row text-center g-2">
+                  <div class="col-4"><div class="fs-4 fw-bold">{{ knowledge_total }}</div><div class="small text-muted">Profiles</div></div>
+                  <div class="col-4"><div class="fs-4 fw-bold text-success">{{ knowledge_complete }}</div><div class="small text-muted">Complete</div></div>
+                  <div class="col-4"><div class="fs-4 fw-bold text-warning">{{ knowledge_incomplete }}</div><div class="small text-muted">Incomplete</div></div>
+                </div>
+                <div class="small text-muted mt-3">{{ knowledge_approved }} approved profiles.</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+              <div class="card-body">
+                <h5 class="fw-bold mb-1">Pricing snapshot</h5><small class="text-muted">Based on active supplier pricing records</small>
+                <div class="row mt-3 g-3">
+                  <div class="col-6"><div class="small text-muted">Average supplier cost (excl. VAT)</div><div class="fs-4 fw-bold">{% if avg_supplier_price != None %}R{{ avg_supplier_price|floatformat:2|intcomma }}{% else %}—{% endif %}</div></div>
+                  <div class="col-6"><div class="small text-muted">Average wholesale markup</div><div class="fs-4 fw-bold">{% if avg_wholesale_markup != None %}{{ avg_wholesale_markup|floatformat:2 }}%{% else %}—{% endif %}</div></div>
+                </div>
+                <p class="small text-muted mb-0 mt-3">Markup is the configured percentage added to supplier cost. It is not the same as gross profit margin.</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        
-        
+        <!-- Category average pricing -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-white py-3">
+            <h5 class="fw-bold mb-0">Category average pricing</h5>
+            <small class="text-muted">Average prices calculated from active supplier pricing records; all displayed prices include VAT</small>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Category</th>
+                  <th class="text-end">Products</th>
+                  <th class="text-end">Average supplier cost</th>
+                  <th class="text-end">Average wholesale price</th>
+                  <th class="text-end">Average retail price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for category in category_breakdown %}
+                  {% if category.product_count %}
+                    <tr>
+                      <td><div class="fw-semibold">{{ category.name }}</div><small class="text-muted">{{ category.parent.name|default:'Main category' }}</small></td>
+                      <td class="text-end">{{ category.product_count }}</td>
+                      <td class="text-end">{% if category.avg_supplier_price_inc != None %}R{{ category.avg_supplier_price_inc|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                      <td class="text-end fw-semibold">{% if category.avg_wholesale_price_inc != None %}R{{ category.avg_wholesale_price_inc|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                      <td class="text-end fw-semibold text-success">{% if category.avg_retail_price_inc != None %}R{{ category.avg_retail_price_inc|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                    </tr>
+                  {% endif %}
+                {% empty %}
+                  <tr><td colspan="5" class="text-center text-muted py-4">No categories found.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
+        <!-- Top 10 best-selling products -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+              <h5 class="fw-bold mb-1">Top 10 best-selling products</h5>
+              <small class="text-muted">Ranked by quantity sold from completed orders. Prices include VAT.</small>
+            </div>
+            <form method="get" class="d-flex align-items-center gap-2">
+              <label for="salesPeriod" class="small text-muted text-nowrap mb-0">Period</label>
+              <select id="salesPeriod" name="sales_period" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width: 145px;">
+                {% for days, label in sales_period_options %}
+                  <option value="{{ days }}" {% if sales_period_days == days %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </form>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 45px;">#</th>
+                  <th>Product</th>
+                  <th class="text-end">Qty sold</th>
+                  <th class="text-end">Avg. selling price</th>
+                  <th class="text-end">Current wholesale</th>
+                  <th class="text-end">Difference / unit</th>
+                  <th class="text-end">Total sales</th>
+                  <th class="text-end">Difference total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in top_selling_products %}
+                  <tr>
+                    <td class="text-muted">{{ forloop.counter }}</td>
+                    <td>
+                      <div class="fw-semibold">{{ row.product.name }}</div>
+                      <small class="text-muted">{{ row.product.product_no|default:row.product.sku }}</small>
+                    </td>
+                    <td class="text-end fw-semibold">{{ row.quantity_sold|floatformat:2|intcomma }}</td>
+                    <td class="text-end">R{{ row.average_selling_price_inc|floatformat:2|intcomma }}</td>
+                    <td class="text-end">
+                      {% if row.current_wholesale_price_inc != None %}
+                        R{{ row.current_wholesale_price_inc|floatformat:2|intcomma }}
+                      {% else %}—{% endif %}
+                    </td>
+                    <td class="text-end {% if row.price_difference_inc != None and row.price_difference_inc >= 0 %}text-success{% elif row.price_difference_inc != None %}text-danger{% endif %}">
+                      {% if row.price_difference_inc != None %}
+                        {% if row.price_difference_inc > 0 %}+{% endif %}R{{ row.price_difference_inc|floatformat:2|intcomma }}
+                      {% else %}—{% endif %}
+                    </td>
+                    <td class="text-end fw-semibold">R{{ row.total_sales_inc|floatformat:2|intcomma }}</td>
+                    <td class="text-end">
+                      {% if row.price_difference_total_inc != None %}
+                        {% if row.price_difference_total_inc > 0 %}+{% endif %}R{{ row.price_difference_total_inc|floatformat:2|intcomma }}
+                      {% else %}—{% endif %}
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="8" class="text-center text-muted py-4">No completed product sales found for this period.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="card-footer bg-white">
+            <small class="text-muted">
+              Difference = average selling price actually charged (after item discount) minus the current wholesale price.
+              The wholesale comparison uses today's active pricing, not a historical price snapshot, so past price changes can affect the comparison.
+              A positive difference means the average selling price was above the current wholesale price; a negative difference means it was below.
+            </small>
+          </div>
+        </div>
+
+        <!-- Recent activity -->
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-xl-6"><div class="card border-0 shadow-sm h-100"><div class="card-header bg-white py-3"><h5 class="fw-bold mb-0">Recently added products</h5></div><div class="list-group list-group-flush">{% for product in recent_products %}<a href="{% url 'product-view' product.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"><span><span class="fw-semibold d-block">{{ product.name }}</span><small class="text-muted">{{ product.category.name|default:'Uncategorised' }}</small></span><i class="bi bi-chevron-right text-muted"></i></a>{% empty %}<div class="p-3 text-muted">No products have been added yet.</div>{% endfor %}</div></div></div>
+          <div class="col-12 col-xl-6"><div class="card border-0 shadow-sm h-100"><div class="card-header bg-white py-3"><h5 class="fw-bold mb-0">Recent supplier pricing updates</h5></div><div class="list-group list-group-flush">{% for row in recent_pricing_updates %}<div class="list-group-item d-flex justify-content-between gap-3"><span><span class="fw-semibold d-block">{{ row.product.name }}</span><small class="text-muted">{{ row.supplier.name|default:'No supplier' }}</small></span><small class="text-muted text-nowrap">{{ row.updated_at|date:'d M Y' }}</small></div>{% empty %}<div class="p-3 text-muted">No pricing updates found.</div>{% endfor %}</div></div></div>
+        </div>
+      </div>
     </main>
-
 
   <!-- SWITCH PLATFORM MODAL -->
   <div class="modal fade"
@@ -1051,37 +1124,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script>
-    // Chart data from Django
-    const labels = {{ sales_labels|safe }};
-    const dataPoints = {{ sales_data|safe }};
 
-    const ctx = document.getElementById('salesChart').getContext('2d');
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Orders',
-          data: dataPoints,
-          tension: 0.3,
-          fill: false
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,   // <-- respect CSS heights
-        plugins: {
-          legend: { display: true },
-          tooltip: { mode: 'index', intersect: false }
-        },
-        scales: {
-          x: { title: { display: false } },
-          y: { beginAtZero: true, ticks: { precision: 0 } }
-        }
-      }
-    });
-  </script>
 
   <script>
   let lastCount = {{ nav_unread_notifications_count|default:0 }};

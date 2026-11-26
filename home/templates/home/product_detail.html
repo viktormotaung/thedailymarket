@@ -231,53 +231,83 @@
     }
   
 
-    /* Product detail page */
-    .product-hero { background: #f6f8f6; border-bottom: 1px solid var(--line); }
-    .product-breadcrumb .breadcrumb-item a { color: var(--brand); text-decoration: none; font-weight: 600; }
+    /* Product detail page — marketplace layout */
+    .product-hero { background: linear-gradient(135deg, #edf4ee 0%, #f7f7f1 100%); border-bottom: 1px solid var(--line); padding-block: clamp(1.25rem, 3vw, 2.5rem) !important; }
+    .product-breadcrumb { margin-bottom: 1.25rem !important; }
+    .product-breadcrumb .breadcrumb { flex-wrap: wrap; row-gap: .25rem; }
+    .product-breadcrumb .breadcrumb-item { font-size: .82rem; }
+    .product-breadcrumb .breadcrumb-item a { color: var(--brand); text-decoration: none; font-weight: 650; }
     .product-breadcrumb .breadcrumb-item a:hover { text-decoration: underline; }
-    .product-image-panel { display: grid; place-items: center; min-height: 300px; padding: clamp(1rem, 3vw, 2rem); background: #fff; border: 1px solid var(--line); border-radius: 1.25rem; box-shadow: var(--shadow); }
-    .product-image-panel img { width: 100%; max-height: 480px; object-fit: contain; border-radius: .8rem; }
-    .product-image-placeholder { display: grid; width: 100%; min-height: 280px; place-items: center; color: #8a9990; background: #f4f7f5; border-radius: .9rem; font-size: 3rem; }
-    .product-info-panel { padding: clamp(1.25rem, 3vw, 2rem); background: #fff; border: 1px solid var(--line); border-radius: 1.25rem; box-shadow: var(--shadow); }
-    .product-title { margin: .35rem 0 .6rem; font-size: clamp(1.8rem, 3vw, 2.65rem); line-height: 1.12; letter-spacing: -.04em; font-weight: 850; }
-    .product-meta { display: flex; flex-wrap: wrap; gap: .45rem .8rem; color: var(--muted); font-size: .88rem; }
-    .product-meta span + span::before { content: "•"; margin-right: .8rem; color: #9aa69e; }
-    .product-price-panel { padding: 1rem 1.1rem; margin-top: 1.4rem; background: var(--brand-soft); border: 1px solid #d5e7da; border-radius: 1rem; }
-    .price-big { color: var(--brand); font-size: clamp(1.8rem, 3vw, 2.3rem); font-weight: 850; letter-spacing: -.04em; line-height: 1.2; }
+    .product-image-panel { position: sticky; top: 1rem; display: grid; place-items: center; min-height: 390px; padding: clamp(1rem, 3vw, 2rem); background: #fff; border: 1px solid var(--line); border-radius: 1.4rem; box-shadow: var(--shadow); }
+    .product-image-panel img { display: block; width: 100%; max-height: 490px; object-fit: contain; border-radius: .8rem; }
+    .product-image-placeholder { display: grid; width: 100%; min-height: 300px; place-items: center; color: #8a9990; background: #f4f7f5; border-radius: 1rem; font-size: 3rem; }
+    .product-info-panel { height: 100%; padding: clamp(1.35rem, 3vw, 2.2rem); background: #fff; border: 1px solid var(--line); border-radius: 1.4rem; box-shadow: var(--shadow); }
+    .product-kicker { display: inline-flex; align-items: center; gap: .45rem; margin-bottom: .8rem; color: var(--brand); font-size: .74rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+    .product-title { margin: .2rem 0 .7rem; font-size: clamp(1.85rem, 3.2vw, 2.8rem); line-height: 1.08; letter-spacing: -.05em; font-weight: 850; overflow-wrap: anywhere; }
+    .product-status { display: inline-flex; align-items: center; gap: .35rem; padding: .42rem .7rem; border-radius: 999px; font-size: .76rem; font-weight: 800; white-space: nowrap; }
     .badge-available { color: #0b5c39; background: #e8f5ee; border: 1px solid #cfeadf; }
     .badge-out { color: #a33a2b; background: #fdecea; border: 1px solid #f4b7ae; }
-    .product-lower { background: #fff; }
+    .product-meta { display: flex; flex-wrap: wrap; gap: .45rem .8rem; color: var(--muted); font-size: .86rem; }
+    .product-meta span + span::before { content: "•"; margin-right: .8rem; color: #9aa69e; }
+    .product-price-panel { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: .75rem; padding: 1.1rem 1.2rem; margin-top: 1.5rem; background: var(--brand-soft); border: 1px solid #d5e7da; border-radius: 1rem; }
+    .price-label { color: #53665a; font-size: .82rem; font-weight: 700; }
+    .price-big { color: var(--brand); font-size: clamp(2rem, 4vw, 2.65rem); font-weight: 900; letter-spacing: -.055em; line-height: 1.08; }
+    .price-unit { margin-top: .25rem; color: var(--muted); font-size: .8rem; }
+    .product-lower { background: #fff; padding-block: clamp(2rem, 4vw, 3.5rem) !important; }
+    .lower-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1.15rem; }
+    .lower-heading h2 { margin: 0; font-size: clamp(1.35rem, 2.5vw, 1.8rem); font-weight: 850; letter-spacing: -.035em; }
+    .lower-heading p { margin: .25rem 0 0; color: var(--muted); font-size: .88rem; }
     .content-panel { height: 100%; padding: clamp(1.2rem, 2.5vw, 1.75rem); background: #fff; border: 1px solid var(--line); border-radius: 1.2rem; }
-    .content-panel h2 { margin-bottom: 1.2rem; font-size: 1.25rem; font-weight: 850; letter-spacing: -.02em; }
-    .variant-card { position: relative; height: 100%; overflow: hidden; border: 1px solid var(--line); border-radius: 1rem; background: #fff; transition: transform .2s ease, box-shadow .2s ease; }
+    .content-panel h2 { margin-bottom: .9rem; font-size: 1.15rem; font-weight: 850; letter-spacing: -.02em; }
+    .product-description { color: var(--muted); line-height: 1.8; overflow-wrap: anywhere; }
+    .variant-card { position: relative; display: flex; flex-direction: column; height: 100%; overflow: hidden; border: 1px solid var(--line); border-radius: 1rem; background: #fff; transition: transform .2s ease, box-shadow .2s ease; }
     .variant-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
     .variant-image { position: relative; overflow: hidden; background: #f6f8f6; }
-    .variant-image .ratio { --bs-aspect-ratio: 72%; }
+    .variant-image .ratio { --bs-aspect-ratio: 76%; }
     .variant-image img { object-fit: cover; }
-    .variant-price-pill { position: absolute; top: .7rem; left: .7rem; padding: .4rem .65rem; border-radius: .65rem; color: #fff; background: var(--brand); box-shadow: 0 5px 15px rgba(11,92,57,.2); font-size: .88rem; font-weight: 800; }
-    .variant-footer { padding: .85rem; border-top: 1px solid var(--line); }
-    .variant-footer .input-group-text { background: #f6f8f6; border-color: var(--line); }
-    .variant-footer .form-control { min-width: 48px; border-color: var(--line); }
+    .variant-price-pill { position: absolute; top: .65rem; left: .65rem; z-index: 1; padding: .38rem .62rem; border-radius: .65rem; color: #fff; background: var(--brand); box-shadow: 0 5px 15px rgba(11,92,57,.2); font-size: .84rem; font-weight: 850; }
+    .variant-card .card-body { padding: .85rem .8rem .7rem; }
+    .variant-name { min-height: 2.8em; color: var(--ink); font-size: .92rem; font-weight: 800; line-height: 1.35; }
+    .variant-footer { padding: .8rem; margin-top: auto; border-top: 1px solid var(--line); }
+    .variant-footer .input-group-text { background: #f6f8f6; border-color: var(--line); font-size: .82rem; }
+    .variant-footer .form-control { min-width: 45px; border-color: var(--line); }
+    .variant-footer .btn { min-height: 42px; padding: .55rem .7rem; font-size: .85rem; }
     .btn-brand { color: #fff; background: var(--brand); border: 1px solid var(--brand); }
     .btn-brand:hover, .btn-brand:focus { color: #fff; background: var(--brand-dark); border-color: var(--brand-dark); }
-    .product-description { color: var(--muted); line-height: 1.8; overflow-wrap: anywhere; }
+    .product-help { display: flex; align-items: center; gap: .8rem; padding: 1rem 1.1rem; margin-top: 1.25rem; color: var(--ink); background: #f5f8f5; border: 1px solid var(--line); border-radius: 1rem; }
+    .product-help i { color: var(--brand); font-size: 1.3rem; }
+    .product-help p { margin: 0; color: var(--muted); font-size: .85rem; }
     @media (max-width: 767.98px) {
-      .product-hero { padding-block: 1.5rem !important; }
-      .product-image-panel { min-height: 220px; padding: 1rem; }
-      .product-image-panel img { max-height: 330px; }
-      .product-info-panel { padding: 1.15rem; }
-      .product-lower { padding-block: 2rem !important; }
+      .product-hero { padding-block: 1.15rem !important; }
+      .product-breadcrumb { margin-bottom: .9rem !important; }
+      .product-image-panel { position: relative; top: auto; min-height: 0; padding: .85rem; border-radius: 1.1rem; }
+      .product-image-panel img { max-height: 300px; }
+      .product-image-placeholder { min-height: 230px; }
+      .product-info-panel { padding: 1.1rem; border-radius: 1.1rem; }
+      .product-title { font-size: clamp(1.65rem, 7vw, 2.15rem); }
+      .product-meta { font-size: .78rem; gap: .35rem .55rem; }
+      .product-meta span + span::before { margin-right: .55rem; }
+      .product-price-panel { padding: .95rem; margin-top: 1.1rem; }
+      .price-big { font-size: 2.15rem; }
+      .product-lower { padding-block: 1.8rem !important; }
+      .lower-heading { align-items: flex-start; flex-direction: column; }
+      .variant-card { border-radius: .85rem; }
+      .variant-card .card-body { padding: .7rem .65rem .55rem; }
+      .variant-name { font-size: .82rem; }
+      .variant-footer { padding: .65rem; }
       .variant-footer form { flex-wrap: wrap; }
       .variant-footer .input-group { flex: 1 1 100%; }
       .variant-footer .btn { width: 100%; }
+    }
+    @media (max-width: 380px) {
+      .product-image-panel img { max-height: 245px; }
+      .variant-price-pill { top: .45rem; left: .45rem; padding: .3rem .48rem; font-size: .76rem; }
+      .variant-name { font-size: .78rem; }
     }
 
 </style>
 </head>
 <body class="bg-light">
-  <!-- Auth flag for JS gating -->
-  <script>const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};</script>
-
 <header class="site-header">
     <nav class="desktop-nav d-none d-lg-block" aria-label="Main navigation">
       <div class="container d-flex align-items-center justify-content-between gap-3">
@@ -357,195 +387,144 @@
     </div>
   </section>
 
-  <!-- ===== Header / top summary ===== -->
-  <section class="product-hero section-pad py-4">
-    <div class="container">
-      <!-- Breadcrumb -->
-      <nav aria-label="breadcrumb" class="small mb-3 product-breadcrumb">
-        <ol class="breadcrumb mb-0">
-          <li class="breadcrumb-item">
-            <a href="{% url 'products' %}">Products</a>
-          </li>
-          <li class="breadcrumb-item">
-            <a href="{% url 'products' %}?category={{ product.category.id }}">
-              {{ product.category.name }}
-            </a>
-          </li>
-          <li class="breadcrumb-item active" aria-current="page">
-            {{ product.name }}
-          </li>
-        </ol>
-      </nav>
+  <!-- Product details -->
+  <main>
+    <section class="product-hero">
+      <div class="container">
+        <nav aria-label="breadcrumb" class="product-breadcrumb">
+          <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{% url 'products' %}"><i class="bi bi-grid me-1" aria-hidden="true"></i>Shop</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'products' %}?category={{ product.category.id }}">{{ product.category.name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
+          </ol>
+        </nav>
 
-      <div class="row g-4 align-items-start">
-        <!-- Product Image -->
-        <div class="col-md-5">
-          <div class="product-image-panel">
-            {% if product.image %}
-              <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid">
-            {% else %}
-              <div class="product-image-placeholder"><i class="bi bi-image" aria-hidden="true"></i></div>
-            {% endif %}
-          </div>
-        </div>
-
-        <!-- Product Info -->
-        <div class="col-md-7">
-          <div class="product-info-panel">
-          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-            <h1 class="product-title">{{ product.name }}</h1>
-            <span class="badge rounded-pill
-              {% if product.is_available|default:True %}
-                badge-available
+        <div class="row g-3 g-lg-4 align-items-stretch">
+          <div class="col-12 col-md-5">
+            <div class="product-image-panel">
+              {% if product.image %}
+                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid">
               {% else %}
-                badge-out
-              {% endif %}">
-              {% if product.is_available|default:True %}
-                In stock
-              {% else %}
-                Out
+                <div class="product-image-placeholder"><i class="bi bi-image" aria-hidden="true"></i></div>
               {% endif %}
-            </span>
-          </div>
-
-          <div class="small text-muted mb-2">
-            SKU <strong>{{ product.sku }}</strong> •
-            {{ product.category.name }} •
-            {{ product.get_uom_display }}
-          </div>
-
-          <div class="text-muted small">
-            Prices per {{ product.get_uom_display|lower }}
-          </div>
-
-          <!-- Headline Prices -->
-          <div class="d-flex flex-wrap gap-5 my-3">
-            <div>
-              <div class="text-muted small">Price</div>
-              <div class="price-big">
-                
-                  R {{ wholesale_inc|floatformat:2|intcomma }}
-                
-              </div>
             </div>
           </div>
 
-          
-        </div>
-      </div>
-    </div>
-  </section>
+          <div class="col-12 col-md-7">
+            <div class="product-info-panel">
+              <div class="product-kicker"><i class="bi bi-basket2" aria-hidden="true"></i> The Daily Market · Product details</div>
+              <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+                <h1 class="product-title flex-grow-1">{{ product.name }}</h1>
+                <span class="product-status {% if product.is_available|default:True %}badge-available{% else %}badge-out{% endif %}">
+                  <i class="bi {% if product.is_available|default:True %}bi-check-circle-fill{% else %}bi-x-circle-fill{% endif %}" aria-hidden="true"></i>
+                  {% if product.is_available|default:True %}In stock{% else %}Out of stock{% endif %}
+                </span>
+              </div>
 
+              <div class="product-meta">
+                <span>SKU <strong>{{ product.sku }}</strong></span>
+                <span>{{ product.category.name }}</span>
+                <span>{{ product.get_uom_display }}</span>
+              </div>
 
-<!-- ===== Lower: Variations + Description ===== -->
-<section class="product-lower section-pad py-5 border-top">
-  <div class="container">
-    <div class="row g-5 d-lg-flex">
+              <div class="product-price-panel">
+                <div>
+                  <div class="price-label">Current price</div>
+                  <div class="price-big">R {{ wholesale_inc|floatformat:2|intcomma }}</div>
+                  <div class="price-unit">Price per {{ product.get_uom_display|lower }}</div>
+                </div>
+                <div class="small text-muted"><i class="bi bi-shield-check me-1" aria-hidden="true"></i>Quality you can trust</div>
+              </div>
 
-      <!-- Variations grid -->
-      <div class="col-12 col-lg-70">
-        <h5 class="mb-3">Pre-packed options</h5>
-
-        {% if variants|length %}
-          <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 variants">
-            {% for v in variants|slice:":4" %}
-              <div class="col">
-                <div class="card variant-card position-relative">
-
-                  
-                  <!-- Variant Image -->
-                  <div class="ratio">
-                    {% if v.image %}
-                      <img src="{{ v.image.url }}"
-                          class="w-100 h-100 object-fit-cover"
-                          alt="{{ v.name|default_if_none:product.name }}">
-                    {% elif product.image %}
-                      <img src="{{ product.image.url }}"
-                          class="w-100 h-100 object-fit-cover"
-                          alt="{{ product.name }}">
-                    {% else %}
-                      <div class="d-flex align-items-center justify-content-center
-                                  w-100 h-100 text-muted">
-                        <i class="bi bi-box-seam" style="font-size:2rem;"></i>
-                      </div>
-                    {% endif %}
-                  </div>
-
-                  <!-- Variant Name / Pack Size -->
-                  <div class="card-body pb-0">
-                    <div class="fw-semibold text-center">
-                      {{ v.name|default_if_none:"" }}
-                      {% if not v.name %}
-                        {{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}
-                      {% endif %}
-                    </div>
-                  </div>
-
-                  <!-- Variant Price -->
-                  <div class="variant-price-pill text-center">
-                    R {{ v.display_price_inc|floatformat:2|intcomma }}
-                  </div>
-
-
-                  <!-- Add to Cart -->
-                  <div class="variant-footer">
-                    <form method="post"
-                          action="{% url 'cart' %}"
-                          data-add-to-cart
-                          class="d-flex w-100 gap-2">
-                      {% csrf_token %}
-                      <input type="hidden" name="product_id" value="{{ product.id }}">
-                      <input type="hidden" name="variant_id" value="{{ v.id }}">
-
-                      <div class="input-group">
-                        <span class="input-group-text">Qty</span>
-                        <input type="number"
-                              name="qty"
-                              value="1"
-                              min="1"
-                              class="form-control">
-                      </div>
-
-                      <button class="btn btn-brand flex-fill" type="submit">
-                        <i class="bi bi-bag-plus me-1"></i>
-                        Add to cart
-                      </button>
-                    </form>
-                  </div>
-
+              <div class="product-help">
+                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                <div>
+                  <strong class="d-block">Buying for your food business?</strong>
+                  <p>Choose your preferred pack size below and add it to your order.</p>
                 </div>
               </div>
-            {% endfor %}
+            </div>
           </div>
-        {% else %}
-          <div class="alert alert-light border d-flex align-items-center">
-            <i class="bi bi-info-circle me-2"></i>
-            <div>No product variations available yet.</div>
-          </div>
-        {% endif %}
         </div>
       </div>
+    </section>
 
+    <section class="product-lower">
+      <div class="container">
+        <div class="row g-4 align-items-start">
+          <div class="col-12 col-lg-8">
+            <div class="lower-heading">
+              <div>
+                <div class="eyebrow">Choose your pack</div>
+                <h2 class="mt-2">Available options</h2>
+                <p>Select the pack size that works for your kitchen.</p>
+              </div>
+            </div>
 
+            {% if variants|length %}
+              <div class="row row-cols-2 row-cols-md-3 row-cols-xl-4 g-2 g-md-3 variants">
+                {% for v in variants|slice:":4" %}
+                  <div class="col">
+                    <div class="card variant-card">
+                      <div class="variant-image">
+                        <div class="ratio">
+                          {% if v.image %}
+                            <img src="{{ v.image.url }}" class="w-100 h-100" alt="{{ v.name|default_if_none:product.name }}">
+                          {% elif product.image %}
+                            <img src="{{ product.image.url }}" class="w-100 h-100" alt="{{ product.name }}">
+                          {% else %}
+                            <div class="d-flex align-items-center justify-content-center w-100 h-100 text-muted"><i class="bi bi-box-seam" style="font-size:2rem;"></i></div>
+                          {% endif %}
+                        </div>
+                        <div class="variant-price-pill">R {{ v.display_price_inc|floatformat:2|intcomma }}</div>
+                      </div>
 
+                      <div class="card-body">
+                        <div class="variant-name text-center">
+                          {{ v.name|default_if_none:"" }}
+                          {% if not v.name %}{{ v.pack_size|floatformat:1 }} {{ v.get_uom_display|lower }}{% endif %}
+                        </div>
+                      </div>
 
-      <!-- Description -->
-      <div class="col-12 col-lg-30">
-        <h5 class="mb-3">Description</h5>
-        {% if product.description %}
-          <p class="text-muted mb-0">{{ product.description }}</p>
-        {% else %}
-          <p class="text-muted mb-0">
-            Detailed product information will appear here soon.
-          </p>
-        {% endif %}
+                      <div class="variant-footer">
+                        <form method="post" action="{% url 'cart' %}" data-add-to-cart class="d-flex w-100 gap-2">
+                          {% csrf_token %}
+                          <input type="hidden" name="product_id" value="{{ product.id }}">
+                          <input type="hidden" name="variant_id" value="{{ v.id }}">
+                          <div class="input-group">
+                            <span class="input-group-text">Qty</span>
+                            <input type="number" name="qty" value="1" min="1" step="1" inputmode="numeric" class="form-control" aria-label="Quantity for {{ v.name|default_if_none:product.name }}">
+                          </div>
+                          <button class="btn btn-brand flex-fill" type="submit" {% if not product.is_available|default:True %}disabled{% endif %}>
+                            <i class="bi bi-bag-plus me-1" aria-hidden="true"></i>Add
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="alert alert-light border d-flex align-items-center rounded-4 p-3">
+                <i class="bi bi-info-circle me-2"></i><div>No product variations available yet.</div>
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="col-12 col-lg-4">
+            <div class="content-panel">
+              <h2><i class="bi bi-card-text me-2 text-success" aria-hidden="true"></i>About this product</h2>
+              {% if product.description %}
+                <p class="product-description mb-0">{{ product.description }}</p>
+              {% else %}
+                <p class="product-description mb-0">Detailed product information will appear here soon.</p>
+              {% endif %}
+            </div>
+          </div>
         </div>
       </div>
-
-    </div>
-  </div>
-</section>
-
+    </section>
+  </main>
 
   <!-- Footer -->
   <footer class="site-footer">

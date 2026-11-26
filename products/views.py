@@ -2154,13 +2154,22 @@ def variant_edit(request, pk):
     return render(request, "products/variant_form.html", {"form": form, "product": variant.product})
 
 
+
 @login_required
 @staff_required
 def product_view(request, pk):
     """
     Product detail page with pricing rows, product variants,
-    and special pricing information.
+    special pricing information, sales trends and market position.
     """
+    from datetime import datetime, time, timedelta
+    from django.db.models import Sum
+    from django.utils import timezone
+    from orders.models import OrderItem
+
+    # -----------------------------------------------------
+    # Product
+    # -----------------------------------------------------
     product = get_object_or_404(
         Product.objects.select_related("category"),
         pk=pk
@@ -2230,6 +2239,257 @@ def product_view(request, pk):
             "image_url": v.image.url if v.image else None,
         })
 
+    # -----------------------------------------------------
+    # Product Trends & Market Position
+    # -----------------------------------------------------
+
+    period_options = [
+        (7, "Last 7 days"),
+        (30, "Last 30 days"),
+        (90, "Last 90 days"),
+        (180, "Last 6 months"),
+        (365, "Last 12 months"),
+    ]
+
+    allowed_periods = {
+        days for days, _label in period_options
+    }
+
+    try:
+        trend_days = int(request.GET.get("trend_period", "30"))
+    except (TypeError, ValueError):
+        trend_days = 30
+
+    if trend_days not in allowed_periods:
+        trend_days = 30
+
+    # -----------------------------------------------------
+    # Reporting period
+    # -----------------------------------------------------
+
+    today = timezone.localdate()
+    trend_start = today - timedelta(days=trend_days - 1)
+
+    current_tz = timezone.get_current_timezone()
+
+    # Start at midnight on the first reporting day.
+    trend_start_dt = timezone.make_aware(
+        datetime.combine(trend_start, time.min),
+        current_tz
+    )
+
+    # Exclusive end: midnight immediately after today.
+    trend_end_dt = timezone.make_aware(
+        datetime.combine(today + timedelta(days=1), time.min),
+        current_tz
+    )
+
+    # -----------------------------------------------------
+    # Completed sales only
+    #
+    # IMPORTANT:
+    # Use datetime comparisons instead of __date lookups.
+    # This avoids MySQL CONVERT_TZ() date conversion.
+    # -----------------------------------------------------
+
+    completed_items = OrderItem.objects.filter(
+        order__status="complete",
+        order__order_date__gte=trend_start_dt,
+        order__order_date__lt=trend_end_dt,
+    )
+
+    # -----------------------------------------------------
+    # Individual product sales
+    # -----------------------------------------------------
+
+    product_items = list(
+        completed_items
+        .filter(product_id=product.pk)
+        .select_related("order")
+        .only(
+            "quantity",
+            "unit_price_excl",
+            "discount_excl",
+            "vat_percent",
+            "order__order_date",
+        )
+    )
+
+    total_units_sold = Decimal("0.00")
+    total_sales_value = Decimal("0.00")
+
+    # Daily points for short periods;
+    # weekly points for longer periods.
+    use_daily_buckets = trend_days <= 30
+
+    bucket_totals = {}
+
+    for item in product_items:
+        quantity = item.quantity or Decimal("0.00")
+
+        total_units_sold += quantity
+        total_sales_value += item.line_total_inc
+
+        order_day = timezone.localtime(
+            item.order.order_date
+        ).date()
+
+        if use_daily_buckets:
+            bucket_date = order_day
+        else:
+            days_from_start = (
+                order_day - trend_start
+            ).days
+
+            bucket_date = (
+                trend_start
+                + timedelta(days=(days_from_start // 7) * 7)
+            )
+
+        bucket_totals[bucket_date] = (
+            bucket_totals.get(
+                bucket_date,
+                Decimal("0.00")
+            ) + quantity
+        )
+
+    # -----------------------------------------------------
+    # Chart data
+    # -----------------------------------------------------
+
+    trend_labels = []
+    trend_units = []
+
+    if use_daily_buckets:
+        bucket_date = trend_start
+
+        while bucket_date <= today:
+            trend_labels.append(
+                bucket_date.strftime("%d %b")
+            )
+
+            trend_units.append(
+                float(
+                    bucket_totals.get(
+                        bucket_date,
+                        Decimal("0.00")
+                    )
+                )
+            )
+
+            bucket_date += timedelta(days=1)
+
+    else:
+        bucket_date = trend_start
+
+        while bucket_date <= today:
+            trend_labels.append(
+                bucket_date.strftime("%d %b")
+            )
+
+            trend_units.append(
+                float(
+                    bucket_totals.get(
+                        bucket_date,
+                        Decimal("0.00")
+                    )
+                )
+            )
+
+            bucket_date += timedelta(days=7)
+
+    # -----------------------------------------------------
+    # Product ranking
+    # -----------------------------------------------------
+
+    def build_product_ranking(queryset):
+        ranking = list(
+            queryset
+            .values("product_id", "product__name")
+            .annotate(
+                units_sold=Sum("quantity")
+            )
+            .order_by(
+                "-units_sold",
+                "product__name"
+            )
+        )
+
+        product_rank = None
+
+        for position, row in enumerate(ranking, start=1):
+            row["rank"] = position
+
+            if row["product_id"] == product.pk:
+                product_rank = position
+
+        return ranking, product_rank
+
+    # -----------------------------------------------------
+    # Category ranking
+    # -----------------------------------------------------
+
+    category_items = completed_items
+
+    if product.category_id:
+        category_items = category_items.filter(
+            product__category_id=product.category_id
+        )
+
+        category_ranking, category_rank = (
+            build_product_ranking(category_items)
+        )
+    else:
+        category_ranking = []
+        category_rank = None
+
+    # -----------------------------------------------------
+    # Overall ranking
+    # -----------------------------------------------------
+
+    overall_ranking, overall_rank = (
+        build_product_ranking(completed_items)
+    )
+
+    # -----------------------------------------------------
+    # Top 5 products
+    # -----------------------------------------------------
+
+    category_top_products = category_ranking[:5]
+    overall_top_products = overall_ranking[:5]
+
+    # -----------------------------------------------------
+    # Product trend context
+    # -----------------------------------------------------
+
+    product_trend = {
+        "period_days": trend_days,
+
+        "total_units_sold": total_units_sold,
+        "total_sales_value": total_sales_value,
+
+        "category_rank": category_rank,
+        "category_product_count": len(category_ranking),
+
+        "overall_rank": overall_rank,
+        "overall_product_count": len(overall_ranking),
+
+        "trend_labels_json": __import__("json").dumps(
+            trend_labels
+        ),
+
+        "trend_units_json": __import__("json").dumps(
+            trend_units
+        ),
+
+        "category_top_products": category_top_products,
+        "overall_top_products": overall_top_products,
+    }
+
+    # -----------------------------------------------------
+    # Render
+    # -----------------------------------------------------
+
     return render(
         request,
         "products/product_view.html",
@@ -2238,8 +2498,12 @@ def product_view(request, pk):
             "pricing_rows": pricing_rows,
             "variant_rows": variant_rows,
             "special": special,
+            "product_trend": product_trend,
+            "trend_period_options": period_options,
         },
     )
+
+
 
 
 # -----------------------------------------------------
@@ -2335,448 +2599,365 @@ def product_pricing_edit(request, pk):
 @login_required
 @staff_required
 def product_dashboard(request):
-    q = (request.GET.get("q") or "").strip()
-    category_id = request.GET.get("category") or ""
-    pricing_status = request.GET.get("pricing_status") or ""
+    """Product catalogue, pricing and supplier intelligence dashboard.
 
-    # =====================================================
-    # PRODUCTS
-    # =====================================================
-    #
-    # Keep the main product query free of reverse-relation joins.
-    # The previous pricing/variant filters used joins followed by
-    # DISTINCT, which can force MariaDB to create an on-disk
-    # temporary result.  We use EXISTS instead.
-    #
-    products_qs = (
-        Product.objects
-        .select_related("category", "category__parent")
-        .prefetch_related("pricing_rows", "variants")
-        .all()
+    Dashboard-wide KPI figures are based on the complete catalogue.
+    Search/category/pricing filters apply to the product register table.
+    Only active ProductPricing rows are treated as current supplier pricing.
+    """
+    from collections import defaultdict
+    from decimal import Decimal
+
+    q = (request.GET.get("q") or "").strip()
+    category_id = (request.GET.get("category") or "").strip()
+    pricing_status = (request.GET.get("pricing_status") or "").strip()
+    supplier_id = (request.GET.get("supplier") or "").strip()
+
+    base_products = Product.objects.all()
+    active_pricing = ProductPricing.objects.filter(is_active=True)
+
+    active_pricing_for_product = ProductPricing.objects.filter(
+        product_id=OuterRef("pk"),
+        is_active=True,
     )
 
+    # -----------------------------------------------------------------
+    # Catalogue health KPIs (whole catalogue)
+    # -----------------------------------------------------------------
+    total_products = base_products.count()
+    products_with_pricing = base_products.filter(
+        Exists(active_pricing_for_product)
+    ).count()
+    products_without_pricing = total_products - products_with_pricing
+    products_without_images = base_products.filter(
+        Q(image__isnull=True) | Q(image="")
+    ).count()
+
+    total_categories = Category.objects.count()
+    top_level_categories = Category.objects.filter(parent__isnull=True).count()
+    subcategories = Category.objects.filter(parent__isnull=False).count()
+
+    products_with_variants = base_products.filter(
+        Exists(ProductVariant.objects.filter(product_id=OuterRef("pk")))
+    ).count()
+    products_with_multiple_suppliers = 0
+
+    # Pricing statistics. This is a markup percentage, not gross margin.
+    pricing_summary = active_pricing.aggregate(
+        avg_supplier_price=Avg("supplier_price_excl"),
+        avg_wholesale_markup=Avg("wholesale_margin_percent"),
+    )
+    avg_supplier_price = pricing_summary["avg_supplier_price"]
+    avg_wholesale_markup = pricing_summary["avg_wholesale_markup"]
+
+    # -----------------------------------------------------------------
+    # Active pricing rows loaded once for supplier comparisons and counts
+    # -----------------------------------------------------------------
+    pricing_rows = list(
+        active_pricing.select_related("product", "supplier")
+        .only(
+            "id", "product_id", "supplier_id", "supplier_price_excl",
+            "supplier_vat_percent", "wholesale_margin_percent",
+            "wholesale_vat_percent", "retail_margin_percent",
+            "retail_vat_percent", "is_active", "updated_at",
+            "product__id", "product__name", "product__product_no",
+            "supplier__id", "supplier__name",
+        )
+    )
+    pricing_by_product = defaultdict(list)
+    for row in pricing_rows:
+        pricing_by_product[row.product_id].append(row)
+
+    for rows in pricing_by_product.values():
+        supplier_ids = {row.supplier_id for row in rows if row.supplier_id}
+        if len(supplier_ids) > 1:
+            products_with_multiple_suppliers += 1
+
+    # -----------------------------------------------------------------
+    # Top 10 best-selling products (completed orders only)
+    # -----------------------------------------------------------------
+    from django.db.models import Sum
+    from orders.models import OrderItem
+
+    sales_period_options = [
+        (7, "Last 7 days"),
+        (14, "Last 14 days"),
+        (30, "Last 30 days"),
+        (60, "Last 60 days"),
+        (90, "Last 90 days"),
+    ]
+    try:
+        sales_period_days = int(request.GET.get("sales_period", "7"))
+    except (TypeError, ValueError):
+        sales_period_days = 7
+    if sales_period_days not in {7, 14, 30, 60, 90}:
+        sales_period_days = 7
+
+    sales_period_start = timezone.now() - timedelta(days=sales_period_days)
+
+    # "Sold" means the order has reached complete status. Cancelled,
+    # returned, pending and in-progress orders are not counted as sales.
+    top_product_totals = list(
+        OrderItem.objects.filter(
+            order__status="complete",
+            order__order_date__gte=sales_period_start,
+        )
+        .values("product_id")
+        .annotate(quantity_sold=Sum("quantity"))
+        .order_by("-quantity_sold", "product_id")[:10]
+    )
+
+    top_product_ids = [row["product_id"] for row in top_product_totals]
+    sales_items_by_product = defaultdict(list)
+    if top_product_ids:
+        sales_items = (
+            OrderItem.objects.filter(
+                order__status="complete",
+                order__order_date__gte=sales_period_start,
+                product_id__in=top_product_ids,
+            )
+            .select_related("product")
+        )
+        for item in sales_items:
+            sales_items_by_product[item.product_id].append(item)
+
+    top_selling_products = []
+    for total_row in top_product_totals:
+        product_id = total_row["product_id"]
+        items = sales_items_by_product.get(product_id, [])
+        if not items:
+            continue
+
+        product = items[0].product
+        quantity_sold = sum(
+            (item.quantity or Decimal("0.00")) for item in items
+        )
+        total_sales_inc = sum(
+            (item.line_total_inc or Decimal("0.00")) for item in items
+        )
+        average_selling_price_inc = (
+            total_sales_inc / quantity_sold
+            if quantity_sold else None
+        )
+
+        # Compare actual discounted selling price with the current lowest
+        # active wholesale price (including VAT). This is not a historical
+        # wholesale-cost snapshot.
+        current_wholesale_price_inc = None
+        if product.is_special and product.special_wholesale_price_inc is not None:
+            current_wholesale_price_inc = product.special_wholesale_price_inc
+        else:
+            current_prices = [
+                row.wholesale_price_inc
+                for row in pricing_by_product.get(product_id, [])
+                if row.wholesale_price_inc is not None
+            ]
+            if current_prices:
+                current_wholesale_price_inc = min(current_prices)
+
+        price_difference_inc = None
+        price_difference_total_inc = None
+        if (
+            average_selling_price_inc is not None
+            and current_wholesale_price_inc is not None
+        ):
+            price_difference_inc = (
+                average_selling_price_inc - current_wholesale_price_inc
+            )
+            price_difference_total_inc = (
+                price_difference_inc * quantity_sold
+            )
+
+        top_selling_products.append({
+            "product": product,
+            "quantity_sold": quantity_sold,
+            "total_sales_inc": total_sales_inc,
+            "average_selling_price_inc": average_selling_price_inc,
+            "current_wholesale_price_inc": current_wholesale_price_inc,
+            "price_difference_inc": price_difference_inc,
+            "price_difference_total_inc": price_difference_total_inc,
+        })
+
+    # -----------------------------------------------------------------
+    # Product knowledge overview
+    # -----------------------------------------------------------------
+    knowledge_qs = ProductKnowledge.objects.select_related("product")
+    knowledge_records = list(knowledge_qs)
+    knowledge_total = len(knowledge_records)
+    knowledge_complete = sum(
+        1 for item in knowledge_records
+        if (item.completion_percentage or 0) >= 100
+    )
+    knowledge_incomplete = knowledge_total - knowledge_complete
+    knowledge_approved = sum(1 for item in knowledge_records if item.is_approved)
+    knowledge_completion_rate = (
+        round((knowledge_complete / knowledge_total) * 100)
+        if knowledge_total else 0
+    )
+
+    # -----------------------------------------------------------------
+    # Category breakdown (counts are based on active supplier pricing)
+    # -----------------------------------------------------------------
+    category_breakdown = list(
+        Category.objects.select_related("parent").prefetch_related("products")
+    )
+    for category in category_breakdown:
+        category_products = list(category.products.all())
+        category.product_count = len(category_products)
+        category.priced_product_count = sum(
+            1 for product in category_products
+            if pricing_by_product.get(product.pk)
+        )
+        category.missing_pricing_count = (
+            category.product_count - category.priced_product_count
+        )
+
+        # Average category pricing is calculated from active supplier pricing
+        # rows. Derived model properties include VAT and are not DB fields.
+        category_rows = [
+            row
+            for product in category_products
+            for row in pricing_by_product.get(product.pk, [])
+            if row.is_active
+        ]
+        supplier_costs = [row.supplier_price_incl for row in category_rows]
+        wholesale_prices = [row.wholesale_price_inc for row in category_rows]
+        retail_prices = [row.retail_price_inc for row in category_rows]
+
+        category.avg_supplier_price_inc = (
+            sum(supplier_costs, Decimal("0.00")) / len(supplier_costs)
+            if supplier_costs else None
+        )
+        category.avg_wholesale_price_inc = (
+            sum(wholesale_prices, Decimal("0.00")) / len(wholesale_prices)
+            if wholesale_prices else None
+        )
+        category.avg_retail_price_inc = (
+            sum(retail_prices, Decimal("0.00")) / len(retail_prices)
+            if retail_prices else None
+        )
+    category_breakdown.sort(key=lambda item: (
+        item.parent.name if item.parent else "",
+        item.name or "",
+    ))
+
+    # -----------------------------------------------------------------
+    # Action lists: missing active pricing and missing product images
+    # -----------------------------------------------------------------
+    pricing_alerts = list(
+        base_products.select_related("category", "category__parent")
+        .filter(~Exists(active_pricing_for_product))
+        .order_by("name")[:20]
+    )
+    image_alerts = list(
+        base_products.select_related("category", "category__parent")
+        .filter(Q(image__isnull=True) | Q(image=""))
+        .order_by("name")[:20]
+    )
+
+    # -----------------------------------------------------------------
+    # Supplier price comparison: active prices only
+    # -----------------------------------------------------------------
+    supplier_comparison = []
+    for product_id, rows in pricing_by_product.items():
+        supplier_map = {}
+        for row in rows:
+            if row.supplier_id and row.supplier_price_excl is not None:
+                # If multiple active rows exist for one supplier, show the
+                # lowest recorded active supplier cost for comparison.
+                current = supplier_map.get(row.supplier_id)
+                if current is None or row.supplier_price_excl < current["price"]:
+                    supplier_map[row.supplier_id] = {
+                        "name": row.supplier.name,
+                        "price": row.supplier_price_excl,
+                    }
+        if len(supplier_map) < 2:
+            continue
+        prices = [entry["price"] for entry in supplier_map.values()]
+        product = rows[0].product
+        supplier_comparison.append({
+            "product": product,
+            "supplier_count": len(supplier_map),
+            "min_supplier_price": min(prices),
+            "max_supplier_price": max(prices),
+            "price_difference": max(prices) - min(prices),
+            "suppliers": sorted(supplier_map.values(), key=lambda item: item["price"]),
+        })
+    supplier_comparison.sort(
+        key=lambda item: item["price_difference"], reverse=True
+    )
+    supplier_comparison = supplier_comparison[:15]
+
+    # -----------------------------------------------------------------
+    # Recent additions and supplier price changes
+    # -----------------------------------------------------------------
+    recent_products = (
+        Product.objects.select_related("category")
+        .order_by("-created_at")[:8]
+    )
+    recent_pricing_updates = (
+        ProductPricing.objects.select_related("product", "supplier")
+        .order_by("-updated_at")[:10]
+    )
+
+    # -----------------------------------------------------------------
+    # Filtered product register
+    # -----------------------------------------------------------------
+    filtered_qs = (
+        Product.objects.select_related("category", "category__parent")
+        .prefetch_related("pricing_rows", "variants")
+    )
     if q:
-        products_qs = products_qs.filter(
+        filtered_qs = filtered_qs.filter(
             Q(name__icontains=q)
             | Q(sku__icontains=q)
             | Q(product_no__icontains=q)
             | Q(category__name__icontains=q)
             | Q(category__parent__name__icontains=q)
         )
-
     if category_id:
-        products_qs = products_qs.filter(category_id=category_id)
-
-    pricing_exists = ProductPricing.objects.filter(
-        product_id=OuterRef("pk")
-    )
-
+        filtered_qs = filtered_qs.filter(category_id=category_id)
     if pricing_status == "missing":
-        products_qs = products_qs.filter(
-            ~Exists(pricing_exists)
-        )
-
+        filtered_qs = filtered_qs.filter(~Exists(active_pricing_for_product))
     elif pricing_status == "has_pricing":
-        products_qs = products_qs.filter(
-            Exists(pricing_exists)
+        filtered_qs = filtered_qs.filter(Exists(active_pricing_for_product))
+    if supplier_id:
+        selected_supplier_pricing = ProductPricing.objects.filter(
+            product_id=OuterRef("pk"),
+            supplier_id=supplier_id,
+            is_active=True,
         )
+        filtered_qs = filtered_qs.filter(Exists(selected_supplier_pricing))
 
-    # Evaluate once.  Counts for the dashboard rows are calculated
-    # from the already-prefetched pricing/variant rows rather than
-    # through reverse-relation GROUP BY / DISTINCT queries.
-    filtered_product_list = list(
-        products_qs.order_by("name")
-    )
-
-    # =====================================================
-    # BASIC PRODUCT COUNTS
-    # =====================================================
-
-    total_products = Product.objects.count()
-
-    products_with_pricing = (
-        Product.objects
-        .filter(
-            Exists(
-                ProductPricing.objects.filter(
-                    product_id=OuterRef("pk")
-                )
-            )
-        )
-        .count()
-    )
-
-    products_without_pricing = (
-        Product.objects
-        .filter(
-            ~Exists(
-                ProductPricing.objects.filter(
-                    product_id=OuterRef("pk")
-                )
-            )
-        )
-        .count()
-    )
-
-    products_without_images = (
-        Product.objects
-        .filter(
-            Q(image__isnull=True)
-            | Q(image="")
-        )
-        .count()
-    )
-
-    # =====================================================
-    # CATEGORY COUNTS
-    # =====================================================
-
-    total_categories = Category.objects.count()
-
-    top_level_categories = (
-        Category.objects
-        .filter(parent__isnull=True)
-        .count()
-    )
-
-    subcategories = (
-        Category.objects
-        .filter(parent__isnull=False)
-        .count()
-    )
-
-    # =====================================================
-    # PRICING SUMMARY
-    # =====================================================
-
-    active_pricing_rows = ProductPricing.objects.filter(
-        is_active=True
-    )
-
-    avg_supplier_price = active_pricing_rows.aggregate(
-        avg_supplier_price=Avg("supplier_price_excl")
-    )["avg_supplier_price"]
-
-    avg_wholesale_margin = active_pricing_rows.aggregate(
-        avg_wholesale_margin=Avg("wholesale_margin_percent")
-    )["avg_wholesale_margin"]
-
-    # =====================================================
-    # VARIANT COUNTS
-    # =====================================================
-
-    products_with_variants = (
-        Product.objects
-        .filter(
-            Exists(
-                ProductVariant.objects.filter(
-                    product_id=OuterRef("pk")
-                )
-            )
-        )
-        .count()
-    )
-
-    products_without_variants = (
-        Product.objects
-        .filter(
-            ~Exists(
-                ProductVariant.objects.filter(
-                    product_id=OuterRef("pk")
-                )
-            )
-        )
-        .count()
-    )
-
-    # =====================================================
-    # PRODUCTS WITH MULTIPLE SUPPLIERS
-    # =====================================================
-    #
-    # Calculate from prefetched pricing rows rather than using
-    # GROUP BY + COUNT(DISTINCT supplier).
-    #
-
-    supplier_products = list(
-        Product.objects
-        .prefetch_related("pricing_rows")
-        .only("id", "name")
-    )
-
-    products_with_multiple_suppliers = 0
-
-    for product in supplier_products:
-        supplier_ids = {
-            row.supplier_id
-            for row in product.pricing_rows.all()
-            if row.supplier_id is not None
-        }
-
-        if len(supplier_ids) > 1:
-            products_with_multiple_suppliers += 1
-
-    # =====================================================
-    # CATEGORY BREAKDOWN
-    # =====================================================
-    #
-    # Avoid multiple COUNT(DISTINCT ...) joins.  Categories and
-    # their related products are loaded separately and the small
-    # dashboard counts are calculated in Python.
-    #
-
-    category_breakdown = list(
-        Category.objects
-        .select_related("parent")
-        .prefetch_related(
-            "products__pricing_rows",
-            "products__variants",
-        )
-        .all()
-    )
-
-    for category in category_breakdown:
-        category_products = list(
-            category.products.all()
-        )
-
-        category.product_count = len(
-            category_products
-        )
-
-        category.pricing_count = sum(
-            1
-            for product in category_products
-            for row in product.pricing_rows.all()
-            if row is not None
-        )
-
-        category.variant_count = sum(
-            1
-            for product in category_products
-            for variant in product.variants.all()
-            if variant is not None
-        )
-
-    category_breakdown.sort(
-        key=lambda category: (
-            category.parent.name
-            if category.parent
-            else "",
-            category.name or "",
-        )
-    )
-
-    # =====================================================
-    # PRICING ALERTS
-    # =====================================================
-
-    pricing_alerts = list(
-        Product.objects
-        .select_related("category", "category__parent")
-        .filter(
-            ~Exists(
-                ProductPricing.objects.filter(
-                    product_id=OuterRef("pk")
-                )
-            )
-        )
-        .order_by("name")
-    )
-
-    pricing_alerts.sort(
-        key=lambda product: (
-            product.category.parent.name
-            if product.category and product.category.parent
-            else "",
-            product.category.name
-            if product.category
-            else "",
-            product.name or "",
-        )
-    )
-
-    pricing_alerts = pricing_alerts[:20]
-
-    # =====================================================
-    # IMAGE ALERTS
-    # =====================================================
-
-    image_alerts = list(
-        Product.objects
-        .select_related("category", "category__parent")
-        .filter(
-            Q(image__isnull=True)
-            | Q(image="")
-        )
-        .order_by("name")
-    )
-
-    image_alerts.sort(
-        key=lambda product: (
-            product.category.parent.name
-            if product.category and product.category.parent
-            else "",
-            product.category.name
-            if product.category
-            else "",
-            product.name or "",
-        )
-    )
-
-    image_alerts = image_alerts[:20]
-
-    # =====================================================
-    # SUPPLIER COMPARISON
-    # =====================================================
-    #
-    # Avoid COUNT(DISTINCT), MIN and MAX over the reverse
-    # pricing relationship in one grouped query.
-    #
-
-    comparison_products = list(
-        Product.objects
-        .prefetch_related("pricing_rows")
-        .only("id", "name")
-    )
-
-    supplier_comparison = []
-
-    for product in comparison_products:
-        pricing_rows = [
-            row
-            for row in product.pricing_rows.all()
-            if row.supplier_id is not None
-        ]
-
-        supplier_ids = {
-            row.supplier_id
-            for row in pricing_rows
-        }
-
-        if len(supplier_ids) <= 1:
-            continue
-
-        prices = [
-            row.supplier_price_excl
-            for row in pricing_rows
-            if row.supplier_price_excl is not None
-        ]
-
-        product.supplier_count = len(supplier_ids)
-        product.min_supplier_price = (
-            min(prices) if prices else None
-        )
-        product.max_supplier_price = (
-            max(prices) if prices else None
-        )
-
-        supplier_comparison.append(product)
-
-    supplier_comparison.sort(
-        key=lambda product: (
-            -(product.supplier_count or 0),
-            product.name or "",
-        )
-    )
-
-    supplier_comparison = supplier_comparison[:20]
-
-    # =====================================================
-    # RECENT PRODUCTS
-    # =====================================================
-
-    recent_products = (
-        Product.objects
-        .select_related("category", "category__parent")
-        .order_by("-created_at")[:10]
-    )
-
-    # =====================================================
-    # RECENT PRICING UPDATES
-    # =====================================================
-
-    recent_pricing_updates = (
-        ProductPricing.objects
-        .select_related(
-            "product",
-            "supplier",
-            "product__category",
-        )
-        .order_by("-updated_at")[:10]
-    )
-
-    # =====================================================
-    # FILTERED PRODUCTS
-    # =====================================================
-    #
-    # The queryset is already evaluated above and has pricing_rows
-    # and variants prefetched.  Add the dashboard counts in Python.
-    #
-
-    filtered_products = filtered_product_list
-
+    filtered_products = list(filtered_qs.order_by("name")[:100])
     for product in filtered_products:
-        pricing_rows = list(
-            product.pricing_rows.all()
-        )
-
-        product.pricing_count = len(
-            pricing_rows
-        )
-
-        product.variant_count = len(
-            product.variants.all()
-        )
-
-        product.supplier_count = len({
-            row.supplier_id
-            for row in pricing_rows
-            if row.supplier_id is not None
+        rows = [row for row in product.pricing_rows.all() if row.is_active]
+        product.dashboard_pricing_count = len(rows)
+        product.dashboard_supplier_count = len({
+            row.supplier_id for row in rows if row.supplier_id
         })
-
-    filtered_products.sort(
-        key=lambda product: (
-            product.category.parent.name
-            if product.category and product.category.parent
-            else "",
-            product.category.name
-            if product.category
-            else "",
-            product.name or "",
+        product.dashboard_variant_count = len(product.variants.all())
+        product.dashboard_lowest_wholesale = min(
+            (row.wholesale_price_inc for row in rows
+             if row.wholesale_price_inc is not None),
+            default=None,
         )
-    )
-
-    filtered_products = filtered_products[:100]
-
-    # =====================================================
-    # CATEGORY FILTER OPTIONS
-    # =====================================================
 
     categories = list(
-        Category.objects
-        .filter(parent__isnull=False)
-        .select_related("parent")
-        .order_by("name")
+        Category.objects.filter(parent__isnull=False)
+        .select_related("parent").order_by("name")
     )
+    categories.sort(key=lambda item: (
+        item.parent.name if item.parent else "", item.name or ""
+    ))
 
-    categories.sort(
-        key=lambda category: (
-            category.parent.name
-            if category.parent
-            else "",
-            category.name or "",
-        )
-    )
+    suppliers = Supplier.objects.order_by("name")
 
-    # =====================================================
-    # CONTEXT
-    # =====================================================
-
-    ctx = {
+    context = {
         "q": q,
         "category_id": category_id,
         "pricing_status": pricing_status,
-
+        "supplier_id": supplier_id,
         "total_products": total_products,
         "products_with_pricing": products_with_pricing,
         "products_without_pricing": products_without_pricing,
@@ -2785,12 +2966,9 @@ def product_dashboard(request):
         "top_level_categories": top_level_categories,
         "subcategories": subcategories,
         "products_with_variants": products_with_variants,
-        "products_without_variants": products_without_variants,
         "products_with_multiple_suppliers": products_with_multiple_suppliers,
-
         "avg_supplier_price": avg_supplier_price,
-        "avg_wholesale_margin": avg_wholesale_margin,
-
+        "avg_wholesale_markup": avg_wholesale_markup,
         "category_breakdown": category_breakdown,
         "pricing_alerts": pricing_alerts,
         "image_alerts": image_alerts,
@@ -2799,13 +2977,18 @@ def product_dashboard(request):
         "recent_pricing_updates": recent_pricing_updates,
         "filtered_products": filtered_products,
         "categories": categories,
+        "suppliers": suppliers,
+        "sales_period_days": sales_period_days,
+        "sales_period_options": sales_period_options,
+        "top_selling_products": top_selling_products,
+        "knowledge_total": knowledge_total,
+        "knowledge_complete": knowledge_complete,
+        "knowledge_incomplete": knowledge_incomplete,
+        "knowledge_approved": knowledge_approved,
+        "knowledge_completion_rate": knowledge_completion_rate,
+        "filtered_product_limit": 100,
     }
-
-    return render(
-        request,
-        "products/product_dashboard.html",
-        ctx
-    )
+    return render(request, "products/product_dashboard.html", context)
 
 
 # =============================================================

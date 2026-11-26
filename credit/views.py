@@ -152,6 +152,58 @@ def credit_list(request):
         ).quantize(Decimal("0.01"))
 
     page_obj = Paginator(qs, 25).get_page(request.GET.get("page", 1))
+
+    # Attach invoice-level settlement statuses to each client on this page.
+    # Status is calculated at request time, so the display does not depend on
+    # a daily task having updated the stored status field.
+    today = localdate()
+    page_accounts = list(page_obj.object_list)
+    account_ids = [account.pk for account in page_accounts]
+
+    latest_settlement_by_account = {}
+    page_settlements = (
+        CreditSettlement.objects
+        .filter(credit_account_id__in=account_ids)
+        .order_by("-created_at", "-id")
+    )
+
+    settlement_status_display = {
+        "UPCOMING": ("Outstanding", "settlement-upcoming"),
+        "DUE_TODAY": ("Due today", "settlement-due-today"),
+        "PARTIAL": ("Partially settled", "settlement-partial"),
+        "OVERDUE": ("Overdue", "settlement-overdue"),
+        "SETTLED": ("Settled", "settlement-settled"),
+        "CANCELLED": ("Cancelled", "settlement-cancelled"),
+    }
+
+    for settlement in page_settlements:
+        outstanding = settlement.outstanding_amount or zero
+        repaid = settlement.repaid_amount or zero
+
+        if settlement.status == CreditSettlement.STATUS_CANCELLED:
+            display_key = "CANCELLED"
+        elif outstanding <= zero:
+            display_key = "SETTLED"
+        elif settlement.due_date and settlement.due_date < today:
+            display_key = "OVERDUE"
+        elif settlement.due_date == today:
+            display_key = "DUE_TODAY"
+        elif repaid > zero:
+            display_key = "PARTIAL"
+        else:
+            display_key = "UPCOMING"
+
+        label, css_class = settlement_status_display[display_key]
+        settlement.display_status = label
+        settlement.display_status_class = css_class
+
+        # Query is newest-first, so the first record for each account
+        # is the only settlement status shown on the facilities list.
+        if settlement.credit_account_id not in latest_settlement_by_account:
+            latest_settlement_by_account[settlement.credit_account_id] = settlement
+
+    for account in page_accounts:
+        account.latest_client_settlement = latest_settlement_by_account.get(account.pk)
     return render(request, "credit/credit_list.html", {
         "credit_accounts": page_obj.object_list,
         "page_obj": page_obj,
@@ -1777,78 +1829,99 @@ def credit_statement_email(request, client_id):
     )
 
 
+
 @login_required
 @staff_required
 @require_POST
 def credit_confirm_payment(request, client_id):
     """
-    Capture a verified repayment against one selected invoice only.
-    The invoice model creates the invoice-linked CreditEntry and updates
-    settlement balances; account-wide repayments are intentionally disabled.
+    Capture a verified repayment against one selected invoice.
+
+    The Invoice model is solely responsible for:
+    - Creating the financial Transaction.
+    - Creating and linking the CreditEntry.
+    - Updating invoice settlement balances.
+    - Updating the TradeAssist account position.
+
+    The view must never create Transactions or CreditEntries.
     """
+    from decimal import Decimal, InvalidOperation
     from invoices.models import Invoice
 
     client = get_object_or_404(Client, pk=client_id)
-    invoice_id = (request.POST.get("invoice_id") or "").strip()
-    reference = (request.POST.get("reference") or "").strip()
-    amount_raw = (request.POST.get("amount") or "").strip()
 
+    invoice_id = (request.POST.get("invoice_id") or "").strip()
+    amount_raw = (request.POST.get("amount") or "").strip()
+    reference = (request.POST.get("reference") or "").strip()
+
+    # Validate invoice selection.
     if not invoice_id.isdigit():
-        messages.error(request, "Select the invoice being repaid.")
+        messages.error(
+            request,
+            "Select the invoice being repaid."
+        )
         return redirect("credit-view", client_id=client.id)
 
-    invoice = get_object_or_404(Invoice, pk=int(invoice_id), client=client)
+    invoice = get_object_or_404(
+        Invoice,
+        pk=int(invoice_id),
+        client=client
+    )
 
+    # Validate repayment amount.
     try:
         amount = Decimal(amount_raw)
-    except Exception:
+    except (InvalidOperation, TypeError, ValueError):
         amount = Decimal("0.00")
 
-    if amount <= 0:
-        messages.error(request, "Enter a repayment amount greater than zero.")
+    if not amount.is_finite() or amount <= 0:
+        messages.error(
+            request,
+            "Enter a valid repayment amount greater than zero."
+        )
         return redirect("credit-view", client_id=client.id)
 
+    # The model owns the entire financial operation.
     try:
-        # Keep the credit ledger entry, financial transaction and invoice
-        # settlement update in one database transaction.
         with transaction.atomic():
             entry = invoice.record_credit_repayment(
                 amount,
                 reference=reference,
-                note=f"Invoice-specific repayment captured by {request.user}.",
-            )
-
-            repayment_transaction = Transaction.objects.create(
-                client=client,
-                invoice=invoice,
-                transaction_type="credit_repayment",
-                amount=entry.amount,
-                reference=reference or f"TA settlement · Invoice #{invoice.id}",
                 note=(
-                    f"TradeAssist settlement repayment for invoice #{invoice.id}. "
-                    f"Credit entry #{entry.pk}. Recorded by {request.user}."
+                    f"Invoice-specific repayment captured "
+                    f"by {request.user}."
                 ),
             )
 
-            # Link the already-created CreditEntry to its audit transaction.
-            # Transaction.save() deliberately does not create a second entry.
-            entry.transaction = repayment_transaction
-            entry.save(update_fields=["transaction"])
+            # Refresh invoice values updated by the model.
+            invoice.refresh_from_db()
 
     except Exception as exc:
         logger.exception(
-            "TradeAssist repayment recording failed for client %s invoice %s",
-            client.id, invoice.id,
+            "TradeAssist repayment failed. Client: %s, Invoice: %s",
+            client.id,
+            invoice.id,
         )
-        messages.error(request, f"Repayment was not recorded: {exc}")
+
+        messages.error(
+            request,
+            f"Repayment was not recorded: {exc}"
+        )
+
         return redirect("credit-view", client_id=client.id)
 
     messages.success(
         request,
-        f"R{entry.amount:.2f} repayment allocated to invoice #{invoice.id} "
-        f"and added to the transaction history."
+        (
+            f"R{entry.amount:.2f} repayment successfully allocated "
+            f"to invoice #{invoice.id}. "
+            f"Remaining settlement: "
+            f"R{invoice.settlement_outstanding:.2f}."
+        )
     )
+
     return redirect("credit-view", client_id=client.id)
+
 
 
 

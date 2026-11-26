@@ -552,15 +552,82 @@ def wholesale_assist(request):
     })
 
 
+
 def home(request):
     suppliers = Supplier.objects.filter(
         is_active=True,
         visible=True
-    ).only("id", "name", "logo").order_by("name")
+    ).only(
+        "id",
+        "name",
+        "logo"
+    ).order_by("name")
 
     hero_slides = HeroSlide.objects.filter(
         is_active=True
-    ).order_by("sort_order", "id")[:3]  # limit to 3
+    ).order_by(
+        "sort_order",
+        "id"
+    )[:3]
+
+    # Active product subcategories, grouped under their parent categories.
+    active_subcategories = Category.objects.filter(
+        is_active=True
+    ).order_by(
+        "sort_order",
+        "name"
+    )
+
+    market_categories = Category.objects.filter(
+        is_active=True,
+        parent__isnull=True
+    ).prefetch_related(
+        Prefetch(
+            "children",
+            queryset=active_subcategories,
+            to_attr="active_subcategories"
+        )
+    ).order_by(
+        "sort_order",
+        "name"
+    )
+
+    # Top four products by total quantity ordered in completed orders
+    # during the last 30 days. Only publicly visible products are shown.
+    sales_period_start = timezone.now() - timedelta(days=30)
+
+    top_product_sales = list(
+        OrderItem.objects.filter(
+            order__status="complete",
+            order__order_date__gte=sales_period_start,
+            product__visible="YES",
+        )
+        .values("product_id")
+        .annotate(quantity_sold=Sum("quantity"))
+        .order_by("-quantity_sold", "product_id")[:4]
+    )
+
+    top_product_ids = [row["product_id"] for row in top_product_sales]
+    quantity_sold_by_product = {
+        row["product_id"]: row["quantity_sold"]
+        for row in top_product_sales
+    }
+
+    products_by_id = {
+        product.id: product
+        for product in Product.objects.filter(
+            id__in=top_product_ids,
+            visible="YES",
+        ).select_related("category")
+    }
+
+    # Rebuild the queryset as a ranked list so the database ranking is kept.
+    top_ordered_products = []
+    for product_id in top_product_ids:
+        product = products_by_id.get(product_id)
+        if product:
+            product.quantity_sold = quantity_sold_by_product[product_id]
+            top_ordered_products.append(product)
 
     return render(
         request,
@@ -568,8 +635,11 @@ def home(request):
         {
             "suppliers": suppliers,
             "hero_slides": hero_slides,
+            "market_categories": market_categories,
+            "top_ordered_products": top_ordered_products,
         }
     )
+
 
 
 def logout_view(request):

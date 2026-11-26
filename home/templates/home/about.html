@@ -1,415 +1,37 @@
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>About Us - The Daily Market</title>
-
-  <!-- Bootstrap + Icons -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
-
-  <style>
-
-    :root {
-      --brand: #0b5c39;
-      --brand-dark: #094c30;
-      --brand-deep: #063b25;
-      --brand-soft: #eaf3ed;
-      --ink: #18231d;
-      --muted: #647169;
-      --line: #e4ebe6;
-      --surface: #ffffff;
-      --page: #f6f8f6;
-      --radius: 1.25rem;
-      --shadow: 0 14px 38px rgba(16, 46, 29, .07);
-    }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; scroll-padding-top: 90px; }
-    body {
-      margin: 0;
-      color: var(--ink);
-      background: var(--page);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.7;
-      -webkit-font-smoothing: antialiased;
-      text-rendering: optimizeLegibility;
-    }
-    img { max-width: 100%; }
-    a { text-underline-offset: .2em; }
-    .site-main { overflow: clip; }
-    .section-pad { padding: clamp(3.5rem, 7vw, 6rem) 0; }
-    .eyebrow {
-      display: inline-flex; align-items: center; gap: .5rem;
-      color: var(--brand); background: var(--brand-soft);
-      border-radius: 999px; padding: .4rem .8rem;
-      font-size: .76rem; font-weight: 800; letter-spacing: .1em;
-      text-transform: uppercase;
-    }
-    .section-heading {
-      font-weight: 800; letter-spacing: -.035em;
-      line-height: 1.15; font-size: clamp(1.8rem, 3.2vw, 2.8rem);
-      margin: 0 0 1rem;
-    }
-    .section-intro {
-      max-width: 760px; margin-inline: auto; color: var(--muted);
-      font-size: clamp(1rem, 1.5vw, 1.15rem);
-    }
-    .text-brand { color: var(--brand) !important; }
-    .btn-brand {
-      display: inline-flex; align-items: center; justify-content: center; gap: .55rem;
-      min-height: 48px; padding: .75rem 1.25rem; border-radius: 999px;
-      background: var(--brand); border: 1px solid var(--brand);
-      color: #fff; font-weight: 700; text-decoration: none;
-      transition: background .2s ease, transform .2s ease, box-shadow .2s ease;
-    }
-    .btn-brand:hover, .btn-brand:focus-visible {
-      background: var(--brand-dark); border-color: var(--brand-dark); color: #fff;
-      transform: translateY(-1px); box-shadow: 0 8px 20px rgba(11, 92, 57, .18);
-    }
-    .btn-outline-brand {
-      display: inline-flex; align-items: center; justify-content: center; gap: .55rem;
-      min-height: 48px; padding: .75rem 1.25rem; border-radius: 999px;
-      background: #fff; border: 1px solid rgba(11,92,57,.35);
-      color: var(--brand); font-weight: 700; text-decoration: none;
-      transition: background .2s ease, color .2s ease, transform .2s ease;
-    }
-    .btn-outline-brand:hover, .btn-outline-brand:focus-visible {
-      background: var(--brand-soft); color: var(--brand-dark); transform: translateY(-1px);
-    }
-
-    /* Navigation */
-    .site-navbar { background: var(--brand); box-shadow: 0 5px 20px rgba(0,0,0,.08); }
-    .navbar-brand img { width: auto; height: 64px; max-height: 68px; object-fit: contain; }
-    .site-navbar .navbar-nav { align-items: center; gap: .2rem; }
-    .site-navbar .nav-link, .site-navbar .navbar-brand, .site-navbar .dropdown-toggle {
-      color: #fff !important;
-    }
-    .site-navbar .nav-link {
-      display: inline-flex; align-items: center; min-height: 44px;
-      padding: .65rem .9rem; border-radius: .7rem; font-weight: 600;
-      transition: background .2s ease;
-    }
-    .site-navbar .nav-link:hover,
-    .site-navbar .nav-link:focus-visible,
-    .site-navbar .nav-link.active { background: rgba(255,255,255,.14); color: #fff !important; }
-    .site-navbar .dropdown-menu.brand {
-      padding: .55rem; background: var(--brand); border: 1px solid rgba(255,255,255,.14);
-      border-radius: .9rem; box-shadow: 0 16px 38px rgba(0,0,0,.2);
-    }
-    .site-navbar .dropdown-item { color: #fff; padding: .65rem .8rem; border-radius: .55rem; }
-    .site-navbar .dropdown-item:hover, .site-navbar .dropdown-item:focus,
-    .site-navbar .dropdown-item.active { color: #fff; background: rgba(255,255,255,.15); }
-    .mobile-topbar { background: var(--brand); padding-block: .35rem; }
-    .mobile-topbar .navbar-brand img { height: 40px; }
-    .mobile-topbar .navbar-toggler { border: 1px solid rgba(255,255,255,.3); border-radius: .7rem; padding: .45rem .6rem; }
-    .mobile-topbar .navbar-toggler:focus { box-shadow: 0 0 0 .2rem rgba(255,255,255,.2); }
-    .offcanvas-header.brand-skin, .offcanvas-body.brand-skin { background: var(--brand); color: #fff; }
-    .offcanvas-header.brand-skin { padding: 1.25rem; }
-    .offcanvas-body.brand-skin { padding: 1.25rem; }
-    .offcanvas-body .nav-link {
-      color: #fff; padding: .8rem .75rem; min-height: 46px; border-radius: .7rem;
-      font-weight: 600; text-decoration: none;
-    }
-    .offcanvas-body .nav-link:hover, .offcanvas-body .nav-link:focus-visible,
-    .offcanvas-body .nav-link.active { background: rgba(255,255,255,.14); color: #fff; }
-    .menu-label { color: rgba(255,255,255,.68); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; padding: 1rem .75rem .35rem; }
-
-    /* Membership strip */
-    .membership-bar { background: #fff; border-bottom: 1px solid var(--line); }
-    .membership-title { color: var(--brand); font-size: 1.02rem; font-weight: 800; letter-spacing: -.01em; }
-    .membership-subtitle { color: var(--muted); font-size: .86rem; }
-    .membership-actions { display: flex; flex-wrap: wrap; gap: .65rem; justify-content: flex-end; }
-    .btn-member, .btn-member-login {
-      display: inline-flex; justify-content: center; align-items: center; gap: .4rem;
-      min-height: 44px; padding: .65rem 1.1rem; border-radius: 999px;
-      font-size: .9rem; font-weight: 750; text-decoration: none; transition: .2s ease;
-    }
-    .btn-member { border: 1px solid rgba(11,92,57,.35); color: var(--brand); background: #fff; }
-    .btn-member:hover { color: var(--brand-dark); background: var(--brand-soft); }
-    .btn-member-login { border: 1px solid var(--brand); color: #fff; background: var(--brand); }
-    .btn-member-login:hover { color: #fff; background: var(--brand-dark); }
-
-    /* About page hero */
-    .page-hero {
-      position: relative; isolation: isolate; overflow: hidden;
-      min-height: clamp(250px, 34vw, 430px);
-      display: flex; align-items: center; justify-content: center;
-      padding: 4rem 1rem; color: #fff; text-align: center;
-      background: var(--brand-deep) url("{% static 'images/hero.png' %}") center/cover no-repeat;
-    }
-    .page-hero::before {
-      content: ""; position: absolute; inset: 0; z-index: -1;
-      background: linear-gradient(120deg, rgba(3,38,23,.84), rgba(5,62,37,.55));
-    }
-    .page-hero-content { max-width: 850px; }
-    .page-hero h1 { font-size: clamp(2.5rem, 6vw, 4.8rem); line-height: 1.03; font-weight: 850; letter-spacing: -.055em; margin: 1rem 0; }
-    .page-hero p { max-width: 650px; margin: 0 auto; color: rgba(255,255,255,.88); font-size: clamp(1rem, 2vw, 1.2rem); }
-
-    /* Story */
-    .story-copy { max-width: 850px; margin-inline: auto; }
-    .story-copy p { color: #4e5d54; font-size: 1.04rem; margin-bottom: 1.25rem; }
-    .story-copy p:first-of-type { color: var(--ink); font-size: clamp(1.15rem, 2vw, 1.35rem); line-height: 1.65; }
-    .story-highlight {
-      border-left: 4px solid var(--brand); background: #fff;
-      border-radius: 0 var(--radius) var(--radius) 0; padding: 1.25rem 1.5rem;
-      color: var(--brand); font-weight: 750; margin: 2rem 0;
-    }
-
-    /* Values */
-    .value-card {
-      height: 100%; padding: 1.5rem 1.2rem; background: #fff;
-      border: 1px solid var(--line); border-radius: var(--radius);
-      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
-    }
-    .value-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: rgba(11,92,57,.25); }
-    .values-icon {
-      width: 58px; height: 58px; display: grid; place-items: center;
-      border-radius: 18px; background: var(--brand-soft); color: var(--brand);
-      font-size: 1.7rem; margin: 0 auto 1rem;
-    }
-    .value-card h3 { font-size: 1.05rem; font-weight: 800; margin-bottom: .6rem; }
-    .value-card p { color: var(--muted); font-size: .92rem; margin: 0; }
-
-    /* Ecosystem */
-    .ecosystem-card {
-      height: 100%; background: #fff; border: 1px solid var(--line);
-      border-radius: 1.4rem; overflow: hidden; box-shadow: 0 8px 24px rgba(16,46,29,.04);
-    }
-    .ecosystem-card-top { height: 6px; background: var(--brand); }
-    .ecosystem-card .card-body { padding: clamp(1.4rem, 3vw, 2.5rem); }
-    .ecosystem-mark {
-      display: inline-grid; place-items: center; width: 54px; height: 54px;
-      border-radius: 16px; background: var(--brand-soft); color: var(--brand); font-size: 1.5rem;
-    }
-    .ecosystem-card h3 { font-size: 1.5rem; font-weight: 850; letter-spacing: -.03em; }
-    .ecosystem-card p { color: var(--muted); }
-    .ecosystem-list { padding: 0; margin: 0; list-style: none; }
-    .ecosystem-list li { display: flex; align-items: flex-start; gap: .65rem; margin: .8rem 0; color: #34463a; }
-    .ecosystem-list i { color: var(--brand); margin-top: .25rem; }
-
-    /* CTA and footer */
-    .about-cta {
-      background: linear-gradient(135deg, var(--brand), var(--brand-deep));
-      color: #fff; position: relative; overflow: hidden;
-    }
-    .about-cta .cta-inner { max-width: 850px; margin-inline: auto; }
-    .about-cta p { color: rgba(255,255,255,.82); }
-    .btn-white { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; min-height: 50px; padding: .8rem 1.5rem; border-radius: 999px; background: #fff; color: var(--brand); font-weight: 800; text-decoration: none; }
-    .btn-white:hover { background: #eaf3ed; color: var(--brand-dark); }
-    .site-footer { background: #082f1e; color: #fff; }
-    .site-footer h2, .site-footer h3 { font-size: .82rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1rem; }
-    .site-footer a { color: rgba(255,255,255,.72); text-decoration: none; }
-    .site-footer a:hover, .site-footer a:focus-visible { color: #fff; text-decoration: underline; }
-    .footer-links { display: grid; gap: .55rem; }
-    .footer-muted { color: rgba(255,255,255,.65); font-size: .9rem; }
-    .footer-social { display: flex; gap: .85rem; justify-content: center; }
-    .footer-social a { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; font-size: 1.15rem; }
-    .footer-social a:hover { background: rgba(255,255,255,.1); text-decoration: none; }
-
-    /* Modals */
-    .modal-content { border: 0; border-radius: 1.25rem; box-shadow: 0 22px 70px rgba(0,0,0,.2); overflow: hidden; }
-    .modal-header, .modal-footer { padding: 1.25rem 1.5rem; }
-    .modal-body { padding: .75rem 1.5rem 1.5rem; color: var(--muted); }
-    .modal-title { font-weight: 800; letter-spacing: -.02em; }
-    .modal .btn { min-height: 44px; border-radius: 999px; padding-inline: 1.1rem; font-weight: 700; }
-
-    /* Contact shortcut */
-    .whatsapp-float {
-      position: fixed; right: 1.1rem; bottom: 1.1rem; z-index: 1040;
-      display: inline-flex; align-items: center; justify-content: center; gap: .55rem;
-      min-height: 50px; padding: .8rem 1.1rem; border-radius: 999px;
-      background: #168447; color: #fff; text-decoration: none; font-weight: 800;
-      box-shadow: 0 10px 28px rgba(0,0,0,.2); transition: transform .2s ease, background .2s ease;
-    }
-    .whatsapp-float:hover { background: #116b39; color: #fff; transform: translateY(-2px); }
-    .whatsapp-float i { font-size: 1.25rem; }
-
-    /* Compact phone navigation */
-    .mobile-bottom-nav {
-      display: none; position: fixed; z-index: 1035; inset: auto 0 0;
-      padding: .45rem .35rem calc(.45rem + env(safe-area-inset-bottom));
-      background: rgba(255,255,255,.97); backdrop-filter: blur(16px);
-      border-top: 1px solid var(--line); box-shadow: 0 -8px 24px rgba(16,46,29,.06);
-    }
-    .mobile-bottom-nav .bottom-nav-inner { display: grid; grid-template-columns: repeat(4, 1fr); max-width: 560px; margin: 0 auto; }
-    .mobile-bottom-nav a {
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem;
-      min-height: 48px; color: #65736a; font-size: .68rem; font-weight: 750; text-decoration: none;
-    }
-    .mobile-bottom-nav a i { font-size: 1.2rem; }
-    .mobile-bottom-nav a.active, .mobile-bottom-nav a:hover { color: var(--brand); }
-
-    a:focus-visible, button:focus-visible { outline: 3px solid #8ac6a5; outline-offset: 3px; }
-    @media (max-width: 991.98px) {
-      .navbar-brand img { height: 54px; }
-      .membership-bar { padding-block: .9rem; }
-      .membership-actions { justify-content: center; }
-      .membership-title, .membership-subtitle { text-align: center; }
-      .membership-actions .btn-member, .membership-actions .btn-member-login { flex: 1 1 145px; }
-      .page-hero { background-position: center; }
-      .mobile-bottom-nav { display: block; }
-      body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
-      .whatsapp-float { right: .8rem; bottom: calc(76px + env(safe-area-inset-bottom)); min-height: 48px; padding: .7rem .9rem; }
-    }
-    @media (max-width: 575.98px) {
-      .section-pad { padding: 3.25rem 0; }
-      .membership-title { font-size: 1rem; }
-      .membership-subtitle { font-size: .82rem; }
-      .membership-actions { gap: .5rem; }
-      .btn-member, .btn-member-login { font-size: .83rem; padding-inline: .75rem; }
-      .page-hero { min-height: 245px; padding: 3rem 1rem; }
-      .page-hero h1 { font-size: clamp(2.35rem, 12vw, 3.4rem); }
-      .story-copy p { font-size: .98rem; }
-      .value-card { padding: 1.25rem 1rem; }
-      .site-footer .footer-column { text-align: left; }
-      .whatsapp-label { display: none; }
-      .whatsapp-float { width: 50px; height: 50px; padding: 0; }
-      .whatsapp-float i { font-size: 1.4rem; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
-    }
-
-
-
-    /* Shared site-wide UX system from the index page */
-
-    :root {
-      --brand: #0b5c39;
-      --brand-dark: #08472d;
-      --brand-soft: #eaf3ed;
-      --ink: #17251d;
-      --muted: #68756d;
-      --surface: #ffffff;
-      --page: #f6f8f6;
-      --line: #e2e9e4;
-      --radius: 1.15rem;
-      --shadow: 0 12px 34px rgba(18, 45, 30, .08);
-    }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; scroll-padding-top: 6rem; }
-    body {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      margin: 0;
-      color: var(--ink);
-      background: var(--page);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 16px;
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-    }
-    main { flex: 1; }
-    img { max-width: 100%; }
-    a { text-underline-offset: .2em; }
-    a:focus-visible, button:focus-visible { outline: 3px solid #e0b85c; outline-offset: 3px; }
-    .container { --bs-gutter-x: 1.5rem; }
-    .section-pad { padding-block: clamp(3.25rem, 7vw, 5.75rem); }
-    .eyebrow { display: inline-flex; align-items: center; gap: .5rem; color: var(--brand); font-size: .76rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-    .eyebrow::before { content: ""; width: 1.5rem; height: 2px; background: currentColor; }
-    .section-heading { max-width: 720px; margin-inline: auto; }
-    .section-heading h2 { margin: .7rem 0 1rem; font-size: clamp(1.8rem, 3.6vw, 2.7rem); line-height: 1.12; letter-spacing: -.045em; font-weight: 800; }
-    .section-heading p { max-width: 620px; margin: 0 auto; color: var(--muted); }
-
-    /* Header and navigation */
-    .site-header { position: relative; z-index: 1030; background: var(--brand); color: #fff; }
-    .desktop-nav { min-height: 92px; }
-    .brand-logo { display: block; width: auto; height: 66px; object-fit: contain; }
-    .desktop-nav .nav-link { padding: .7rem .85rem !important; border-radius: .65rem; color: rgba(255,255,255,.9) !important; font-size: .94rem; font-weight: 600; transition: background .2s ease, color .2s ease; }
-    .desktop-nav .nav-link:hover, .desktop-nav .nav-link:focus-visible, .desktop-nav .nav-link.active { color: #fff !important; background: rgba(255,255,255,.13); }
-    .desktop-nav .dropdown-menu { padding: .5rem; border: 1px solid rgba(255,255,255,.12); border-radius: .9rem; background: var(--brand-dark); box-shadow: var(--shadow); }
-    .desktop-nav .dropdown-item { padding: .7rem .8rem; border-radius: .5rem; color: #fff; }
-    .desktop-nav .dropdown-item:hover, .desktop-nav .dropdown-item:focus, .desktop-nav .dropdown-item.active { color: #fff; background: rgba(255,255,255,.14); }
-    .header-actions { display: flex; align-items: center; gap: .65rem; }
-    .btn { min-height: 44px; border-radius: .75rem; padding: .7rem 1.1rem; font-weight: 700; }
-    .btn-brand { color: #fff; background: var(--brand); border: 1px solid var(--brand); }
-    .btn-brand:hover, .btn-brand:focus { color: #fff; background: var(--brand-dark); border-color: var(--brand-dark); }
-    .btn-outline-brand { color: var(--brand); background: #fff; border: 1px solid var(--brand); }
-    .btn-outline-brand:hover, .btn-outline-brand:focus { color: #fff; background: var(--brand); border-color: var(--brand); }
-    .btn-light-brand { color: var(--brand); background: #fff; border: 1px solid #fff; }
-    .btn-light-brand:hover { color: var(--brand-dark); background: #edf5ef; border-color: #edf5ef; }
-
-    .mobile-topbar { min-height: 68px; padding-block: .55rem; }
-    .mobile-topbar .brand-logo { height: 44px; max-width: 190px; }
-    .menu-toggle { width: 46px; height: 46px; display: inline-grid; place-items: center; color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: .8rem; background: transparent; font-size: 1.4rem; }
-    .mobile-menu { color: #fff; background: var(--brand-dark); }
-    .mobile-menu .offcanvas-header { padding: 1.25rem 1.25rem .75rem; }
-    .mobile-menu .offcanvas-body { padding: .75rem 1.25rem 1.5rem; }
-    .mobile-menu .menu-label { margin: 1rem 0 .35rem; color: rgba(255,255,255,.62); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-    .mobile-menu .nav-link { display: flex; align-items: center; min-height: 48px; padding: .7rem .8rem; border-radius: .65rem; color: #fff; font-weight: 600; }
-    .mobile-menu .nav-link:hover, .mobile-menu .nav-link:focus-visible, .mobile-menu .nav-link.active { color: #fff; background: rgba(255,255,255,.13); }
-    .mobile-menu .menu-cta { display: grid; gap: .65rem; margin-top: 1.25rem; }
-
-    /* Trade Assist membership strip */
-    .membership-strip { position: relative; z-index: 2; background: #fff; border-bottom: 1px solid var(--line); }
-    .membership-inner { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding-block: 1rem; }
-    .membership-copy { display: flex; align-items: center; gap: .9rem; min-width: 0; }
-    .membership-icon { flex: 0 0 46px; width: 46px; height: 46px; display: grid; place-items: center; color: var(--brand); background: var(--brand-soft); border-radius: 14px; font-size: 1.3rem; }
-    .membership-copy strong { display: block; color: var(--brand); font-size: 1rem; line-height: 1.3; }
-    .membership-copy span { display: block; margin-top: .2rem; color: var(--muted); font-size: .86rem; }
-    .membership-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
-    .membership-actions .btn { padding: .6rem .95rem; font-size: .9rem; }
-
-    /* Hero */
-    .hero { position: relative; overflow: hidden; background: #143b28; }
-    .hero .carousel-item { position: relative; }
-    .hero-slide { position: relative; display: block; width: 100%; aspect-ratio: 4 / 1; min-height: 300px; max-height: 570px; background-position: center; background-size: cover; background-repeat: no-repeat; }
-    .hero-slide::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(3,24,14,.28), rgba(3,24,14,.03) 70%); pointer-events: none; }
-    .hero .carousel-indicators { z-index: 3; margin-bottom: 1.1rem; }
-    .hero .carousel-indicators [data-bs-target] { width: 26px; height: 4px; margin-inline: 4px; border: 0; border-radius: 99px; }
-    .hero .carousel-control-prev, .hero .carousel-control-next { z-index: 3; width: 8%; opacity: .8; }
-    .hero .carousel-control-prev:hover, .hero .carousel-control-next:hover { opacity: 1; }
-    .mobile-hero-slide { display: block; width: 100%; aspect-ratio: 4 / 3; max-height: 520px; background-position: center; background-size: cover; background-repeat: no-repeat; }
-    .mobile-hero .carousel-indicators { margin-bottom: .8rem; }
-    .mobile-hero .carousel-indicators [data-bs-target] { width: 24px; height: 4px; border: 0; border-radius: 99px; }
-
-    /* Quick routes */
-    .quick-section { padding-block: clamp(2.75rem, 5vw, 4.5rem); }
-    .quick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 2rem; }
-    .quick-card { position: relative; display: flex; flex-direction: column; min-height: 190px; padding: 1.35rem; color: var(--ink); text-decoration: none; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
-    .quick-card:hover { color: var(--ink); transform: translateY(-4px); border-color: #b7d2c0; box-shadow: var(--shadow); }
-    .quick-card-icon { width: 48px; height: 48px; display: grid; place-items: center; margin-bottom: 1.2rem; color: var(--brand); background: var(--brand-soft); border-radius: 14px; font-size: 1.35rem; }
-    .quick-card h3 { margin: 0 0 .45rem; font-size: 1.05rem; font-weight: 800; }
-    .quick-card p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.5; }
-    .quick-card .card-arrow { position: absolute; right: 1.15rem; bottom: 1.1rem; color: var(--brand); }
-
-    /* Intro */
-    .intro-section { background: #fff; }
-    .intro-layout { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: clamp(2rem, 6vw, 5rem); }
-    .intro-copy h2 { margin: .7rem 0 1rem; font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.08; letter-spacing: -.05em; font-weight: 850; }
-    .intro-copy p { color: var(--muted); }
-    .intro-media { overflow: hidden; border-radius: 1.4rem; background: #e9f0eb; box-shadow: var(--shadow); }
-    .intro-media .ratio { --bs-aspect-ratio: 62%; }
-    .intro-media iframe { border: 0; }
-    .video-placeholder { display: grid; min-height: 250px; place-items: center; padding: 2rem; text-align: center; color: var(--brand); background: linear-gradient(135deg, #eaf3ed, #dbe9df); }
-    .video-placeholder i { display: block; margin-bottom: .75rem; font-size: 3rem; }
-
-    /* Trade Assist feature */
-    .trade-assist-section { background: var(--page); }
-    .ta-panel { display: grid; grid-template-columns: 1.2fr .8fr; gap: 2rem; align-items: center; padding: clamp(1.5rem, 4vw, 3.25rem); color: #fff; background: var(--brand); border-radius: 1.5rem; overflow: hidden; }
-    .ta-panel .eyebrow { color: #c9e6d3; }
-    .ta-panel h2 { max-width: 640px; margin: .7rem 0 1rem; font-size: clamp(1.9rem, 4vw, 3rem); line-height: 1.1; letter-spacing: -.04em; font-weight: 850; }
-    .ta-panel p { max-width: 600px; color: rgba(255,255,255,.8); }
-    .ta-benefits { display: grid; gap: .75rem; padding: 0; margin: 1.3rem 0 1.6rem; list-style: none; }
-    .ta-benefits li { display: flex; align-items: flex-start; gap: .65rem; color: rgba(255,255,255,.94); }
-    .ta-benefits i { margin-top: .2rem; color: #bfe7cd; }
-    .ta-side-card { padding: 1.5rem; color: var(--ink); background: #fff; border-radius: 1.1rem; }
-    .ta-side-card .ta-mark { width: 56px; height: 56px; display: grid; place-items: center; margin-bottom: 1rem; color: var(--brand); background: var(--brand-soft); border-radius: 16px; font-size: 1.6rem; }
-    .ta-side-card h3 { font-size: 1.2rem; font-weight: 800; }
-    .ta-side-card p { color: var(--muted); font-size: .92rem; }
-
-    /* Partners */
-    .partners-section { background: #fff; }
-    .partner-logo-wrap { display: flex; justify-content: center; align-items: center; max-width: 280px; min-height: 130px; padding: 1.5rem; margin: 2rem auto 0; background: #fff; border: 1px solid var(--line); border-radius: 1rem; }
-    .partner-logo-wrap img { max-width: 100%; max-height: 90px; object-fit: contain; }
-
-    /* Footer */
-    .site-footer { color: rgba(255,255,255,.82); background: #073d27; }
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Get to know The Daily Market — your Gauteng food supply partner for quality products, convenient shopping and practical support for food businesses.">
+<title>About The Daily Market | Your Food Supply Partner</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+:root{--brand:#0b633e;--dark:#08472d;--deep:#073b27;--soft:#eaf3ed;--ink:#17251d;--muted:#68756d;--line:#e2e9e4;--cream:#f3f0e7;--shadow:0 16px 40px rgba(18,45,30,.09)}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:6rem}body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:#fff;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}main{flex:1;overflow:clip}img{max-width:100%}.container{--bs-gutter-x:1.5rem}.section-pad{padding-block:clamp(3.5rem,7vw,6rem)}
+.eyebrow{display:inline-flex;align-items:center;gap:.55rem;color:var(--brand);font-size:.76rem;font-weight:850;letter-spacing:.13em;text-transform:uppercase}.eyebrow:before{content:"";width:1.5rem;height:2px;background:currentColor}.section-title{font-size:clamp(2rem,4vw,3.25rem);line-height:1.08;letter-spacing:-.055em;font-weight:850;margin:.85rem 0 1rem}.section-lead{color:var(--muted);font-size:clamp(1rem,1.5vw,1.15rem);max-width:680px}.btn-tdm{display:inline-flex;align-items:center;justify-content:center;gap:.6rem;min-height:52px;padding:.85rem 1.35rem;border-radius:.85rem;background:var(--brand);border:1px solid var(--brand);color:#fff;font-weight:800;text-decoration:none;transition:.2s}.btn-tdm:hover{background:var(--dark);color:#fff;transform:translateY(-2px)}.btn-tdm-outline{background:#fff;color:var(--brand)}.btn-tdm-outline:hover{background:var(--soft);color:var(--dark)}
+/* Homepage-matched navigation */
+.site-header{position:relative;z-index:1030;background:var(--brand);color:#fff}.desktop-nav{min-height:92px}.brand-logo{display:block;width:auto;height:66px;object-fit:contain}.desktop-nav .nav-link{padding:.7rem .85rem!important;border-radius:.65rem;color:rgba(255,255,255,.9)!important;font-size:.94rem;font-weight:600}.desktop-nav .nav-link:hover,.desktop-nav .nav-link.active{color:#fff!important;background:rgba(255,255,255,.13)}.desktop-nav .dropdown-menu{padding:.5rem;border:1px solid rgba(255,255,255,.12);border-radius:.9rem;background:var(--dark)}.desktop-nav .dropdown-item{padding:.7rem .8rem;border-radius:.5rem;color:#fff}.desktop-nav .dropdown-item:hover,.desktop-nav .dropdown-item.active{color:#fff;background:rgba(255,255,255,.14)}.mobile-topbar{min-height:68px;padding-block:.55rem}.mobile-topbar .brand-logo{height:44px;max-width:190px}.menu-toggle{width:46px;height:46px;display:inline-grid;place-items:center;color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:.8rem;background:transparent;font-size:1.4rem}.mobile-menu{color:#fff;background:var(--dark)}.mobile-menu .offcanvas-header{padding:1.25rem}.mobile-menu .offcanvas-body{padding:.75rem 1.25rem 1.5rem}.mobile-menu .menu-label{margin:1rem 0 .35rem;color:rgba(255,255,255,.62);font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.mobile-menu .nav-link{display:flex;align-items:center;min-height:48px;padding:.7rem .8rem;border-radius:.65rem;color:#fff;font-weight:600}.mobile-menu .nav-link:hover,.mobile-menu .nav-link.active{color:#fff;background:rgba(255,255,255,.13)}.mobile-menu .menu-cta{display:grid;gap:.65rem;margin-top:1.25rem}.btn-light-brand{color:var(--brand);background:#fff;border:1px solid #fff;font-weight:800}
+/* Delivery and quick-action strip */
+.membership-strip{position:relative;z-index:2;background:#fff;border-bottom:1px solid var(--line);padding:.85rem 0}
+.membership-inner{display:flex;align-items:center;justify-content:space-between;gap:1.25rem;min-height:58px}
+.membership-copy{display:flex;align-items:center;gap:.9rem;min-width:0}
+.membership-icon{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border-radius:50%;background:var(--soft);color:var(--brand);font-size:1.15rem}
+.membership-copy strong,.membership-copy span{display:block}
+.membership-copy strong{font-size:.94rem;font-weight:850;color:var(--ink);line-height:1.25}
+.membership-copy span{font-size:.84rem;color:var(--muted);line-height:1.35;margin-top:.12rem}
+.membership-actions{display:flex;align-items:center;gap:.6rem;flex-shrink:0}
+.membership-actions .btn{min-height:42px;padding:.55rem .95rem;border-radius:.7rem;font-size:.86rem;font-weight:800}
+.btn-brand{background:var(--brand);border:1px solid var(--brand);color:#fff}
+.btn-brand:hover{background:var(--dark);border-color:var(--dark);color:#fff}
+.btn-outline-brand{background:#fff;border:1px solid var(--brand);color:var(--brand)}
+.btn-outline-brand:hover{background:var(--soft);color:var(--dark)}
+/* Editorial hero */
+.about-hero{background:linear-gradient(115deg,#edf3eb,#f5f1e8);padding:clamp(3.5rem,7vw,6.5rem) 0}.about-hero-grid{display:grid;grid-template-columns:1fr 1.05fr;align-items:center;gap:clamp(2rem,5vw,5rem)}.about-hero h1{font-size:clamp(3.2rem,6.5vw,6.2rem);line-height:.96;letter-spacing:-.075em;font-weight:900;margin:1.2rem 0}.about-hero h1 span{display:block;color:var(--brand);font-family:Georgia,serif;font-style:italic;font-weight:500;letter-spacing:-.07em}.about-hero-copy{max-width:590px;color:#64736a;font-size:1.1rem}.about-hero-image{position:relative;min-height:430px;border-radius:1.7rem;overflow:hidden;background:#dce5dc;box-shadow:var(--shadow)}.about-hero-image img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.hero-stamp{position:absolute;left:1.2rem;bottom:1.2rem;background:#fff;border-radius:1rem;padding:1rem 1.2rem;max-width:220px;box-shadow:0 10px 30px #0002}.hero-stamp small{display:block;color:var(--brand);font-size:.68rem;font-weight:900;letter-spacing:.13em}.hero-stamp strong{display:block;font-family:Georgia,serif;font-size:1.35rem;line-height:1.1;margin-top:.35rem}
+.story-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:clamp(2rem,6vw,6rem);align-items:start}.story-aside{position:sticky;top:2rem}.story-aside .section-title{max-width:470px}.story-copy p{color:#58675e;font-size:1.02rem;margin:0 0 1.15rem}.story-copy .story-opening{font-size:1.25rem;line-height:1.6;color:var(--ink);font-weight:600}.story-callout{margin-top:1.8rem;padding:1.35rem 1.5rem;border-left:4px solid var(--brand);border-radius:0 1rem 1rem 0;background:var(--soft);color:var(--dark);font-weight:800;font-size:1.15rem}
+.offer-section{background:#f6f8f6}.offer-heading{display:flex;justify-content:space-between;align-items:end;gap:2rem;margin-bottom:2rem}.offer-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem}.offer-card{min-height:270px;display:flex;flex-direction:column;justify-content:space-between;padding:1.6rem;background:#fff;border:1px solid var(--line);border-radius:1.25rem;text-decoration:none;color:var(--ink);transition:.22s}.offer-card:hover{transform:translateY(-5px);box-shadow:var(--shadow);color:var(--ink);border-color:#b6d1c0}.offer-icon{width:54px;height:54px;display:grid;place-items:center;border-radius:16px;background:var(--soft);color:var(--brand);font-size:1.55rem}.offer-card h3{font-size:1.35rem;font-weight:850;letter-spacing:-.035em;margin:1.25rem 0 .5rem}.offer-card p{color:var(--muted);margin:0}.offer-link{display:flex;justify-content:space-between;align-items:center;margin-top:1.4rem;color:var(--brand);font-weight:850}
+.approach-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:2.5rem}.approach-item{padding:1.35rem 1.2rem;border-top:2px solid var(--brand);background:#fff}.approach-number{color:var(--brand);font-size:.78rem;font-weight:900;letter-spacing:.12em}.approach-item h3{font-size:1.12rem;font-weight:850;margin:.8rem 0 .45rem}.approach-item p{font-size:.92rem;color:var(--muted);margin:0}
+.values-section{background:var(--cream)}.values-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:2rem}.value-card{padding:1.35rem;background:#ffffffcc;border:1px solid #14321e14;border-radius:1rem}.value-card i{font-size:1.5rem;color:var(--brand)}.value-card h3{font-size:1.05rem;font-weight:850;margin:.8rem 0 .35rem}.value-card p{font-size:.9rem;color:var(--muted);margin:0}
+.trade-panel{display:grid;grid-template-columns:1fr auto;gap:2rem;align-items:center;padding:clamp(1.6rem,4vw,3.2rem);border-radius:1.6rem;background:var(--deep);color:#fff}.trade-panel .eyebrow{color:#bfe0c9}.trade-panel h2{font-size:clamp(2rem,4vw,3.25rem);line-height:1.05;letter-spacing:-.055em;font-weight:900;margin:1rem 0}.trade-panel p{max-width:700px;color:#ffffffc2;margin:0}.trade-panel-actions{display:grid;gap:.7rem;min-width:210px}.trade-panel .btn-tdm{background:#fff;border-color:#fff;color:var(--brand)}.trade-panel .btn-tdm-outline{background:transparent;color:#fff;border-color:#ffffff73}.trade-panel .btn-tdm-outline:hover{background:#ffffff1a}
+/* Footer */
+    .site-footer { flex-shrink: 0; color: rgba(255,255,255,.82); background: #073d27; }
     .footer-main { padding-block: 3.5rem 2.5rem; }
     .footer-brand img { height: 54px; width: auto; margin-bottom: 1rem; }
     .footer-brand p { max-width: 300px; color: rgba(255,255,255,.68); font-size: .9rem; }
@@ -429,79 +51,10 @@
     .mobile-bottom-nav { display: none; }
 
     /* Modals */
-    .modal-content { border: 0; border-radius: 1.2rem; box-shadow: var(--shadow); }
-    .modal-header, .modal-footer { border-color: var(--line); }
-    .modal-title { font-weight: 800; letter-spacing: -.02em; }
-    .modal-choice { display: flex; flex-direction: column; align-items: flex-start; gap: .35rem; height: 100%; padding: 1.1rem; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: .9rem; text-align: left; text-decoration: none; }
-    .modal-choice:hover { color: var(--brand); border-color: var(--brand); background: var(--brand-soft); }
-    .modal-choice i { color: var(--brand); font-size: 1.5rem; }
-    .modal-choice strong { font-size: 1rem; }
-    .modal-choice span { color: var(--muted); font-size: .85rem; }
-
-    @media (max-width: 1199.98px) {
-      .brand-logo { height: 58px; }
-      .desktop-nav .nav-link { padding-inline: .55rem !important; font-size: .88rem; }
-      .header-actions .btn { padding-inline: .8rem; font-size: .88rem; }
-      .hero-slide { aspect-ratio: 3.4 / 1; }
-    }
-    @media (max-width: 991.98px) {
-      .membership-inner { align-items: stretch; flex-direction: column; gap: .9rem; padding-block: .9rem; }
-      .membership-actions { display: grid; grid-template-columns: 1fr 1fr; }
-      .membership-actions .btn { width: 100%; }
-      .quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .quick-card { min-height: 170px; padding: 1.1rem; }
-      .intro-layout { grid-template-columns: 1fr; gap: 2rem; }
-      .intro-copy { max-width: 700px; }
-      .ta-panel { grid-template-columns: 1fr; }
-      .ta-side-card { max-width: 560px; }
-      .footer-main { padding-bottom: 2rem; }
-      .whatsapp-float { bottom: calc(5.1rem + env(safe-area-inset-bottom)); }
-      .mobile-bottom-nav { position: fixed; right: 0; bottom: 0; left: 0; z-index: 1015; display: grid; grid-template-columns: repeat(4, 1fr); padding: .45rem .35rem calc(.45rem + env(safe-area-inset-bottom)); background: rgba(255,255,255,.97); border-top: 1px solid var(--line); box-shadow: 0 -6px 24px rgba(20,40,28,.06); backdrop-filter: blur(12px); }
-      .mobile-bottom-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; min-height: 46px; color: #59665e; font-size: .68rem; font-weight: 700; text-decoration: none; }
-      .mobile-bottom-nav a i { font-size: 1.15rem; }
-      .mobile-bottom-nav a.active, .mobile-bottom-nav a:hover { color: var(--brand); }
-      body { padding-bottom: 68px; }
-    }
-    @media (max-width: 575.98px) {
-      .container { --bs-gutter-x: 1.15rem; }
-      .mobile-topbar { min-height: 62px; }
-      .mobile-topbar .brand-logo { height: 39px; max-width: 165px; }
-      .membership-icon { flex-basis: 42px; width: 42px; height: 42px; }
-      .membership-copy strong { font-size: .95rem; }
-      .membership-copy span { font-size: .8rem; }
-      .membership-actions { grid-template-columns: 1fr; gap: .5rem; }
-      .membership-actions .btn { min-height: 45px; }
-      .mobile-hero-slide { aspect-ratio: 4 / 3.25; max-height: 430px; }
-      .quick-grid { gap: .7rem; margin-top: 1.5rem; }
-      .quick-card { min-height: 158px; padding: .95rem; border-radius: .95rem; }
-      .quick-card-icon { width: 42px; height: 42px; margin-bottom: .85rem; border-radius: 12px; font-size: 1.2rem; }
-      .quick-card h3 { padding-right: .5rem; font-size: .96rem; }
-      .quick-card p { font-size: .82rem; }
-      .quick-card .card-arrow { right: .8rem; bottom: .75rem; }
-      .section-pad { padding-block: 3rem; }
-      .intro-copy h2 { font-size: 2.15rem; }
-      .ta-panel { padding: 1.35rem; border-radius: 1.15rem; }
-      .ta-panel h2 { font-size: 2rem; }
-      .ta-panel .btn { width: 100%; }
-      .ta-side-card { padding: 1.2rem; }
-      .footer-main { padding-top: 2.75rem; }
-      .footer-brand { margin-bottom: .75rem; }
-      .footer-col { padding-top: .6rem; }
-      .footer-bottom { padding-bottom: 1.25rem; }
-      .whatsapp-float { right: .75rem; bottom: calc(5.1rem + env(safe-area-inset-bottom)); width: 50px; height: 50px; min-height: 50px; padding: 0; }
-      .whatsapp-float .whatsapp-label { display: none; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
-    }
-
-  </style>
-</head>
-
-<body>
-  <!-- Auth flag for JS gating -->
-  <script>const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};</script>
-
+@media(max-width:991.98px){.membership-inner{align-items:flex-start;flex-direction:column}.membership-actions{width:100%}.membership-actions .btn{flex:1}.about-hero-grid,.story-grid{grid-template-columns:1fr}.about-hero-image{min-height:360px}.story-aside{position:static}.offer-grid{grid-template-columns:1fr 1fr}.approach-grid,.values-grid{grid-template-columns:1fr 1fr}.trade-panel{grid-template-columns:1fr}.trade-panel-actions{display:flex;flex-wrap:wrap}.mobile-bottom-nav{position:fixed;right:0;bottom:0;left:0;z-index:1015;display:grid;grid-template-columns:repeat(4,1fr);padding:.45rem .35rem calc(.45rem + env(safe-area-inset-bottom));background:#fffffff7;border-top:1px solid var(--line);box-shadow:0 -6px 24px #14281c0f;backdrop-filter:blur(12px)}.mobile-bottom-nav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;min-height:46px;color:#59665e;font-size:.68rem;font-weight:700;text-decoration:none}.mobile-bottom-nav a i{font-size:1.15rem}.mobile-bottom-nav a.active{color:var(--brand)}body{padding-bottom:68px}}
+@media(max-width:575.98px){.membership-actions{display:grid;grid-template-columns:1fr 1fr}.membership-actions .btn{font-size:.78rem;padding:.5rem .55rem}.container{--bs-gutter-x:1.15rem}.about-hero{padding-block:3.2rem}.about-hero h1{font-size:clamp(3rem,14vw,4.4rem)}.about-hero-image{min-height:260px;border-radius:1.2rem}.section-pad{padding-block:3.25rem}.offer-heading{align-items:flex-start;flex-direction:column}.offer-grid{grid-template-columns:1fr}.offer-card{min-height:220px}.approach-grid,.values-grid{grid-template-columns:1fr 1fr;gap:.7rem}.approach-item,.value-card{padding:1rem}.trade-panel-actions{display:grid;grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
+</style></head><body>
   <!-- Header -->
   <header class="site-header">
     <nav class="desktop-nav d-none d-lg-block" aria-label="Main navigation">
@@ -563,264 +116,23 @@
     </div>
   </div>
 
-  
+  <!-- Key customer actions -->
+  <section class="membership-strip" aria-label="Shop and TradeAssist actions">
+    <div class="container"><div class="membership-inner">
+      <div class="membership-copy"><div class="membership-icon"><i class="bi bi-truck"></i></div><div><strong>Free scheduled delivery in Gauteng</strong><span>Monday, Wednesday and Friday · 8:30–14:30</span></div></div>
+      <div class="membership-actions"><a href="{% url 'products' %}" class="btn btn-outline-brand">Browse products</a><a href="/register_profile/" class="btn btn-brand">Register your business</a></div>
+    </div></div>
   </section>
 
-  <!-- Trade Assist membership strip -->
-  <section class="membership-strip" aria-label="Trade Assist membership">
-    <div class="container">
-      <div class="membership-inner">
-        <div class="membership-copy">
-          <div class="membership-icon" aria-hidden="true"><i class="bi bi-handshake"></i></div>
-          <div>
-            <strong>Trade Assist Membership</strong>
-            <span>Building better food businesses together.</span>
-          </div>
-        </div>
-        <div class="membership-actions">
-          <a href="/register_profile/" class="btn btn-outline-brand">Become a member</a>
-          <a href="{% url 'client-login' %}" class="btn btn-brand">Member login</a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <main class="site-main">
-  <!-- About page hero -->
-  <section class="page-hero" aria-labelledby="aboutPageTitle">
-    <div class="page-hero-content">
-      <span class="eyebrow" style="background:rgba(255,255,255,.13);color:#fff;">Our story</span>
-      <h1 id="aboutPageTitle">Building Businesses.</h1>
-      <p>Food supply is where we start. Stronger businesses, trusted relationships and long-term growth are what we are building together.</p>
-    </div>
-  </section>
-
-  
-  <!-- Story -->
-  <section class="section-pad">
-    <div class="container">
-
-      <div class="text-center mb-5">
-        <span class="eyebrow mb-3">Why we exist</span>
-        <h2 class="section-heading">A commercial partner for food businesses.</h2>
-
-        <p class="section-intro">
-          The Daily Market is more than a food supplier. We are the commercial
-          company within an ecosystem designed to help responsible food businesses
-          operate, grow and succeed.
-        </p>
-      </div>
-
-      <div class="row justify-content-center">
-        <div class="col-lg-10 story-copy">
-
-          <p class="fs-5">
-            Every successful business begins with a vision.
-            Ours began with a simple belief: if food businesses had access to
-            reliable products, professional service and trusted relationships,
-            they would have a stronger foundation to grow.
-          </p>
-
-          <p>
-            The Daily Market was founded to become more than another food wholesaler.
-            We wanted to become a dependable commercial partner for restaurants,
-            caterers, retailers, street food traders, spaza shops, takeaways,
-            wholesalers and every entrepreneur serving their community through food.
-            By combining quality products with consistent service, we help businesses
-            focus on what matters most — serving their customers with confidence.
-          </p>
-
-          <p>
-            As we worked alongside our Members, we recognised that supplying products
-            alone was not enough. Businesses needed guidance. They needed opportunities.
-            They needed long-term partnerships that extended beyond every purchase.
-            This understanding led to the development of Trade Assist — our Membership
-            ecosystem dedicated to supporting responsible business growth.
-          </p>
-
-          <p>
-            Today, The Daily Market and Trade Assist operate together as one connected
-            ecosystem. The Daily Market supplies businesses with the products they need
-            to operate successfully, while Trade Assist helps those businesses grow
-            through Membership, Buying Power, Trade Points, Strategic Partner Benefits
-            and Business Reviews.
-          </p>
-
-          <div class="story-highlight">Although each organisation has a different responsibility, they share one purpose: Building Businesses.</div>
-          <p>
-            Every product supplied, every relationship developed and every opportunity
-            created is designed to help responsible food businesses become stronger,
-            more sustainable and better prepared for the future.
-          </p>
-
-        </div>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- Values -->
-  <section class="section-pad bg-white">
-    <div class="container">
-
-      <div class="text-center mb-5">
-        <span class="eyebrow mb-3">What guides us</span>
-        <h2 class="section-heading">Our Values</h2>
-
-        <p class="section-intro">
-          Everything we do is guided by the values that define our ecosystem.
-        </p>
-      </div>
-
-      <div class="row text-center g-3 g-lg-4">
-
-        <div class="col-6 col-md-4 col-lg-2">
-          <article class="value-card">
-            <div class="values-icon"><i class="bi bi-shield-check" aria-hidden="true"></i></div>
-            <h3>Integrity</h3>
-            <p>We communicate honestly, honour our commitments and always act ethically.</p>
-          </article>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg-2">
-          <article class="value-card">
-            <div class="values-icon"><i class="bi bi-award" aria-hidden="true"></i></div>
-            <h3>Professionalism</h3>
-            <p>We maintain high standards in every product, service and interaction.</p>
-          </article>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg-2">
-          <article class="value-card">
-            <div class="values-icon"><i class="bi bi-people" aria-hidden="true"></i></div>
-            <h3>Respect</h3>
-            <p>Every Member, supplier, employee and Strategic Partner deserves respect.</p>
-          </article>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg-2">
-          <article class="value-card">
-            <div class="values-icon"><i class="bi bi-heart" aria-hidden="true"></i></div>
-            <h3>Service</h3>
-            <p>We place the success of our Members at the centre of every decision.</p>
-          </article>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg-2">
-          <article class="value-card">
-            <div class="values-icon"><i class="bi bi-diagram-3" aria-hidden="true"></i></div>
-            <h3>Collaboration</h3>
-            <p>We believe businesses grow stronger when people work together.</p>
-          </article>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg-2">
-          <article class="value-card">
-            <div class="values-icon"><i class="bi bi-graph-up-arrow" aria-hidden="true"></i></div>
-            <h3>Growth</h3>
-            <p>We continuously improve ourselves while helping businesses grow responsibly.</p>
-          </article>
-        </div>
-
-      </div>
-
-    </div>
-  </section>
-
-<!-- Ecosystem -->
-<section class="section-pad">
-  <div class="container">
-
-    <div class="text-center mb-5">
-      <span class="eyebrow mb-3">How we work together</span>
-      <h2 class="section-heading">One Member. One Team. One Ecosystem.</h2>
-
-      <p class="section-intro">
-        The Daily Market and Trade Assist work together to create one seamless
-        business ecosystem for responsible food businesses.
-      </p>
-    </div>
-
-    <div class="row g-4">
-
-      <div class="col-lg-6">
-        <article class="ecosystem-card">
-
-          <div class="ecosystem-card-top"></div><div class="card-body">
-
-            <div class="ecosystem-mark mb-3"><i class="bi bi-box-seam" aria-hidden="true"></i></div>
-            <h3 class="mb-3">The Daily Market</h3>
-
-            <p class="mb-4">
-              The commercial trading company responsible for supplying quality food
-              products through professional procurement, reliable logistics and
-              dependable service.
-            </p>
-
-            <ul class="ecosystem-list">
-              <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Food Supply</li>
-              <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Wholesale Trade</li>
-              <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Procurement</li>
-              <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Logistics</li>
-              <li><i class="bi bi-check-circle-fill text-success me-2"></i>Commercial Trading</li>
-            </ul>
-          </div>
-        </article>
-      </div>
-
-      <div class="col-lg-6">
-        <article class="ecosystem-card">
-
-          <div class="ecosystem-card-top"></div><div class="card-body">
-
-            <div class="ecosystem-mark mb-3"><i class="bi bi-people" aria-hidden="true"></i></div>
-            <h3 class="mb-3">Trade Assist</h3>
-
-            <p class="mb-4">
-              The Membership company dedicated to helping responsible food businesses
-              grow through long-term partnerships and commercial opportunities.
-            </p>
-
-            <ul class="ecosystem-list">
-              <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Membership</li>
-              <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Buying Power</li>
-              <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Trade Points</li>
-              <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Strategic Partner Benefits</li>
-              <li><i class="bi bi-check-circle-fill text-success me-2"></i>Business Growth</li>
-            </ul>
-
-          </div>
-        </article>
-      </div>
-
-    </div>
-
-  </div>
-</section>
-
-<!-- CTA -->
-<section class="about-cta section-pad text-center">
-
-  <div class="container cta-inner">
-    <span class="eyebrow mb-3" style="background:rgba(255,255,255,.13);color:#fff;">Let’s work together</span>
-    <h2 class="section-heading mb-4 text-white">
-      Building Businesses Together
-    </h2>
-
-    <p class="mx-auto mb-4" style="max-width:760px;font-size:1.1rem;">
-      Whether you're looking for reliable food supply, professional Membership,
-      Buying Power, Trade Points or opportunities to grow your business,
-      we're committed to supporting your journey every step of the way.
-    </p>
-
-    <a href="{% url 'contact' %}" class="btn-white"><i class="bi bi-chat-dots" aria-hidden="true"></i> Get in Touch</a>
-
-  </div>
-
-</section>
+<main>
+<section class="about-hero"><div class="container about-hero-grid"><div><span class="eyebrow">Get to know us</span><h1>Good food.<br><span>Stronger businesses.</span></h1><p class="about-hero-copy">We help food businesses keep their kitchens moving with quality products, straightforward shopping and dependable supply.</p><div class="d-flex flex-wrap gap-2 mt-4"><a href="{% url 'products' %}" class="btn-tdm">Explore the market <i class="bi bi-arrow-up-right"></i></a><a href="{% url 'contact' %}" class="btn-tdm btn-tdm-outline">Talk to our team</a></div></div><div class="about-hero-image"><img src="https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=1400&q=90" alt="The Daily Market food products and supply offering"><div class="hero-stamp"><small>THE DAILY MARKET</small><strong>Your food supply partner.</strong></div></div></div></section>
+<section class="section-pad"><div class="container story-grid"><div class="story-aside"><span class="eyebrow">Why we exist</span><h2 class="section-title">More than a place to buy food.</h2><p class="section-lead">We want sourcing stock to feel simpler, more dependable and better suited to the realities of running a food business.</p></div><div class="story-copy"><p class="story-opening">Every day, food businesses do more than prepare meals. They serve neighbourhoods, create livelihoods and bring people together.</p><p>The Daily Market exists to support the people behind those businesses. From takeaways and kota shops to restaurants, caterers, retailers and food entrepreneurs, we understand that having the right products at the right time matters.</p><p>Our focus is practical: offer a useful range of food products, make pricing easy to understand, provide a straightforward way to browse and order, and build dependable relationships with the businesses we serve.</p><p>We are building a market that brings product discovery and food-business supply together. That means a public catalogue where customers can explore products and pricing, supported by a shopping experience designed to make repeat ordering easier.</p><div class="story-callout">We are here for the people who make food their business — and the communities they serve.</div></div></div></section>
+<section class="offer-section section-pad"><div class="container"><div class="offer-heading"><div><span class="eyebrow">The Daily Market</span><h2 class="section-title">One market. Different ways to enjoy it.</h2><p class="section-lead mb-0">Our offering brings together food supply, shopping and food experiences.</p></div><a href="{% url 'products' %}" class="btn-tdm">Browse products <i class="bi bi-arrow-up-right"></i></a></div><div class="offer-grid"><a href="{% url 'wholesale' %}" class="offer-card"><div><span class="offer-icon"><i class="bi bi-box-seam"></i></span><h3>Wholesale Trade</h3><p>Food products and supply solutions for businesses that buy to prepare, serve and sell.</p></div><span class="offer-link">Explore wholesale <i class="bi bi-arrow-up-right"></i></span></a><a href="{% url 'retail' %}" class="offer-card"><div><span class="offer-icon"><i class="bi bi-basket2"></i></span><h3>Retail Express</h3><p>A convenient way to discover and shop food products for everyday needs.</p></div><span class="offer-link">Explore retail <i class="bi bi-arrow-up-right"></i></span></a><a href="{% url 'grill' %}" class="offer-card"><div><span class="offer-icon"><i class="bi bi-fire"></i></span><h3>Grill Experience</h3><p>A food-focused experience celebrating flavour, good food and the joy of sharing a meal.</p></div><span class="offer-link">Explore the grill <i class="bi bi-arrow-up-right"></i></span></a></div></div></section>
+<section class="section-pad"><div class="container"><span class="eyebrow">Built around your business</span><h2 class="section-title">A better way to keep your kitchen supplied.</h2><p class="section-lead">We focus on the everyday things that make a difference to food businesses.</p><div class="approach-grid"><article class="approach-item"><span class="approach-number">01 / DISCOVER</span><h3>Explore the range</h3><p>Browse our public product catalogue and discover the products available.</p></article><article class="approach-item"><span class="approach-number">02 / COMPARE</span><h3>See pricing upfront</h3><p>Review product information and pricing before deciding what your business needs.</p></article><article class="approach-item"><span class="approach-number">03 / ORDER</span><h3>Shop with convenience</h3><p>Use the online shopping experience or speak to our team about placing an order.</p></article><article class="approach-item"><span class="approach-number">04 / GROW</span><h3>Build a relationship</h3><p>Trade with us consistently and discover the support available to qualifying businesses.</p></article></div></div></section>
+<section class="values-section section-pad"><div class="container"><span class="eyebrow">What guides us</span><h2 class="section-title">The way we do business matters.</h2><p class="section-lead">The relationships we build are shaped by the standards we hold ourselves to.</p><div class="values-grid"><article class="value-card"><i class="bi bi-shield-check"></i><h3>Integrity</h3><p>We aim to be honest, clear and consistent in how we work.</p></article><article class="value-card"><i class="bi bi-award"></i><h3>Quality</h3><p>We take product standards and the customer experience seriously.</p></article><article class="value-card"><i class="bi bi-people"></i><h3>Respect</h3><p>We value our customers, suppliers, partners and the people behind every business.</p></article><article class="value-card"><i class="bi bi-graph-up-arrow"></i><h3>Growth</h3><p>We believe lasting progress comes from learning, improving and working together.</p></article></div></div></section>
+<section class="section-pad"><div class="container"><div class="trade-panel"><div><span class="eyebrow">Additional support for food businesses</span><h2>Growing a food business takes more than stock.</h2><p>TradeAssist is a separate business-support offering presented in partnership with The Daily Market. Qualifying existing food businesses can explore membership and purchasing support options, subject to eligibility and programme terms.</p></div><div class="trade-panel-actions"><a href="{% url 'trade_assist' %}" class="btn-tdm">Discover TradeAssist <i class="bi bi-arrow-up-right"></i></a><a href="/register_profile/" class="btn-tdm btn-tdm-outline">Register your business</a></div></div></div></section>
+<section class="section-pad pt-0"><div class="container text-center"><span class="eyebrow">Let's get started</span><h2 class="section-title mx-auto" style="max-width:780px">Make The Daily Market part of your kitchen.</h2><p class="section-lead mx-auto">Explore the catalogue, discover the range and find a simpler way to keep your business supplied.</p><div class="d-flex justify-content-center flex-wrap gap-2 mt-4"><a href="{% url 'products' %}" class="btn-tdm">Shop the catalogue <i class="bi bi-arrow-up-right"></i></a><a href="{% url 'contact' %}" class="btn-tdm btn-tdm-outline">Contact us</a></div></div></section>
 </main>
-
-  <!-- ========== Footer ========== -->
   <!-- Footer -->
   <footer class="site-footer">
     <div class="container footer-main">
@@ -872,7 +184,7 @@
           <h2 class="mt-4">Trading hours</h2>
           <ul class="footer-links">
             <li>Mon–Fri: 7:30am–4:00pm</li>
-            <li>Saturday: 7:30am–1:00pm</li>
+            <li>Saturday: Closed</li>
             <li>Sunday: Closed</li>
           </ul>
         </div>
@@ -894,42 +206,9 @@
     <a href="{% url 'contact' %}" class="{% if request.path == '/contact/' %}active{% endif %}"><i class="bi bi-chat-dots" aria-hidden="true"></i><span>Contact</span></a>
   </nav>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- WhatsApp contact -->
+  <a href="https://wa.me/27622311902?text=Hi%20The%20Daily%20Market%2C%20I%27d%20like%20to%20speak%20to%20an%20agent." target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Speak to The Daily Market on WhatsApp">
+    <i class="bi bi-whatsapp" aria-hidden="true"></i><span class="whatsapp-label">Speak to an agent</span>
+  </a>
 
-  <script>
-    document.addEventListener('click', function (event) {
-      const link = event.target.closest('.requires-auth');
-      if (!link || IS_AUTHENTICATED) return;
-      event.preventDefault();
-      const modal = document.getElementById('authRequiredModal');
-      if (modal) bootstrap.Modal.getOrCreateInstance(modal).show();
-    });
-
-    document.addEventListener('click', function (event) {
-      const link = event.target.closest('.js-client-signin');
-      if (!link) return;
-      event.preventDefault();
-      const modal = document.getElementById('profileTypeModal');
-      if (modal) bootstrap.Modal.getOrCreateInstance(modal).show();
-    });
-  </script>
-<script>
-    document.addEventListener("click", function (e) {
-      const link = e.target.closest(".js-client-signin");
-      if (!link) return;
-
-      e.preventDefault(); // stop redirect to client-login
-
-      const modalEl = document.getElementById("profileTypeModal");
-      if (!modalEl) return;
-
-      const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
-        backdrop: true,
-        focus: true
-      });
-
-      modal.show();
-    });
-  </script>
-</body>
-</html>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script></body></html>

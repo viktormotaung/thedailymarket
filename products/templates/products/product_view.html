@@ -1121,8 +1121,171 @@
       </div>
     </div>
 
+    <!-- PRODUCT TRENDS & MARKET POSITION -->
+    <div class="card mt-3">
+      <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+          <strong>Product Trends &amp; Market Position</strong>
+          <div class="small text-muted">Sales performance and ranking against other products</div>
+        </div>
+        <form method="get" class="d-flex align-items-center gap-2">
+          {% for key, value in request.GET.items %}
+            {% if key != "trend_period" %}
+              <input type="hidden" name="{{ key }}" value="{{ value }}">
+            {% endif %}
+          {% endfor %}
+          <label for="trendPeriod" class="small text-muted mb-0">Period</label>
+          <select id="trendPeriod" name="trend_period" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% for days, label in trend_period_options %}
+              <option value="{{ days }}" {% if product_trend.period_days == days %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+
+      <div class="card-body">
+        <div class="row g-3 mb-3">
+          <div class="col-6 col-lg-3">
+            <div class="border rounded p-3 h-100">
+              <div class="small text-muted">Units sold</div>
+              <div class="fs-4 fw-semibold">{{ product_trend.total_units_sold|floatformat:2 }}</div>
+            </div>
+          </div>
+          <div class="col-6 col-lg-3">
+            <div class="border rounded p-3 h-100">
+              <div class="small text-muted">Sales value</div>
+              <div class="fs-4 fw-semibold">R{{ product_trend.total_sales_value|floatformat:2|intcomma }}</div>
+            </div>
+          </div>
+          <div class="col-6 col-lg-3">
+            <div class="border rounded p-3 h-100">
+              <div class="small text-muted">Category position</div>
+              <div class="fs-4 fw-semibold">
+                {% if product_trend.category_rank %}
+                  #{{ product_trend.category_rank }} <span class="fs-6 text-muted">/ {{ product_trend.category_product_count }}</span>
+                {% else %}
+                  —
+                {% endif %}
+              </div>
+              <div class="small text-muted">{% if product.category %}{{ product.category.name }}{% else %}No category assigned{% endif %}</div>
+            </div>
+          </div>
+          <div class="col-6 col-lg-3">
+            <div class="border rounded p-3 h-100">
+              <div class="small text-muted">Overall position</div>
+              <div class="fs-4 fw-semibold">
+                {% if product_trend.overall_rank %}
+                  #{{ product_trend.overall_rank }} <span class="fs-6 text-muted">/ {{ product_trend.overall_product_count }}</span>
+                {% else %}
+                  —
+                {% endif %}
+              </div>
+              <div class="small text-muted">Across all products</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border rounded p-3 mb-3">
+          <div class="fw-semibold mb-2">Sales trend — units sold</div>
+          {% if product_trend.total_units_sold %}
+            <div style="height:260px; position:relative;">
+              <canvas id="productSalesTrendChart"></canvas>
+            </div>
+          {% else %}
+            <div class="text-muted py-4 text-center">No completed sales recorded for this product during the selected period.</div>
+          {% endif %}
+        </div>
+
+        <div class="row g-3">
+          <div class="col-lg-6">
+            <div class="border rounded h-100">
+              <div class="p-3 border-bottom fw-semibold">Top products in this category</div>
+              {% if product_trend.category_top_products %}
+                <div class="table-responsive">
+                  <table class="table table-sm table-hover mb-0">
+                    <thead><tr><th style="width:70px;">Rank</th><th>Product</th><th class="text-end">Units sold</th></tr></thead>
+                    <tbody>
+                      {% for row in product_trend.category_top_products %}
+                        <tr {% if row.product_id == product.id %}class="table-success fw-semibold"{% endif %}>
+                          <td>#{{ row.rank }}</td>
+                          <td>{{ row.product__name }}</td>
+                          <td class="text-end">{{ row.units_sold|floatformat:2 }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <div class="p-3 text-muted">No category sales recorded in this period.</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="border rounded h-100">
+              <div class="p-3 border-bottom fw-semibold">Top products overall</div>
+              {% if product_trend.overall_top_products %}
+                <div class="table-responsive">
+                  <table class="table table-sm table-hover mb-0">
+                    <thead><tr><th style="width:70px;">Rank</th><th>Product</th><th class="text-end">Units sold</th></tr></thead>
+                    <tbody>
+                      {% for row in product_trend.overall_top_products %}
+                        <tr {% if row.product_id == product.id %}class="table-success fw-semibold"{% endif %}>
+                          <td>#{{ row.rank }}</td>
+                          <td>{{ row.product__name }}</td>
+                          <td class="text-end">{{ row.units_sold|floatformat:2 }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <div class="p-3 text-muted">No completed product sales recorded in this period.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="small text-muted mt-3">
+          Rankings are based on total quantity sold in completed orders during the selected period.
+          Products with no sales in that period are not included in the ranking.
+          Sales value uses the order-item line total after discount and VAT.
+        </div>
+      </div>
+    </div>
+
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script>
+    const trendCanvas = document.getElementById("productSalesTrendChart");
+    if (trendCanvas) {
+      new Chart(trendCanvas, {
+        type: "line",
+        data: {
+          labels: {{ product_trend.trend_labels_json|safe }},
+          datasets: [{
+            label: "Units sold",
+            data: {{ product_trend.trend_units_json|safe }},
+            borderColor: "#0b5c39",
+            backgroundColor: "rgba(11, 92, 57, 0.12)",
+            fill: true,
+            tension: 0.25,
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: "Units sold" } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

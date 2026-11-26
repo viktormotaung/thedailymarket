@@ -520,6 +520,229 @@
       .filter-card .card-body { padding:1rem; }
     }
     body.bg-light { background:var(--page)!important; }
+
+    /* TDM Market-style catalogue refresh */
+    .shop-hero{background:linear-gradient(115deg,#edf3ed 0%,#f7f4eb 100%);padding:clamp(2.5rem,5vw,4.5rem) 0 2.4rem}
+    .shop-hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:2.5rem;align-items:center}
+    .shop-kicker{display:inline-flex;align-items:center;gap:.55rem;color:var(--brand);font-size:.76rem;font-weight:850;letter-spacing:.14em;text-transform:uppercase}
+    .shop-kicker:before{content:"";width:1.5rem;height:2px;background:currentColor}
+    .shop-hero h1{max-width:700px;margin:.85rem 0 1rem;color:var(--ink);font-size:clamp(2.7rem,5.4vw,5rem);font-weight:900;letter-spacing:-.065em;line-height:.98}
+    .shop-hero h1 em{color:var(--brand);font-family:Georgia,serif;font-weight:500}
+    .shop-hero p{max-width:610px;color:#64736a;font-size:1.08rem}
+    .shop-search{display:flex;max-width:650px;gap:.5rem;padding:.45rem;background:#fff;border:1px solid #dce6de;border-radius:1rem;box-shadow:0 12px 32px rgba(18,45,30,.08)}
+    .shop-search .form-control{min-height:50px;border:0;box-shadow:none;padding-inline:.8rem}
+    .shop-search .btn{min-height:50px;padding-inline:1.35rem;white-space:nowrap}
+    .shop-hero-art{position:relative;min-height:300px;overflow:hidden;border-radius:1.6rem;background:linear-gradient(135deg,#dce9df,#f1eadb);box-shadow:0 18px 45px rgba(18,45,30,.12)}
+    .shop-hero-art img{width:100%;height:100%;min-height:300px;object-fit:cover;display:block}
+    .shop-art-note{position:absolute;left:1.2rem;bottom:1.2rem;max-width:220px;padding:1rem 1.2rem;background:#fff;border-radius:1rem;box-shadow:0 8px 24px #0002}
+    .shop-art-note strong{display:block;color:var(--brand);font-size:.7rem;letter-spacing:.13em;text-transform:uppercase}
+    .shop-art-note span{display:block;margin-top:.2rem;font:700 1.35rem/1.05 Georgia,serif;color:var(--ink)}
+    .shop-benefits{background:#fff;border-bottom:1px solid var(--line)}
+    .shop-benefit-row{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;padding:1rem 0}
+    .shop-benefit{display:flex;align-items:center;justify-content:center;gap:.65rem;color:#45554b;font-size:.9rem;font-weight:650}
+    .shop-benefit i{color:var(--brand);font-size:1.2rem}
+    .category-band{padding:2rem 0 1.5rem;background:#fff}
+    .shop-section-title{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1rem}
+    .shop-section-title h2{margin:.35rem 0 0;font-size:clamp(1.55rem,3vw,2.25rem);font-weight:900;letter-spacing:-.05em;color:var(--ink)}
+    .shop-section-title p{margin:.3rem 0 0;color:var(--muted)}
+    .quick-shops-wrapper{position:relative}
+    .quick-shops{display:flex;gap:.85rem;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:.55rem .15rem 1rem;scroll-behavior:smooth}
+    .quick-shops::-webkit-scrollbar{display:none}
+    .quick-shop-item{flex:0 0 145px;min-width:145px;max-width:165px;scroll-snap-align:start;padding:1rem .75rem;text-decoration:none!important;border:1px solid var(--line);border-radius:1rem;background:#f8faf8;text-align:center;transition:.2s}
+    .quick-shop-item:hover{transform:translateY(-3px);border-color:#a9cbb5;background:#fff;box-shadow:var(--shadow)}
+    .quick-shop-icon{width:58px;height:58px;display:grid;place-items:center;margin:0 auto .7rem;border-radius:50%;background:#e9f2eb;color:var(--brand)}
+    .quick-shop-icon img{width:38px;height:38px;object-fit:contain}
+    .quick-shop-item .small{font-size:.86rem;font-weight:750;line-height:1.3}
+    .quick-shop-btn{width:38px;height:38px;border:1px solid var(--line);background:#fff;color:var(--brand);box-shadow:0 4px 14px #0001}
+    .quick-shop-btn.prev{left:-.6rem;transform:translate(-50%,-50%)}.quick-shop-btn.next{right:-.6rem;transform:translate(50%,-50%)}
+    .catalogue-section{padding:2.25rem 0 5rem;background:#f6f8f6}
+    .catalogue-heading{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1.5rem}
+    .catalogue-heading h2{margin:.35rem 0 0;font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:900;letter-spacing:-.055em}
+    .catalogue-heading p{margin:.35rem 0 0;color:var(--muted)}
+    .filter-card{position:sticky;top:1rem;border:1px solid var(--line)!important;border-radius:1.15rem;background:#fff;box-shadow:0 8px 26px rgba(18,45,30,.05)!important}
+    .filter-card .card-body{padding:1.25rem}
+    .filter-card h5{font-size:1.15rem;font-weight:850}
+    .filter-card .form-control,.filter-card .form-select{min-height:44px;border-color:#dce5de;border-radius:.7rem}
+    .filter-card .input-group-text{border-color:#dce5de;border-radius:.7rem 0 0 .7rem;background:#f5f8f5}
+    .filter-card .input-group .form-control{border-radius:0 .7rem .7rem 0}
+    .products-toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.2rem;padding:.9rem 1rem;background:#fff;border:1px solid var(--line);border-radius:1rem}
+    .products-toolbar .result-count{font-weight:750;color:var(--ink)}
+    .products-toolbar select{min-height:40px;border-color:#dce5de;border-radius:.65rem}
+    .product-grid{row-gap:1.25rem}
+    .product-grid>[class*="col-"]{display:flex}
+    .product-grid .product-card,.product-grid .card{width:100%}
+    .empty-catalogue{padding:4rem 1.5rem;background:#fff;border:1px dashed #cbd9ce;border-radius:1.2rem}
+    .empty-catalogue i{color:var(--brand)}
+    @media(max-width:991.98px){.shop-hero-grid{grid-template-columns:1fr  .85fr;gap:1.25rem}.shop-hero-art{min-height:260px}.shop-hero-art img{min-height:260px}.filter-card{position:static}.quick-shops{padding-inline:.25rem}}
+    @media(max-width:767.98px){.shop-hero-grid{grid-template-columns:1fr}.shop-hero-art{min-height:210px;max-height:260px}.shop-hero-art img{min-height:210px;max-height:260px}.shop-benefit-row{grid-template-columns:1fr;gap:.55rem;padding:.85rem 0}.shop-benefit{justify-content:flex-start}.catalogue-heading{align-items:flex-start;flex-direction:column}.products-toolbar{align-items:flex-start;flex-direction:column}.products-toolbar form{width:100%}.products-toolbar form select{flex:1}.quick-shop-btn{display:none!important}}
+    @media(max-width:575.98px){.shop-hero{padding-top:2rem}.shop-hero h1{font-size:2.65rem}.shop-hero p{font-size:.98rem}.shop-search{gap:.25rem}.shop-search .btn{padding-inline:.85rem}.quick-shop-item{flex-basis:125px;min-width:125px}.catalogue-section{padding-top:1.5rem}.filter-card .card-body{padding:1rem}}
+
+    /* Bi-weekly campaign marketplace */
+    .campaign-market { padding: 1.1rem 0 2.6rem; background: #f3f6f3; }
+    .campaign-nav { display:flex; align-items:center; justify-content:center; gap:.55rem; overflow-x:auto; padding:.2rem 0 1.15rem; scrollbar-width:none; }
+    .campaign-nav::-webkit-scrollbar { display:none; }
+    .campaign-nav a { flex:0 0 auto; padding:.62rem 1rem; border:1px solid transparent; border-radius:999px; color:#34443a; font-size:.88rem; font-weight:750; text-decoration:none; white-space:nowrap; }
+    .campaign-nav a:hover,.campaign-nav a.active { color:var(--brand); background:#e5efe8; border-color:#d5e4d9; }
+    .campaign-feature { position:relative; display:flex; align-items:center; min-height:clamp(220px,25vw,360px); overflow:hidden; padding:clamp(1.5rem,4vw,3.5rem); border-radius:1.35rem; color:#fff; background:linear-gradient(105deg,rgba(5,37,24,.94),rgba(5,37,24,.38)),url('https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=1800&q=85') center/cover; box-shadow:0 16px 38px rgba(20,45,30,.13); }
+    .campaign-feature-content { position:relative; z-index:1; max-width:640px; }
+    .campaign-tag { display:inline-flex; align-items:center; gap:.45rem; padding:.4rem .75rem; margin-bottom:.85rem; border-radius:999px; color:#0b5c39; background:#fff; font-size:.72rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }
+    .campaign-feature h2 { max-width:620px; margin:0 0 .75rem; font-size:clamp(2.1rem,5vw,4.5rem); line-height:.98; letter-spacing:-.055em; font-weight:900; }
+    .campaign-feature p { max-width:530px; margin:0 0 1.25rem; color:rgba(255,255,255,.88); font-size:clamp(.95rem,1.5vw,1.12rem); }
+    .campaign-feature .btn { min-height:50px; padding-inline:1.3rem; }
+    .campaign-dots { display:flex; justify-content:center; gap:.42rem; padding-top:1rem; }
+    .campaign-dots span { width:7px;height:7px;border-radius:50%;background:#c8d2cb; }
+    .campaign-dots span:first-child { width:23px;border-radius:99px;background:#83968a; }
+    /* Fortnightly campaign banners — edit the two banner blocks below by hand every two weeks. */
+    .campaign-offers { padding:1.15rem 0 3rem; background:#f3f6f3; }
+    .campaign-banner-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.15rem; }
+    .campaign-banner { position:relative; display:flex; align-items:center; min-height:clamp(210px,19vw,300px); overflow:hidden; padding:clamp(1.25rem,2.6vw,2.25rem); border-radius:1.15rem; color:#fff; text-decoration:none; isolation:isolate; background-position:center; background-size:cover; box-shadow:0 12px 28px rgba(20,45,30,.12); transition:transform .2s ease,box-shadow .2s ease; }
+    .campaign-banner::before { content:""; position:absolute; inset:0; z-index:-1; background:linear-gradient(90deg,rgba(7,20,15,.91) 0%,rgba(7,20,15,.72) 48%,rgba(7,20,15,.12) 100%); }
+    .campaign-banner:hover { color:#fff; transform:translateY(-3px); box-shadow:0 18px 34px rgba(20,45,30,.18); }
+    .campaign-banner-content { width:min(72%,520px); }
+    .campaign-banner-kicker { display:inline-block; margin-bottom:.55rem; color:#d8f0df; font-size:.7rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+    .campaign-banner h2 { margin:0 0 .8rem; max-width:520px; color:#fff; font-size:clamp(1.65rem,3.1vw,3rem); line-height:.98; letter-spacing:-.045em; font-weight:950; text-transform:uppercase; }
+    .campaign-banner h2 em { color:#c5e6cf; font-style:normal; }
+    .campaign-banner-copy { margin:0 0 1rem; color:rgba(255,255,255,.88); font-size:clamp(.8rem,1.1vw,.98rem); font-weight:600; }
+    .campaign-banner-meta { display:block; color:rgba(255,255,255,.82); font-size:.72rem; font-weight:650; }
+    .campaign-banner-cta { display:inline-flex; align-items:center; gap:.5rem; margin-bottom:.8rem; padding:.7rem 1.05rem; border-radius:.55rem; color:#fff; background:#087044; font-size:.9rem; font-weight:850; box-shadow:0 5px 0 rgba(0,0,0,.16); }
+    .campaign-banner:hover .campaign-banner-cta { background:#0a8150; }
+    .campaign-banner.banner-one { background-image:url('https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=1400&q=88'); }
+    .campaign-banner.banner-two { background-image:url('https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1400&q=88'); }
+    .market-promo { padding:3rem 0;background:#fff; }
+    .market-promo-panel { display:grid;grid-template-columns:1.05fr .95fr;align-items:center;gap:2rem;padding:clamp(1.5rem,4vw,3rem);border-radius:1.4rem;background:#eaf1e9; }
+    .market-promo-panel h2 { margin:.55rem 0 .8rem;font-size:clamp(1.7rem,3.4vw,2.8rem);font-weight:900;line-height:1.05;letter-spacing:-.05em; }
+    .market-promo-panel p { color:#64736a; }
+    .market-promo-art { min-height:210px;border-radius:1rem;background:linear-gradient(120deg,rgba(9,76,48,.1),rgba(9,76,48,.05)),url('https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=1000&q=85') center/cover; }
+    @media(max-width:767.98px){.campaign-nav{justify-content:flex-start;margin-inline:-.25rem;padding-inline:.25rem}.campaign-feature{min-height:310px;align-items:end;background-position:58% center}.campaign-feature h2{font-size:2.65rem}.campaign-banner-grid{grid-template-columns:1fr;gap:.85rem}.campaign-banner{min-height:220px}.campaign-banner-content{width:min(82%,460px)}.campaign-banner h2{font-size:clamp(1.8rem,7vw,2.6rem)}.market-promo-panel{grid-template-columns:1fr}.market-promo-art{min-height:190px}}
+
+
+
+    /* ==========================================================
+       MOBILE SHOP EXPERIENCE — compact, touch-friendly layout
+       ========================================================== */
+    @media (max-width: 767.98px) {
+      html { scroll-padding-top: 76px; }
+      body { overflow-x: hidden; }
+      .container { --bs-gutter-x: 1.1rem; }
+      .mobile-topbar { position: sticky; top: 0; z-index: 1030; background: var(--brand); box-shadow: 0 3px 14px rgba(0,0,0,.10); }
+      .mobile-topbar .container { min-height: 60px; }
+      .menu-toggle { flex: 0 0 42px; width:42px; height:42px; }
+      .mobile-topbar .brand-logo { max-width: 150px; height: 38px; }
+      .mobile-topbar .btn { min-height:40px; padding:.48rem .8rem; }
+
+      /* Campaign artwork behaves like a swipeable Checkers-style offer rail. */
+      .campaign-offers { padding: .8rem 0 1.35rem; }
+      .campaign-banner-grid {
+        display:flex;
+        gap:.75rem;
+        overflow-x:auto;
+        overflow-y:hidden;
+        scroll-snap-type:x mandatory;
+        scrollbar-width:none;
+        padding:0 .05rem .45rem;
+        margin-right:-.1rem;
+        -webkit-overflow-scrolling:touch;
+      }
+      .campaign-banner-grid::-webkit-scrollbar { display:none; }
+      .campaign-banner {
+        flex:0 0 88%;
+        width:88%;
+        min-height:205px;
+        padding:1.15rem;
+        border-radius:1rem;
+        scroll-snap-align:start;
+        background-position:center;
+      }
+      .campaign-banner::before {
+        background:linear-gradient(90deg,rgba(5,20,13,.94) 0%,rgba(5,20,13,.78) 62%,rgba(5,20,13,.28) 100%);
+      }
+      .campaign-banner-content { width:88%; }
+      .campaign-banner-kicker { max-width:100%; font-size:.59rem; letter-spacing:.1em; line-height:1.35; }
+      .campaign-banner h2 { margin-bottom:.65rem; font-size:clamp(1.55rem,7vw,2.15rem); line-height:1.02; }
+      .campaign-banner-cta { margin-bottom:.55rem; padding:.58rem .82rem; font-size:.82rem; }
+      .campaign-banner-meta { max-width:95%; font-size:.64rem; line-height:1.35; }
+
+      /* Benefits become a compact horizontal strip. */
+      .shop-benefits { overflow:hidden; }
+      .shop-benefit-row {
+        display:flex;
+        gap:.55rem;
+        overflow-x:auto;
+        padding:.75rem 0;
+        scrollbar-width:none;
+        -webkit-overflow-scrolling:touch;
+      }
+      .shop-benefit-row::-webkit-scrollbar { display:none; }
+      .shop-benefit { flex:0 0 auto; min-height:38px; padding:.5rem .75rem; border:1px solid #e0e8e2; border-radius:999px; background:#fff; font-size:.76rem; white-space:nowrap; }
+      .shop-benefit i { font-size:.9rem; }
+
+      /* Category tiles: horizontal swipe with clear tap targets. */
+      .category-band { padding-block:1.25rem; }
+      .shop-section-title { align-items:flex-start; gap:.65rem; margin-bottom:.8rem; }
+      .shop-section-title h2 { font-size:1.55rem; line-height:1.08; }
+      .shop-section-title p { margin-bottom:0; font-size:.88rem; }
+      .quick-shops-wrapper { margin-inline:-.1rem; }
+      .quick-shops { gap:.65rem; padding:.35rem .05rem .75rem; scroll-padding-inline:.1rem; }
+      .quick-shop-item { flex:0 0 112px; min-width:112px; max-width:112px; padding:.8rem .55rem; border-radius:.85rem; }
+      .quick-shop-icon { width:42px; height:42px; margin-bottom:.5rem; }
+      .quick-shop-icon img { max-width:30px; max-height:30px; }
+      .quick-shop-item .small { font-size:.76rem; }
+
+      /* Catalogue and filters. */
+      .catalogue-section { padding:1.35rem 0 2.5rem; }
+      .catalogue-heading { gap:.6rem; margin-bottom:1rem; }
+      .catalogue-heading h2 { font-size:1.7rem; }
+      .catalogue-heading p { font-size:.88rem; }
+      .catalogue-section > .container > .row { --bs-gutter-y:.85rem; }
+      .filter-card { border-radius:.95rem; }
+      .filter-card .card-body { padding:.95rem; }
+      .filter-card h5 { font-size:1rem; }
+      .filter-card .form-label { margin-bottom:.35rem; font-size:.82rem; }
+      .filter-card .form-control, .filter-card .form-select { min-height:43px; font-size:.9rem; }
+      .filter-card .btn { min-height:43px; }
+      .products-toolbar { gap:.65rem; padding:.8rem; margin-bottom:.85rem; border-radius:.85rem; }
+      .products-toolbar .result-count { font-size:.95rem; }
+      .products-toolbar .small { font-size:.75rem; }
+      .products-toolbar form { display:flex; width:100%; align-items:center; gap:.5rem; }
+      .products-toolbar form select { min-height:40px; font-size:.82rem; }
+      .products-toolbar form label { font-size:.78rem; }
+      .product-grid { --bs-gutter-x:.65rem; --bs-gutter-y:.75rem; }
+      .product-grid > [class*="col-"] { min-width:0; }
+      .product-grid .card, .product-grid .product-card { min-width:0; border-radius:.85rem; overflow:hidden; }
+      .product-grid .card-body, .product-grid .product-card-body { padding:.7rem; }
+      .product-grid .btn { min-height:39px; padding:.48rem .6rem; font-size:.78rem; }
+      .pagination { gap:.15rem; }
+      .pagination .page-link { padding:.45rem .65rem; font-size:.82rem; }
+
+      /* Footer and floating actions leave room for the mobile dock. */
+      .footer-main { padding:2.2rem 0 1.5rem; }
+      .footer-col h2 { font-size:.72rem; }
+      .footer-links { gap:.45rem; }
+      .footer-links a { overflow-wrap:anywhere; font-size:.82rem; }
+      .footer-bottom { font-size:.7rem; line-height:1.45; }
+      .whatsapp-float { right:.75rem; bottom:calc(5.25rem + env(safe-area-inset-bottom)); width:48px; height:48px; min-height:48px; }
+      .mobile-bottom-nav { padding-top:.35rem; }
+    }
+
+    @media (max-width: 390px) {
+      .container { --bs-gutter-x: .9rem; }
+      .mobile-topbar .brand-logo { max-width:128px; }
+      .campaign-banner { flex-basis:92%; width:92%; min-height:190px; }
+      .campaign-banner-content { width:92%; }
+      .campaign-banner h2 { font-size:1.55rem; }
+      .quick-shop-item { flex-basis:102px; min-width:102px; max-width:102px; }
+      .product-grid { --bs-gutter-x:.5rem; }
+      .product-grid .card-body, .product-grid .product-card-body { padding:.58rem; }
+    }
+
+    @media (min-width: 768px) and (max-width: 991.98px) {
+      .campaign-banner-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; }
+      .campaign-banner { min-height:190px; padding:1.1rem; }
+      .campaign-banner-content { width:88%; }
+      .campaign-banner h2 { font-size:clamp(1.45rem,3vw,2rem); }
+      .product-grid { --bs-gutter-x:.85rem; }
+    }
+
   </style>
 </head>
 <body class="bg-light">
@@ -607,127 +830,66 @@
   </section>
 
   <main>
-  <!-- HERO CAROUSEL -->
-  <section class="hero-carousel">
-    <div id="heroCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="7000">
+  <!-- FORTNIGHTLY PROMOTIONS: manually replace the campaign images, copy, dates and destinations below. -->
+  <section class="campaign-offers" id="campaign-offers" aria-label="Current fortnightly promotions">
+    <div class="container">
+      <div class="campaign-banner-grid">
+        <!-- CAMPAIGN BANNER 1: update background image in .banner-one, headline, offer, validity and href. -->
+        <a class="campaign-banner banner-one" href="#catalogue" aria-label="Shop the fortnightly meat promotion">
+          <div class="campaign-banner-content">
+            <span class="campaign-banner-kicker">The Daily Market · Fortnightly special</span>
+            <h2>Good food.<br><em>Better value.</em></h2>
+            <span class="campaign-banner-cta">Shop the deals <i class="bi bi-arrow-up-right"></i></span>
+            <span class="campaign-banner-meta">Selected products · While stocks last · T&amp;Cs apply</span>
+          </div>
+        </a>
 
-      <!-- Indicators (optional but recommended) -->
-      <div class="carousel-indicators">
-        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active"></button>
-        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1"></button>
-        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2"></button>
+        <!-- CAMPAIGN BANNER 2: update background image in .banner-two, headline, offer, validity and href. -->
+        <a class="campaign-banner banner-two" href="#catalogue" aria-label="Explore pantry and kitchen promotions">
+          <div class="campaign-banner-content">
+            <span class="campaign-banner-kicker">Stock up · Save more</span>
+            <h2>Big flavour.<br><em>Smart buys.</em></h2>
+            <span class="campaign-banner-cta">Explore offers <i class="bi bi-arrow-up-right"></i></span>
+            <span class="campaign-banner-meta">Fortnightly offers · While stocks last · T&amp;Cs apply</span>
+          </div>
+        </a>
       </div>
-
-      <!-- Slides -->
-      <div class="carousel-inner">
-
-        <!-- SLIDE 1 -->
-        <div class="carousel-item active">
-          <div class="hero-slide hero-slide-1">
-            <div class="container text-center">
-              <h1 class="fw-bold">Products</h1>
-              <p class="lead mb-3">
-                Quality you can trust — for homes, restaurants, and retailers.
-              </p>
-              
-            </div>
-          </div>
-        </div>
-
-        <!-- SLIDE 2 -->
-        <div class="carousel-item">
-          <div class="hero-slide hero-slide-2">
-            <div class="container text-center">
-              <h1 class="fw-bold">Reliable supply</h1>
-              <p class="lead mb-3">
-                Fresh, chilled & frozen categories — always available.
-              </p>
-              
-            </div>
-          </div>
-        </div>
-
-        <!-- SLIDE 3 -->
-        <div class="carousel-item">
-          <div class="hero-slide hero-slide-3">
-            <div class="container text-center">
-              <h1 class="fw-bold">Built for trade</h1>
-              <p class="lead mb-3">
-                Flexible supply solutions for growing businesses.
-              </p>
-              
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Controls -->
-      <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
-        <span class="carousel-control-prev-icon"></span>
-      </button>
-      <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
-        <span class="carousel-control-next-icon"></span>
-      </button>
-
     </div>
   </section>
 
-  <!-- QUICK SHOPS -->
-  <section class="bg-white border-bottom py-4">
-    <div class="container" style="max-width:1200px;">
-      <h5 id="start-shopping" class="fw-semibold mb-3 text-center">
-        Start shopping
-      </h5>
+  <section class="shop-benefits" aria-label="Shopping benefits">
+    <div class="container shop-benefit-row">
+      <div class="shop-benefit"><i class="bi bi-tags"></i><span>Transparent prices upfront</span></div>
+      <div class="shop-benefit"><i class="bi bi-box-seam"></i><span>A range for busy food businesses</span></div>
+      <div class="shop-benefit"><i class="bi bi-truck"></i><span>Scheduled Gauteng delivery</span></div>
+    </div>
+  </section>
 
-      <!-- Wrapper for arrows + scroll track -->
-      <div class="quick-shops-wrapper position-relative">
-
-        <!-- LEFT ARROW -->
-        <button
-          type="button"
-          class="quick-shop-btn prev d-none d-md-flex"
-          aria-label="Scroll left">
-          <i class="bi bi-chevron-left"></i>
-        </button>
-
-        <!-- SCROLL TRACK (ALL ITEMS IN ONE ROW) -->
-        <div class="quick-shops">
+  <!-- Shop by subcategory: uses the existing category tree from the view -->
+  <section class="category-band" id="shop-categories">
+    <div class="container">
+      <div class="shop-section-title">
+        <div><span class="shop-kicker">Find your favourites</span><h2>Shop by category</h2><p>Pick a range and explore what’s available.</p></div>
+        <a href="{% url 'products' %}" class="btn btn-outline-brand d-none d-sm-inline-flex">View all products <i class="bi bi-arrow-up-right ms-2"></i></a>
+      </div>
+      <div class="quick-shops-wrapper">
+        <button type="button" class="quick-shop-btn prev d-none d-md-flex" aria-label="Scroll categories left"><i class="bi bi-chevron-left"></i></button>
+        <div class="quick-shops" id="shopCategoryTrack">
           {% for cat in categories %}
             {% for sub in cat.children.all %}
-              <a
-                href="{% url 'products' %}?subcategory={{ sub.id }}"
-                class="text-center text-decoration-none quick-shop-item"
-              >
-                <div class="quick-shop-icon mb-2">
-                  {% if sub.icon %}
-                    <img src="{{ sub.icon.url }}" alt="{{ sub.name }}">
-                  {% else %}
-                    <i class="bi bi-grid fs-4 text-muted"></i>
-                  {% endif %}
+              <a href="{% url 'products' %}?subcategory={{ sub.id }}" class="quick-shop-item">
+                <div class="quick-shop-icon">
+                  {% if sub.icon %}<img src="{{ sub.icon.url }}" alt="">{% else %}<i class="bi bi-grid fs-4"></i>{% endif %}
                 </div>
-
-                <div class="small fw-medium text-dark">
-                  {{ sub.name }}
-                </div>
+                <div class="small text-dark">{{ sub.name }}</div>
               </a>
             {% endfor %}
           {% endfor %}
         </div>
-
-
-        <!-- RIGHT ARROW -->
-        <button
-          type="button"
-          class="quick-shop-btn next d-none d-md-flex"
-          aria-label="Scroll right">
-          <i class="bi bi-chevron-right"></i>
-        </button>
-
+        <button type="button" class="quick-shop-btn next d-none d-md-flex" aria-label="Scroll categories right"><i class="bi bi-chevron-right"></i></button>
       </div>
     </div>
   </section>
-
 
 
   {% if messages %}
@@ -738,171 +900,50 @@
   </div>
   {% endif %}
 
-  <section class="py-4">
-    <div class="container" style="max-width: 1200px;">
+  <section class="catalogue-section" id="catalogue">
+    <div class="container">
+      <div class="catalogue-heading">
+        <div><span class="shop-kicker">The market</span><h2>Explore the range</h2><p>Find the products that keep your kitchen moving.</p></div>
+        <a href="{% url 'trade_assist' %}" class="btn btn-outline-brand d-none d-md-inline-flex"><i class="bi bi-handshake me-2"></i>Discover TradeAssist</a>
+      </div>
       <div class="row g-4">
-
-        <!-- Sidebar: Filters -->
         <aside class="col-lg-3">
-          <div class="card border-0 shadow-sm filter-card">
+          <div class="card filter-card">
             <div class="card-body">
-              <h5 class="section-heading mb-3">Filter</h5>
+              <div class="d-flex align-items-center justify-content-between mb-3"><h5 class="mb-0">Refine your search</h5><i class="bi bi-sliders2 text-success"></i></div>
               <form method="get" action="{% url 'products' %}">
-                <!-- Search -->
-                <div class="mb-3">
-                  <label class="form-label">Search</label>
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" name="q" value="{{ request.GET.q }}" class="form-control" placeholder="Product or keyword">
-                  </div>
-                </div>
-
-                <!-- ================= SUB-CATEGORY FILTER ================= -->
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">Category</label>
-
-                  <select name="subcategory" class="form-select">
-                    <option value="">All categories</option>
-
-                    {% for category in categories %}
-                      {% for sub in category.children.all %}
-                        <option
-                          value="{{ sub.id }}"
-                          {% if selected_subcategory == sub.id|stringformat:"s" %}selected{% endif %}
-                        >
-                          {{ sub.name }}
-                        </option>
-                      {% endfor %}
-                    {% endfor %}
-                  </select>
-                </div>
-
-
-                <!-- Price -->
-                <div class="mb-3">
-                  <label class="form-label">Price (R)</label>
-                  <div class="row g-2">
-                    <div class="col-6">
-                      <input type="number" step="0.01" name="min_price" value="{{ request.GET.min_price }}" class="form-control" placeholder="Min">
-                    </div>
-                    <div class="col-6">
-                      <input type="number" step="0.01" name="max_price" value="{{ request.GET.max_price }}" class="form-control" placeholder="Max">
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Sort -->
-                <div class="mb-3">
-                  <label class="form-label">Sort by</label>
-                  <select name="sort" class="form-select">
-                    <option value="">Default</option>
-                    <option value="name" {% if request.GET.sort == 'name' %}selected{% endif %}>Name (A–Z)</option>
-                    <option value="-name" {% if request.GET.sort == '-name' %}selected{% endif %}>Name (Z–A)</option>
-                    <option value="price" {% if request.GET.sort == 'price' %}selected{% endif %}>Price (Low → High)</option>
-                    <option value="-price" {% if request.GET.sort == '-price' %}selected{% endif %}>Price (High → Low)</option>
-                    <option value="-created" {% if request.GET.sort == '-created' %}selected{% endif %}>Newest</option>
-                  </select>
-                </div>
-
-                <div class="d-grid gap-2">
-                  <button class="btn btn-brand" type="submit"><i class="bi bi-funnel me-1"></i>Apply</button>
-                  <a class="btn btn-outline-secondary" href="{% url 'products' %}">Clear</a>
-                </div>
+                <div class="mb-3"><label class="form-label fw-semibold" for="filterSearch">Search products</label><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input id="filterSearch" type="text" name="q" value="{{ request.GET.q }}" class="form-control" placeholder="Product or keyword"></div></div>
+                <div class="mb-3"><label class="form-label fw-semibold" for="filterSubcategory">Category</label><select id="filterSubcategory" name="subcategory" class="form-select"><option value="">All categories</option>{% for category in categories %}{% for sub in category.children.all %}<option value="{{ sub.id }}" {% if selected_subcategory == sub.id|stringformat:"s" %}selected{% endif %}>{{ sub.name }}</option>{% endfor %}{% endfor %}</select></div>
+                <div class="mb-3"><label class="form-label fw-semibold">Price range (R)</label><div class="row g-2"><div class="col-6"><input type="number" step="0.01" min="0" name="min_price" value="{{ request.GET.min_price }}" class="form-control" placeholder="From" aria-label="Minimum price"></div><div class="col-6"><input type="number" step="0.01" min="0" name="max_price" value="{{ request.GET.max_price }}" class="form-control" placeholder="To" aria-label="Maximum price"></div></div></div>
+                <div class="mb-3"><label class="form-label fw-semibold" for="filterSort">Sort products</label><select id="filterSort" name="sort" class="form-select"><option value="">Recommended</option><option value="name" {% if request.GET.sort == 'name' %}selected{% endif %}>Name (A–Z)</option><option value="-name" {% if request.GET.sort == '-name' %}selected{% endif %}>Name (Z–A)</option><option value="price" {% if request.GET.sort == 'price' %}selected{% endif %}>Price (low to high)</option><option value="-price" {% if request.GET.sort == '-price' %}selected{% endif %}>Price (high to low)</option><option value="-created" {% if request.GET.sort == '-created' %}selected{% endif %}>Newest arrivals</option></select></div>
+                <div class="d-grid gap-2"><button class="btn btn-brand" type="submit"><i class="bi bi-funnel me-2"></i>Show products</button><a class="btn btn-outline-brand" href="{% url 'products' %}">Clear filters</a></div>
               </form>
             </div>
           </div>
         </aside>
 
-        <!-- Results -->
         <div class="col-lg-9">
-          <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
-            <div class="small text-muted">
-              {% if products.paginator.count %}
-                {{ products.paginator.count|intcomma }} result{{ products.paginator.count|pluralize }}
-              {% else %}
-                0 results
-              {% endif %}
-            </div>
-
-            <!-- Quick sort -->
-            <form method="get" class="d-flex align-items-center gap-2">
-              <input type="hidden" name="q" value="{{ request.GET.q }}">
-              <input type="hidden" name="category" value="{{ request.GET.category }}">
-              <input type="hidden" name="min_price" value="{{ request.GET.min_price }}">
-              <input type="hidden" name="max_price" value="{{ request.GET.max_price }}">
-              <label class="small text-muted">Sort</label>
-              <select name="sort" class="form-select form-select-sm" onchange="this.form.submit()">
-                <option value="">Default</option>
-                <option value="name" {% if request.GET.sort == 'name' %}selected{% endif %}>Name (A–Z)</option>
-                <option value="-name" {% if request.GET.sort == '-name' %}selected{% endif %}>Name (Z–A)</option>
-                <option value="price" {% if request.GET.sort == 'price' %}selected{% endif %}>Price (Low → High)</option>
-                <option value="-price" {% if request.GET.sort == '-price' %}selected{% endif %}>Price (High → Low)</option>
-                <option value="-created" {% if request.GET.sort == '-created' %}selected{% endif %}>Newest</option>
-              </select>
+          <div class="products-toolbar">
+            <div><div class="result-count">{% if products.paginator.count %}{{ products.paginator.count|intcomma }} products{% else %}No products found{% endif %}</div><div class="small text-muted">Browse the catalogue and discover your next order.</div></div>
+            <form method="get" action="{% url 'products' %}" class="d-flex align-items-center gap-2">
+              <input type="hidden" name="q" value="{{ request.GET.q }}"><input type="hidden" name="subcategory" value="{{ request.GET.subcategory }}"><input type="hidden" name="min_price" value="{{ request.GET.min_price }}"><input type="hidden" name="max_price" value="{{ request.GET.max_price }}">
+              <label for="quickSort" class="small text-muted text-nowrap">Sort by</label><select id="quickSort" name="sort" class="form-select form-select-sm" onchange="this.form.submit()"><option value="">Recommended</option><option value="name" {% if request.GET.sort == 'name' %}selected{% endif %}>Name (A–Z)</option><option value="-name" {% if request.GET.sort == '-name' %}selected{% endif %}>Name (Z–A)</option><option value="price" {% if request.GET.sort == 'price' %}selected{% endif %}>Price: low to high</option><option value="-price" {% if request.GET.sort == '-price' %}selected{% endif %}>Price: high to low</option><option value="-created" {% if request.GET.sort == '-created' %}selected{% endif %}>Newest</option></select>
             </form>
           </div>
 
           {% if products and products.object_list %}
-            <div class="row g-4">
-              {% for p in products.object_list %}
-                <div class="col-12 col-sm-6 col-md-4">
-                  {% include "products/_product_card.html" with p=p %}
-                </div>
-              {% endfor %}
+            <div class="row g-4 product-grid">
+              {% for p in products.object_list %}<div class="col-6 col-md-4">{% include "products/_product_card.html" with p=p %}</div>{% endfor %}
             </div>
-
             {% if products.paginator.num_pages > 1 %}
-            <nav aria-label="Page navigation" class="mt-4">
-              <ul class="pagination justify-content-center">
-
-                {% if products.has_previous %}
-                  <li class="page-item">
-                    <a class="page-link"
-                      href="?{{ query_string }}&page={{ products.previous_page_number }}">
-                      Prev
-                    </a>
-                  </li>
-                {% else %}
-                  <li class="page-item disabled"><span class="page-link">Prev</span></li>
-                {% endif %}
-
-                {% for num in products.paginator.page_range %}
-                  {% if num == products.number %}
-                    <li class="page-item active">
-                      <span class="page-link">{{ num }}</span>
-                    </li>
-                  {% elif num > products.number|add:-3 and num < products.number|add:3 %}
-                    <li class="page-item">
-                      <a class="page-link"
-                        href="?{{ query_string }}&page={{ num }}">
-                        {{ num }}
-                      </a>
-                    </li>
-                  {% endif %}
-                {% endfor %}
-
-                {% if products.has_next %}
-                  <li class="page-item">
-                    <a class="page-link"
-                      href="?{{ query_string }}&page={{ products.next_page_number }}">
-                      Next
-                    </a>
-                  </li>
-                {% else %}
-                  <li class="page-item disabled"><span class="page-link">Next</span></li>
-                {% endif %}
-
-              </ul>
-            </nav>
+              <nav aria-label="Product pages" class="mt-5"><ul class="pagination justify-content-center flex-wrap">
+                {% if products.has_previous %}<li class="page-item"><a class="page-link" href="?{{ query_string }}&page={{ products.previous_page_number }}">Previous</a></li>{% else %}<li class="page-item disabled"><span class="page-link">Previous</span></li>{% endif %}
+                {% for num in products.paginator.page_range %}{% if num == products.number %}<li class="page-item active"><span class="page-link">{{ num }}</span></li>{% elif num > products.number|add:-3 and num < products.number|add:3 %}<li class="page-item"><a class="page-link" href="?{{ query_string }}&page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}
+                {% if products.has_next %}<li class="page-item"><a class="page-link" href="?{{ query_string }}&page={{ products.next_page_number }}">Next</a></li>{% else %}<li class="page-item disabled"><span class="page-link">Next</span></li>{% endif %}
+              </ul></nav>
             {% endif %}
-
           {% else %}
-            <div class="text-center text-muted py-5">
-              <i class="bi bi-box-seam fs-1 d-block mb-2"></i>
-              <p class="lead mb-1">No products found</p>
-              <p>Try clearing filters or searching a different term.</p>
-              <a class="btn btn-outline-secondary" href="{% url 'products' %}"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset Filters</a>
-            </div>
+            <div class="empty-catalogue text-center"><i class="bi bi-basket2 fs-1 d-block mb-3"></i><h3 class="h4 fw-bold">Nothing in this aisle just yet</h3><p class="text-muted mb-3">Try another search or clear your filters to explore the full market.</p><a class="btn btn-brand" href="{% url 'products' %}">Explore all products</a></div>
           {% endif %}
         </div>
       </div>
@@ -962,7 +1003,7 @@
           <h2 class="mt-4">Trading hours</h2>
           <ul class="footer-links">
             <li>Mon–Fri: 7:30am–4:00pm</li>
-            <li>Saturday: 7:30am–1:00pm</li>
+            <li>Saturday: Closed</li>
             <li>Sunday: Closed</li>
           </ul>
         </div>
@@ -1194,13 +1235,13 @@
   </script>
   <script>
     (function () {
-      const track = document.querySelector('.quick-shops');
+      const track = document.getElementById('shopCategoryTrack');
       if (!track) return;
 
       const prev = document.querySelector('.quick-shop-btn.prev');
       const next = document.querySelector('.quick-shop-btn.next');
 
-      const scrollAmount = 260;
+      const scrollAmount = Math.max(260, track.clientWidth * 0.72);
 
       prev?.addEventListener('click', () => {
         track.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
