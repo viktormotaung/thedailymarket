@@ -9,6 +9,7 @@ import time
 from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models, transaction
 from django.db.models.signals import post_save, pre_save
@@ -26,6 +27,56 @@ def r2(x: Decimal | None) -> Decimal:
     if x is None:
         x = Decimal("0.00")
     return Decimal(x).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def send_order_created_email(order_id: int, using: str = "default") -> None:
+    """
+    Notify TDM when a new order has been committed to the database.
+    Email failures are logged and never interrupt order processing.
+    """
+    try:
+        order = (
+            Order.objects.using(using)
+            .select_related("client", "end_user", "created_by")
+            .get(pk=order_id)
+        )
+
+        client_name = str(order.client)
+        end_user_name = (
+            order.end_user.full_name if order.end_user else "—"
+        )
+        created_by_name = (
+            str(order.created_by) if order.created_by else "System / Customer"
+        )
+
+        subject = f"New TDM Order Created — Order #{order.pk}"
+
+        message = (
+            "A new order has been created in The Daily Market system.\\n\\n"
+            f"Order Number: #{order.pk}\\n"
+            f"Client: {client_name}\\n"
+            f"End User: {end_user_name}\\n"
+            f"Order Channel: {order.get_channel_display()}\\n"
+            f"Current Status: {order.get_status_display()}\\n"
+            f"Created By: {created_by_name}\\n"
+            f"Order Date: {order.order_date:%d %B %Y, %H:%M}\\n\\n"
+            "Please log in to the TDM system to view the order and its details."
+        )
+
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=["notifications@thedailymarket.co.za"],
+            fail_silently=False,
+        )
+
+    except Exception as exc:
+        # Notification failure must never roll back or interrupt an order.
+        print(
+            f"[ORDER EMAIL] Failed to send creation notification "
+            f"for Order #{order_id}: {exc}"
+        )
 
 
 # ====================================================================
@@ -1131,6 +1182,17 @@ class Order(models.Model):
         # =====================================================
 
         super().save(*args, **kwargs)
+
+        # Notify TDM once for each newly-created order.
+        # The callback runs only after the surrounding transaction commits.
+        if creating:
+            order_id = self.pk
+            db_alias = self._state.db or "default"
+            transaction.on_commit(
+                lambda oid=order_id, db=db_alias:
+                    send_order_created_email(oid, using=db),
+                using=db_alias,
+            )
 
         # SMS only when an existing order ENTERS one of these two statuses.
         # Run after the database transaction commits, avoiding messages for

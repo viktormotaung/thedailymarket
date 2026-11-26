@@ -12,6 +12,11 @@ from django.dispatch import receiver
 from django.utils import timezone  # 👈 needed for ProspectUpdate.action_at
 from django.utils.crypto import get_random_string
 from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 # clients/choices.py
@@ -1962,6 +1967,10 @@ class Lead(models.Model):
                 notes="Lead created.",
             )
 
+            # Send one internal notification after the database transaction
+            # commits. Updates and lead-to-prospect conversions do not resend it.
+            transaction.on_commit(self.send_new_lead_notification)
+
         # ----------------------------------------------------------
         # AUTOMATIC LEAD → PROSPECT CONVERSION
         # ----------------------------------------------------------
@@ -1972,6 +1981,65 @@ class Lead(models.Model):
             and not self.prospect_id
         ):
             self.convert_to_prospect()
+
+    def send_new_lead_notification(self):
+        """Email the internal team once when this Lead is first created."""
+        recipient = "notifications@thedailymarket.co.za"
+
+        location_parts = [
+            self.suburb,
+            self.city,
+            self.get_province_display() if self.province else "",
+            self.country,
+        ]
+        location = ", ".join(part for part in location_parts if part) or "Not provided"
+
+        def display_user(user):
+            if not user:
+                return "Not assigned"
+            return user.get_full_name() or user.get_username()
+
+        subject = f"New Lead Received: {self.lead_number} - {self.business_name or self.contact_person}"
+        message = "\n".join([
+            "A new lead has been created in The Daily Market system.",
+            "",
+            f"Lead number: {self.lead_number}",
+            f"Business name: {self.business_name or 'Not provided'}",
+            f"Contact person: {self.contact_person or 'Not provided'}",
+            f"Phone: {self.phone or 'Not provided'}",
+            f"WhatsApp: {self.whatsapp or 'Not provided'}",
+            f"Email: {self.email or 'Not provided'}",
+            f"Business type: {self.get_potential_client_type_display() if self.potential_client_type else 'Not provided'}",
+            f"Location: {location}",
+            f"Source: {self.get_source_display()}",
+            f"Campaign: {self.campaign or 'Not provided'}",
+            f"Advert: {self.advert or 'Not provided'}",
+            f"Assigned to: {display_user(self.assigned_to)}",
+            f"Captured by: {display_user(self.created_by)}",
+            f"Created: {timezone.localtime(self.created_at).strftime('%d %b %Y, %H:%M')}",
+            "",
+            "Please follow up with this lead.",
+        ])
+
+        try:
+            sent_count = send_mail(
+                subject=subject,
+                message=message,
+                from_email=None,
+                recipient_list=[recipient],
+                fail_silently=False,
+            )
+            if not sent_count:
+                logger.warning(
+                    "New lead notification email was not sent for %s",
+                    self.lead_number,
+                )
+        except Exception:
+            # Email failure must not undo or interrupt lead creation.
+            logger.exception(
+                "Failed to send new lead notification for %s",
+                self.lead_number,
+            )
 
     @transaction.atomic
     def convert_to_prospect(self):
