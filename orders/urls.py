@@ -22,5 +22,9 @@ urlpatterns = [
     path("quotations/<int:pk>/send-sms/", views.send_quotation_sms, name="send-quotation-sms",),
     path("quotations/<int:pk>/send-email/", views.send_quotation_email_internal, name="send-quotation-email",),
     path("dashboard/", views.staff_sales_dashboard, name="staff-sales-dashboard"),
+    path(
+    "orders/<int:pk>/status/",
+    views.order_status_update,
+    name="order-status-update",),
     
 ]

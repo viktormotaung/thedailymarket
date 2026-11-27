@@ -1005,7 +1005,7 @@
 
                                 <th style="width:12%"
                                     class="text-end">
-                                    Unit Price (Incl VAT)
+                                    Unit Price (Excl VAT)
                                 </th>
 
                                 <th style="width:14%"
@@ -1451,7 +1451,7 @@
                   tr.querySelector('[name$="-quantity"]')?.value || "0"
               );
 
-              const unitInc = parseFloat(
+              const unitExcl = parseFloat(
                   tr.querySelector('[name$="-unit_price_excl"]')?.value || "0"
               );
 
@@ -1461,8 +1461,7 @@
               const vatPct = parseFloat(
                   tr.querySelector('[name$="-vat_percent"]')?.value || "0"
               );
-              const unitExcl = unitInc / (1 + vatPct / 100);
-              const netExcl = Math.max(0, unitExcl - discountExcl) * qty;
+                            const netExcl = Math.max(0, unitExcl - discountExcl) * qty;
               const vatAmount = netExcl * vatPct / 100;
               itemsExcl += netExcl;
               itemsVat += vatAmount;
@@ -1505,10 +1504,9 @@
 
         function calculateRow(tr, source = "percent") {
           const qty = parseFloat(tr.querySelector('[name$="-quantity"]')?.value || "0");
-          const unitInc = parseFloat(tr.querySelector('[name$="-unit_price_excl"]')?.value || "0");
+          const unitExcl = parseFloat(tr.querySelector('[name$="-unit_price_excl"]')?.value || "0");
           const vatPct = parseFloat(tr.querySelector('[name$="-vat_percent"]')?.value || "0");
-          const unitExcl = unitInc / (1 + vatPct / 100);
-          const randField = tr.querySelector(".discount-rand-field");
+                    const randField = tr.querySelector(".discount-rand-field");
           const percentField = tr.querySelector(".discount-percent-field");
           const storedDiscount = tr.querySelector('[name$="-discount_excl"]');
 
@@ -1536,8 +1534,6 @@
           const netExcl = Math.max(0, unitExcl - discountExcl) * qty;
           const vatAmount = netExcl * vatPct / 100;
           const lineInc = netExcl + vatAmount;
-          tr.querySelector('[name$="-unit_price_excl"]').dataset.excl = money(unitExcl);
-
           const vatEl = tr.querySelector(".vat-amount");
           const totalEl = tr.querySelector(".line-total");
           if (vatEl) vatEl.textContent = money(vatAmount);
@@ -1552,7 +1548,8 @@
             const option = product.options[product.selectedIndex];
             if (!option || !option.value) return;
 
-            const price = option.dataset.priceIncl || "0.00";
+            // unit_price_excl remains exclusive of VAT throughout.
+            const price = option.dataset.priceExcl || "0.00";
             const vat = option.dataset.vatPercent || "0.00";
 
             const unitInput = tr.querySelector('[name$="-unit_price_excl"]');
@@ -1580,15 +1577,13 @@
                 const opt = document.createElement("option");
                 opt.value = p.id;
                 opt.textContent = p.text;
-                // The AJAX endpoint returns price_excl (not price_inc).
-                // Keep the visible quotation field inclusive of VAT, while
-                // the model continues storing unit_price_excl.
+                // Keep the product's exclusive price in unit_price_excl.
+                // calculateRow() adds VAT once for display and totals.
                 const priceExcl = parseFloat(p.price_excl || "0");
                 const vatPercent = parseFloat(p.vat_percent || "0");
-                const priceIncl = priceExcl * (1 + vatPercent / 100);
 
-                opt.dataset.priceIncl = Number.isFinite(priceIncl)
-                    ? priceIncl.toFixed(2)
+                opt.dataset.priceExcl = Number.isFinite(priceExcl)
+                    ? priceExcl.toFixed(2)
                     : "0.00";
                 opt.dataset.vatPercent = Number.isFinite(vatPercent)
                     ? vatPercent.toFixed(2)
@@ -1714,20 +1709,7 @@
 
         calculateTotals();
 
-      document.querySelector("form").addEventListener("submit", function () {
-
-          tbody.querySelectorAll("tr").forEach(tr => {
-
-              const input =
-                  tr.querySelector('[name$="-unit_price_excl"]');
-
-              if (input.dataset.excl) {
-                  input.value = input.dataset.excl;
-              }
-
-          });
-
-      });
+      // unit_price_excl is already exclusive; do not convert it on submit.
     });
     </script>
 </body>

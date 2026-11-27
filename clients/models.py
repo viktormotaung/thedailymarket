@@ -1145,10 +1145,6 @@ class Prospect(models.Model):
             territory=self.territory,
             area=self.area,
 
-            # GPS coordinates
-            lat=self.lat,
-            lng=self.lng,
-
             vat_number=self.vat_number,
             registration_identifier=self.registration_identifier,
 
@@ -1175,20 +1171,15 @@ class Prospect(models.Model):
         return client
     
     def save(self, *args, **kwargs):
-        creating = self.pk is None
-        old_stage = None
+        """
+        Save the prospect and ensure every WON prospect has a linked Client.
 
-        if not creating:
-            old_stage = (
-                Prospect.objects
-                .filter(pk=self.pk)
-                .values_list("stage", flat=True)
-                .first()
-            )
-
+        This also repairs older WON prospects that were left unconverted
+        after a previous conversion error.
+        """
         super().save(*args, **kwargs)
 
-        if self.stage == "WON" and old_stage != "WON" and not self.client_id:
+        if self.stage == "WON" and not self.client_id:
             self.convert_to_client()
 
     def log_update(

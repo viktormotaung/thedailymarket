@@ -797,6 +797,33 @@
         </div>
       </div>
       <div class="d-flex gap-2">
+        <!-- Order status actions: available only while Pending -->
+        <form method="post"
+              action="{% url 'order-status-update' order.id %}"
+              class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="approve">
+          <button type="submit"
+                  class="btn btn-success"
+                  {% if order.status != "pending" %}disabled aria-disabled="true" title="Only pending orders can be approved"{% endif %}
+                  {% if order.status == "pending" %}onclick="return confirm('Approve this order?')"{% endif %}>
+            Approve Order
+          </button>
+        </form>
+
+        <form method="post"
+              action="{% url 'order-status-update' order.id %}"
+              class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="cancel">
+          <button type="submit"
+                  class="btn btn-danger"
+                  {% if order.status != "pending" %}disabled aria-disabled="true" title="Only pending orders can be cancelled"{% endif %}
+                  {% if order.status == "pending" %}onclick="return confirm('Cancel this order? This action cannot be undone.')"{% endif %}>
+            Cancel Order
+          </button>
+        </form>
+
         <!-- Back (read-only, always allowed) -->
         <a href="{% url 'staff-orders' %}"
           class="btn btn-outline-secondary">

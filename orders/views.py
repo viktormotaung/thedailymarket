@@ -651,6 +651,88 @@ def order_view(request, pk):
 
 @login_required
 @staff_required
+@require_POST
+def order_status_update(request, pk):
+    """
+    Approve or cancel a pending order from the order detail page.
+
+    The pending-only rule is enforced server-side as well as in the template.
+    Approval intentionally uses Order.save(), allowing the existing model
+    approval workflow, audit logging and downstream payment gate to run.
+    """
+    action = (request.POST.get("action") or "").strip().lower()
+
+    if action not in {"approve", "cancel"}:
+        messages.error(request, "Invalid order status action.")
+        return redirect("order-view", pk=pk)
+
+    with transaction.atomic():
+        order = get_object_or_404(
+            Order.objects.select_for_update(),
+            pk=pk,
+        )
+
+        # Re-check status under the row lock to prevent stale-page updates.
+        if order.status != "pending":
+            messages.error(
+                request,
+                "This order is no longer pending. Its status cannot be changed here.",
+            )
+            return redirect("order-view", pk=order.pk)
+
+        if action == "approve":
+            if not order.items.exists():
+                messages.error(
+                    request,
+                    "This order cannot be approved because it has no items.",
+                )
+                return redirect("order-view", pk=order.pk)
+
+            order.reviewed_by = request.user
+            order.reviewed_at = timezone.now()
+            order.approved_by = request.user
+            order.approved_at = timezone.now()
+            order.status = "approved"
+            order.save(
+                update_fields=[
+                    "status",
+                    "reviewed_by",
+                    "reviewed_at",
+                    "approved_by",
+                    "approved_at",
+                    "updated_at",
+                ]
+            )
+
+            # Existing Order.save() logic advances an approved order into
+            # awaiting_payment and records the approval audit.
+            messages.success(
+                request,
+                f"Order #{order.pk} has been approved.",
+            )
+
+        else:
+            order.reviewed_by = request.user
+            order.reviewed_at = timezone.now()
+            order.status = "cancelled"
+            order.save(
+                update_fields=[
+                    "status",
+                    "reviewed_by",
+                    "reviewed_at",
+                    "updated_at",
+                ]
+            )
+            messages.success(
+                request,
+                f"Order #{order.pk} has been cancelled.",
+            )
+
+    return redirect("order-view", pk=pk)
+
+
+@login_required
+@staff_required
 def order_delete(request, pk):
     order = get_object_or_404(
         Order.objects.select_related("client"),

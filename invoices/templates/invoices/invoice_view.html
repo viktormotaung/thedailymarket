@@ -61,6 +61,224 @@
       border: 1px solid #ffd6d6;
     }
     .table thead th { position: sticky; top: 0; background: #fff; z-index: 1; }
+
+    /* Responsive invoice layout */
+    .invoice-header-actions { align-items: center; }
+    .invoice-header-actions .btn { white-space: nowrap; }
+    .invoice-items-table { min-width: 1050px; }
+    .card-header { gap: .5rem; flex-wrap: wrap; }
+    .card-body { overflow-wrap: anywhere; }
+    .modal-dialog { width: auto; }
+
+    /* Keep the payment confirmation controls visible while the form scrolls. */
+    #confirmPaymentModal .confirm-payment-dialog {
+      max-height: calc(100dvh - 2rem);
+    }
+
+    #confirmPaymentModal .modal-content {
+      max-height: calc(100dvh - 2rem);
+      overflow: hidden;
+    }
+
+    #confirmPaymentModal form {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    #confirmPaymentModal .modal-header,
+    #confirmPaymentModal .modal-footer {
+      flex: 0 0 auto;
+    }
+
+    #confirmPaymentModal .modal-body {
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    @media (max-width: 767.98px) {
+      :root { --mobile-nav-h: 56px; }
+
+      .content {
+        padding: 12px !important;
+        padding-bottom: 24px !important;
+      }
+
+      .content h2 {
+        font-size: 1.35rem;
+        line-height: 1.35;
+      }
+
+      .content h2 .badge {
+        font-size: .68rem;
+        vertical-align: middle;
+      }
+
+      .meta {
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      .invoice-header-actions {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        gap: 8px !important;
+      }
+
+      .invoice-header-actions .btn {
+        width: 100%;
+        min-width: 0;
+        white-space: normal;
+        font-size: .82rem;
+        padding: .55rem .45rem;
+      }
+
+      .row.g-3 { --bs-gutter-x: .75rem; --bs-gutter-y: .75rem; }
+      .card { border-radius: .65rem; }
+      .card-header { padding: .75rem; }
+      .card-body { padding: .85rem; }
+      .card-body .d-flex.justify-content-between {
+        align-items: flex-start;
+        gap: .65rem;
+      }
+      .card-body .d-flex.justify-content-between > :last-child {
+        text-align: right;
+      }
+
+      .d-flex.flex-wrap.gap-2.mt-3 > .btn {
+        flex: 1 1 100%;
+        width: 100%;
+      }
+
+      /* Convert the wide invoice table into compact, readable item cards. */
+      .invoice-items-table {
+        min-width: 0;
+        width: 100%;
+        border: 0;
+      }
+
+      .invoice-items-table thead { display: none; }
+      .invoice-items-table,
+      .invoice-items-table tbody,
+      .invoice-items-table tbody tr,
+      .invoice-items-table tbody td,
+      .invoice-items-table tfoot,
+      .invoice-items-table tfoot tr,
+      .invoice-items-table tfoot th {
+        display: block;
+        width: 100%;
+      }
+
+      .invoice-items-table tbody {
+        padding: .65rem;
+      }
+
+      .invoice-items-table tbody tr {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 12px;
+        margin-bottom: .8rem;
+        padding: .65rem;
+        border: 1px solid #dee2e6;
+        border-radius: .65rem;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,.05);
+      }
+
+      .invoice-items-table tbody td {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        min-width: 0;
+        padding: .45rem .15rem;
+        border: 0;
+        border-bottom: 1px solid #f0f1f2;
+        text-align: left !important;
+        overflow-wrap: anywhere;
+        font-size: .86rem;
+      }
+
+      .invoice-items-table tbody td::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: .15rem;
+        color: #6c757d;
+        font-size: .68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .025em;
+      }
+
+      .invoice-items-table tbody td.invoice-product-cell {
+        grid-column: 1 / -1;
+        font-weight: 700;
+        font-size: .98rem;
+        color: #212529;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      .invoice-items-table tbody td.invoice-line-total {
+        background: #f0f7f3;
+        border-radius: .35rem;
+        padding: .5rem;
+        color: #0b5c39;
+        font-weight: 700;
+      }
+
+      .invoice-items-table tbody td.invoice-line-total::before {
+        color: #0b5c39;
+      }
+
+      .invoice-items-table tfoot {
+        padding: 0 .65rem .65rem;
+      }
+
+      .invoice-items-table tfoot tr {
+        padding: .7rem;
+        border: 1px solid #dee2e6;
+        border-radius: .65rem;
+        background: #f8f9fa;
+      }
+
+      .invoice-items-table tfoot th {
+        padding: .35rem .1rem;
+        border: 0;
+        text-align: left !important;
+        white-space: normal;
+        font-size: .85rem;
+      }
+
+      .modal-dialog {
+        margin: .5rem;
+        max-width: calc(100% - 1rem);
+      }
+
+      #confirmPaymentModal .confirm-payment-dialog,
+      #confirmPaymentModal .modal-content {
+        max-height: calc(100dvh - 1rem);
+      }
+
+      .modal-content { border-radius: .75rem; }
+      .modal-header, .modal-body, .modal-footer { padding: .85rem; }
+      .modal-footer { gap: .5rem; }
+      .modal-footer > .btn { flex: 1 1 auto; }
+
+      input, select, textarea, .form-control, .form-select {
+        font-size: 16px !important;
+      }
+
+      .offcanvas { max-width: 85vw; }
+    }
+
+    @media (max-width: 380px) {
+      .invoice-header-actions { grid-template-columns: 1fr; }
+      .invoice-items-table tbody tr { gap: 0 8px; }
+      .invoice-items-table tbody td { font-size: .8rem; }
+    }
   </style>
 </head>
 <body>
@@ -789,7 +1007,7 @@
           Created: {{ invoice.created_at|date:"Y-m-d H:i" }}
         </div>
       </div>
-      <div class="d-flex gap-2">
+      <div class="invoice-header-actions d-flex gap-2 flex-wrap">
         <a href="{% url 'staff-invoices' %}" class="btn btn-outline-secondary">Back to Invoices</a>
         <a href="{% url 'invoice-download' invoice.id %}"
           class="btn btn-danger">
@@ -975,7 +1193,7 @@
       <div class="card-body p-0">
         {% if items %}
           <div class="table-responsive">
-            <table class="table table-striped table-bordered mb-0">
+            <table class="table table-striped table-bordered mb-0 invoice-items-table">
               <thead>
                 <tr>
                   <th style="width: 12%">Category</th>
@@ -994,17 +1212,17 @@
               <tbody>
                 {% for it in items %}
                   <tr>
-                    <td>{{ it.category.name }}</td>
-                    <td>{{ it.sku }}</td>
-                    <td>{{ it.product_name }}</td>
-                    <td class="text-end">{{ it.quantity|floatformat:2 }}</td>
-                    <td class="text-end">R{{ it.unit_price_excl|floatformat:2 }}</td>
-                    <td class="text-end">R{{ it.discount_excl|floatformat:2 }}</td>
-                    <td class="text-end">R{{ it.net_unit_excl|floatformat:2 }}</td>
-                    <td class="text-end">{{ it.vat_percent|floatformat:2 }}%</td>
-                    <td class="text-end">R{{ it.line_total_excl|floatformat:2 }}</td>
-                    <td class="text-end">R{{ it.line_vat_amount|floatformat:2 }}</td>
-                    <td class="text-end"><strong>R{{ it.display_line_total_inc|floatformat:2 }}</strong></td>
+                    <td data-label="Category">{{ it.category.name }}</td>
+                    <td data-label="SKU">{{ it.sku }}</td>
+                    <td data-label="Product" class="invoice-product-cell">{{ it.product_name }}</td>
+                    <td data-label="Quantity" class="text-end">{{ it.quantity|floatformat:2 }}</td>
+                    <td data-label="Unit Excl" class="text-end">R{{ it.unit_price_excl|floatformat:2 }}</td>
+                    <td data-label="Discount Excl" class="text-end">R{{ it.discount_excl|floatformat:2 }}</td>
+                    <td data-label="Net Unit Excl" class="text-end">R{{ it.net_unit_excl|floatformat:2 }}</td>
+                    <td data-label="VAT" class="text-end">{{ it.vat_percent|floatformat:2 }}%</td>
+                    <td data-label="Line Excl" class="text-end">R{{ it.line_total_excl|floatformat:2 }}</td>
+                    <td data-label="Line VAT" class="text-end">R{{ it.line_vat_amount|floatformat:2 }}</td>
+                    <td data-label="Line Total Inc" class="text-end invoice-line-total"><strong>R{{ it.display_line_total_inc|floatformat:2 }}</strong></td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -1446,7 +1664,7 @@
   <!-- Confirm Payment Modal -->
   <!-- Confirm Payment modal (form) -->
   <div class="modal fade" id="confirmPaymentModal" tabindex="-1" aria-labelledby="confirmPaymentModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable confirm-payment-dialog">
       <div class="modal-content">
         <form method="post" action="{% url 'invoice-confirm-payment' invoice.id %}">
           {% csrf_token %}

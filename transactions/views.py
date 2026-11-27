@@ -13,10 +13,24 @@ from .models import Transaction, BusinessBalance
 from .forms import TransactionForm
 from .models import Transaction, BusinessBalance
 from django.db.models.functions import Coalesce
+from datetime import datetime, timedelta, time, date
+from decimal import Decimal
 
+from django.db.models import (
+    Case,
+    When,
+    Value,
+    IntegerField,
+    Q,
+    Sum,
+)
+from django.db.models.functions import Coalesce
+from django.utils.timezone import now, make_aware
 from django.utils.crypto import constant_time_compare
 from django.db import transaction as db_transaction
-
+from django.db.models import F, Max, Window
+from django.db.models import Case, When, Value, IntegerField, Q, Sum
+from django.db.models.functions import Coalesce
 from .models import Transaction
 from audit.utils import log_event
 from profiles.models import StaffProfile
@@ -37,63 +51,90 @@ staff_required = user_passes_test(staff_check, login_url='/portal/client/login/'
 
 DAY_OPTIONS = [7, 14, 30, 60, 90]  # wherever you keep this
 
+
+
+
 @login_required
 @staff_required
 def transaction_list(request):
-    # --- days param (validated) ---
+    # --- Days parameter (validated) ---
     raw = request.GET.get("days", "7")
+
     try:
         days = int(raw)
-    except ValueError:
+    except (ValueError, TypeError):
         days = 7
+
     if days not in DAY_OPTIONS:
         days = 7
 
-    # --- base dates ---
+    # --- Base dates ---
     end_date = now().date()
     start_date = end_date - timedelta(days=days)
 
-    # --- optional explicit overrides ---
+    # --- Optional explicit date overrides ---
     if request.GET.get("start"):
         try:
             start_date = date.fromisoformat(request.GET["start"])
-        except ValueError:
+        except (ValueError, TypeError):
             pass
 
     if request.GET.get("end"):
         try:
             end_date = date.fromisoformat(request.GET["end"])
-        except ValueError:
+        except (ValueError, TypeError):
             pass
 
-    # --- convert to timezone-aware datetimes (MySQL safe) ---
-    start_dt = make_aware(datetime.combine(start_date, time.min))
-    end_dt = make_aware(datetime.combine(end_date, time.max))
+    # --- Convert dates to timezone-aware datetimes ---
+    start_dt = make_aware(
+        datetime.combine(start_date, time.min)
+    )
 
-    # --- base queryset ---
+    end_dt = make_aware(
+        datetime.combine(end_date, time.max)
+    )
+
+    # --- Base queryset ---
     qs = (
         Transaction.objects
         .select_related("client", "invoice")
-        .filter(created_at__gte=start_dt, created_at__lte=end_dt)
+        .filter(
+            created_at__gte=start_dt,
+            created_at__lte=end_dt
+        )
     )
 
-    # --- optional filters ---
+    # --- Optional client filter ---
     client_id = request.GET.get("client")
+
     if client_id and client_id.isdigit():
         qs = qs.filter(client_id=int(client_id))
 
+    # --- Optional transaction type filter ---
     tx_type = request.GET.get("type")
+
     if tx_type:
         qs = qs.filter(transaction_type=tx_type)
 
-    # --- Cash KPIs: credit_issue is a non-cash allocation ---
-    # Keep the existing incoming classifications, but do not count
-    # TradeAssist credit issuance as cash received or cash paid out.
-    CASH_IN_TYPES = ("payment", "credit_repayment", "refund")
+    # =====================================================
+    # CASH KPIs
+    # =====================================================
+
+    # Credit issuance is an allocation, not cash received.
+    CASH_IN_TYPES = (
+        "payment",
+        "credit_repayment",
+        "refund",
+    )
 
     total_in = qs.aggregate(
         v=Coalesce(
-            Sum("amount", filter=Q(transaction_type__in=CASH_IN_TYPES)),
+            Sum(
+                "amount",
+                filter=Q(
+                    transaction_type__in=CASH_IN_TYPES
+                )
+            ),
             Decimal("0.00")
         )
     )["v"]
@@ -102,41 +143,103 @@ def transaction_list(request):
         v=Coalesce(
             Sum(
                 "amount",
-                filter=~Q(transaction_type__in=CASH_IN_TYPES)
-                       & ~Q(transaction_type="credit_issue")
+                filter=(
+                    ~Q(transaction_type__in=CASH_IN_TYPES)
+                    & ~Q(transaction_type="credit_issue")
+                )
             ),
             Decimal("0.00")
         )
     )["v"]
 
-    net_total = (total_in or Decimal("0.00")) - (total_out or Decimal("0.00"))
+    net_total = (
+        (total_in or Decimal("0.00"))
+        - (total_out or Decimal("0.00"))
+    )
 
-    # --- context ---
+    # =====================================================
+    # TRANSACTION ORDERING
+    # =====================================================
+
+    # First sort invoice groups by their latest transaction.
+    # Then order transactions within each invoice:
+    #
+    # 1. Credit Issued
+    # 2. Payment In
+    # 3. Invoice Out
+    #
+    # Window(Max) avoids TruncMinute and database timezone
+    # conversion.
+
+    ordered_transactions = (
+        qs.annotate(
+            invoice_latest_transaction=Window(
+                expression=Max("created_at"),
+                partition_by=[F("invoice_id")],
+            ),
+            transaction_priority=Case(
+                When(
+                    transaction_type="credit_issue",
+                    then=Value(1)
+                ),
+                When(
+                    transaction_type__in=(
+                        "payment",
+                        "credit_repayment",
+                    ),
+                    then=Value(2)
+                ),
+                When(
+                    transaction_type="invoice",
+                    then=Value(3)
+                ),
+                default=Value(4),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by(
+            F("invoice_latest_transaction").desc(nulls_last=True),
+            "transaction_priority",
+            "-created_at",
+            "id",
+        )
+    )
+
+    # =====================================================
+    # TEMPLATE CONTEXT
+    # =====================================================
+
     context = {
         "DAY_OPTIONS": DAY_OPTIONS,
         "days": days,
         "start_date": start_date,
         "end_date": end_date,
+
         "total_in": total_in,
         "total_out": total_out,
         "net_total": net_total,
-        "transactions": qs.order_by(
-            "-created_at",
-            Case(
-                When(transaction_type="payment", then=Value(1)),
-                When(transaction_type="credit_issue", then=Value(2)),
-                When(transaction_type="invoice", then=Value(3)),
-                default=Value(4),
-                output_field=IntegerField(),
-            ),
+
+        "transactions": ordered_transactions,
+
+        "clients": Client.objects.order_by(
+            "name"
+        ).only(
             "id",
+            "name"
         ),
-        "clients": Client.objects.order_by("name").only("id", "name"),
+
         "type_choices": Transaction.TRANSACTION_TYPES,
-        "request": request,  # needed for filters / hidden inputs
+        "request": request,
     }
 
-    return render(request, "transactions/transaction_list.html", context)
+    return render(
+        request,
+        "transactions/transaction_list.html",
+        context
+    )
+
+
+
 
 @login_required
 @staff_required
